@@ -1,0 +1,330 @@
+/**
+ * API Service Layer
+ * Replaces Firebase SDK calls with HTTP requests
+ * Centralized API client for all backend requests
+ */
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
+/**
+ * Get auth token from storage
+ */
+function getAuthToken() {
+  return localStorage.getItem('accessToken');
+}
+
+/**
+ * Get refresh token from storage
+ */
+function getRefreshToken() {
+  return localStorage.getItem('refreshToken');
+}
+
+/**
+ * Set auth tokens in storage
+ */
+function setAuthTokens(accessToken, refreshToken) {
+  localStorage.setItem('accessToken', accessToken);
+  if (refreshToken) {
+    localStorage.setItem('refreshToken', refreshToken);
+  }
+}
+
+/**
+ * Clear auth tokens
+ */
+function clearAuthTokens() {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+}
+
+/**
+ * Refresh access token
+ */
+async function refreshAccessToken() {
+  try {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) {
+      throw new Error('No refresh token');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Token refresh failed');
+    }
+
+    const data = await response.json();
+    setAuthTokens(data.accessToken, refreshToken);
+    return data.accessToken;
+  } catch (error) {
+    clearAuthTokens();
+    window.location.href = '/';
+    throw error;
+  }
+}
+
+/**
+ * API request wrapper with auth and error handling
+ */
+async function apiRequest(endpoint, options = {}) {
+  const token = getAuthToken();
+
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token && { Authorization: `Bearer ${token}` }),
+    ...options.headers,
+  };
+
+  console.log(`API Request: ${options.method || 'GET'} ${API_BASE_URL}${endpoint}`);
+  
+  let response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+    signal: AbortSignal.timeout(30000), // 30 second timeout
+  });
+
+  // Handle 401 - try refresh token
+  if (response.status === 401 && token) {
+    try {
+      const newToken = await refreshAccessToken();
+      headers.Authorization = `Bearer ${newToken}`;
+      response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...options,
+        headers,
+      });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  if (!response.ok) {
+    let errorData;
+    try {
+      const text = await response.text();
+      errorData = text ? JSON.parse(text) : { error: `HTTP ${response.status}: ${response.statusText}` };
+    } catch (e) {
+      errorData = { error: `HTTP ${response.status}: ${response.statusText}` };
+    }
+    
+    // Log full error details for debugging
+    console.error(`API Error [${response.status}]:`, {
+      endpoint,
+      status: response.status,
+      statusText: response.statusText,
+      error: errorData,
+    });
+    
+    const error = new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+    error.response = errorData;
+    error.status = response.status;
+    throw error;
+  }
+
+  return response.json();
+}
+
+/**
+ * Upload file (for resume, profile photo)
+ */
+async function uploadFile(endpoint, file, fieldName = 'file', onProgress) {
+  const token = getAuthToken();
+  const formData = new FormData();
+  // Use field name based on endpoint if not specified
+  const fileFieldName = endpoint.includes('/resume') ? 'resume' : fieldName;
+  formData.append(fileFieldName, file);
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress((e.loaded / e.total) * 100);
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status === 200 || xhr.status === 201) {
+        resolve(JSON.parse(xhr.responseText));
+      } else {
+        reject(new Error(`Upload failed: ${xhr.statusText}`));
+      }
+    });
+
+    xhr.addEventListener('error', () => {
+      reject(new Error('Upload failed'));
+    });
+
+    xhr.open('POST', `${API_BASE_URL}${endpoint}`);
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    xhr.send(formData);
+  });
+}
+
+// Export API functions
+export const api = {
+  // Auth
+  sendOTP: (email) => apiRequest('/auth/send-otp', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  }),
+
+  verifyOTP: (email, otp) => apiRequest('/auth/verify-otp', {
+    method: 'POST',
+    body: JSON.stringify({ email, otp }),
+  }),
+
+  register: (data) => apiRequest('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+
+  login: (data) => {
+    const response = apiRequest('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }).then(data => {
+      if (data.accessToken && data.refreshToken) {
+        setAuthTokens(data.accessToken, data.refreshToken);
+      }
+      return data;
+    });
+    return response;
+  },
+
+  logout: () => {
+    const response = apiRequest('/auth/logout', {
+      method: 'POST',
+      body: JSON.stringify({ refreshToken: getRefreshToken() }),
+    });
+    clearAuthTokens();
+    return response;
+  },
+
+  getCurrentUser: () => apiRequest('/auth/me'),
+
+  resetPassword: (email) => apiRequest('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  }),
+
+  // Students
+  getStudentProfile: () => apiRequest('/students/profile'),
+  updateStudentProfile: (data) => apiRequest('/students/profile', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+  getAllStudents: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return apiRequest(`/students?${query}`);
+  },
+  getStudentSkills: () => apiRequest('/students/skills'),
+  addOrUpdateSkill: (skill) => apiRequest('/students/skills', {
+    method: 'POST',
+    body: JSON.stringify(skill),
+  }),
+  deleteSkill: (skillId) => apiRequest(`/students/skills/${skillId}`, {
+    method: 'DELETE',
+  }),
+  
+  // Education (TODO: Backend needs to add these endpoints)
+  addEducation: (education) => apiRequest('/students/education', {
+    method: 'POST',
+    body: JSON.stringify(education),
+  }),
+  updateEducation: (educationId, education) => apiRequest(`/students/education/${educationId}`, {
+    method: 'PUT',
+    body: JSON.stringify(education),
+  }),
+  deleteEducation: (educationId) => apiRequest(`/students/education/${educationId}`, {
+    method: 'DELETE',
+  }),
+  
+  // Projects (TODO: Backend needs to add these endpoints)
+  addProject: (project) => apiRequest('/students/projects', {
+    method: 'POST',
+    body: JSON.stringify(project),
+  }),
+  updateProject: (projectId, project) => apiRequest(`/students/projects/${projectId}`, {
+    method: 'PUT',
+    body: JSON.stringify(project),
+  }),
+  deleteProject: (projectId) => apiRequest(`/students/projects/${projectId}`, {
+    method: 'DELETE',
+  }),
+  
+  // Achievements (TODO: Backend needs to add these endpoints)
+  addAchievement: (achievement) => apiRequest('/students/achievements', {
+    method: 'POST',
+    body: JSON.stringify(achievement),
+  }),
+  updateAchievement: (achievementId, achievement) => apiRequest(`/students/achievements/${achievementId}`, {
+    method: 'PUT',
+    body: JSON.stringify(achievement),
+  }),
+  deleteAchievement: (achievementId) => apiRequest(`/students/achievements/${achievementId}`, {
+    method: 'DELETE',
+  }),
+  
+  uploadResume: (file, onProgress) => uploadFile('/students/resume', file, 'resume', onProgress),
+
+  // Jobs
+  getTargetedJobs: () => apiRequest('/jobs/targeted'),
+  getJobs: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return apiRequest(`/jobs?${query}`);
+  },
+  getJob: (jobId) => apiRequest(`/jobs/${jobId}`),
+  createJob: (data) => apiRequest('/jobs', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  updateJob: (jobId, data) => apiRequest(`/jobs/${jobId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+  deleteJob: (jobId) => apiRequest(`/jobs/${jobId}`, {
+    method: 'DELETE',
+  }),
+  postJob: (jobId, targeting) => apiRequest(`/jobs/${jobId}/post`, {
+    method: 'POST',
+    body: JSON.stringify(targeting),
+  }),
+
+  // Applications
+  getAllApplications: (filters = {}) => {
+    const query = new URLSearchParams(filters).toString();
+    return apiRequest(`/applications${query ? `?${query}` : ''}`);
+  },
+  getStudentApplications: () => apiRequest('/applications/student'),
+  applyToJob: (jobId) => apiRequest(`/applications/jobs/${jobId}`, {
+    method: 'POST',
+  }),
+  updateApplicationStatus: (applicationId, status, interviewDate) => apiRequest(`/applications/${applicationId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status, interviewDate }),
+  }),
+
+  // Notifications
+  getNotifications: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return apiRequest(`/notifications?${query}`);
+  },
+  markNotificationRead: (notificationId) => apiRequest(`/notifications/${notificationId}/read`, {
+    method: 'PATCH',
+  }),
+
+  // Utility
+  uploadFile,
+  getAuthToken,
+  setAuthTokens,
+  clearAuthTokens,
+};
+
+export default api;

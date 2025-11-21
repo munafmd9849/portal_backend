@@ -1,0 +1,179 @@
+/**
+ * Auth Context - Migrated Version
+ * Replaces Firebase Auth with JWT-based authentication
+ * Maintains same API for seamless frontend migration
+ */
+
+import React, { createContext, useEffect, useMemo, useState, useRef } from 'react';
+import api from '../services/api.js';
+import { initSocket, disconnectSocket } from '../services/socket.js';
+
+export const AuthContext = createContext(null);
+
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+  const [role, setRole] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [userStatus, setUserStatus] = useState(null);
+
+  // Track if user has been loaded to prevent repeated calls
+  const userLoadedRef = useRef(false);
+  const socketInitializedRef = useRef(false);
+  
+  // Load user on mount (replaces onAuthStateChanged)
+  useEffect(() => {
+    if (userLoadedRef.current) return; // Prevent repeated calls
+    
+    async function loadUser() {
+      if (userLoadedRef.current) return; // Double check
+      userLoadedRef.current = true;
+      
+      try {
+        const token = api.getAuthToken();
+        if (!token) {
+          setLoading(false);
+          return;
+        }
+
+        const data = await api.getCurrentUser();
+        const userData = data.user;
+
+        setUser(userData);
+        setRole(userData.role);
+        setEmailVerified(userData.emailVerified || false);
+        setUserStatus(userData.status || 'ACTIVE');
+
+      // Initialize Socket.IO connection (only once)
+      if (userData && !socketInitializedRef.current) {
+        socketInitializedRef.current = true;
+        initSocket();
+      }
+      } catch (error) {
+        console.error('Failed to load user:', error);
+        api.clearAuthTokens();
+        userLoadedRef.current = false; // Allow retry on error
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    loadUser();
+  }, []);
+
+  // Login (replaces signInWithEmailAndPassword)
+  const login = async (email, password, selectedRole) => {
+    try {
+      const data = await api.login({ email, password, selectedRole });
+      
+      setUser(data.user);
+      setRole(data.user.role);
+      setEmailVerified(data.user.emailVerified || false);
+      setUserStatus(data.user.status || 'ACTIVE');
+
+      // Initialize Socket.IO (only once)
+      if (!socketInitializedRef.current) {
+        socketInitializedRef.current = true;
+        initSocket();
+      }
+
+      return { user: data.user, role: data.user.role, status: data.user.status };
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  // Logout (replaces signOut)
+  const logout = async () => {
+    try {
+      await api.logout();
+      setUser(null);
+      setRole(null);
+      setEmailVerified(false);
+      setUserStatus(null);
+      disconnectSocket();
+      socketInitializedRef.current = false; // Reset socket flag on logout
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
+  // Register (replaces createUserWithEmailAndPassword)
+  const registerWithEmail = async ({ email, password, role, profile = {}, verificationToken }) => {
+    try {
+      const data = await api.register({ email, password, role, profile, verificationToken });
+      
+      // Store tokens if provided
+      if (data.accessToken && data.refreshToken) {
+        api.setAuthTokens(data.accessToken, data.refreshToken);
+      }
+      
+      setUser(data.user);
+      setRole(data.user.role);
+      setEmailVerified(false);
+      setUserStatus(data.user.status);
+
+      // Initialize Socket.IO (only once)
+      if (data.user && !socketInitializedRef.current) {
+        socketInitializedRef.current = true;
+        initSocket();
+      }
+
+      return data.user;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  // Reset password (replaces sendPasswordResetEmail)
+  const resetPassword = async (email) => {
+    try {
+      await api.resetPassword(email);
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  // Google login (if implemented)
+  const loginWithGoogle = async () => {
+    // TODO: Implement OAuth flow with backend
+    throw new Error('Google login not yet implemented');
+  };
+
+  // Email verification (if needed)
+  const resendEmailVerification = async () => {
+    // TODO: Implement email verification
+    throw new Error('Email verification not yet implemented');
+  };
+
+  const checkEmailVerification = async () => {
+    try {
+      const data = await api.getCurrentUser();
+      setEmailVerified(data.user.emailVerified || false);
+      return data.user.emailVerified || false;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const value = useMemo(() => ({
+    user,
+    role,
+    userStatus,
+    loading,
+    emailVerified,
+    login,
+    logout,
+    loginWithGoogle,
+    registerWithEmail,
+    resetPassword,
+    resendEmailVerification,
+    checkEmailVerification,
+  }), [user, role, userStatus, loading, emailVerified]);
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
