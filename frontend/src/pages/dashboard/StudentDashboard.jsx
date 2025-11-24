@@ -684,6 +684,11 @@ export default function StudentDashboard() {
         await createCompleteStudentProfile(user.id, profileData, []);
       }
       
+      // Dispatch custom event to notify DashboardLayout to reload profile
+      window.dispatchEvent(new CustomEvent('profileUpdated', { 
+        detail: { userId: user.id } 
+      }));
+      
       setTimeout(() => {
         setShowFloatingAlert(false);
         setAlertMessage(null);

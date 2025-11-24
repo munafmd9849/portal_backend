@@ -26,6 +26,7 @@ import RecruiterDashboard from './pages/dashboard/RecruiterDashboard'
 import AdminDashboard from './pages/dashboard/AdminDashboard'
 import Login from './pages/Login'
 import Unsubscribe from './pages/Unsubscribe'
+import ResetPassword from './pages/ResetPassword'
 import { useAuth } from './hooks/useAuth'
 import { AuthProvider } from './context/AuthContextJWT'
 import AuthRedirect from './components/AuthRedirect'
@@ -186,6 +187,7 @@ function AppContent() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/dev-team" element={<DevTeam />} />
         <Route path="/unsubscribe" element={<Unsubscribe />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         {/* Protected routes */}
         <Route element={<ProtectedRoute allowRoles={['student']} />}>

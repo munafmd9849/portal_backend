@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
 import api from '../../../services/api';
 import { getStudentProfile } from '../../../services/students';
@@ -18,6 +18,27 @@ export default function DashboardLayout({ children }) {
   const [loading, setLoading] = useState(true);
   const profileLoadedRef = useRef(false);
 
+  // Load student profile function (reusable)
+  const loadProfile = useCallback(async (userId) => {
+    if (!userId) {
+      console.log('No user ID available');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const profile = await getStudentProfile(userId);
+      setStudentProfile(profile);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error loading profile:', error);
+      // Set a default profile structure even on error so we can show email
+      setStudentProfile(null);
+      setLoading(false);
+    }
+  }, []);
+
   // Load student profile data once on mount
   useEffect(() => {
     if (!user?.id) {
@@ -32,36 +53,33 @@ export default function DashboardLayout({ children }) {
       return;
     }
 
-    let isMounted = true;
     profileLoadedRef.current = true;
+    loadProfile(user.id);
 
-    const loadProfile = async () => {
-      try {
-        setLoading(true);
-        const profile = await getStudentProfile(user.id);
-        if (isMounted) {
-          setStudentProfile(profile);
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('Error loading profile:', error);
-        if (isMounted) {
-          // Set a default profile structure even on error so we can show email
-          setStudentProfile(null);
-          setLoading(false);
-          // Reset on error to allow retry
-          profileLoadedRef.current = false;
-        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]); // Only depend on user.id
+
+  // Listen for profile update events and reload profile
+  useEffect(() => {
+    const handleProfileUpdate = (event) => {
+      // Verify it's for the current user
+      if (event.detail?.userId === user?.id) {
+        console.log('Profile updated, reloading header...');
+        // Reset ref to allow reload
+        profileLoadedRef.current = false;
+        // Reload profile
+        loadProfile(user.id).then(() => {
+          profileLoadedRef.current = true;
+        });
       }
     };
 
-    loadProfile();
+    window.addEventListener('profileUpdated', handleProfileUpdate);
 
     return () => {
-      isMounted = false;
+      window.removeEventListener('profileUpdated', handleProfileUpdate);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]); // Only depend on user.id
+  }, [user?.id, loadProfile]);
 
   // School-specific header texts
   const getSchoolHeaderText = (school) => {

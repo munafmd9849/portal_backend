@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { gsap } from 'gsap';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, Clock, CheckCircle2, XCircle } from 'lucide-react';
 import EmailVerificationModal from '../auth/EmailVerificationModal';
 import api from '../../services/api';
 
@@ -13,15 +13,34 @@ function LoginModal({ isOpen, onClose, defaultRole = 'Student' }) {
   const [mode, setMode] = useState('login'); // 'login' | 'register' | 'forgot'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState(''); // For reset password confirmation
+  const [showPassword, setShowPassword] = useState(false); // Toggle password visibility
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false); // Toggle confirm password visibility
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false); // Track password field focus
+  const [isConfirmPasswordFocused, setIsConfirmPasswordFocused] = useState(false); // Track confirm password field focus
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [showEmailVerification, setShowEmailVerification] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState('');
   // OTP flow states
   const [otpStep, setOtpStep] = useState('email'); // 'email' | 'otp' | 'password'
+  const [resetStep, setResetStep] = useState('email'); // 'email' | 'otp' | 'password' - for reset password flow
   const [otp, setOtp] = useState('');
+  const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']); // Individual OTP digits
+  const [resetOtpDigits, setResetOtpDigits] = useState(['', '', '', '', '', '']); // OTP digits for reset password
+  const otpInputRefs = useRef([]); // Refs for OTP input boxes
+  const resetOtpInputRefs = useRef([]); // Refs for reset password OTP input boxes
   const [otpSent, setOtpSent] = useState(false);
+  const [otpStatus, setOtpStatus] = useState(null); // OTP status from backend
+  const [resetOtpStatus, setResetOtpStatus] = useState(null); // Reset OTP status from backend
+  const [otpExpiresAt, setOtpExpiresAt] = useState(null); // OTP expiration timestamp
+  const [resetOtpExpiresAt, setResetOtpExpiresAt] = useState(null); // Reset OTP expiration timestamp
+  const [timeRemaining, setTimeRemaining] = useState(null); // Time remaining until OTP expires (in seconds)
+  const [resetTimeRemaining, setResetTimeRemaining] = useState(null); // Time remaining for reset OTP
   const [verificationToken, setVerificationToken] = useState('');
+  const [resetToken, setResetToken] = useState(null); // Reset token after OTP verification
+  const [hideOtpStatusCard, setHideOtpStatusCard] = useState(false); // Temporarily hide status card when error shows (signup form)
+  const [hideResetOtpStatusCard, setHideResetOtpStatusCard] = useState(false); // Temporarily hide status card when error shows (reset password form)
   const [otpCountdown, setOtpCountdown] = useState(0);
   const [animKey, setAnimKey] = useState('Student');
   const [isAnimating, setIsAnimating] = useState(false);
@@ -31,12 +50,70 @@ function LoginModal({ isOpen, onClose, defaultRole = 'Student' }) {
   const backdropRef = useRef(null);
   const formRef = useRef(null);
 
-  // Update role when defaultRole changes and modal opens
+  // Reset all form state when modal opens
   useEffect(() => {
     if (isOpen) {
-      setRole(defaultRole);
+      // Reset all form fields when modal opens
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
+      setError('');
+      setBusy(false);
+      setShowPassword(false);
+      setShowConfirmPassword(false);
+      setIsPasswordFocused(false);
+      setIsConfirmPasswordFocused(false);
+      setOtpStep('email');
+      setResetStep('email');
+      setOtp('');
+      setOtpDigits(['', '', '', '', '', '']);
+      setResetOtpDigits(['', '', '', '', '', '']);
+      setOtpSent(false);
+      setOtpStatus(null);
+      setResetOtpStatus(null);
+      setOtpExpiresAt(null);
+      setResetOtpExpiresAt(null);
+      setTimeRemaining(null);
+      setResetTimeRemaining(null);
+      setVerificationToken('');
+      setResetToken(null);
+      setOtpCountdown(0);
+      setShowEmailVerification(false);
+      setRegisteredEmail('');
+      setMode('login'); // Reset to login mode
+      setRole(defaultRole); // Set role from defaultRole prop
+      setHideOtpStatusCard(false);
+      setHideResetOtpStatusCard(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, defaultRole]);
+
+  // Reset form state when role changes (but modal is already open)
+  useEffect(() => {
+    if (isOpen && role) {
+      // Reset form state when role changes
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
+      setError('');
+      setOtpStep('email');
+      setResetStep('email');
+      setOtpDigits(['', '', '', '', '', '']);
+      setResetOtpDigits(['', '', '', '', '', '']);
+      setOtpStatus(null);
+      setResetOtpStatus(null);
+      setOtpExpiresAt(null);
+      setResetOtpExpiresAt(null);
+      setTimeRemaining(null);
+      setResetTimeRemaining(null);
+      setVerificationToken('');
+      setResetToken(null);
+      setMode('login'); // Reset to login mode when role changes
+      setHideOtpStatusCard(false);
+      setHideResetOtpStatusCard(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role, isOpen]);
 
   useEffect(() => {
     if (isOpen && !shouldRender) {
@@ -177,6 +254,127 @@ function LoginModal({ isOpen, onClose, defaultRole = 'Student' }) {
     };
   }, [shouldRender]);
 
+  // Calculate time remaining until OTP expires based on otpExpiresAt timestamp
+  useEffect(() => {
+    if (!otpExpiresAt || otpStep !== 'otp') {
+      setTimeRemaining(null);
+      return;
+    }
+
+    const updateTimeRemaining = () => {
+      const now = new Date().getTime();
+      const expiresAt = new Date(otpExpiresAt).getTime();
+      const remaining = Math.max(0, Math.floor((expiresAt - now) / 1000)); // Remaining in seconds
+      setTimeRemaining(remaining);
+      
+      // If expired, update status
+      if (remaining === 0 && otpStatus === 'PENDING_VERIFICATION') {
+        setOtpStatus('EXPIRED');
+      }
+    };
+
+    // Update immediately
+    updateTimeRemaining();
+
+    // Update every second
+    const interval = setInterval(updateTimeRemaining, 1000);
+
+    return () => clearInterval(interval);
+  }, [otpExpiresAt, otpStep, otpStatus]);
+
+  // Calculate time remaining for reset password OTP
+  useEffect(() => {
+    if (!resetOtpExpiresAt || resetStep !== 'otp') {
+      setResetTimeRemaining(null);
+      return;
+    }
+
+    const updateTimeRemaining = () => {
+      const now = new Date().getTime();
+      const expiresAt = new Date(resetOtpExpiresAt).getTime();
+      const remaining = Math.max(0, Math.floor((expiresAt - now) / 1000)); // Remaining in seconds
+      setResetTimeRemaining(remaining);
+      
+      // If expired, update status
+      if (remaining === 0 && resetOtpStatus === 'PENDING_VERIFICATION') {
+        setResetOtpStatus('EXPIRED');
+      }
+    };
+
+    // Update immediately
+    updateTimeRemaining();
+
+    // Update every second
+    const interval = setInterval(updateTimeRemaining, 1000);
+
+    return () => clearInterval(interval);
+  }, [resetOtpExpiresAt, resetStep, resetOtpStatus]);
+
+  // Auto-clear error after 30 seconds in reset password OTP form
+  useEffect(() => {
+    if (mode === 'forgot' && resetStep === 'otp' && error) {
+      const timeout = setTimeout(() => {
+        setError('');
+        setHideResetOtpStatusCard(false); // Show status card again after error clears
+      }, 30000); // 30 seconds
+
+      return () => clearTimeout(timeout);
+    }
+  }, [error, mode, resetStep]);
+
+  // Auto-clear error after 30 seconds in signup OTP form
+  useEffect(() => {
+    if (mode === 'register' && otpStep === 'otp' && error) {
+      const timeout = setTimeout(() => {
+        setError('');
+        setHideOtpStatusCard(false); // Show status card again after error clears
+      }, 30000); // 30 seconds
+
+      return () => clearTimeout(timeout);
+    }
+  }, [error, mode, otpStep]);
+
+  // Reset ALL form state when mode changes (comprehensive cleanup)
+  useEffect(() => {
+    // Clear errors immediately
+    setError('');
+    
+    // Clear all form fields
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
+    
+    // Clear password visibility states
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+    setIsPasswordFocused(false);
+    setIsConfirmPasswordFocused(false);
+    
+    // Clear all OTP states (signup form)
+    setOtpStep('email');
+    setOtpDigits(['', '', '', '', '', '']);
+    setOtp('');
+    setOtpSent(false);
+    setOtpStatus(null);
+    setOtpExpiresAt(null);
+    setTimeRemaining(null);
+    setVerificationToken('');
+    setOtpCountdown(0);
+    setHideOtpStatusCard(false);
+    
+    // Clear all OTP states (reset password form)
+    setResetStep('email');
+    setResetOtpDigits(['', '', '', '', '', '']);
+    setResetOtpStatus(null);
+    setResetOtpExpiresAt(null);
+    setResetTimeRemaining(null);
+    setResetToken(null);
+    setHideResetOtpStatusCard(false);
+    
+    // Clear busy state
+    setBusy(false);
+  }, [mode]);
+
   const handleBackdropClick = (e) => {
     if (e.target === e.currentTarget && !isAnimating) {
       onClose();
@@ -229,25 +427,39 @@ function LoginModal({ isOpen, onClose, defaultRole = 'Student' }) {
           )}
         </div>
         {/* Login Form Right Side */}
-        <div className="flex-1 flex flex-col justify-center h-full relative bg-transparent">
-          <button onClick={handleClose} className="absolute top-4 right-4 bg-gray-200 text-black hover:bg-gray-300 hover:scale-110 text-sm font-bold px-4 py-0.5 border-2 rounded z-20 transition-all duration-200">✕</button>
+        <div className="flex-1 flex flex-col justify-center h-full relative bg-transparent min-w-0">
+                <button onClick={handleClose} className="absolute top-4 right-4 bg-black/85 backdrop-blur-md border border-black/90 text-white hover:bg-black/90 hover:border-black/95 hover:scale-110 text-sm font-bold px-4 py-0.5 rounded-lg z-20 transition-all duration-200 shadow-md hover:shadow-lg">✕</button>
           {/* Enhanced glow effect */}
           <div className="absolute inset-0 pointer-events-none rounded-lg" style={{ boxShadow: '0 0 12px 3px rgba(128,0,255,0.2)' }}></div>
-          <div ref={formRef} className="relative z-10 px-8 py-4">
-            <h2 className="text-2xl font-bold mb-2 text-center text-black">
+          <div ref={formRef} className="relative z-10 px-6 py-4 w-full max-w-full overflow-hidden">
+            <h2 className="text-xl font-bold mb-6 text-center text-black uppercase" style={{ fontFamily: '"Josefin Sans", sans-serif' }}>
               {mode === 'login' && 'Sign in'}
-              {mode === 'register' && 'Create account'}
+              {mode === 'register' && 'Sign up'}
               {mode === 'forgot' && 'Reset password'}
             </h2>
-            <div className="flex justify-center gap-2 mb-4">
+            <div className="flex justify-center gap-2 mb-6">
               {['Student', 'Recruiter', 'Admin'].map(opt => (
                 <button
                   key={opt}
-                  className={`px-3 py-1 rounded-lg font-semibold text-sm uppercase border transition-all duration-300 transform hover:rotate-1
-                    ${role === opt ? 'bg-gradient-to-r from-black to-gray-800 text-white scale-105 shadow-lg border-black' : 'bg-white bg-opacity-30 text-black border-gray-400 hover:scale-105 hover:shadow-md hover:bg-opacity-50'}`}
+                  className={`px-3 py-1 rounded-lg font-semibold text-sm uppercase border transition-all duration-300 transform hover:rotate-1 backdrop-blur-md
+                    ${role === opt ? 'bg-black/85 text-white scale-105 shadow-lg border-black/90 hover:bg-black/90' : 'bg-black/60 text-white border-black/70 hover:scale-105 hover:shadow-md hover:bg-black/70'}`}
                   onClick={() => {
                     setRole(opt);
                     setAnimKey(opt); // Trigger form animation
+                    
+                    // Reset OTP flow when switching roles (especially important during registration)
+                    // OTP is role-specific, so switching roles should start fresh
+                    if (mode === 'register') {
+                      setOtpStep('email');
+                      setOtpSent(false);
+                      setOtp('');
+                      setOtpDigits(['', '', '', '', '', '']);
+                      setOtpStatus(null);
+                      setOtpExpiresAt(null);
+                      setTimeRemaining(null);
+                      setVerificationToken('');
+                      setError(''); // Clear any errors
+                    }
                   }}
                 >
                   {opt}
@@ -290,7 +502,7 @@ function LoginModal({ isOpen, onClose, defaultRole = 'Student' }) {
                 </div>
               )}
               {mode !== 'forgot' && (
-                <form className="flex flex-col gap-3" onSubmit={async (e)=>{
+                <form className="flex flex-col gap-4" onSubmit={async (e)=>{
                   e.preventDefault();
                   setError('');
                   setBusy(true);
@@ -342,19 +554,19 @@ function LoginModal({ isOpen, onClose, defaultRole = 'Student' }) {
                           console.log('LoginModal - OTP API response:', response);
                           setOtpSent(true);
                           setOtpStep('otp');
-                          setOtpCountdown(300); // 5 minutes
+                          // Store OTP status and expiration from backend response
+                          setOtpStatus(response.otpStatus || 'PENDING_VERIFICATION');
+                          setOtpExpiresAt(response.otpExpiresAt || new Date(Date.now() + 5 * 60 * 1000).toISOString());
+                          setOtpDigits(['', '', '', '', '', '']); // Reset OTP digits
+                          setOtp(''); // Reset OTP string
                           setError('');
                           setBusy(false); // Important: Reset busy state
-                          // Start countdown
-                          const interval = setInterval(() => {
-                            setOtpCountdown((prev) => {
-                              if (prev <= 1) {
-                                clearInterval(interval);
-                                return 0;
-                              }
-                              return prev - 1;
-                            });
-                          }, 1000);
+                          // Focus first OTP input after a short delay
+                          setTimeout(() => {
+                            if (otpInputRefs.current[0]) {
+                              otpInputRefs.current[0].focus();
+                            }
+                          }, 100);
                           console.log('LoginModal - OTP sent successfully, check your email');
                           return; // Don't proceed, wait for OTP
                         } catch (otpError) {
@@ -371,19 +583,25 @@ function LoginModal({ isOpen, onClose, defaultRole = 'Student' }) {
                         }
                       } else if (otpStep === 'otp') {
                         // Step 2: Verify OTP
-                        if (!otp || otp.length !== 6) {
+                        const otpValue = otpDigits.join('');
+                        if (!otpValue || otpValue.length !== 6) {
+                          // Hide status card and show error
+                          setHideOtpStatusCard(true);
                           setError('Please enter a 6-digit OTP');
+                          // Auto-clear error after 30 seconds (handled by useEffect)
                           setBusy(false);
                           return;
                         }
                         try {
-                          const verifyData = await api.verifyOTP(email, otp);
+                          const verifyData = await api.verifyOTP(email, otpValue);
                           setVerificationToken(verifyData.verificationToken);
                           setOtpStep('password');
                           setError('');
                           setBusy(false);
                           return; // Don't proceed, wait for password
                         } catch (verifyError) {
+                          // Hide status card and show error
+                          setHideOtpStatusCard(true);
                           setError(verifyError.message || 'Invalid OTP');
                           setBusy(false);
                           return;
@@ -465,49 +683,168 @@ function LoginModal({ isOpen, onClose, defaultRole = 'Student' }) {
                     setError(errorMessage);
                   } finally { setBusy(false); }
               }}>
-                {/* Email input - always shown */}
-                <input 
-                  value={email} 
-                  onChange={(e)=>setEmail(e.target.value)} 
-                  type="email" 
-                  placeholder="Email" 
-                  disabled={mode === 'register' && otpStep !== 'email'}
-                  className="border border-gray-300 rounded-lg px-3 py-2 bg-white bg-opacity-80 text-black placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed" 
-                />
+                {/* Email input - hide during OTP step */}
+                {!(mode === 'register' && otpStep === 'otp') && (
+                  <input 
+                    value={email} 
+                    onChange={(e)=>setEmail(e.target.value)} 
+                    type="email" 
+                    placeholder="Email" 
+                    disabled={mode === 'register' && otpStep !== 'email'}
+                    className="border border-gray-300 rounded-lg px-3 py-2 bg-white bg-opacity-80 text-black placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed" 
+                  />
+                )}
                 
                 {/* Show OTP input only for registration after email step */}
                 {mode === 'register' && otpStep === 'otp' && (
                   <>
-                    <div className="text-xs text-gray-600">
-                      OTP sent to {email}. Check your email.
-                      {otpCountdown > 0 && ` (Expires in ${Math.floor(otpCountdown / 60)}:${(otpCountdown % 60).toString().padStart(2, '0')})`}
+                    {otpStatus && !hideOtpStatusCard && (
+                      <div className="mb-1 flex justify-center w-full">
+                        <div className="flex flex-col items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-2 border-blue-200/60 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 backdrop-blur-sm max-w-full">
+                          {/* Status Row */}
+                          <div className="flex items-center gap-2">
+                            {/* Status Icon */}
+                            <div className="flex-shrink-0">
+                              {timeRemaining !== null && timeRemaining > 0 ? (
+                                <Clock className="w-5 h-5 text-blue-600 animate-pulse" strokeWidth={2.5} />
+                              ) : timeRemaining === 0 ? (
+                                <XCircle className="w-5 h-5 text-red-500" strokeWidth={2.5} />
+                              ) : (
+                                <CheckCircle2 className="w-5 h-5 text-green-500" strokeWidth={2.5} />
+                              )}
+                            </div>
+                            
+                            {/* Status Text */}
+                            <div className="text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap">
+                              {otpStatus.replace(/_/g, ' ')}
+                            </div>
+                          </div>
+                          
+                          {/* Expires Time - Centered */}
+                          {otpExpiresAt && timeRemaining !== null && timeRemaining > 0 && (
+                            <div className="text-xs text-gray-600 font-medium flex items-center gap-1 whitespace-nowrap">
+                              <span>expires in</span>
+                              <span className="font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-md">
+                                {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}
+                              </span>
+                            </div>
+                          )}
+                          {timeRemaining === 0 && (
+                            <div className="text-xs text-red-600 font-semibold bg-red-50 px-2 py-0.5 rounded-md whitespace-nowrap">
+                              expired
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex justify-center gap-2 mb-1">
+                      {[0, 1, 2, 3, 4, 5].map((index) => (
+                        <input
+                          key={index}
+                          ref={(el) => (otpInputRefs.current[index] = el)}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={1}
+                          value={otpDigits[index]}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/\D/g, '');
+                            const newDigits = [...otpDigits];
+                            // Allow clearing the field (empty string)
+                            newDigits[index] = value.slice(-1); // Take only the last character or empty string
+                            setOtpDigits(newDigits);
+                            setOtp(newDigits.join(''));
+                            
+                            // Auto-focus next input if value exists
+                            if (value && index < 5 && otpInputRefs.current[index + 1]) {
+                              otpInputRefs.current[index + 1].focus();
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            // Handle backspace
+                            if (e.key === 'Backspace') {
+                              if (otpDigits[index]) {
+                                // If current field has value, clear it
+                                const newDigits = [...otpDigits];
+                                newDigits[index] = '';
+                                setOtpDigits(newDigits);
+                                setOtp(newDigits.join(''));
+                              } else if (index > 0) {
+                                // If current field is empty, move to previous and clear it
+                                otpInputRefs.current[index - 1].focus();
+                                const newDigits = [...otpDigits];
+                                newDigits[index - 1] = '';
+                                setOtpDigits(newDigits);
+                                setOtp(newDigits.join(''));
+                              }
+                            }
+                            // Handle paste
+                            if (e.key === 'v' && (e.ctrlKey || e.metaKey)) {
+                              e.preventDefault();
+                              navigator.clipboard.readText().then((text) => {
+                                const digits = text.replace(/\D/g, '').slice(0, 6).split('');
+                                const newDigits = [...otpDigits];
+                                digits.forEach((digit, i) => {
+                                  if (index + i < 6) {
+                                    newDigits[index + i] = digit;
+                                  }
+                                });
+                                setOtpDigits(newDigits);
+                                setOtp(newDigits.join(''));
+                                const nextIndex = Math.min(index + digits.length, 5);
+                                if (otpInputRefs.current[nextIndex]) {
+                                  otpInputRefs.current[nextIndex].focus();
+                                }
+                              });
+                            }
+                          }}
+                          onPaste={(e) => {
+                            e.preventDefault();
+                            const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+                            const digits = pastedData.split('');
+                            const newDigits = [...otpDigits];
+                            digits.forEach((digit, i) => {
+                              if (index + i < 6) {
+                                newDigits[index + i] = digit;
+                              }
+                            });
+                            setOtpDigits(newDigits);
+                            setOtp(newDigits.join(''));
+                            const nextIndex = Math.min(index + digits.length, 5);
+                            if (otpInputRefs.current[nextIndex]) {
+                              otpInputRefs.current[nextIndex].focus();
+                            }
+                          }}
+                          className="w-10 h-10 text-center text-lg font-semibold border-2 border-gray-300 rounded-lg bg-white bg-opacity-80 text-black focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-200"
+                          placeholder="_"
+                        />
+                      ))}
                     </div>
-                    <input 
-                      value={otp} 
-                      onChange={(e)=>setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} 
-                      type="text" 
-                      placeholder="Enter 6-digit OTP" 
-                      maxLength={6}
-                      className="border border-gray-300 rounded-lg px-3 py-2 bg-white bg-opacity-80 text-black placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 text-center text-2xl tracking-widest font-mono" 
-                    />
                     <button 
                       type="button"
                       onClick={async () => {
                         setError('');
                         setBusy(true);
                         try {
-                          await api.sendOTP(email);
-                          setOtpCountdown(300);
+                          const response = await api.sendOTP(email);
+                          // Store OTP status and expiration from backend response
+                          setOtpStatus(response.otpStatus || 'PENDING_VERIFICATION');
+                          setOtpExpiresAt(response.otpExpiresAt || new Date(Date.now() + 5 * 60 * 1000).toISOString());
+                          setOtpDigits(['', '', '', '', '', '']);
+                          setOtp('');
                           setError('');
                           alert('OTP resent!');
+                          // Focus first input after resend
+                          if (otpInputRefs.current[0]) {
+                            otpInputRefs.current[0].focus();
+                          }
                         } catch (err) {
                           setError(err.message || 'Failed to resend OTP');
                         } finally {
                           setBusy(false);
                         }
                       }}
-                      disabled={busy || otpCountdown > 280}
-                      className="text-xs text-blue-600 hover:text-blue-800 underline disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={busy || (timeRemaining !== null && timeRemaining > 280)}
+                      className="text-sm font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-100 active:bg-blue-200 px-4 py-2 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-blue-600 text-center shadow-sm hover:shadow-md"
                     >
                       Resend OTP
                     </button>
@@ -516,43 +853,97 @@ function LoginModal({ isOpen, onClose, defaultRole = 'Student' }) {
                 
                 {/* Show password input for login or after OTP verification */}
                 {(mode === 'login' || (mode === 'register' && otpStep === 'password')) && (
-                  <input 
-                    value={password} 
-                    onChange={(e)=>setPassword(e.target.value)} 
-                    type="password" 
-                    placeholder="Password" 
-                    className="border border-gray-300 rounded-lg px-3 py-2 bg-white bg-opacity-80 text-black placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200" 
-                  />
+                  <div className="relative">
+                    <input 
+                      value={password} 
+                      onChange={(e)=>setPassword(e.target.value)} 
+                      onFocus={() => setIsPasswordFocused(true)}
+                      onBlur={() => setIsPasswordFocused(false)}
+                      type={showPassword ? "text" : "password"} 
+                      placeholder="Password" 
+                      className="border border-gray-300 rounded-lg px-3 py-2 pr-10 w-full bg-white bg-opacity-80 text-black placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200" 
+                    />
+                    {(isPasswordFocused || password.length > 0) && (
+                      <button
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault(); // Prevent input from losing focus
+                          setShowPassword(!showPassword);
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault(); // Prevent form submission if user double-clicks
+                        }}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none transition-colors duration-200"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
+                      </button>
+                    )}
+                  </div>
                 )}
                 
                 {/* Submit button - changes text based on step */}
                 <button 
                     disabled={busy} 
                     type="submit" 
-                    className="bg-gradient-to-r from-black to-gray-800 text-white py-2 rounded-lg font-semibold disabled:opacity-60 hover:from-gray-800 hover:to-black transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+                    className="bg-black/80 backdrop-blur-md border border-black/85 text-white py-2 rounded-lg font-semibold disabled:opacity-60 hover:bg-black/85 hover:border-black/90 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-md hover:shadow-lg"
                   >
                     {busy ? 'Please wait...' : (
                       mode === 'login' ? 'Sign in' : (
                         otpStep === 'email' ? 'Send OTP' : (
-                          otpStep === 'otp' ? 'Verify OTP' : 'Create account'
+                          otpStep === 'otp' ? 'Verify OTP' : 'Sign up'
                         )
                       )
                     )}
                   </button>
                 </form>
               )}
-              {mode === 'forgot' && (
-                <form className="flex flex-col gap-3" onSubmit={async (e)=>{
+              {/* Reset Password Flow - Step 1: Email Input */}
+              {mode === 'forgot' && resetStep === 'email' && (
+                <form className="flex flex-col gap-4" onSubmit={async (e)=>{
                   e.preventDefault();
+                  if (!email) {
+                    setError('Please enter your email address');
+                    return;
+                  }
                   setError('');
                   setBusy(true);
                   try {
-                    await resetPassword(email);
-                    alert('Reset link sent to your email.');
-                    onClose();
+                    const response = await api.resetPassword(email);
+                    
+                    // Backend returns consistent format: { success, message, otpStatus, otpExpiresAt }
+                    // Handle both new format (with success/otpStatus) and old format (just message)
+                    if (response && (response.success || response.message)) {
+                      // Always show OTP step if backend returns success or message
+                      // Backend handles both cases (user exists/doesn't exist) and always returns otpStatus/otpExpiresAt
+                      const status = response.otpStatus || 'PENDING_VERIFICATION';
+                      const expiresAt = response.otpExpiresAt || new Date(Date.now() + 10 * 60 * 1000).toISOString();
+                      
+                      setResetOtpStatus(status);
+                      setResetOtpExpiresAt(expiresAt);
+                      setResetStep('otp');
+                      setError(''); // Clear any errors
+                      
+                      // Focus first OTP input after a short delay
+                      setTimeout(() => {
+                        if (resetOtpInputRefs.current[0]) {
+                          resetOtpInputRefs.current[0].focus();
+                        }
+                      }, 100);
+                    } else {
+                      // Backend returned error
+                      setError(response?.message || 'Failed to send reset code. Please try again.');
+                    }
                   } catch (err) {
-                    setError(err?.message || 'Failed to send reset link');
-                  } finally { setBusy(false); }
+                    console.error('LoginModal - Reset password error:', err);
+                    setError(err?.message || 'Failed to send reset code. Please try again.');
+                  } finally { 
+                    setBusy(false);
+                  }
                 }}>
                   <input 
                     value={email} 
@@ -560,46 +951,360 @@ function LoginModal({ isOpen, onClose, defaultRole = 'Student' }) {
                     type="email" 
                     placeholder="Email" 
                     className="border border-gray-300 rounded-lg px-3 py-2 bg-white bg-opacity-80 text-black placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200" 
+                    disabled={busy}
                   />
                   <button 
-                    disabled={busy} 
+                    disabled={busy || !email} 
                     type="submit" 
-                    className="bg-gradient-to-r from-black to-gray-800 text-white py-2 rounded-lg font-semibold disabled:opacity-60 hover:from-gray-800 hover:to-black transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+                    className="bg-black/80 backdrop-blur-md border border-black/85 text-white py-2 rounded-lg font-semibold disabled:opacity-60 hover:bg-black/85 hover:border-black/90 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-md hover:shadow-lg"
                   >
-                    {busy ? 'Sending...' : 'Send reset link'}
+                    {busy ? 'Sending...' : 'Send Reset Code'}
                   </button>
                 </form>
               )}
-              <div className="flex items-center justify-between mt-3 text-sm">
-                <button 
-                  onClick={()=>{
-                    setMode(mode==='login' ? 'register' : 'login');
-                    // Reset OTP flow when switching
-                    setOtpStep('email');
-                    setOtpSent(false);
-                    setOtp('');
-                    setVerificationToken('');
-                    setOtpCountdown(0);
+
+              {/* Reset Password Flow - Step 2: OTP Verification */}
+              {mode === 'forgot' && resetStep === 'otp' && (
+                <div className="flex flex-col gap-4">
+                  {resetOtpStatus && !hideResetOtpStatusCard && (
+                    <div className="flex justify-center w-full">
+                      <div className="flex flex-col items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-2 border-blue-200/60 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 backdrop-blur-sm max-w-full">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-shrink-0">
+                            {resetTimeRemaining !== null && resetTimeRemaining > 0 ? (
+                              <Clock className="w-5 h-5 text-blue-600 animate-pulse" strokeWidth={2.5} />
+                            ) : resetTimeRemaining === 0 ? (
+                              <XCircle className="w-5 h-5 text-red-500" strokeWidth={2.5} />
+                            ) : (
+                              <CheckCircle2 className="w-5 h-5 text-green-500" strokeWidth={2.5} />
+                            )}
+                          </div>
+                          <div className="text-xs font-bold text-gray-800 uppercase tracking-wider whitespace-nowrap">
+                            {resetOtpStatus.replace(/_/g, ' ')}
+                          </div>
+                        </div>
+                        {resetOtpExpiresAt && resetTimeRemaining !== null && resetTimeRemaining > 0 && (
+                          <div className="text-xs text-gray-600 font-medium flex items-center gap-1 whitespace-nowrap">
+                            <span>expires in</span>
+                            <span className="font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-md">
+                              {Math.floor(resetTimeRemaining / 60)}:{(resetTimeRemaining % 60).toString().padStart(2, '0')}
+                            </span>
+                          </div>
+                        )}
+                        {resetTimeRemaining === 0 && (
+                          <div className="text-xs text-red-600 font-semibold bg-red-50 px-2 py-0.5 rounded-md whitespace-nowrap">
+                            expired
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex justify-center gap-2">
+                    {[0, 1, 2, 3, 4, 5].map((index) => (
+                      <input
+                        key={index}
+                        ref={(el) => (resetOtpInputRefs.current[index] = el)}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={1}
+                        value={resetOtpDigits[index]}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, '');
+                          const newDigits = [...resetOtpDigits];
+                          // Allow clearing the field (empty string)
+                          newDigits[index] = value.slice(-1); // Take only the last character or empty string
+                          setResetOtpDigits(newDigits);
+                          
+                          // Auto-focus next input if value exists
+                          if (value && index < 5 && resetOtpInputRefs.current[index + 1]) {
+                            resetOtpInputRefs.current[index + 1].focus();
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          // Handle backspace
+                          if (e.key === 'Backspace') {
+                            if (resetOtpDigits[index]) {
+                              // If current field has value, clear it
+                              const newDigits = [...resetOtpDigits];
+                              newDigits[index] = '';
+                              setResetOtpDigits(newDigits);
+                            } else if (index > 0) {
+                              // If current field is empty, move to previous and clear it
+                              resetOtpInputRefs.current[index - 1].focus();
+                              const newDigits = [...resetOtpDigits];
+                              newDigits[index - 1] = '';
+                              setResetOtpDigits(newDigits);
+                            }
+                          }
+                        }}
+                        onPaste={(e) => {
+                          e.preventDefault();
+                          const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+                          const digits = pastedData.split('');
+                          const newDigits = [...resetOtpDigits];
+                          digits.forEach((digit, i) => {
+                            if (index + i < 6) {
+                              newDigits[index + i] = digit;
+                            }
+                          });
+                          setResetOtpDigits(newDigits);
+                          const nextIndex = Math.min(index + digits.length, 5);
+                          if (resetOtpInputRefs.current[nextIndex]) {
+                            resetOtpInputRefs.current[nextIndex].focus();
+                          }
+                        }}
+                        className="w-10 h-10 text-center text-lg font-semibold border-2 border-gray-300 rounded-lg bg-white bg-opacity-80 text-black focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all duration-200"
+                        placeholder="_"
+                        disabled={busy}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setError('');
+                      setBusy(true);
+                      try {
+                        const response = await api.resetPassword(email);
+                        // Backend always returns consistent format
+                        if (response && response.success) {
+                          const status = response.otpStatus || 'PENDING_VERIFICATION';
+                          const expiresAt = response.otpExpiresAt || new Date(Date.now() + 10 * 60 * 1000).toISOString();
+                          setResetOtpStatus(status);
+                          setResetOtpExpiresAt(expiresAt);
+                          setResetOtpDigits(['', '', '', '', '', '']);
+                          setError('');
+                        } else {
+                          // Hide status card and show error if resend fails
+                          setHideResetOtpStatusCard(true);
+                          setError(response?.message || 'Failed to resend code. Please try again.');
+                        }
+                        if (resetOtpInputRefs.current[0]) {
+                          resetOtpInputRefs.current[0].focus();
+                        }
+                      } catch (err) {
+                        // Hide status card and show error if resend fails
+                        setHideResetOtpStatusCard(true);
+                        setError(err?.message || 'Failed to resend code');
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                    disabled={busy || (resetTimeRemaining !== null && resetTimeRemaining > 580)}
+                    className="w-full text-sm font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-100 active:bg-blue-200 px-4 py-2 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-blue-600 text-center shadow-sm hover:shadow-md"
+                  >
+                    Resend OTP
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const otpValue = resetOtpDigits.join('');
+                      if (!otpValue || otpValue.length !== 6) {
+                        // Hide status card and show error
+                        setHideResetOtpStatusCard(true);
+                        setError('Please enter the 6-digit code');
+                        // Auto-clear error after 30 seconds (handled by useEffect)
+                        return;
+                      }
+                      setError('');
+                      setBusy(true);
+                      try {
+                        const response = await api.verifyResetOTP(email, otpValue);
+                        setResetToken(response.resetToken);
+                        setResetStep('password');
+                        setResetOtpDigits(['', '', '', '', '', '']);
+                        setError('');
+                      } catch (err) {
+                        // Hide status card and show error
+                        setHideResetOtpStatusCard(true);
+                        setError(err?.message || 'Invalid or expired code');
+                        setResetOtpDigits(['', '', '', '', '', '']);
+                        if (resetOtpInputRefs.current[0]) {
+                          resetOtpInputRefs.current[0].focus();
+                        }
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                    disabled={busy}
+                    className="w-full bg-black/90 backdrop-blur-md border border-black/95 text-white py-2 rounded-lg font-semibold disabled:opacity-60 hover:bg-black/95 hover:border-black transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-md hover:shadow-lg"
+                  >
+                    {busy ? 'Verifying...' : 'Verify OTP'}
+                  </button>
+                </div>
+              )}
+
+              {/* Reset Password Flow - Step 3: New Password */}
+              {mode === 'forgot' && resetStep === 'password' && (
+                <form className="flex flex-col gap-4" onSubmit={async (e)=>{
+                  e.preventDefault();
+                  if (!password) {
+                    setError('Please enter a new password');
+                    return;
+                  }
+                  if (password.length < 6) {
+                    setError('Password must be at least 6 characters long');
+                    return;
+                  }
+                  if (password !== confirmPassword) {
+                    setError('Passwords do not match');
+                    return;
+                  }
+                  if (!resetToken) {
+                    setError('Invalid reset token. Please start over.');
+                    return;
+                  }
+                  setError('');
+                  setBusy(true);
+                  try {
+                    await api.updatePassword(resetToken, password);
                     setError('');
-                  }} 
-                  className="text-blue-600 font-semibold hover:text-blue-800 transition-colors duration-200 hover:underline text-center"
-                >
-                  {mode==='login' 
-                    ? 'Create account' 
-                    : (
-                      <>
-                        <span className="block">Have an account?</span>
-                        <span className="block">Sign in</span>
-                      </>
+                    alert('Password updated successfully! Redirecting to login...');
+                    setMode('login');
+                    setResetStep('email');
+                    setResetOtpDigits(['', '', '', '', '', '']);
+                    setResetOtpStatus(null);
+                    setResetOtpExpiresAt(null);
+                    setResetToken(null);
+                    setPassword('');
+                    setConfirmPassword('');
+                  } catch (err) {
+                    setError(err?.message || 'Failed to update password');
+                  } finally {
+                    setBusy(false);
+                  }
+                }}>
+                  <div className="relative">
+                    <input 
+                      type={showPassword ? 'text' : 'password'}
+                      value={password} 
+                      onChange={(e)=>setPassword(e.target.value)} 
+                      onFocus={() => setIsPasswordFocused(true)}
+                      onBlur={() => setIsPasswordFocused(false)}
+                      placeholder="New Password" 
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white bg-opacity-80 text-black placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 pr-10" 
+                      disabled={busy}
+                    />
+                    {(isPasswordFocused || password.length > 0) && (
+                      <button
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault(); // Prevent input from losing focus
+                          setShowPassword(!showPassword);
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault(); // Prevent form submission if user double-clicks
+                        }}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none transition-colors duration-200"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
+                      </button>
                     )}
-                </button>
-                <button 
-                  onClick={()=>setMode('forgot')} 
-                  className="text-blue-600 font-semibold hover:text-blue-800 transition-colors duration-200 hover:underline"
-                >
-                  Forgot password?
-                </button>
-              </div>
+                  </div>
+                  <div className="relative">
+                    <input 
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={confirmPassword} 
+                      onChange={(e)=>setConfirmPassword(e.target.value)} 
+                      onFocus={() => setIsConfirmPasswordFocused(true)}
+                      onBlur={() => setIsConfirmPasswordFocused(false)}
+                      placeholder="Confirm New Password" 
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white bg-opacity-80 text-black placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 pr-10" 
+                      disabled={busy}
+                    />
+                    {(isConfirmPasswordFocused || confirmPassword.length > 0) && (
+                      <button
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault(); // Prevent input from losing focus
+                          setShowConfirmPassword(!showConfirmPassword);
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault(); // Prevent form submission if user double-clicks
+                        }}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none transition-colors duration-200"
+                        aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                  <button 
+                    disabled={busy || !password || !confirmPassword} 
+                    type="submit" 
+                    className="bg-black/80 backdrop-blur-md border border-black/85 text-white py-2 rounded-lg font-semibold disabled:opacity-60 hover:bg-black/85 hover:border-black/90 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-md hover:shadow-lg"
+                  >
+                    {busy ? 'Updating...' : 'Update Password'}
+                  </button>
+                </form>
+              )}
+              {mode === 'forgot' && (
+                <div className="flex items-center justify-center gap-6 mt-6 flex-wrap">
+                  <button 
+                    onClick={()=>{
+                      setMode('login');
+                    }} 
+                    className="text-sm font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-100 active:bg-blue-200 px-4 py-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md whitespace-nowrap"
+                  >
+                    Sign in
+                  </button>
+                  <button 
+                    onClick={()=>{
+                      setMode('register');
+                    }} 
+                    className="text-sm font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-100 active:bg-blue-200 px-4 py-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md whitespace-nowrap"
+                  >
+                    Sign up
+                  </button>
+                </div>
+              )}
+                      <div className="flex items-center justify-center gap-6 mt-6 flex-wrap">
+                        {mode === 'register' && (
+                          <>
+                            <button 
+                              onClick={()=>{
+                                setMode('login');
+                              }} 
+                              className="text-sm font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-100 active:bg-blue-200 px-4 py-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md whitespace-nowrap"
+                            >
+                              Sign in
+                            </button>
+                            <button 
+                              onClick={()=>setMode('forgot')} 
+                              className="text-sm font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-100 active:bg-blue-200 px-4 py-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md whitespace-nowrap"
+                            >
+                              Forgot password
+                            </button>
+                          </>
+                        )}
+                        {mode === 'login' && (
+                          <>
+                            <button 
+                              onClick={()=>{
+                                setMode('register');
+                              }} 
+                              className="text-sm font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-100 active:bg-blue-200 px-4 py-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md whitespace-nowrap"
+                            >
+                              Sign up
+                            </button>
+                            <button 
+                              onClick={()=>setMode('forgot')} 
+                              className="text-sm font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-100 active:bg-blue-200 px-4 py-2 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md whitespace-nowrap"
+                            >
+                              Forgot password
+                            </button>
+                          </>
+                        )}
+                      </div>
             </div>
           </div>
         </div>

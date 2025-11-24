@@ -214,6 +214,16 @@ export const api = {
     body: JSON.stringify({ email }),
   }),
 
+  verifyResetOTP: (email, otp) => apiRequest('/auth/verify-reset-otp', {
+    method: 'POST',
+    body: JSON.stringify({ email, otp }),
+  }),
+
+  updatePassword: (resetToken, password) => apiRequest('/auth/update-password', {
+    method: 'POST',
+    body: JSON.stringify({ resetToken, password }),
+  }),
+
   // Students
   getStudentProfile: () => apiRequest('/students/profile'),
   updateStudentProfile: (data) => apiRequest('/students/profile', {

@@ -336,6 +336,52 @@ export async function sendApplicationStatusUpdateNotification(student, job, appl
 }
 
 /**
+ * Send password reset OTP email
+ * @param {string} email - Recipient email
+ * @param {string} otp - 6-digit OTP
+ * @returns {Promise<Object>} Result
+ */
+export async function sendPasswordResetOTP(email, otp) {
+  try {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const resetPasswordUrl = `${frontendUrl}/reset-password?email=${encodeURIComponent(email)}`;
+    
+    const subject = 'Password Reset - PWIOI Portal';
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333;">Password Reset Request</h2>
+        <p>Hello,</p>
+        <p>You requested to reset your password for PWIOI Placement Portal.</p>
+        <p>Click the button below to reset your password:</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetPasswordUrl}" 
+             style="background: #dc3545; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+            Reset Password
+          </a>
+        </div>
+        <p>Or use this code to reset your password:</p>
+        <div style="background: #f4f4f4; padding: 20px; text-align: center; margin: 20px 0; border-radius: 5px;">
+          <h1 style="color: #dc3545; margin: 0; font-size: 32px; letter-spacing: 5px;">${otp}</h1>
+        </div>
+        <p>This code will expire in 10 minutes.</p>
+        <p>If you didn't request a password reset, please ignore this email. Your password will remain unchanged.</p>
+        <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
+        <p style="color: #666; font-size: 12px;">This is an automated email from PWIOI Placement Portal.</p>
+      </div>
+    `;
+    const text = `You requested to reset your password. Click here to reset: ${resetPasswordUrl}\n\nOr use this code: ${otp}. This code will expire in 10 minutes. If you didn't request a password reset, please ignore this email.`;
+
+    const result = await sendEmail({ to: email, subject, html, text });
+    
+    logger.info(`Password reset OTP email sent to ${email}`);
+    return { success: true, ...result };
+  } catch (error) {
+    logger.error(`Failed to send password reset OTP email to ${email}:`, error);
+    throw error;
+  }
+}
+
+/**
  * Send generic notification email
  * @param {string} email - Recipient email
  * @param {string} subject - Email subject

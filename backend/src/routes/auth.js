@@ -16,7 +16,7 @@ import {
 import jwt from 'jsonwebtoken';
 import { validateUUID } from '../middleware/validation.js';
 import { body, validationResult } from 'express-validator';
-import { sendOTP } from '../services/emailService.js';
+import { sendOTP, sendPasswordResetOTP } from '../services/emailService.js';
 import logger from '../config/logger.js';
 
 const router = express.Router();
@@ -39,6 +39,10 @@ router.post('/register', [
     }
 
     const { email, password, role, profile = {}, verificationToken } = req.body;
+
+    // Track if email was verified via OTP
+    let emailVerified = false;
+    let emailVerifiedAt = null;
 
     // Optional: Verify OTP verification token if provided (enforce OTP verification)
     // Frontend should send verificationToken from verify-otp endpoint
@@ -66,6 +70,10 @@ router.post('/register', [
         if (!otpVerified) {
           return res.status(400).json({ error: 'Email verification required. Please verify OTP first.' });
         }
+
+        // OTP was verified - mark email as verified
+        emailVerified = true;
+        emailVerifiedAt = new Date();
       } catch (tokenError) {
         return res.status(400).json({ error: 'Invalid verification token. Please verify OTP first.' });
       }
@@ -99,7 +107,8 @@ router.post('/register', [
         passwordHash,
         role,
         status: role === 'RECRUITER' ? 'PENDING' : 'ACTIVE',
-        emailVerified: false,
+        emailVerified: emailVerified, // Set based on OTP verification
+        emailVerifiedAt: emailVerifiedAt, // Set timestamp if verified
         recruiterVerified: role === 'RECRUITER' ? false : undefined,
       };
 
@@ -343,27 +352,140 @@ router.get('/me', authenticate, async (req, res) => {
 
 /**
  * POST /auth/reset-password
- * Request password reset
+ * Request password reset - sends OTP to email
  */
 router.post('/reset-password', [
   body('email').isEmail().normalizeEmail(),
 ], async (req, res) => {
   try {
-    const { email } = req.body;
-
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      // Don't reveal if email exists
-      return res.json({ message: 'If email exists, reset link sent' });
+    logger.info(`=== Password Reset Request Received ===`);
+    logger.info(`Request body:`, JSON.stringify(req.body, null, 2));
+    
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      logger.error(`Validation errors:`, errors.array());
+      return res.status(400).json({ errors: errors.array() });
     }
 
-    // TODO: Generate reset token and send email
-    // const resetToken = generateResetToken(user.id);
-    // await sendPasswordResetEmail(user.email, resetToken);
+    const { email } = req.body;
+    
+    // Email should be normalized by express-validator's normalizeEmail()
+    // But let's ensure it's lowercase for database lookup (case-sensitive matching)
+    const normalizedEmail = email ? email.toLowerCase().trim() : '';
+    
+    logger.info(`Email from request body: ${email}`);
+    logger.info(`Normalized email: ${normalizedEmail}`);
+    
+    if (!email || !normalizedEmail) {
+      logger.error(`Email is missing or empty in request body!`);
+      return res.status(400).json({ error: 'Email is required' });
+    }
 
-    res.json({ message: 'If email exists, reset link sent' });
+    // Check if user exists (try both normalized and original email)
+    let user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    
+    if (!user) {
+      // Try original email in case normalization didn't work
+      user = await prisma.user.findUnique({ where: { email } });
+    }
+    
+    if (!user) {
+      // Don't reveal if email exists - security best practice
+      // But return consistent format for frontend (don't create OTP if user doesn't exist)
+      logger.info(`Password reset requested for non-existent email: ${normalizedEmail} (original: ${email})`);
+      
+      // Return consistent format but don't create OTP (security: don't reveal if email exists)
+      // Frontend will show UI, but OTP verification will fail (which is fine for security)
+      const fakeExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+      
+      return res.json({ 
+        success: true,
+        message: 'If email exists, password reset OTP sent',
+        otpStatus: 'PENDING_VERIFICATION',
+        otpExpiresAt: fakeExpiresAt.toISOString(),
+      });
+    }
+    
+    // Use the email from the database (source of truth)
+    const dbEmail = user.email;
+    logger.info(`Password reset requested for existing user: ${dbEmail} (ID: ${user.id}, requested: ${normalizedEmail})`);
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Store OTP in database with 10-minute expiration
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Invalidate any existing password reset OTPs for this email (use DB email)
+    await prisma.oTP.updateMany({
+      where: {
+        email: dbEmail,
+        purpose: 'RESET_PASSWORD',
+        isUsed: false,
+        expiresAt: { gt: new Date() },
+      },
+      data: { isUsed: true },
+    });
+
+    // Create new password reset OTP (use DB email - source of truth)
+    const otpRecord = await prisma.oTP.create({
+      data: {
+        email: dbEmail,
+        otp,
+        purpose: 'RESET_PASSWORD',
+        expiresAt,
+      },
+    });
+
+    logger.info(`Password reset OTP created in database: ${otpRecord.id} for ${email}`);
+
+    // Send password reset OTP via email (asynchronously)
+    // NOTE: Send email asynchronously - don't block the response
+    // OTP is already stored in DB, so we can respond immediately
+    try {
+      logger.info(`Attempting to send password reset OTP to ${dbEmail}`);
+      
+      // Send email in background (fire and forget)
+      // If email fails, user can request OTP again
+      sendPasswordResetOTP(dbEmail, otp).then(() => {
+        logger.info(`Password reset OTP email sent successfully to ${dbEmail}`);
+      }).catch((emailError) => {
+        logger.error(`Failed to send password reset OTP email to ${dbEmail}:`, emailError);
+        logger.error(`Email error details:`, {
+          message: emailError.message,
+          stack: emailError.stack,
+          code: emailError.code,
+        });
+        // Don't delete OTP - user might have received it despite error
+      });
+      
+      // Respond immediately - don't wait for email
+      logger.info(`Password reset OTP created and email sending initiated for ${dbEmail} (OTP: ${otp}, Record ID: ${otpRecord.id})`);
+      res.json({
+        success: true,
+        message: 'If email exists, password reset OTP sent',
+        otpStatus: 'PENDING_VERIFICATION',
+        otpExpiresAt: expiresAt.toISOString(),
+      });
+    } catch (emailError) {
+      logger.error(`Failed to initiate password reset OTP email to ${dbEmail}:`, emailError);
+      logger.error(`Email error details:`, {
+        message: emailError.message,
+        stack: emailError.stack,
+        code: emailError.code,
+      });
+      
+      // Still respond with success since OTP is in DB
+      // User can try requesting OTP again if email fails
+      res.json({
+        success: true,
+        message: 'If email exists, password reset OTP sent',
+        otpStatus: 'PENDING_VERIFICATION',
+        otpExpiresAt: expiresAt.toISOString(),
+      });
+    }
   } catch (error) {
-    console.error('Reset password error:', error);
+    logger.error('Reset password error:', error);
     res.status(500).json({ error: 'Password reset failed' });
   }
 });
@@ -435,6 +557,8 @@ router.post('/send-otp', [
         success: true,
         message: 'OTP sent to your email. Please check your inbox.',
         expiresIn: 300, // 5 minutes in seconds
+        otpStatus: 'PENDING_VERIFICATION',
+        otpExpiresAt: expiresAt.toISOString(), // ISO timestamp
       });
     } catch (emailError) {
       logger.error(`Failed to initiate OTP email to ${email}:`, emailError);
@@ -445,6 +569,8 @@ router.post('/send-otp', [
         success: true,
         message: 'OTP created. If you don\'t receive an email, please try again.',
         expiresIn: 300,
+        otpStatus: 'PENDING_VERIFICATION',
+        otpExpiresAt: expiresAt.toISOString(), // ISO timestamp
       });
     }
   } catch (error) {
@@ -503,6 +629,136 @@ router.post('/verify-otp', [
   } catch (error) {
     logger.error('Verify OTP error:', error);
     res.status(500).json({ error: 'Failed to verify OTP' });
+  }
+});
+
+/**
+ * POST /auth/verify-reset-otp
+ * Verify password reset OTP
+ */
+router.post('/verify-reset-otp', [
+  body('email').isEmail().normalizeEmail(),
+  body('otp').isLength({ min: 6, max: 6 }).matches(/^\d+$/),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email, otp } = req.body;
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid or expired reset code' });
+    }
+
+    // Find valid password reset OTP
+    const otpRecord = await prisma.oTP.findFirst({
+      where: {
+        email,
+        otp,
+        purpose: 'RESET_PASSWORD',
+        isUsed: false,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!otpRecord) {
+      return res.status(400).json({ error: 'Invalid or expired reset code' });
+    }
+
+    // Mark OTP as used
+    await prisma.oTP.update({
+      where: { id: otpRecord.id },
+      data: { isUsed: true },
+    });
+
+    // Return reset token for password update
+    res.json({
+      success: true,
+      message: 'Reset code verified successfully',
+      verified: true,
+      email,
+      resetToken: jwt.sign({ email, userId: user.id, type: 'password_reset' }, process.env.JWT_SECRET, { expiresIn: '15m' }),
+    });
+  } catch (error) {
+    logger.error('Verify reset OTP error:', error);
+    res.status(500).json({ error: 'Failed to verify reset code' });
+  }
+});
+
+/**
+ * POST /auth/update-password
+ * Update password after reset OTP verification
+ */
+router.post('/update-password', [
+  body('resetToken').notEmpty(),
+  body('password').isLength({ min: 6 }),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { resetToken, password } = req.body;
+
+    // Verify reset token
+    let decoded;
+    try {
+      decoded = jwt.verify(resetToken, process.env.JWT_SECRET);
+      if (decoded.type !== 'password_reset') {
+        return res.status(400).json({ error: 'Invalid reset token' });
+      }
+    } catch (tokenError) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    }
+
+    // Find user
+    const user = await prisma.user.findUnique({ 
+      where: { email: decoded.email },
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: 'User not found' });
+    }
+
+    // Verify that a password reset OTP was verified recently (within last 15 minutes)
+    const otpVerified = await prisma.oTP.findFirst({
+      where: {
+        email: decoded.email,
+        purpose: 'RESET_PASSWORD',
+        isUsed: true,
+        expiresAt: { gt: new Date(Date.now() - 15 * 60 * 1000) }, // Verified within last 15 minutes
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!otpVerified) {
+      return res.status(400).json({ error: 'Reset code verification required. Please verify OTP first.' });
+    }
+
+    // Hash new password
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Update password
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash },
+    });
+
+    logger.info(`Password updated successfully for user ${user.email}`);
+
+    res.json({
+      success: true,
+      message: 'Password updated successfully',
+    });
+  } catch (error) {
+    logger.error('Update password error:', error);
+    res.status(500).json({ error: 'Failed to update password' });
   }
 });
 
