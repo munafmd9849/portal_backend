@@ -366,7 +366,10 @@ const StudentQuerySystem = () => {
             </div>
             <div className="flex gap-3">
               <button
-                onClick={() => setActiveView('history')}
+                onClick={() => {
+                  setActiveView('history');
+                  setSubmitted(false);
+                }}
                 className="px-4 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-all duration-200 flex-1 flex items-center justify-center"
               >
                 <FaHistory className="mr-2" />
