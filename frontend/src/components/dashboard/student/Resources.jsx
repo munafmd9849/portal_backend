@@ -102,8 +102,7 @@ export default function PlacementResources() {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="w-full pl-12 pr-32 py-4 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 placeholder:text-slate-400"
-              placeholder='Try "DSA basics", "System design primer", "Product sense"'
+              className="w-full pl-12 pr-32 py-4 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
             />
             <button
               type="submit"
