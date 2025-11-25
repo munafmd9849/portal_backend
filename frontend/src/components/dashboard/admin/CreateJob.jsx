@@ -3,6 +3,7 @@ import { useAuth } from '../../../hooks/useAuth';
 import { Calendar, Info, Plus, X, Loader, ChevronsUp, ChevronsDown, ChevronDown, Upload, FileText, CheckCircle, AlertCircle } from 'lucide-react';
 import { saveJobDraft, addAnotherPositionDraft, postJob, submitJobForReview } from '../../../services/jobs';
 import ExcelUploader from './ExcelUploader'; // Import Excel component
+import JDFormatGuide from './JDFormatGuide'; // Import JD Format Guide
 
 // Utility helpers
 const toISOFromDDMMYYYY = (val) => {
@@ -256,15 +257,26 @@ export default function CreateJob({ onCreated }) {
   const populateFormFromParsedData = (data) => {
     const updates = {};
 
-    if (data.jobTitle) updates.jobTitle = data.jobTitle;
+    // Map parser fields to form fields
+    if (data.jobTitle || data.title) updates.jobTitle = data.jobTitle || data.title;
     if (data.company) updates.company = data.company;
-    if (data.companyLocation) updates.companyLocation = data.companyLocation;
-    if (data.responsibilities) updates.responsibilities = data.responsibilities;
+    if (data.companyLocation || data.location) updates.companyLocation = data.companyLocation || data.location;
+    if (data.responsibilities || data.description) updates.responsibilities = data.responsibilities || data.description;
     if (data.salary) updates.salary = data.salary;
     if (data.workMode) updates.workMode = data.workMode;
     if (data.website) updates.website = data.website;
     if (data.linkedin) updates.linkedin = data.linkedin;
-    if (data.skills) updates.skills = Array.isArray(data.skills) ? data.skills : [];
+    if (data.skills || data.skillsRequired) {
+      updates.skills = Array.isArray(data.skills) ? data.skills : 
+                       Array.isArray(data.skillsRequired) ? data.skillsRequired : 
+                       [];
+    }
+    
+    // Map additional fields if available
+    if (data.jobType) updates.jobType = data.jobType;
+    if (data.experience || data.experienceRequired) {
+      // Could map to a field if needed
+    }
 
     update(updates);
   };
@@ -682,39 +694,67 @@ export default function CreateJob({ onCreated }) {
   };
 
   const buildJobPayload = () => {
+    // Ensure required fields are not empty strings
+    const companyName = (form.company || '').trim();
+    const description = (form.responsibilities || '').trim();
+    const jobTitle = (form.jobTitle || '').trim();
+    const requiredSkills = Array.isArray(form.skills) ? form.skills : [];
+    
+    // Validate required fields before building payload
+    if (!companyName) {
+      throw new Error('Company name is required');
+    }
+    if (!description) {
+      throw new Error('Job description/responsibilities is required');
+    }
+    if (!jobTitle) {
+      throw new Error('Job title is required');
+    }
+    
     return {
-      company: form.company,
-      website: form.website,
-      linkedin: form.linkedin,
-      jobType: form.jobType,
-      stipend: form.stipend,
-      duration: form.duration,
-      salary: form.salary,
-      jobTitle: form.jobTitle,
-      workMode: form.workMode,
-      companyLocation: form.companyLocation,
-      openings: form.openings,
-      responsibilities: form.responsibilities,
-      spocs: form.spocs,
+      // Company fields - send both for compatibility
+      company: companyName,
+      companyName: companyName, // Also send as companyName for backend validation
+      website: form.website || '',
+      linkedin: form.linkedin || '',
+      companyLocation: form.companyLocation || '',
+      // Job details
+      jobType: form.jobType || '',
+      stipend: form.stipend || '',
+      duration: form.duration || '',
+      salary: form.salary || '',
+      jobTitle: jobTitle,
+      workMode: form.workMode || '',
+      openings: form.openings || '',
+      // Description fields - send both for compatibility
+      responsibilities: description,
+      description: description, // Also send as description for backend validation
+      // Skills and eligibility
+      skills: requiredSkills,
+      requiredSkills: requiredSkills, // Also send as requiredSkills for backend (must be array)
+      qualification: form.qualification || '',
+      specialization: form.specialization || '',
+      yop: form.yop || '',
+      minCgpa: form.minCgpa || '',
+      gapAllowed: form.gapAllowed || '',
+      gapYears: form.gapYears || '',
+      backlogs: form.backlogs || '',
+      // Drive details
       driveDate: form.driveDateISO || toISOFromDDMMYYYY(form.driveDateText) || null,
-      driveVenues: form.driveVenues, // Store original venue names for display purposes
-      qualification: form.qualification,
-      specialization: form.specialization,
-      yop: form.yop,
-      minCgpa: form.minCgpa,
-      skills: form.skills,
-      gapAllowed: form.gapAllowed,
-      gapYears: form.gapYears,
-      backlogs: form.backlogs,
-      serviceAgreement: form.serviceAgreement,
-      blockingPeriod: form.blockingPeriod,
+      driveVenues: Array.isArray(form.driveVenues) ? form.driveVenues : [],
+      // Interview process
       interviewRounds: [
-        { title: `${toRoman(1)} Round`, detail: form.baseRoundDetails[0] },
-        { title: `${toRoman(2)} Round`, detail: form.baseRoundDetails[1] },
-        { title: `${toRoman(3)} Round`, detail: form.baseRoundDetails[2] },
-        ...form.extraRounds,
+        { title: `${toRoman(1)} Round`, detail: form.baseRoundDetails[0] || '' },
+        { title: `${toRoman(2)} Round`, detail: form.baseRoundDetails[1] || '' },
+        { title: `${toRoman(3)} Round`, detail: form.baseRoundDetails[2] || '' },
+        ...(Array.isArray(form.extraRounds) ? form.extraRounds : []),
       ],
-      instructions: form.instructions,
+      // Additional fields
+      spocs: Array.isArray(form.spocs) ? form.spocs : [],
+      serviceAgreement: form.serviceAgreement || '',
+      blockingPeriod: form.blockingPeriod || '',
+      instructions: form.instructions || '',
+      // User context
       adminId: user?.id || null,
       recruiterId: user?.id || null, // Admin acts as recruiter
       postedBy: user?.id || null,
@@ -823,6 +863,9 @@ export default function CreateJob({ onCreated }) {
       setPosting(true);
       const payload = buildJobPayload();
       
+      // Debug: Log payload to see what's being sent
+      console.log('Job Payload:', JSON.stringify(payload, null, 2));
+      
       // Submit job for review - it will appear in ManageJobs "In Review" section
       const { jobId } = await submitJobForReview(payload);
       
@@ -830,8 +873,26 @@ export default function CreateJob({ onCreated }) {
       alert('Job submitted successfully! It has been sent for review and will appear in the "In Review" section of Manage Jobs.');
       resetForm();
     } catch (err) {
-      console.error(err);
-      alert('Failed to submit job: ' + (err?.message || 'Unknown error'));
+      console.error('Submit error:', err);
+      
+      // Handle network errors separately
+      if (err?.isNetworkError || err?.message?.includes('Failed to connect') || err?.message?.includes('Failed to fetch')) {
+        alert(`Network Error:\n\n${err.message}\n\nPlease check:\n1. Backend server is running (http://localhost:3001)\n2. No firewall is blocking the connection\n3. Backend server logs for any errors`);
+        return;
+      }
+      
+      // Extract detailed validation errors if available
+      let errorMessage = err?.message || 'Unknown error';
+      if (err?.response?.errors && Array.isArray(err.response.errors)) {
+        const validationErrors = err.response.errors.map(e => `• ${e.msg || e.message || e}`).join('\n');
+        errorMessage = `Validation failed:\n\n${validationErrors}`;
+      } else if (err?.response?.error) {
+        errorMessage = err.response.error;
+      } else if (err?.status) {
+        errorMessage = `Server error (${err.status}): ${errorMessage}`;
+      }
+      
+      alert(`Failed to submit job:\n\n${errorMessage}`);
     } finally {
       setPosting(false);
     }
@@ -905,7 +966,7 @@ export default function CreateJob({ onCreated }) {
 
       {/* MANUAL FORM */}
       {creationMethod === 'manual' && (
-        <form onSubmit={handleSubmit} className="bg-white border border-slate-200 rounded-lg p-4 space-y-6">
+        <form onSubmit={handleSubmit} noValidate className="bg-white border border-slate-200 rounded-lg p-4 space-y-6">
           
           {/* Section 1: Company Details */}
           <section className="space-y-4 border-b-[1.5px] border-gray-700 pb-6 mb-6">
@@ -1282,7 +1343,6 @@ export default function CreateJob({ onCreated }) {
                       value={form.skillsInput}
                       onChange={(e) => update({ skillsInput: e.target.value })}
                       onKeyDown={onSkillsKeyDown}
-                      required
                     />
                   </div>
                 </div>
@@ -1684,6 +1744,9 @@ const JDUploadForm = ({
           </div>
         </div>
       )}
+
+      {/* JD Format Guide */}
+      <JDFormatGuide />
     </div>
   );
 };

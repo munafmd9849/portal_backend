@@ -143,6 +143,20 @@ router.post('/register', [
             location: profile.location,
           },
         });
+        
+        // Emit Socket.IO event to notify admins of new recruiter registration
+        const { getIO } = await import('../config/socket.js');
+        const io = getIO();
+        if (io) {
+          io.to('admins').emit('recruiter:new', {
+            id: createdUser.id,
+            email: createdUser.email,
+            companyName: profile.companyName,
+            location: profile.location,
+            status: 'PENDING',
+            createdAt: new Date(),
+          });
+        }
       } else if (role === 'ADMIN') {
         await tx.admin.create({
           data: {

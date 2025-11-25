@@ -117,7 +117,7 @@ const DashboardHome = ({
 
 
       {/* About Me Section */}
-      <AboutMe />
+      <AboutMe profileData={formattedStudentData} />
 
       {/* Student Stats Section */}
       <DashboardStatsSection studentData={formattedStudentData} />

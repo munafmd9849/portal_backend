@@ -1,5 +1,3 @@
-import { debouncedSearch, googleCSEService } from './googleCSE';
-
 // Mock fallback questions in case CSE is not available
 const mockQuestions = [
   {
@@ -33,8 +31,7 @@ const useMockData = () => {
   };
 };
 
-// Use Google CSE if available, otherwise fall back to mock data
-const searchService = window.google ? googleCSEService : useMockData();
+const searchService = useMockData();
 
 export const fetchQuestions = async ({ search = '' }) => {
   try {

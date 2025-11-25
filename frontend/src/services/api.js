@@ -82,52 +82,100 @@ async function apiRequest(endpoint, options = {}) {
     ...options.headers,
   };
 
-  console.log(`API Request: ${options.method || 'GET'} ${API_BASE_URL}${endpoint}`);
+  const url = `${API_BASE_URL}${endpoint}`;
+  console.log(`API Request: ${options.method || 'GET'} ${url}`);
   
-  let response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-    signal: AbortSignal.timeout(30000), // 30 second timeout
-  });
-
-  // Handle 401 - try refresh token
-  if (response.status === 401 && token) {
+  try {
+    let response;
     try {
-      const newToken = await refreshAccessToken();
-      headers.Authorization = `Bearer ${newToken}`;
-      response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      response = await fetch(url, {
         ...options,
         headers,
+        signal: AbortSignal.timeout(30000), // 30 second timeout
       });
-    } catch (error) {
+    } catch (fetchError) {
+      // Network error - server not reachable, CORS issue, or connection failed
+      console.error('Network Error (Failed to Fetch):', {
+        endpoint,
+        url,
+        error: fetchError.message,
+        type: fetchError.name,
+      });
+      
+      // Provide helpful error message
+      let errorMessage = 'Failed to connect to server. ';
+      if (fetchError.name === 'AbortError' || fetchError.message.includes('timeout')) {
+        errorMessage += 'Request timed out. The server may be slow or unresponsive.';
+      } else if (fetchError.message.includes('CORS') || fetchError.message.includes('cors')) {
+        errorMessage += 'CORS error. Check if the backend server is running and CORS is configured correctly.';
+      } else if (fetchError.message.includes('Failed to fetch') || fetchError.message.includes('NetworkError')) {
+        errorMessage += 'Cannot reach the server. Please check:\n1. Backend server is running on http://localhost:3001\n2. No firewall blocking the connection\n3. Backend server is accessible';
+      } else {
+        errorMessage += fetchError.message || 'Unknown network error.';
+      }
+      
+      const error = new Error(errorMessage);
+      error.isNetworkError = true;
+      error.originalError = fetchError;
+      error.endpoint = endpoint;
+      error.url = url;
       throw error;
     }
-  }
 
-  if (!response.ok) {
-    let errorData;
-    try {
-      const text = await response.text();
-      errorData = text ? JSON.parse(text) : { error: `HTTP ${response.status}: ${response.statusText}` };
-    } catch (e) {
-      errorData = { error: `HTTP ${response.status}: ${response.statusText}` };
+    // Handle 401 - try refresh token
+    if (response.status === 401 && token) {
+      try {
+        const newToken = await refreshAccessToken();
+        headers.Authorization = `Bearer ${newToken}`;
+        response = await fetch(url, {
+          ...options,
+          headers,
+        });
+      } catch (error) {
+        throw error;
+      }
+    }
+
+    if (!response.ok) {
+      let errorData;
+      try {
+        const text = await response.text();
+        errorData = text ? JSON.parse(text) : { error: `HTTP ${response.status}: ${response.statusText}` };
+      } catch (e) {
+        errorData = { error: `HTTP ${response.status}: ${response.statusText}` };
+      }
+      
+      // Log full error details for debugging
+      console.error(`API Error [${response.status}]:`, {
+        endpoint,
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData,
+      });
+      
+      const error = new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+      error.response = errorData;
+      error.status = response.status;
+      throw error;
+    }
+
+    return response.json();
+  } catch (error) {
+    // Re-throw if it's already our custom error
+    if (error.isNetworkError || error.response || error.status) {
+      throw error;
     }
     
-    // Log full error details for debugging
-    console.error(`API Error [${response.status}]:`, {
+    // Catch any other unexpected errors
+    console.error('Unexpected API Error:', {
       endpoint,
-      status: response.status,
-      statusText: response.statusText,
-      error: errorData,
+      url,
+      error: error.message,
+      stack: error.stack,
     });
     
-    const error = new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
-    error.response = errorData;
-    error.status = response.status;
-    throw error;
+    throw new Error(`API request failed: ${error.message || 'Unknown error'}`);
   }
-
-  return response.json();
 }
 
 /**
@@ -306,6 +354,13 @@ export const api = {
     method: 'POST',
     body: JSON.stringify(targeting),
   }),
+  approveJob: (jobId) => apiRequest(`/jobs/${jobId}/approve`, {
+    method: 'POST',
+  }),
+  rejectJob: (jobId, data) => apiRequest(`/jobs/${jobId}/reject`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
 
   // Applications
   getAllApplications: (filters = {}) => {
@@ -328,6 +383,49 @@ export const api = {
   },
   markNotificationRead: (notificationId) => apiRequest(`/notifications/${notificationId}/read`, {
     method: 'PATCH',
+  }),
+  markAllNotificationsRead: () => apiRequest('/notifications/mark-all-read', {
+    method: 'PATCH',
+  }),
+
+  // Queries
+  submitStudentQuery: (data) => apiRequest('/queries', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  getStudentQueries: () => apiRequest('/queries'),
+  getAdminQueries: () => apiRequest('/queries/admin'),
+  respondToStudentQuery: (queryId, payload) => apiRequest(`/queries/${queryId}/respond`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  }),
+
+  // Admin Requests
+  createAdminRequest: (data) => apiRequest('/admin-requests', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  getPendingAdminRequests: () => apiRequest('/admin-requests/pending'),
+  getAllAdminRequests: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return apiRequest(`/admin-requests${query ? `?${query}` : ''}`);
+  },
+  approveAdminRequest: (requestId) => apiRequest(`/admin-requests/${requestId}/approve`, {
+    method: 'PATCH',
+  }),
+  rejectAdminRequest: (requestId, data) => apiRequest(`/admin-requests/${requestId}/reject`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  }),
+
+  searchWeb: (query) => {
+    const params = new URLSearchParams({ query });
+    return apiRequest(`/search?${params.toString()}`);
+  },
+
+  summarizeSearchResults: (results) => apiRequest('/search/summarize', {
+    method: 'POST',
+    body: JSON.stringify({ results }),
   }),
 
   // Utility

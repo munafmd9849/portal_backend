@@ -10,6 +10,7 @@ export default function ProtectedRoute({ allowRoles }) {
   }
 
   if (!user) {
+    console.log('ProtectedRoute: No user, redirecting to home');
     return <Navigate to="/" replace />;
   }
 
@@ -17,7 +18,16 @@ export default function ProtectedRoute({ allowRoles }) {
   const roleLower = role ? role.toLowerCase() : null;
   const allowRolesLower = allowRoles ? allowRoles.map(r => r.toLowerCase()) : [];
 
+  console.log('ProtectedRoute check:', {
+    role,
+    roleLower,
+    allowRoles,
+    allowRolesLower,
+    hasAccess: allowRolesLower.includes(roleLower)
+  });
+
   if (allowRoles && Array.isArray(allowRoles) && roleLower && !allowRolesLower.includes(roleLower)) {
+    console.log('ProtectedRoute: Role mismatch, redirecting to home');
     return <Navigate to="/" replace />;
   }
 

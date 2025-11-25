@@ -521,9 +521,11 @@ model EmailNotification {
 model StudentQuery {
   id        String   @id @default(uuid())
   studentId String
+  type      String   @default("question")
   subject   String
   message   String   
   status    String @default("OPEN") // QueryStatus: OPEN, RESOLVED, CLOSED
+  metadata  String?  @default("{}")
   response  String?  
   respondedBy String? // Admin user ID
   respondedAt DateTime?

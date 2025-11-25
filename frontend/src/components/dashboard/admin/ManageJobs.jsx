@@ -169,7 +169,11 @@ export default function ManageJobs() {
 
   // Check if job is posted (compatible with your database structure)
   const isJobPosted = (job) => {
-    return job.status === 'posted' || job.isPosted === true || job.posted === true;
+    const status = (job.status || '').toLowerCase();
+    return status === 'posted' || 
+           status === 'active' ||  // Approved jobs have ACTIVE status
+           job.isPosted === true || 
+           job.posted === true;
   };
 
   // Get intelligent job status based on interview date and admin status

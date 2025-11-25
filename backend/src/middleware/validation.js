@@ -40,11 +40,56 @@ export const validateStudentProfile = [
 
 /**
  * Job creation validation rules
+ * Accepts both field name variants for flexibility:
+ * - description OR responsibilities (both map to description)
+ * - companyName OR company (both map to companyName)
  */
 export const validateJob = [
   body('jobTitle').trim().notEmpty().withMessage('Job title is required'),
-  body('description').trim().notEmpty().withMessage('Description is required'),
-  body('companyName').trim().notEmpty().withMessage('Company name is required'),
+  // Accept either 'description' or 'responsibilities' field
+  body('description')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('Description cannot be empty if provided'),
+  body('responsibilities')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('Responsibilities cannot be empty if provided'),
+  // Custom validation: ensure at least one of description or responsibilities is provided
+  body().custom((value) => {
+    const desc = value?.description;
+    const resp = value?.responsibilities;
+    const hasDescription = desc !== undefined && desc !== null && String(desc).trim().length > 0;
+    const hasResponsibilities = resp !== undefined && resp !== null && String(resp).trim().length > 0;
+    if (!hasDescription && !hasResponsibilities) {
+      throw new Error('Either description or responsibilities is required');
+    }
+    return true;
+  }).withMessage('Either description or responsibilities is required'),
+  // Accept either 'companyName' or 'company' field
+  body('companyName')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('Company name cannot be empty if provided'),
+  body('company')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('Company cannot be empty if provided'),
+  // Custom validation: ensure at least one of companyName or company is provided
+  body().custom((value) => {
+    const compName = value?.companyName;
+    const comp = value?.company;
+    const hasCompanyName = compName !== undefined && compName !== null && String(compName).trim().length > 0;
+    const hasCompany = comp !== undefined && comp !== null && String(comp).trim().length > 0;
+    if (!hasCompanyName && !hasCompany) {
+      throw new Error('Either companyName or company is required');
+    }
+    return true;
+  }).withMessage('Either companyName or company is required'),
   body('requiredSkills').optional().isArray().withMessage('Required skills must be an array'),
   body('targetSchools').optional().isArray().withMessage('Target schools must be an array'),
   body('targetCenters').optional().isArray().withMessage('Target centers must be an array'),

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -272,6 +272,56 @@ const AdminPanel = () => {
     loadFilterOptions();
   }, []);
 
+  const applyPanelData = useCallback((data) => {
+    if (!data) return;
+    
+    const placementStatus = data.chartData?.placementStatus || null;
+    const monthlyTrend = data.chartData?.monthlyTrend || null;
+    const adminPerformance = data.chartData?.adminPerformance || [];
+    
+    setStatsData(data.statsData || {});
+    setChartData({
+      placementStatus,
+      monthlyTrend
+    });
+    
+    const agChartData = adminPerformance.length ? {
+      title: { text: "Admin Performance Metrics" },
+      subtitle: { text: "Jobs Posted by Admin (Last 90 Days)" },
+      data: adminPerformance.map(item => ({
+        admin: item.admin,
+        jobsPosted: item.jobsPosted,
+        applications: item.applications || 0,
+        placements: item.placements || 0,
+        successRate: item.successRate || 0
+      })),
+      series: [{
+        type: "bar",
+        direction: "horizontal",
+        xKey: "admin",
+        yKey: "jobsPosted",
+        yName: "Jobs Posted"
+      }]
+    } : { data: [] };
+    
+    setAdminPerformanceData(agChartData);
+    setLoading(false);
+    setError(null);
+  }, []);
+
+  const loadAdminPanelData = useCallback(async (currentFilters) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getAdminPanelData(currentFilters, 90);
+      applyPanelData(data);
+    } catch (err) {
+      console.error('❌ Failed to load AdminPanel data:', err);
+      setError(err.message || 'Failed to load admin analytics');
+      setLoading(false);
+    }
+  }, [applyPanelData]);
+
   // Set up real-time data subscription
   useEffect(() => {
     console.log('🔄 Setting up real-time AdminPanel data subscription with filters:', filters);
@@ -282,41 +332,10 @@ const AdminPanel = () => {
     const unsubscribe = subscribeToAdminPanelData(
       (data) => {
         console.log('📊 Real-time AdminPanel data received:', data);
-        
-        // Update stats
-        setStatsData(data.statsData);
-        
-        // Update charts
-        setChartData({
-          placementStatus: data.chartData.placementStatus,
-          monthlyTrend: data.chartData.monthlyTrend
-        });
-        
-        // Update admin performance (convert to AG Charts format)
-        const agChartData = {
-          title: { text: "Admin Performance Metrics" },
-          subtitle: { text: "Jobs Posted by Admin (Last 90 Days)" },
-          data: data.chartData.adminPerformance.map(item => ({
-            admin: item.admin,
-            jobsPosted: item.jobsPosted,
-            applications: item.applications || 0,
-            placements: item.placements || 0,
-            successRate: item.successRate || 0
-          })),
-          series: [{
-            type: "bar",
-            direction: "horizontal",
-            xKey: "admin",
-            yKey: "jobsPosted",
-            yName: "Jobs Posted"
-          }]
-        };
-        
-        setAdminPerformanceData(agChartData);
-        setLoading(false);
+        applyPanelData(data);
       },
-      filters, // Pass current filters
-      90 // 90-day window
+      filters,
+      90
     );
     
     // Cleanup subscription on unmount or filter change
@@ -324,7 +343,7 @@ const AdminPanel = () => {
       console.log('🧹 Cleaning up AdminPanel subscription');
       unsubscribe();
     };
-  }, [filters]); // Re-subscribe when filters change
+  }, [filters, applyPanelData]);
 
   // Handle filter changes
   const handleFilterChange = (filterType, values) => {
@@ -380,7 +399,7 @@ const AdminPanel = () => {
         clearTimeout(debounceTimer.current);
       }
     };
-  }, [filters]);
+  }, [filters, loadAdminPanelData]);
 
   
 

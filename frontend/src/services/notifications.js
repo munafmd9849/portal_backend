@@ -6,14 +6,97 @@
 import api from './api.js';
 
 /**
+ * Transform backend notification to frontend format
+ */
+function transformNotification(notification) {
+  // Parse data field (stored as JSON string in database)
+  let parsedData = {};
+  try {
+    parsedData = typeof notification.data === 'string' 
+      ? JSON.parse(notification.data) 
+      : (notification.data || {});
+  } catch (e) {
+    console.warn('[Notifications Service] Failed to parse notification data:', e, 'Raw data:', notification.data);
+    parsedData = {};
+  }
+  
+  // Debug log for notification transformation
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Notifications Service] Transforming notification:', {
+      id: notification.id,
+      title: notification.title,
+      rawType: notification.type,
+      parsedDataType: parsedData.type,
+      finalType: parsedData.type || notification.type || 'general'
+    });
+  }
+
+  // Format date and time from createdAt
+  const createdAt = notification.createdAt 
+    ? new Date(notification.createdAt) 
+    : new Date();
+  const date = createdAt.toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric' 
+  });
+  const time = createdAt.toLocaleTimeString('en-US', { 
+    hour: '2-digit', 
+    minute: '2-digit' 
+  });
+
+  // Extract query-specific data
+  const queryData = parsedData.queryId ? {
+    queryId: parsedData.queryId,
+    referenceId: parsedData.referenceId,
+    queryType: parsedData.queryType,
+    studentId: parsedData.studentId,
+    studentName: parsedData.studentName,
+    enrollmentId: parsedData.enrollmentId,
+    center: parsedData.center,
+    school: parsedData.school,
+    batch: parsedData.batch,
+    message: parsedData.message,
+  } : {};
+
+  return {
+    ...notification,
+    message: notification.body || notification.message || '',
+    from: parsedData.studentName || parsedData.from || notification.from || 'System',
+    date,
+    time,
+    type: parsedData.type || notification.type || 'general',
+    priority: parsedData.priority || notification.priority || 'medium',
+    meta: {
+      ...parsedData,
+      ...queryData,
+    },
+    enrollmentId: parsedData.enrollmentId || notification.enrollmentId || null,
+  };
+}
+
+/**
  * List notifications for user
  */
 export async function listNotificationsForUser(userId, limitTo = 50) {
   try {
+    console.log('[Notifications Service] Fetching notifications, limit:', limitTo);
     const notifications = await api.getNotifications({ limit: limitTo });
-    return notifications || [];
+    console.log('[Notifications Service] Raw notifications from API:', notifications?.length || 0);
+    
+    if (!notifications || !Array.isArray(notifications)) {
+      console.warn('[Notifications Service] Invalid notifications response:', notifications);
+      return [];
+    }
+    
+    // Transform each notification to match frontend expectations
+    const transformed = notifications.map(transformNotification);
+    console.log('[Notifications Service] Transformed notifications:', transformed.length);
+    console.log('[Notifications Service] Notification types:', transformed.map(n => n.type));
+    
+    return transformed;
   } catch (error) {
-    console.error('listNotificationsForUser error:', error);
+    console.error('[Notifications Service] Error fetching notifications:', error);
     throw error;
   }
 }
@@ -67,15 +150,17 @@ export async function markNotificationRead(notificationId) {
 export const markNotificationAsRead = markNotificationRead;
 
 /**
- * Subscribe to notifications (replaced with load-once pattern)
- * For real-time updates, use Socket.IO instead
- * This function now returns an empty unsubscribe for backward compatibility
+ * Subscribe to notifications with Socket.IO real-time updates
+ * Falls back to polling if Socket.IO is not available
  */
 export function subscribeToNotifications(callback, options = {}) {
-  // Load notifications once instead of real-time subscription
+  let pollInterval = null;
+  let socketUnsubscribe = null;
+  const { limit = 50 } = options;
+
+  // Initial load
   (async () => {
     try {
-      const { limit = 50 } = options;
       const notifications = await listNotificationsForUser(null, limit);
       callback(notifications);
     } catch (error) {
@@ -83,20 +168,85 @@ export function subscribeToNotifications(callback, options = {}) {
       callback([]);
     }
   })();
-  
-  // Return empty unsubscribe function for backward compatibility
-  return () => {};
+
+  // Try to use Socket.IO for real-time updates
+  try {
+    import('./socket.js').then((socketService) => {
+      // Initialize socket if not already connected
+      socketService.initSocket();
+      
+      // Subscribe to notification updates
+      socketUnsubscribe = socketService.subscribeToUpdates({
+        onNotificationNew: async () => {
+          // Reload notifications when new one arrives
+          try {
+            const notifications = await listNotificationsForUser(null, limit);
+            callback(notifications);
+          } catch (error) {
+            console.error('Error reloading notifications:', error);
+          }
+        },
+      });
+    }).catch(() => {
+      // Socket service not available, use polling
+      console.warn('Socket.IO service not available, using polling');
+      pollInterval = setInterval(async () => {
+        try {
+          const notifications = await listNotificationsForUser(null, limit);
+          callback(notifications);
+        } catch (error) {
+          console.error('Polling error:', error);
+        }
+      }, 30000); // Poll every 30 seconds
+    });
+  } catch (error) {
+    console.warn('Socket.IO setup failed, using polling:', error);
+    // Fallback to polling
+    pollInterval = setInterval(async () => {
+      try {
+        const notifications = await listNotificationsForUser(null, limit);
+        callback(notifications);
+      } catch (error) {
+        console.error('Polling error:', error);
+      }
+    }, 30000);
+  }
+
+  // Return unsubscribe function
+  return () => {
+    if (socketUnsubscribe) {
+      socketUnsubscribe();
+      socketUnsubscribe = null;
+    }
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      pollInterval = null;
+    }
+  };
 }
 
 /**
- * Delete notification (if backend supports it)
- * Note: Backend may not have delete endpoint, so this might be a no-op
+ * Delete notification
  */
 export async function deleteNotification(notificationId) {
   try {
-    // TODO: Backend needs DELETE /api/notifications/:id endpoint
-    console.warn('deleteNotification: Backend endpoint may not exist');
-    return { success: true };
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    const token = localStorage.getItem('accessToken');
+    
+    const response = await fetch(`${API_BASE_URL}/notifications/${notificationId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` }),
+      },
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+      throw new Error(errorData.error || 'Failed to delete notification');
+    }
+    
+    return await response.json();
   } catch (error) {
     console.error('deleteNotification error:', error);
     throw error;

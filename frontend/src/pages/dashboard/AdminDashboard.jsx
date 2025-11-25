@@ -17,8 +17,13 @@ export default function AdminDashboard() {
   const [sidebarWidth, setSidebarWidth] = useState(15); // % width, 5-15 like student
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef(null);
-  const { logout } = useAuth();
+  const { logout, user, role } = useAuth();
   const navigate = useNavigate();
+
+  // Debug logging
+  useEffect(() => {
+    console.log('AdminDashboard mounted:', { user, role, activeTab });
+  }, [user, role, activeTab]);
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },

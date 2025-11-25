@@ -18,8 +18,14 @@ router.use(authenticate);
 // Get user notifications
 router.get('/', notificationController.getUserNotifications);
 
+// Mark all notifications as read (must come before :notificationId routes)
+router.patch('/mark-all-read', notificationController.markAllNotificationsRead);
+
 // Mark notification as read
 router.patch('/:notificationId/read', notificationController.markNotificationRead);
+
+// Delete notification
+router.delete('/:notificationId', notificationController.deleteNotification);
 
 // Create notification (admin/recruiter only)
 router.post('/', [

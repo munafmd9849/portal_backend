@@ -14,7 +14,7 @@ import { getStudentApplications, applyToJob, subscribeStudentApplications } from
 import { getTargetedJobsForStudent, subscribeJobs, subscribePostedJobs } from '../../services/jobs';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { SiCodeforces, SiGeeksforgeeks } from 'react-icons/si';
-import { FaHackerrank, FaYoutube } from 'react-icons/fa';
+import { FaHackerrank, FaInstagram, FaYoutube } from 'react-icons/fa';
 import {
   Home,
   Briefcase,
@@ -51,6 +51,34 @@ import { upsertResume, getResume } from '../../services/resumes';
 import Query from '../../components/dashboard/student/Query';
 import Resources from '../../components/dashboard/student/Resources';
 import { getResumeInfo } from '../../services/resumeStorage';
+
+const normalizeProfileSnapshot = (profile = {}) => ({
+  fullName: profile.fullName || '',
+  email: profile.email || '',
+  phone: profile.phone || '',
+  enrollmentId: profile.enrollmentId || '',
+  cgpa:
+    profile.cgpa !== undefined && profile.cgpa !== null
+      ? String(profile.cgpa)
+      : '',
+  batch: profile.batch || '',
+  center: profile.center || '',
+  school: profile.school || '',
+  bio: profile.bio || '',
+  Headline: profile.Headline || profile.headline || '',
+  city: profile.city || '',
+  stateRegion: profile.stateRegion || profile.state || '',
+  linkedin: profile.linkedin || '',
+  githubUrl: profile.githubUrl || profile.github || '',
+  youtubeUrl: profile.youtubeUrl || profile.youtube || '',
+  instagramUrl: profile.instagramUrl || profile.instagram || '',
+  leetcode: profile.leetcode || '',
+  codeforces: profile.codeforces || '',
+  gfg: profile.gfg || '',
+  hackerrank: profile.hackerrank || '',
+  profilePhoto: profile.profilePhoto || '',
+  jobFlexibility: profile.jobFlexibility || '',
+});
 
 export default function StudentDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -102,8 +130,88 @@ export default function StudentDashboard() {
   const [hackerrank, setHackerrank] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
   const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [instagramUrl, setInstagramUrl] = useState('');
   const [profilePhoto, setProfilePhoto] = useState('');
   const [jobFlexibility, setJobFlexibility] = useState('');
+  const initialProfileRef = useRef(null);
+  const [isFormDirty, setIsFormDirty] = useState(false);
+  const prevActiveTabRef = useRef('dashboard');
+  const discardAlertTimeoutRef = useRef(null);
+
+  const getCurrentProfileSnapshot = useCallback(() => normalizeProfileSnapshot({
+    fullName,
+    email,
+    phone,
+    enrollmentId,
+    cgpa,
+    batch,
+    center,
+    school,
+    bio,
+    Headline,
+    city,
+    stateRegion,
+    linkedin,
+    githubUrl,
+    youtubeUrl,
+    instagramUrl,
+    leetcode,
+    codeforces,
+    gfg,
+    hackerrank,
+    profilePhoto,
+    jobFlexibility,
+  }), [
+    fullName,
+    email,
+    phone,
+    enrollmentId,
+    cgpa,
+    batch,
+    center,
+    school,
+    bio,
+    Headline,
+    city,
+    stateRegion,
+    linkedin,
+    githubUrl,
+    youtubeUrl,
+    instagramUrl,
+    leetcode,
+    codeforces,
+    gfg,
+    hackerrank,
+    profilePhoto,
+    jobFlexibility,
+  ]);
+
+  const resetProfileForm = useCallback(() => {
+    const snapshot = initialProfileRef.current;
+    if (!snapshot) return;
+    setFullName(snapshot.fullName);
+    setEmail(snapshot.email);
+    setPhone(snapshot.phone);
+    setEnrollmentId(snapshot.enrollmentId);
+    setCgpa(snapshot.cgpa);
+    setBatch(snapshot.batch);
+    setCenter(snapshot.center);
+    setSchool(snapshot.school);
+    setBio(snapshot.bio);
+    setHeadline(snapshot.Headline);
+    setCity(snapshot.city);
+    setStateRegion(snapshot.stateRegion);
+    setLinkedin(snapshot.linkedin);
+    setGithubUrl(snapshot.githubUrl);
+    setYoutubeUrl(snapshot.youtubeUrl);
+    setInstagramUrl(snapshot.instagramUrl);
+    setLeetcode(snapshot.leetcode);
+    setCodeforces(snapshot.codeforces);
+    setGfg(snapshot.gfg);
+    setHackerrank(snapshot.hackerrank);
+    setProfilePhoto(snapshot.profilePhoto);
+    setJobFlexibility(snapshot.jobFlexibility);
+  }, []);
   
   // Resume state
   const [resumeInfo, setResumeInfo] = useState({
@@ -154,6 +262,51 @@ export default function StudentDashboard() {
   const profileComplete = useMemo(() => {
     return fullName && email && phone && enrollmentId && school && center && batch;
   }, [fullName, email, phone, enrollmentId, school, center, batch]);
+
+  useEffect(() => {
+    if (!initialProfileRef.current) return;
+    const currentSnapshot = getCurrentProfileSnapshot();
+    const initialSnapshot = initialProfileRef.current;
+    const dirty = Object.keys(currentSnapshot).some(
+      (key) => (initialSnapshot[key] ?? '') !== (currentSnapshot[key] ?? '')
+    );
+    setIsFormDirty(dirty);
+  }, [getCurrentProfileSnapshot]);
+
+  useEffect(() => {
+    const previousTab = prevActiveTabRef.current;
+    if (previousTab === 'editProfile' && activeTab !== 'editProfile') {
+      if (discardAlertTimeoutRef.current) {
+        clearTimeout(discardAlertTimeoutRef.current);
+        discardAlertTimeoutRef.current = null;
+      }
+
+      if (isFormDirty) {
+        resetProfileForm();
+        setIsFormDirty(false);
+        setIsChecked(false);
+        setValidationErrors({});
+        setAlertMessage('Unsaved profile changes were discarded.');
+        setAlertType('info');
+        setShowFloatingAlert(true);
+
+        discardAlertTimeoutRef.current = setTimeout(() => {
+          setShowFloatingAlert(false);
+          setAlertMessage(null);
+          discardAlertTimeoutRef.current = null;
+        }, 3000);
+      }
+    }
+    prevActiveTabRef.current = activeTab;
+  }, [activeTab, isFormDirty, resetProfileForm]);
+
+  useEffect(() => {
+    return () => {
+      if (discardAlertTimeoutRef.current) {
+        clearTimeout(discardAlertTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Job loading with proper targeting logic
   const loadJobsData = useCallback(async () => {
@@ -277,8 +430,36 @@ export default function StudentDashboard() {
         setHackerrank(profileData.hackerrank || '');
         setGithubUrl(profileData.githubUrl || profileData.github || '');
         setYoutubeUrl(profileData.youtubeUrl || profileData.youtube || '');
+        setInstagramUrl(profileData.instagramUrl || profileData.instagram || '');
         setProfilePhoto(profileData.profilePhoto || '');
         setJobFlexibility(profileData.jobFlexibility || '');
+
+        const sanitizedProfile = {
+          fullName: profileData.fullName || '',
+          email: profileData.email || '',
+          phone: profileData.phone || '',
+          enrollmentId: profileData.enrollmentId || '',
+          cgpa: profileData.cgpa?.toString?.() || '',
+          batch: profileData.batch || '',
+          center: profileData.center || '',
+          school: profileData.school || '',
+          bio: profileData.bio || '',
+          Headline: profileData.headline || profileData.Headline || '',
+          city: profileData.city || '',
+          stateRegion: profileData.stateRegion || profileData.state || '',
+          linkedin: profileData.linkedin || '',
+          githubUrl: profileData.githubUrl || profileData.github || '',
+          youtubeUrl: profileData.youtubeUrl || profileData.youtube || '',
+          instagramUrl: profileData.instagramUrl || profileData.instagram || '',
+          leetcode: profileData.leetcode || '',
+          codeforces: profileData.codeforces || '',
+          gfg: profileData.gfg || '',
+          hackerrank: profileData.hackerrank || '',
+          profilePhoto: profileData.profilePhoto || '',
+          jobFlexibility: profileData.jobFlexibility || '',
+        };
+        initialProfileRef.current = normalizeProfileSnapshot(sanitizedProfile);
+        setIsFormDirty(false);
 
         // Load resume info if present
         if (profileData.resumeUrl) {
@@ -294,6 +475,8 @@ export default function StudentDashboard() {
           console.log('⚠️ No profile data found - new user?');
         }
         // Keep empty states for new users
+        initialProfileRef.current = normalizeProfileSnapshot({});
+        setIsFormDirty(false);
       }
       
       setDataLoaded(true);
@@ -661,6 +844,7 @@ export default function StudentDashboard() {
         linkedin: linkedin.trim(),
         githubUrl: githubUrl.trim(),
         youtubeUrl: youtubeUrl.trim(),
+        instagramUrl: instagramUrl.trim(),
         leetcode: leetcode.trim(),
         codeforces: codeforces.trim(),
         gfg: gfg.trim(),
@@ -683,6 +867,8 @@ export default function StudentDashboard() {
       } else {
         await createCompleteStudentProfile(user.id, profileData, []);
       }
+      initialProfileRef.current = normalizeProfileSnapshot(profileData);
+      setIsFormDirty(false);
       
       // Dispatch custom event to notify DashboardLayout to reload profile
       window.dispatchEvent(new CustomEvent('profileUpdated', { 
@@ -766,8 +952,25 @@ export default function StudentDashboard() {
     { id: 'gfg', label: 'GeeksforGeeks', icon: SiGeeksforgeeks, color: 'text-green-600' },
     { id: 'hackerrank', label: 'HackerRank', icon: FaHackerrank, color: 'text-emerald-600' },
     { id: 'github', label: 'GitHub', icon: Github, color: 'text-gray-700' },
+    { id: 'instagram', label: 'Instagram', icon: FaInstagram, color: 'text-pink-500' },
     { id: 'youtube', label: 'YouTube', icon: FaYoutube, color: 'text-red-600' },
   ];
+
+  const visibleSkillsCredentials = React.useMemo(() => {
+    if (school === 'SOH') {
+      // School of HealthCare: No Skills & Credentials section
+      return [];
+    } else if (school === 'SOM') {
+      // School of Management: Only Instagram and YouTube
+      return skillsCredentials.filter((skill) => ['instagram', 'youtube'].includes(skill.id));
+    } else if (school === 'SOT') {
+      // School of Technology: All skills except Instagram
+      return skillsCredentials.filter((skill) => skill.id !== 'instagram');
+    } else {
+      // Default: Show all skills (for when school is not yet selected)
+      return skillsCredentials;
+    }
+  }, [school]);
 
   const handleTabClick = (tabId) => {
     setActiveTab(tabId);
@@ -784,6 +987,7 @@ export default function StudentDashboard() {
       gfg: 'https://geeksforgeeks.org',
       hackerrank: 'https://hackerrank.com',
       github: 'https://github.com',
+      instagram: 'https://instagram.com',
       youtube: 'https://youtube.com'
     };
     window.open(urls[skillId], '_blank');
@@ -1618,30 +1822,45 @@ export default function StudentDashboard() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">YouTube</label>
-                    <input
-                      type="url"
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="https://youtube.com/@channel"
-                      value={youtubeUrl}
-                      onChange={(e) => setYoutubeUrl(e.target.value)}
-                    />
-                  </div>
-                  {school === 'SOT' && (
+                {/* Skills & Credentials Section - Only show for SOT and SOM, not SOH */}
+                {(school === 'SOT' || school === 'SOM') && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">GitHub</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">YouTube</label>
                       <input
                         type="url"
                         className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="https://github.com/username"
-                        value={githubUrl}
-                        onChange={(e) => setGithubUrl(e.target.value)}
+                        placeholder="https://youtube.com/@channel"
+                        value={youtubeUrl}
+                        onChange={(e) => setYoutubeUrl(e.target.value)}
                       />
                     </div>
-                  )}
-                </div>
+                    {school === 'SOT' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">GitHub</label>
+                        <input
+                          type="url"
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="https://github.com/username"
+                          value={githubUrl}
+                          onChange={(e) => setGithubUrl(e.target.value)}
+                        />
+                      </div>
+                    )}
+                    {school === 'SOM' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Instagram</label>
+                        <input
+                          type="url"
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="https://instagram.com/username"
+                          value={instagramUrl}
+                          onChange={(e) => setInstagramUrl(e.target.value)}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {school === 'SOT' && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1814,34 +2033,36 @@ export default function StudentDashboard() {
                 </nav>
               </div>
 
-              <div className="mb-6">
-                {sidebarWidth >= 9 && (
-                  <h2 className="text-base font-bold text-gray-900 mb-3">Skills & Credentials</h2>
-                )}
-                <nav className="space-y-1">
-                  {skillsCredentials.map((skill) => {
-                    const Icon = skill.icon;
-                    return (
-                      <div key={skill.id} className="mb-1">
-                        <button
-                          onClick={() => handleSkillClick(skill.id)}
-                          className={`w-full flex items-center rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-200 transition-all duration-200 group ${sidebarWidth < 12 ? 'justify-center px-2 py-2' : 'px-3 py-2'
-                            }`}
-                          title={sidebarWidth < 9 ? skill.label : ''}
-                        >
-                          <Icon className={`h-4 w-4 ${sidebarWidth >= 9 ? 'mr-2' : ''} ${skill.color}`} />
-                          {sidebarWidth >= 9 && (
-                            <>
-                              <span className="flex-1 text-left">{skill.label}</span>
-                              <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </nav>
-              </div>
+              {visibleSkillsCredentials.length > 0 && (
+                <div className="mb-6">
+                  {sidebarWidth >= 9 && (
+                    <h2 className="text-base font-bold text-gray-900 mb-3">Skills & Credentials</h2>
+                  )}
+                  <nav className="space-y-1">
+                    {visibleSkillsCredentials.map((skill) => {
+                      const Icon = skill.icon;
+                      return (
+                        <div key={skill.id} className="mb-1">
+                          <button
+                            onClick={() => handleSkillClick(skill.id)}
+                            className={`w-full flex items-center rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-200 transition-all duration-200 group ${sidebarWidth < 12 ? 'justify-center px-2 py-2' : 'px-3 py-2'
+                              }`}
+                            title={sidebarWidth < 9 ? skill.label : ''}
+                          >
+                            <Icon className={`h-4 w-4 ${sidebarWidth >= 9 ? 'mr-2' : ''} ${skill.color}`} />
+                            {sidebarWidth >= 9 && (
+                              <>
+                                <span className="flex-1 text-left">{skill.label}</span>
+                                <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </nav>
+                </div>
+              )}
 
               <div className="mt-auto pt-4 pb-[35%] border-t border-gray-300">
                 <button

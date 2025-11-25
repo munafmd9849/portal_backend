@@ -372,7 +372,8 @@ export default function AdminHome() {
   ] : [];
 
   // School data with real-time performance and application metrics
-  const schoolData = dashboardData?.chartData?.schoolPerformance || {
+  // Ensure we always have a valid structure with all schools
+  const defaultSchoolData = {
     SOT: {
       performance: { labels: [], values: [] },
       applications: { labels: [], values: [] }
@@ -386,18 +387,59 @@ export default function AdminHome() {
       applications: { labels: [], values: [] }
     }
   };
+  
+  const incomingSchoolData = dashboardData?.chartData?.schoolPerformance || {};
+  const schoolData = {
+    SOT: incomingSchoolData.SOT || defaultSchoolData.SOT,
+    SOM: incomingSchoolData.SOM || defaultSchoolData.SOM,
+    SOH: incomingSchoolData.SOH || defaultSchoolData.SOH,
+  };
 
   // Build unified radar chart data with consistent colors
   const buildSchoolRadarData = (schoolKey) => {
     const school = schoolData[schoolKey];
-    const labels = school.performance.labels;
+    
+    // Safety check: if school data doesn't exist or is incomplete, return empty data
+    if (!school || !school.performance || !school.applications) {
+      return {
+        labels: [],
+        datasets: [
+          {
+            label: 'Performance Metrics',
+            data: [],
+            backgroundColor: chartColors.blueLight,
+            borderColor: chartColors.blue,
+            borderWidth: 2,
+            pointBackgroundColor: chartColors.blue,
+            pointBorderColor: '#fff',
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: chartColors.blue
+          },
+          {
+            label: 'Application Metrics',
+            data: [],
+            backgroundColor: chartColors.greenLight,
+            borderColor: chartColors.green,
+            borderWidth: 2,
+            pointBackgroundColor: chartColors.green,
+            pointBorderColor: '#fff',
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: chartColors.green
+          }
+        ]
+      };
+    }
+    
+    const labels = school.performance.labels || [];
+    const performanceValues = school.performance.values || [];
+    const applicationValues = school.applications.values || [];
     
     return {
       labels,
       datasets: [
         {
           label: 'Performance Metrics',
-          data: school.performance.values,
+          data: performanceValues,
           backgroundColor: chartColors.blueLight,
           borderColor: chartColors.blue,
           borderWidth: 2,
@@ -408,9 +450,9 @@ export default function AdminHome() {
         },
         {
           label: 'Application Metrics',
-          data: school.applications.values.map((val, index) => {
+          data: applicationValues.map((val, index) => {
             const maxVal = index === 0 ? 4000 : index === 1 ? 1000 : index === 2 ? 600 : 100;
-            return Math.round((val / maxVal) * 100);
+            return maxVal > 0 ? Math.round((val / maxVal) * 100) : 0;
           }),
           backgroundColor: chartColors.greenLight,
           borderColor: chartColors.green,
