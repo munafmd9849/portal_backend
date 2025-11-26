@@ -42,7 +42,7 @@ sqlite3 backend/prisma/dev.db 'PRAGMA table_info("notifications");'
 sqlite3 backend/prisma/dev.db 'SELECT id, title, body, data, isRead, createdAt FROM notifications ORDER BY createdAt DESC LIMIT 10;'
 ```
 
-Repeat the pattern for any table above.
+Repeat the pattern for any table above. Always run the `PRAGMA table_info("<table>")` command first so you know the actual column names before writing a `SELECT`.
 
 ### Query snippets per table
 
@@ -148,7 +148,7 @@ sqlite3 backend/prisma/dev.db 'SELECT id, title, studentId, link FROM projects L
 #### `recruiters`
 ```
 sqlite3 backend/prisma/dev.db 'PRAGMA table_info("recruiters");'
-sqlite3 backend/prisma/dev.db 'SELECT id, name, companyName, status FROM recruiters ORDER BY createdAt DESC LIMIT 5;'
+sqlite3 backend/prisma/dev.db 'SELECT id, userId, companyId, companyName, location FROM recruiters ORDER BY createdAt DESC LIMIT 5;'
 ```
 
 #### `refresh_tokens`
