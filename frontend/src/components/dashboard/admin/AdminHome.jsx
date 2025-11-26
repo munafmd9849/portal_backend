@@ -838,71 +838,38 @@ export default function AdminHome() {
                   <MessageSquare className="w-4 h-4" style={{ color: chartColors.purple }} />
                   Query Volume Snapshot
                 </h2>
-                <p className="text-xs text-gray-500">
-                  Compact pie plus legend with matching tooltip behavior from the other cards.
-                </p>
+                <p className="text-xs text-gray-500">Pie-only view with tooltip behavior consistent with other charts.</p>
               </div>
               <div className="p-6">
                 <div
                   ref={chartContainerRef}
-                  className="flex flex-col gap-4 sm:flex-row relative items-start"
+                  className="relative flex items-center justify-center min-h-[280px]"
                 >
-                  <div className="flex-1 flex items-center justify-center">
-                    {queryVolumeData.length > 0 ? (
-                      <PieChart
-                        data={queryVolumeData}
-                        lineWidth={36}
-                        radius={48}
-                        label={() => ''}
-                        viewBoxSize={100}
-                        width={240}
-                        height={240}
-                        segmentsStyle={(segment) => ({
-                          cursor: 'pointer',
-                          stroke: hoveredSegment?.title === segment.title ? segment.color : '#fff',
-                          strokeWidth: hoveredSegment?.title === segment.title ? 6 : 3,
-                          opacity: hoveredSegment?.title === segment.title ? 1 : 0.95,
-                          transition: 'stroke-width 0.2s ease, opacity 0.2s ease',
-                        })}
-                        onMouseOver={(event, segmentIndex) => handleSegmentMouseOver(event, segmentIndex)}
-                        onMouseOut={handleSegmentMouseOut}
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center text-gray-500 text-sm">
-                        <MessageSquare className="w-10 h-10 mr-2 text-gray-300" />
-                        No query data yet.
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 grid gap-3">
-                    {queryVolumeData.length > 0 ? (
-                      queryVolumeData.map((entry) => {
-                        const percentage = queryVolumeTotal > 0
-                          ? Math.round((entry.value / queryVolumeTotal) * 100)
-                          : 0;
-                        return (
-                          <div
-                            key={entry.title}
-                            className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 shadow-sm transition hover:border-indigo-300"
-                          >
-                            <div className="flex items-center gap-3">
-                              <span
-                                className="w-3 h-3 rounded-full border border-white shadow-sm"
-                                style={{ backgroundColor: entry.color || chartColors.purple }}
-                              />
-                              <div>
-                                <p className="text-sm font-medium text-gray-700">{entry.title}</p>
-                                <p className="text-xs text-gray-500">{percentage}% of total</p>
-                              </div>
-                            </div>
-                            <span className="text-sm font-semibold text-gray-900">{entry.value}</span>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <p className="text-sm text-gray-500">Insights appear once query activity starts flowing in.</p>
-                    )}
-                  </div>
+                  {queryVolumeData.length > 0 ? (
+                    <PieChart
+                      data={queryVolumeData}
+                      lineWidth={36}
+                      radius={56}
+                      label={() => ''}
+                      viewBoxSize={100}
+                      width={280}
+                      height={280}
+                      segmentsStyle={(segment) => ({
+                        cursor: 'pointer',
+                        stroke: hoveredSegment?.title === segment.title ? segment.color : '#fff',
+                        strokeWidth: hoveredSegment?.title === segment.title ? 6 : 3,
+                        opacity: hoveredSegment?.title === segment.title ? 1 : 0.95,
+                        transition: 'stroke-width 0.2s ease, opacity 0.2s ease',
+                      })}
+                      onMouseOver={(event, segmentIndex) => handleSegmentMouseOver(event, segmentIndex)}
+                      onMouseOut={handleSegmentMouseOut}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center text-gray-500 text-sm">
+                      <MessageSquare className="w-10 h-10 mr-2 text-gray-300" />
+                      No query data yet.
+                    </div>
+                  )}
 
                   {hoveredSegment && (
                     <div
