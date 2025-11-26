@@ -826,13 +826,7 @@ export default function AdminHome() {
                       data={queryVolumeData}
                       lineWidth={52}
                       radius={45}
-                      label={({ dataEntry }) => `${dataEntry.title}: ${dataEntry.value}`}
-                      labelStyle={{
-                        fontSize: '9px',
-                        fill: '#fff',
-                        fontWeight: '600'
-                      }}
-                      labelPosition={72}
+                      label={() => ''}
                     />
                   ) : (
                     <div className="flex items-center justify-center h-full text-gray-500">
