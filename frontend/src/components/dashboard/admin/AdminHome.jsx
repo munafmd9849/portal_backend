@@ -774,7 +774,7 @@ export default function AdminHome() {
               </h2>
             </div>
             <div className="p-6">
-              <div className="h-80">
+              <div className="h-96">
                 {dashboardData.chartData.placementTrend && dashboardData.chartData.placementTrend.labels ? (
                   <Line 
                     data={dashboardData.chartData.placementTrend}
@@ -841,7 +841,7 @@ export default function AdminHome() {
             </div>
             <div className="p-6">
               <div className="flex flex-col lg:flex-row items-start gap-6 w-full relative" ref={chartContainerRef}>
-                <div className="flex-1 min-h-[240px] flex items-center justify-center">
+                <div className="flex-1 min-h-[240px] min-w-[280px] flex items-center justify-center">
                   {queryVolumeData.length > 0 ? (
                     <PieChart 
                       data={queryVolumeData}
@@ -850,8 +850,10 @@ export default function AdminHome() {
                       label={() => ''}
                       segmentsStyle={(segment) => ({
                         cursor: 'pointer',
-                        transition: 'transform 0.2s',
-                        transform: hoveredSegment?.title === segment.title ? 'scale(1.06)' : undefined,
+                        stroke: hoveredSegment?.title === segment.title ? '#f9fafb' : '#fff',
+                        strokeWidth: hoveredSegment?.title === segment.title ? 4 : 1,
+                        opacity: hoveredSegment?.title === segment.title ? 0.95 : 1,
+                        transition: 'stroke-width 0.2s, opacity 0.2s',
                       })}
                       onMouseOver={(event, segmentIndex) => handleSegmentMouseOver(event, segmentIndex)}
                       onMouseOut={handleSegmentMouseOut}
@@ -922,7 +924,7 @@ export default function AdminHome() {
               </h2>
             </div>
             <div className="p-4">
-              <div className="h-48">
+              <div className="h-64">
                 {dashboardData.chartData.recruiterActivity && dashboardData.chartData.recruiterActivity.labels ? (
                   <Bar 
                     data={dashboardData.chartData.recruiterActivity}
