@@ -845,7 +845,7 @@ export default function AdminHome() {
                   ref={chartContainerRef}
                   className="flex flex-col gap-6 lg:flex-row relative items-stretch"
                 >
-                  <div className="flex-1 min-h-[360px] flex items-center justify-center">
+                  <div className="flex-1 min-h-[360px] flex items-center justify-center self-center">
                     {queryVolumeData.length > 0 ? (
                       <div className="w-full flex items-center justify-center">
                         <PieChart
