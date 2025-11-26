@@ -176,6 +176,9 @@ export default function AdminHome() {
     admins: []
   });
   const [loadingFilters, setLoadingFilters] = useState(true);
+  const chartContainerRef = useRef(null);
+  const [hoveredSegment, setHoveredSegment] = useState(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
   // Load predefined filter options (no database fetching to avoid duplicates)
   useEffect(() => {
@@ -328,6 +331,24 @@ export default function AdminHome() {
   const clearAllFilters = () => setFilters({ campus: [], school: [], batch: [] });
 
   const queryVolumeData = dashboardData?.chartData?.queryVolume || [];
+  const handleSegmentMouseOver = (event, segmentIndex) => {
+    if (!chartContainerRef.current) return;
+    const entry = queryVolumeData[segmentIndex];
+    if (!entry) return;
+    const rect = chartContainerRef.current.getBoundingClientRect();
+    setTooltipPos({
+      x: event.clientX - rect.left + 10,
+      y: event.clientY - rect.top + 10,
+    });
+    setHoveredSegment({
+      title: entry.title,
+      value: entry.value,
+      color: entry.color || chartColors.purple,
+    });
+  };
+  const handleSegmentMouseOut = () => {
+    setHoveredSegment(null);
+  };
   const queryVolumeTotal = queryVolumeData.reduce((sum, item) => sum + (item.value || 0), 0);
 
   // Stats with real-time data and consistent Chart.js colors
@@ -819,7 +840,7 @@ export default function AdminHome() {
               </h2>
             </div>
             <div className="p-6">
-              <div className="flex flex-col lg:flex-row items-start gap-6 w-full">
+              <div className="flex flex-col lg:flex-row items-start gap-6 w-full relative" ref={chartContainerRef}>
                 <div className="flex-1 min-h-[240px] flex items-center justify-center">
                   {queryVolumeData.length > 0 ? (
                     <PieChart 
@@ -827,6 +848,13 @@ export default function AdminHome() {
                       lineWidth={52}
                       radius={45}
                       label={() => ''}
+                      segmentsStyle={(segment) => ({
+                        cursor: 'pointer',
+                        transition: 'transform 0.2s',
+                        transform: hoveredSegment?.title === segment.title ? 'scale(1.06)' : undefined,
+                      })}
+                      onMouseOver={(event, segmentIndex) => handleSegmentMouseOver(event, segmentIndex)}
+                      onMouseOut={handleSegmentMouseOut}
                     />
                   ) : (
                     <div className="flex items-center justify-center h-full text-gray-500">
@@ -870,6 +898,18 @@ export default function AdminHome() {
                     <p className="text-sm text-gray-500">Legend appears once query data flows in.</p>
                   )}
                 </div>
+              {hoveredSegment && (
+                <div
+                  className="absolute z-10 pointer-events-none bg-white rounded-md shadow-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-800"
+                  style={{
+                    left: tooltipPos.x,
+                    top: tooltipPos.y,
+                  }}
+                >
+                  <p>{hoveredSegment.title}</p>
+                  <p className="text-right text-gray-500">{hoveredSegment.value} requests</p>
+                </div>
+              )}
               </div>
             </div>
           </div>
