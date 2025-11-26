@@ -327,6 +327,9 @@ export default function AdminHome() {
   const removeFilter = (filterType, value) => setFilters(prev => ({ ...prev, [filterType]: prev[filterType].filter(i => i !== value) }));
   const clearAllFilters = () => setFilters({ campus: [], school: [], batch: [] });
 
+  const queryVolumeData = dashboardData?.chartData?.queryVolume || [];
+  const queryVolumeTotal = queryVolumeData.reduce((sum, item) => sum + (item.value || 0), 0);
+
   // Stats with real-time data and consistent Chart.js colors
   const stats = dashboardData ? [
     { 
@@ -805,61 +808,68 @@ export default function AdminHome() {
             </div>
           </div>
 
-          {/* Query Volume and Recruiter Activity */}
           <div className="space-y-6">
             {/* Query Volume Pie Chart */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 w-full">
               <div className="p-4 border-b border-gray-200">
                 <h2 className="text-lg font-semibold text-gray-800 flex items-center">
                   <MessageSquare className="w-4 h-4 mr-2" style={{ color: chartColors.purple }} />
                   Query Volume by Type
                 </h2>
               </div>
-              <div className="p-4">
-                <div className="flex flex-col lg:flex-row items-center gap-6">
-                  <div className="flex-1 max-w-[280px] mx-auto">
-                    {dashboardData.chartData.queryVolume && dashboardData.chartData.queryVolume.length > 0 ? (
+              <div className="p-6">
+                <div className="flex flex-col lg:flex-row items-start gap-6 w-full">
+                  <div className="flex-1 min-h-[240px] flex items-center justify-center">
+                    {queryVolumeData.length > 0 ? (
                       <PieChart 
-                        data={dashboardData.chartData.queryVolume}
+                        data={queryVolumeData}
                         lineWidth={60}
-                        radius={50}
+                        radius={55}
                         label={({ dataEntry }) => `${dataEntry.title}: ${dataEntry.value}`}
                         labelStyle={{
                           fontSize: '9px',
                           fill: '#fff',
                           fontWeight: '600'
                         }}
-                        labelPosition={70}
+                        labelPosition={72}
                       />
                     ) : (
                       <div className="flex items-center justify-center h-full text-gray-500">
                         <div className="text-center">
-                          <MessageSquare className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                          <MessageSquare className="w-10 h-10 mx-auto mb-2 text-gray-300" />
                           <p className="text-sm">No query data</p>
                         </div>
                       </div>
                     )}
                   </div>
 
-                  <div className="flex-1 space-y-3 w-full">
-                    <p className="text-sm font-semibold text-gray-500 tracking-wide uppercase">Legend</p>
-                    {dashboardData.chartData.queryVolume && dashboardData.chartData.queryVolume.length > 0 ? (
-                      <div className="grid grid-cols-1 gap-2">
-                        {dashboardData.chartData.queryVolume.map((entry) => (
-                          <div 
-                            key={entry.title} 
-                            className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 shadow-sm bg-gray-50"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span 
-                                className="w-3 h-3 rounded-full" 
-                                style={{ backgroundColor: entry.color || chartColors.purple }}
-                              />
-                              <span className="text-sm font-medium text-gray-700">{entry.title}</span>
+                  <div className="flex-1 flex flex-col gap-3 w-full">
+                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Legend</p>
+                    {queryVolumeData.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-3 w-full">
+                        {queryVolumeData.map((entry) => {
+                          const percentage = queryVolumeTotal > 0
+                            ? Math.round((entry.value / queryVolumeTotal) * 100)
+                            : 0;
+                          return (
+                            <div 
+                              key={entry.title} 
+                              className="flex items-center justify-between rounded-2xl border border-gray-200 px-4 py-3 shadow-sm bg-gray-50 w-full"
+                            >
+                              <div className="flex items-center gap-3">
+                                <span 
+                                  className="w-3 h-3 rounded-full border border-white shadow-sm" 
+                                  style={{ backgroundColor: entry.color || chartColors.purple }}
+                                />
+                                <div>
+                                  <p className="text-sm font-medium text-gray-700">{entry.title}</p>
+                                  <p className="text-xs text-gray-500">{`${percentage}% of total`}</p>
+                                </div>
+                              </div>
+                              <span className="text-sm font-semibold text-gray-900">{entry.value}</span>
                             </div>
-                            <span className="text-sm font-semibold text-gray-900">{entry.value}</span>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <p className="text-sm text-gray-500">Legend appears once query data flows in.</p>
