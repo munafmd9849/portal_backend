@@ -887,59 +887,6 @@ export default function AdminHome() {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-              <div className="p-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-800 flex items-center">
-                  <Users className="w-4 h-4 mr-2" style={{ color: chartColors.green }} />
-                  Top Active Recruiters
-                </h2>
-              </div>
-              <div className="p-4">
-                <div className="h-80">
-                  {dashboardData.chartData.recruiterActivity && dashboardData.chartData.recruiterActivity.labels ? (
-                    <Bar 
-                      data={dashboardData.chartData.recruiterActivity}
-                      options={{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                          legend: {
-                            display: false
-                          }
-                        },
-                        scales: {
-                          y: {
-                            beginAtZero: true,
-                            ticks: {
-                              color: '#6b7280',
-                              stepSize: 1
-                            },
-                            grid: {
-                              color: 'rgba(0, 0, 0, 0.05)'
-                            }
-                          },
-                          x: {
-                            ticks: {
-                              color: '#6b7280'
-                            },
-                            grid: {
-                              display: false
-                            }
-                          }
-                        }
-                      }}
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-gray-500">
-                      <div className="text-center">
-                        <Users className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                        <p className="text-sm">No recruiter data</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
           </div>
         </>
       )}
