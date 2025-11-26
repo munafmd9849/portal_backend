@@ -742,7 +742,8 @@ export default function AdminHome() {
 
       {/* Placement Trends and Analytics Charts */}
       {!isLoading && dashboardData && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Placement Trend Chart */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200">
             <div className="p-6 border-b border-gray-200">
@@ -808,133 +809,132 @@ export default function AdminHome() {
             </div>
           </div>
 
-          <div className="space-y-6">
-            {/* Query Volume Pie Chart */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 w-full">
-              <div className="p-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-800 flex items-center">
-                  <MessageSquare className="w-4 h-4 mr-2" style={{ color: chartColors.purple }} />
-                  Query Volume by Type
-                </h2>
-              </div>
-              <div className="p-6">
-                <div className="flex flex-col lg:flex-row items-start gap-6 w-full">
-                  <div className="flex-1 min-h-[240px] flex items-center justify-center">
-                    {queryVolumeData.length > 0 ? (
-                      <PieChart 
-                        data={queryVolumeData}
-                        lineWidth={60}
-                        radius={55}
-                        label={({ dataEntry }) => `${dataEntry.title}: ${dataEntry.value}`}
-                        labelStyle={{
-                          fontSize: '9px',
-                          fill: '#fff',
-                          fontWeight: '600'
-                        }}
-                        labelPosition={72}
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-full text-gray-500">
-                        <div className="text-center">
-                          <MessageSquare className="w-10 h-10 mx-auto mb-2 text-gray-300" />
-                          <p className="text-sm">No query data</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex-1 flex flex-col gap-3 w-full">
-                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Legend</p>
-                    {queryVolumeData.length > 0 ? (
-                      <div className="grid grid-cols-1 gap-3 w-full">
-                        {queryVolumeData.map((entry) => {
-                          const percentage = queryVolumeTotal > 0
-                            ? Math.round((entry.value / queryVolumeTotal) * 100)
-                            : 0;
-                          return (
-                            <div 
-                              key={entry.title} 
-                              className="flex items-center justify-between rounded-2xl border border-gray-200 px-4 py-3 shadow-sm bg-gray-50 w-full"
-                            >
-                              <div className="flex items-center gap-3">
-                                <span 
-                                  className="w-3 h-3 rounded-full border border-white shadow-sm" 
-                                  style={{ backgroundColor: entry.color || chartColors.purple }}
-                                />
-                                <div>
-                                  <p className="text-sm font-medium text-gray-700">{entry.title}</p>
-                                  <p className="text-xs text-gray-500">{`${percentage}% of total`}</p>
-                                </div>
-                              </div>
-                              <span className="text-sm font-semibold text-gray-900">{entry.value}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-500">Legend appears once query data flows in.</p>
-                    )}
-                  </div>
-                </div>
-              </div>
+          </div>
+          <div className="space-y-6 mt-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 w-full">
+            <div className="p-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-800 flex items-center">
+                <MessageSquare className="w-4 h-4 mr-2" style={{ color: chartColors.purple }} />
+                Query Volume by Type
+              </h2>
             </div>
-
-            {/* Top Recruiters Bar Chart */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-              <div className="p-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-800 flex items-center">
-                  <Users className="w-4 h-4 mr-2" style={{ color: chartColors.green }} />
-                  Top Active Recruiters
-                </h2>
-              </div>
-              <div className="p-4">
-                <div className="h-48">
-                  {dashboardData.chartData.recruiterActivity && dashboardData.chartData.recruiterActivity.labels ? (
-                    <Bar 
-                      data={dashboardData.chartData.recruiterActivity}
-                      options={{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                          legend: {
-                            display: false
-                          }
-                        },
-                        scales: {
-                          y: {
-                            beginAtZero: true,
-                            ticks: {
-                              color: '#6b7280',
-                              stepSize: 1
-                            },
-                            grid: {
-                              color: 'rgba(0, 0, 0, 0.05)'
-                            }
-                          },
-                          x: {
-                            ticks: {
-                              color: '#6b7280'
-                            },
-                            grid: {
-                              display: false
-                            }
-                          }
-                        }
+            <div className="p-6">
+              <div className="flex flex-col lg:flex-row items-start gap-6 w-full">
+                <div className="flex-1 min-h-[240px] flex items-center justify-center">
+                  {queryVolumeData.length > 0 ? (
+                    <PieChart 
+                      data={queryVolumeData}
+                      lineWidth={52}
+                      radius={45}
+                      label={({ dataEntry }) => `${dataEntry.title}: ${dataEntry.value}`}
+                      labelStyle={{
+                        fontSize: '9px',
+                        fill: '#fff',
+                        fontWeight: '600'
                       }}
+                      labelPosition={72}
                     />
                   ) : (
                     <div className="flex items-center justify-center h-full text-gray-500">
                       <div className="text-center">
-                        <Users className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                        <p className="text-sm">No recruiter data</p>
+                        <MessageSquare className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                        <p className="text-sm">No query data</p>
                       </div>
                     </div>
+                  )}
+                </div>
+
+                <div className="flex-1 flex flex-col gap-3 w-full">
+                  <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Legend</p>
+                  {queryVolumeData.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-3 w-full">
+                      {queryVolumeData.map((entry) => {
+                        const percentage = queryVolumeTotal > 0
+                          ? Math.round((entry.value / queryVolumeTotal) * 100)
+                          : 0;
+                        return (
+                          <div 
+                            key={entry.title} 
+                            className="flex items-center justify-between rounded-2xl border border-gray-200 px-4 py-3 shadow-sm bg-gray-50 w-full"
+                          >
+                            <div className="flex items-center gap-3">
+                              <span 
+                                className="w-3 h-3 rounded-full border border-white shadow-sm" 
+                                style={{ backgroundColor: entry.color || chartColors.purple }}
+                              />
+                              <div>
+                                <p className="text-sm font-medium text-gray-700">{entry.title}</p>
+                                <p className="text-xs text-gray-500">{`${percentage}% of total`}</p>
+                              </div>
+                            </div>
+                            <span className="text-sm font-semibold text-gray-900">{entry.value}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">Legend appears once query data flows in.</p>
                   )}
                 </div>
               </div>
             </div>
           </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+            <div className="p-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-800 flex items-center">
+                <Users className="w-4 h-4 mr-2" style={{ color: chartColors.green }} />
+                Top Active Recruiters
+              </h2>
+            </div>
+            <div className="p-4">
+              <div className="h-48">
+                {dashboardData.chartData.recruiterActivity && dashboardData.chartData.recruiterActivity.labels ? (
+                  <Bar 
+                    data={dashboardData.chartData.recruiterActivity}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          display: false
+                        }
+                      },
+                      scales: {
+                        y: {
+                          beginAtZero: true,
+                          ticks: {
+                            color: '#6b7280',
+                            stepSize: 1
+                          },
+                          grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                          }
+                        },
+                        x: {
+                          ticks: {
+                            color: '#6b7280'
+                          },
+                          grid: {
+                            display: false
+                          }
+                        }
+                      }
+                    }}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-500">
+                    <div className="text-center">
+                      <Users className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                      <p className="text-sm">No recruiter data</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
+      </>
       )}
 
       {/* School Performance Radar Chart */}
