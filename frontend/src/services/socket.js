@@ -7,15 +7,8 @@
 import { io } from 'socket.io-client';
 import api from './api.js';
 
-// Force port 3001 - ensure we're not using cached 3000
 const getSocketUrl = () => {
-  const envUrl = import.meta.env.VITE_SOCKET_URL;
-  if (envUrl) {
-    // Replace any :3000 with :3001 in env URL
-    return envUrl.replace(':3000', ':3001');
-  }
-  // Default to 3001, never 3000
-  return 'http://localhost:3001';
+  return import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
 };
 
 const SOCKET_URL = getSocketUrl();
@@ -44,12 +37,9 @@ export function initSocket() {
     return null;
   }
 
-  // Ensure we're using the correct URL (force 3001, never 3000)
-  const finalSocketUrl = SOCKET_URL.replace('localhost:3000', 'localhost:3001').replace(':3000', ':3001');
+  console.log(`🔌 Initializing Socket.IO connection to: ${SOCKET_URL}`);
   
-  console.log(`🔌 Initializing Socket.IO connection to: ${finalSocketUrl}`);
-  
-  socket = io(finalSocketUrl, {
+  socket = io(SOCKET_URL, {
     auth: {
       token,
     },

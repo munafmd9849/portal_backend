@@ -24,7 +24,7 @@ export async function listNotificationsForUser(userId, limitTo = 50) {
 export async function createNotification({ userId, title, body, data = {}, sendEmail = false }) {
   try {
     // Backend endpoint: POST /api/notifications
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
     const token = localStorage.getItem('accessToken');
     
     const response = await fetch(`${API_BASE_URL}/notifications`, {

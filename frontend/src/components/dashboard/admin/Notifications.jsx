@@ -89,14 +89,9 @@ const Notifications = () => {
     };
 
     loadNotifications();
+  }, [activeFilter]);
 
-    // Refresh notifications when modal opens or filter changes
-    if (isOpen) {
-      loadNotifications();
-    }
-  }, [isOpen, activeFilter]);
-
-  // Load admin requests when admin_coordination filter is active
+ 
   useEffect(() => {
     if (activeFilter === 'admin_coordination') {
       loadAdminRequests();
