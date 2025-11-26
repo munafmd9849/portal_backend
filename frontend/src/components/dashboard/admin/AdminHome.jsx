@@ -845,16 +845,16 @@ export default function AdminHome() {
                   ref={chartContainerRef}
                   className="flex flex-col gap-6 lg:flex-row relative items-stretch"
                 >
-                  <div className="flex-1 min-h-[260px] flex items-center justify-center rounded-2xl border border-gray-100 bg-gradient-to-br from-white to-slate-50 p-4 shadow-sm">
+                  <div className="flex-1 min-h-[330px] flex items-center justify-center rounded-2xl border border-gray-100 bg-gradient-to-br from-white to-slate-50 p-4 shadow-sm">
                     {queryVolumeData.length > 0 ? (
                       <PieChart
                         data={queryVolumeData}
-                        lineWidth={36}
-                        radius={45}
+                        lineWidth={40}
+                        radius={52}
                         label={() => ''}
                         viewBoxSize={100}
-                        width={220}
-                        height={220}
+                        width={270}
+                        height={270}
                         segmentsStyle={(segment) => ({
                           cursor: 'pointer',
                           stroke: hoveredSegment?.title === segment.title ? segment.color : '#fff',
