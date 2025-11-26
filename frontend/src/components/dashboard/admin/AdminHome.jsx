@@ -848,6 +848,8 @@ export default function AdminHome() {
                       lineWidth={52}
                       radius={45}
                       label={() => ''}
+                      viewBoxSize={100}
+                      style={{ width: '220px', height: '220px' }}
                       segmentsStyle={(segment) => ({
                         cursor: 'pointer',
                         stroke: hoveredSegment?.title === segment.title ? '#f9fafb' : '#fff',
