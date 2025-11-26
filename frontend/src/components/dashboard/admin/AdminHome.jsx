@@ -838,32 +838,84 @@ export default function AdminHome() {
                   <MessageSquare className="w-4 h-4" style={{ color: chartColors.purple }} />
                   Query Volume Insights
                 </h2>
-                <p className="text-xs text-gray-500">Each card reflects a request type’s share.</p>
+                <p className="text-xs text-gray-500">Color-coded breakdown with the same hover feel as other charts.</p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6">
-                {queryVolumeData.map((entry) => {
-                  const percentage = queryVolumeTotal > 0
-                    ? Math.round((entry.value / queryVolumeTotal) * 100)
-                    : 0;
-                  return (
-                    <div
-                      key={entry.title}
-                      className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 shadow-sm transition hover:border-indigo-300"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span
-                          className="w-3 h-3 rounded-full border border-white shadow-sm"
-                          style={{ backgroundColor: entry.color || chartColors.purple }}
-                        />
-                        <div>
-                          <p className="text-sm font-medium text-gray-700">{entry.title}</p>
-                          <p className="text-xs text-gray-500">{percentage}% of total</p>
-                        </div>
+              <div className="p-6">
+                <div
+                  ref={chartContainerRef}
+                  className="flex flex-col gap-6 lg:flex-row relative items-stretch"
+                >
+                  <div className="flex-1 min-h-[260px] flex items-center justify-center rounded-2xl border border-gray-100 bg-gradient-to-br from-white to-slate-50 p-4 shadow-sm">
+                    {queryVolumeData.length > 0 ? (
+                      <PieChart
+                        data={queryVolumeData}
+                        lineWidth={36}
+                        radius={45}
+                        label={() => ''}
+                        viewBoxSize={100}
+                        width={220}
+                        height={220}
+                        segmentsStyle={(segment) => ({
+                          cursor: 'pointer',
+                          stroke: hoveredSegment?.title === segment.title ? segment.color : '#fff',
+                          strokeWidth: hoveredSegment?.title === segment.title ? 6 : 3,
+                          opacity: hoveredSegment?.title === segment.title ? 1 : 0.95,
+                          transition: 'stroke-width 0.2s ease, opacity 0.2s ease',
+                        })}
+                        onMouseOver={(event, segmentIndex) => handleSegmentMouseOver(event, segmentIndex)}
+                        onMouseOut={handleSegmentMouseOut}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center text-gray-500 text-sm">
+                        <MessageSquare className="w-10 h-10 mr-2 text-gray-300" />
+                        No query data yet.
                       </div>
-                      <span className="text-sm font-semibold text-gray-900">{entry.value}</span>
+                    )}
+                  </div>
+
+                  <div className="flex-1 grid grid-cols-1 gap-4">
+                    {queryVolumeData.length > 0 ? (
+                      queryVolumeData.map((entry) => {
+                        const percentage = queryVolumeTotal > 0
+                          ? Math.round((entry.value / queryVolumeTotal) * 100)
+                          : 0;
+                        return (
+                          <div
+                            key={entry.title}
+                            className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-300"
+                          >
+                            <div className="flex items-center gap-3">
+                              <span
+                                className="w-3 h-3 rounded-full border border-white shadow-sm"
+                                style={{ backgroundColor: entry.color || chartColors.purple }}
+                              />
+                              <div>
+                                <p className="text-sm font-medium text-gray-700">{entry.title}</p>
+                                <p className="text-xs text-gray-500">{percentage}% of total</p>
+                              </div>
+                            </div>
+                            <span className="text-sm font-semibold text-gray-900">{entry.value}</span>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-sm text-gray-500">Insights appear once query activity starts flowing in.</p>
+                    )}
+                  </div>
+
+                  {hoveredSegment && (
+                    <div
+                      className="pointer-events-none absolute z-20 bg-white rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-800 shadow-md"
+                      style={{
+                        left: tooltipPos.x,
+                        top: tooltipPos.y,
+                      }}
+                    >
+                      <p>{hoveredSegment.title}</p>
+                      <p className="text-right text-gray-500">{hoveredSegment.value} requests</p>
                     </div>
-                  );
-                })}
+                  )}
+                </div>
               </div>
             </div>
 
