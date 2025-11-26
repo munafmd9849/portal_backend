@@ -845,39 +845,36 @@ export default function AdminHome() {
                   ref={chartContainerRef}
                   className="flex flex-col gap-6 lg:flex-row relative items-stretch"
                 >
-                  <div className="flex-1 flex items-center justify-center">
-                    <div className="w-full max-w-[340px] max-h-[340px]">
-                      <div className="flex h-full items-center justify-center rounded-2xl border border-gray-100 bg-gradient-to-br from-white to-slate-50 p-4 shadow-sm">
-                        <div className="w-full h-full flex items-center justify-center">
-                          {queryVolumeData.length > 0 ? (
-                            <PieChart
-                              data={queryVolumeData}
-                              lineWidth={42}
-                              radius={56}
-                              label={() => ''}
-                              viewBoxSize={100}
-                              width={320}
-                              height={320}
-                              segmentsStyle={(segment) => ({
-                                cursor: 'pointer',
-                                stroke: hoveredSegment?.title === segment.title ? segment.color : '#fff',
-                                strokeWidth: hoveredSegment?.title === segment.title ? 6 : 3,
-                                opacity: hoveredSegment?.title === segment.title ? 1 : 0.95,
-                                transition: 'stroke-width 0.2s ease, opacity 0.2s ease',
-                              })}
-                              onMouseOver={(event, segmentIndex) => handleSegmentMouseOver(event, segmentIndex)}
-                              onMouseOut={handleSegmentMouseOut}
-                            />
-                          ) : (
-                            <div className="flex items-center justify-center text-gray-500 text-sm">
-                              <MessageSquare className="w-10 h-10 mr-2 text-gray-300" />
-                              No query data yet.
-                            </div>
-                          )}
-                        </div>
+                  <div className="flex-1 min-h-[360px] flex items-center justify-center">
+                    {queryVolumeData.length > 0 ? (
+                      <div className="w-full flex items-center justify-center">
+                        <PieChart
+                          data={queryVolumeData}
+                          lineWidth={48}
+                          radius={62}
+                          label={() => ''}
+                          viewBoxSize={100}
+                          width={360}
+                          height={360}
+                          segmentsStyle={(segment) => ({
+                            cursor: 'pointer',
+                            stroke: hoveredSegment?.title === segment.title ? segment.color : '#fff',
+                            strokeWidth: hoveredSegment?.title === segment.title ? 6 : 3,
+                            opacity: hoveredSegment?.title === segment.title ? 1 : 0.95,
+                            transition: 'stroke-width 0.2s ease, opacity 0.2s ease',
+                          })}
+                          onMouseOver={(event, segmentIndex) => handleSegmentMouseOver(event, segmentIndex)}
+                          onMouseOut={handleSegmentMouseOut}
+                        />
                       </div>
-                    </div>
+                    ) : (
+                      <div className="flex items-center justify-center text-gray-500 text-sm">
+                        <MessageSquare className="w-10 h-10 mr-2 text-gray-300" />
+                        No query data yet.
+                      </div>
+                    )}
                   </div>
+
                   <div className="flex-1 grid grid-cols-1 gap-4">
                     {queryVolumeData.length > 0 ? (
                       queryVolumeData.map((entry) => {
