@@ -926,7 +926,7 @@ export default function AdminHome() {
               </h2>
             </div>
             <div className="p-4">
-              <div className="h-72">
+              <div className="h-80">
                 {dashboardData.chartData.recruiterActivity && dashboardData.chartData.recruiterActivity.labels ? (
                   <Bar 
                     data={dashboardData.chartData.recruiterActivity}
