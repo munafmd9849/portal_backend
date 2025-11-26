@@ -44,3 +44,146 @@ sqlite3 backend/prisma/dev.db 'SELECT id, title, body, data, isRead, createdAt F
 
 Repeat the pattern for any table above.
 
+### Query snippets per table
+
+Use these exact commands to explore each table (line breaks only for readability):
+
+```bash
+sqlite3 backend/prisma/dev.db 'PRAGMA table_info("<table>");'
+sqlite3 backend/prisma/dev.db 'SELECT * FROM <table> LIMIT 5;'
+```
+
+Below are the table-specific commands you can paste directly. Replace `<table>` from the name shown in the header (no angle brackets).
+
+#### `_prisma_migrations`
+```
+sqlite3 backend/prisma/dev.db 'PRAGMA table_info("_prisma_migrations");'
+sqlite3 backend/prisma/dev.db 'SELECT id, finished_at, migration_name FROM _prisma_migrations ORDER BY finished_at DESC LIMIT 5;'
+```
+
+#### `achievements`
+```
+sqlite3 backend/prisma/dev.db 'PRAGMA table_info("achievements");'
+sqlite3 backend/prisma/dev.db 'SELECT id, name, studentId, organization FROM achievements LIMIT 5;'
+```
+
+#### `admin_requests`
+```
+sqlite3 backend/prisma/dev.db 'PRAGMA table_info("admin_requests");'
+sqlite3 backend/prisma/dev.db 'SELECT id, userId, reason, status FROM admin_requests ORDER BY createdAt DESC LIMIT 5;'
+```
+
+#### `admins`
+```
+sqlite3 backend/prisma/dev.db 'PRAGMA table_info("admins");'
+sqlite3 backend/prisma/dev.db 'SELECT id, userId, name, email FROM admins LIMIT 5;'
+```
+
+#### `applications`
+```
+sqlite3 backend/prisma/dev.db 'PRAGMA table_info("applications");'
+sqlite3 backend/prisma/dev.db 'SELECT id, studentId, jobId, status FROM applications ORDER BY createdAt DESC LIMIT 5;'
+```
+
+#### `certifications`
+```
+sqlite3 backend/prisma/dev.db 'PRAGMA table_info("certifications");'
+sqlite3 backend/prisma/dev.db 'SELECT id, name, issuedBy, studentId FROM certifications LIMIT 5;'
+```
+
+#### `coding_profiles`
+```
+sqlite3 backend/prisma/dev.db 'PRAGMA table_info("coding_profiles");'
+sqlite3 backend/prisma/dev.db 'SELECT id, platform, url, studentId FROM coding_profiles LIMIT 5;'
+```
+
+#### `companies`
+```
+sqlite3 backend/prisma/dev.db 'PRAGMA table_info("companies");'
+sqlite3 backend/prisma/dev.db 'SELECT id, name, website, domain FROM companies LIMIT 5;'
+```
+
+#### `education`
+```
+sqlite3 backend/prisma/dev.db 'PRAGMA table_info("education");'
+sqlite3 backend/prisma/dev.db 'SELECT id, school, degree, studentId FROM education LIMIT 5;'
+```
+
+#### `email_notifications`
+```
+sqlite3 backend/prisma/dev.db 'PRAGMA table_info("email_notifications");'
+sqlite3 backend/prisma/dev.db 'SELECT id, recipient, subject, status FROM email_notifications ORDER BY createdAt DESC LIMIT 5;'
+```
+
+#### `job_tracking`
+```
+sqlite3 backend/prisma/dev.db 'PRAGMA table_info("job_tracking");'
+sqlite3 backend/prisma/dev.db 'SELECT id, jobId, status, updatedAt FROM job_tracking ORDER BY updatedAt DESC LIMIT 5;'
+```
+
+#### `jobs`
+```
+sqlite3 backend/prisma/dev.db 'PRAGMA table_info("jobs");'
+sqlite3 backend/prisma/dev.db 'SELECT id, title, companyName, status FROM jobs ORDER BY createdAt DESC LIMIT 5;'
+```
+
+#### `notifications`
+```
+sqlite3 backend/prisma/dev.db 'PRAGMA table_info("notifications");'
+sqlite3 backend/prisma/dev.db 'SELECT id, title, body, isRead, createdAt FROM notifications ORDER BY createdAt DESC LIMIT 5;'
+```
+
+#### `otps`
+```
+sqlite3 backend/prisma/dev.db 'PRAGMA table_info("otps");'
+sqlite3 backend/prisma/dev.db 'SELECT id, code, userId, expiresAt FROM otps ORDER BY createdAt DESC LIMIT 5;'
+```
+
+#### `projects`
+```
+sqlite3 backend/prisma/dev.db 'PRAGMA table_info("projects");'
+sqlite3 backend/prisma/dev.db 'SELECT id, title, studentId, link FROM projects LIMIT 5;'
+```
+
+#### `recruiters`
+```
+sqlite3 backend/prisma/dev.db 'PRAGMA table_info("recruiters");'
+sqlite3 backend/prisma/dev.db 'SELECT id, name, companyName, status FROM recruiters ORDER BY createdAt DESC LIMIT 5;'
+```
+
+#### `refresh_tokens`
+```
+sqlite3 backend/prisma/dev.db 'PRAGMA table_info("refresh_tokens");'
+sqlite3 backend/prisma/dev.db 'SELECT id, userId, expiresAt FROM refresh_tokens LIMIT 5;'
+```
+
+#### `resumes`
+```
+sqlite3 backend/prisma/dev.db 'PRAGMA table_info("resumes");'
+sqlite3 backend/prisma/dev.db 'SELECT id, studentId, fileName FROM resumes ORDER BY createdAt DESC LIMIT 5;'
+```
+
+#### `skills`
+```
+sqlite3 backend/prisma/dev.db 'PRAGMA table_info("skills");'
+sqlite3 backend/prisma/dev.db 'SELECT id, name, level FROM skills LIMIT 5;'
+```
+
+#### `student_queries`
+```
+sqlite3 backend/prisma/dev.db 'PRAGMA table_info("student_queries");'
+sqlite3 backend/prisma/dev.db 'SELECT id, subject, type, status FROM student_queries ORDER BY createdAt DESC LIMIT 5;'
+```
+
+#### `students`
+```
+sqlite3 backend/prisma/dev.db 'PRAGMA table_info("students");'
+sqlite3 backend/prisma/dev.db 'SELECT id, userId, placementCellId FROM students LIMIT 5;'
+```
+
+#### `users`
+```
+sqlite3 backend/prisma/dev.db 'PRAGMA table_info("users");'
+sqlite3 backend/prisma/dev.db 'SELECT id, email, role, createdAt FROM users ORDER BY createdAt DESC LIMIT 5;'
+```
+
