@@ -67,7 +67,6 @@ Portal-main/                                  # Root project directory
 │  │  ├─ 📄 notificationActions.js           # Notification action handlers
 │  │  ├─ 📄 jdParser.js                      # Job description PDF parser
 │  │  ├─ 📄 pdfGenerator.js                  # PDF generation utilities
-│  │  ├─ 📄 googleCSE.js                     # Google Custom Search Engine integration
 │  │  ├─ 📄 questionBankService.js           # Question bank service
 │  │  └─ 📄 queries.js                       # Common Firestore queries
 │  │

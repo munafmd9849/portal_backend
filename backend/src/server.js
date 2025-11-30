@@ -20,6 +20,11 @@ import studentRoutes from './routes/students.js';
 import jobRoutes from './routes/jobs.js';
 import applicationRoutes from './routes/applications.js';
 import notificationRoutes from './routes/notifications.js';
+import queryRoutes from './routes/queries.js';
+import adminRequestRoutes from './routes/adminRequests.js';
+import recruiterRoutes from './routes/recruiters.js';
+import contactRoutes from './routes/contact.js';
+import searchRoutes from './routes/search.js';
 
 dotenv.config();
 
@@ -95,6 +100,11 @@ app.use('/api/students', studentRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/queries', queryRoutes);
+app.use('/api/admin-requests', adminRequestRoutes);
+app.use('/api/recruiters', recruiterRoutes);
+app.use('/api/contact', contactRoutes);
+app.use('/api/search', searchRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

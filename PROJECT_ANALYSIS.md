@@ -845,8 +845,9 @@ const targetedJobs = postedJobs.filter(job => {
    - Background job processing
    - Scheduled tasks
 
-### External APIs (Potential)
-- **Google Custom Search Engine** (`googleCSE.js`) - For external job search (if implemented)
+### External APIs
+- **Bing Web Search API** (`backend/src/services/bingSearch.js`) - Feeds custom placement search results
+- **AI Summarizer** (`backend/src/services/aiSummary.js`) - Uses OpenAI/Ollama/local LLM to produce study notes
 - **Email Service** - Likely SendGrid, Mailgun, or Firebase Extensions (not visible in code)
 
 ### Libraries & SDKs

@@ -36,7 +36,8 @@ const NOTIFICATION_TYPES = {
   JD_APPROVAL: 'jd_approval',
   JOB_APPLICATION: 'job_application',
   STUDENT_QUERY: 'student_query',
-  ADMIN_COORDINATION: 'admin_coordination'
+  ADMIN_COORDINATION: 'admin_coordination',
+  RECRUITER_INQUIRY: 'recruiter_inquiry'
 };
 
 const PRIORITY_LEVELS = {
@@ -52,13 +53,18 @@ import {
 } from '../../../services/notifications';
 import api from '../../../services/api';
 import { useAuth } from '../../../hooks/useAuth';
+import { respondToStudentQuery } from '../../../services/queries';
 
 const Notifications = () => {
   const { getPendingAdminRequests, approveAdminRequest, rejectAdminRequest } = useAuth();
   const [activeFilter, setActiveFilter] = useState('all');
+  const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showResponseModal, setShowResponseModal] = useState(false);
+  const [responseText, setResponseText] = useState('');
+  const [respondingToQuery, setRespondingToQuery] = useState(false);
   
   // Firebase state
   const [notifications, setNotifications] = useState([]);
@@ -70,28 +76,64 @@ const Notifications = () => {
   const [adminRequests, setAdminRequests] = useState([]);
   const [loadingAdminRequests, setLoadingAdminRequests] = useState(false);
 
-  // Load notifications from backend API
-  useEffect(() => {
-    const loadNotifications = async () => {
-      console.log('🔄 Loading notifications from backend API...');
+  // Search handlers
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    setSearchQuery(searchInput.trim());
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchQuery('');
+  };
+
+  const loadNotifications = async () => {
+    try {
       setLoadingNotifications(true);
-      
-      try {
-        const notificationsList = await listNotificationsForUser(null, 100);
+      const notificationsList = await listNotificationsForUser();
+      setNotifications(notificationsList || []);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+      alert('Failed to load notifications: ' + error.message);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+  // Load notifications from backend API with real-time subscription
+  useEffect(() => {
+    console.log('🔄 Setting up notifications subscription...');
+    setLoadingNotifications(true);
+    
+    const unsubscribe = subscribeToNotifications(
+      (notificationsList) => {
         console.log('📨 Received notifications:', notificationsList.length);
+        console.log('📨 Notification details:', notificationsList.map(n => ({
+          id: n.id,
+          title: n.title,
+          type: n.type,
+          isRead: n.isRead,
+          meta: n.meta
+        })));
         setNotifications(notificationsList || []);
-      } catch (error) {
-        console.error('Error loading notifications:', error);
-        setNotifications([]);
-      } finally {
         setLoadingNotifications(false);
       }
-    };
+    );
 
     loadNotifications();
+    return () => {
+      console.log('🧹 Cleaning up notifications subscription');
+      if (unsubscribe) unsubscribe();
+    };
   }, [activeFilter]);
 
- 
+  // Clear search input when filter changes
+  useEffect(() => {
+    setSearchInput('');
+    setSearchQuery('');
+  }, [activeFilter]);
+
+  // Load admin requests when admin_coordination filter is active
   useEffect(() => {
     if (activeFilter === 'admin_coordination') {
       loadAdminRequests();
@@ -182,6 +224,13 @@ const Notifications = () => {
             <FaUsers className="text-2xl" />
           </div>
         );
+      case NOTIFICATION_TYPES.RECRUITER_INQUIRY:
+      case 'recruiter_inquiry':
+        return (
+          <div className="p-3 bg-gradient-to-br from-teal-100 to-teal-200 text-teal-700 rounded-xl border border-teal-200 shadow-sm">
+            <FaEnvelopeOpen className="text-2xl" />
+          </div>
+        );
       default:
         return (
           <div className="p-3 bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700 rounded-xl border border-gray-200 shadow-sm">
@@ -190,6 +239,18 @@ const Notifications = () => {
         );
     }
   };
+
+  const filteredAdminRequests = adminRequests.filter((request) => {
+    if (!searchQuery) {
+      return true;
+    }
+    const query = searchQuery.toLowerCase();
+    return (
+      request.email?.toLowerCase().includes(query) ||
+      request.uid?.toLowerCase().includes(query) ||
+      request.reason?.toLowerCase().includes(query)
+    );
+  });
 
   // Filter notifications based on active filter and search
   const filteredNotifications = notifications.filter(notification => {
@@ -205,9 +266,13 @@ const Notifications = () => {
       } else if (activeFilter === 'jd_approvals') {
         if (notification.type !== NOTIFICATION_TYPES.JD_APPROVAL && notification.type !== 'jd_approval') return false;
       } else if (activeFilter === 'job_applications') {
-        if (notification.type !== NOTIFICATION_TYPES.JOB_APPLICATION && notification.type !== 'applicationreview') return false;
+        if (notification.type !== NOTIFICATION_TYPES.JOB_APPLICATION && 
+            notification.type !== 'applicationreview' && 
+            notification.type !== 'application') return false;
       } else if (activeFilter === 'admin_coordination') {
         if (notification.type !== 'admincollab' && notification.type !== 'admin_coordination') return false;
+      } else if (activeFilter === 'recruiter_inquiries') {
+        if (notification.type !== NOTIFICATION_TYPES.RECRUITER_INQUIRY && notification.type !== 'recruiter_inquiry') return false;
       } else if (activeFilter === 'unread') {
         if (notification.isRead) return false;
       } else if (activeFilter === 'high_priority') {
@@ -215,16 +280,21 @@ const Notifications = () => {
       }
     }
 
-    // Filter by search query
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      return (
+    // Filter by search query (only if searchQuery has actual content)
+    if (searchQuery && searchQuery.trim().length > 0) {
+      const query = searchQuery.toLowerCase().trim();
+      const matches = (
         notification.title?.toLowerCase().includes(query) ||
         notification.message?.toLowerCase().includes(query) ||
+        notification.body?.toLowerCase().includes(query) ||
         notification.from?.toLowerCase().includes(query) ||
         notification.meta?.studentName?.toLowerCase().includes(query) ||
-        notification.meta?.company?.toLowerCase().includes(query)
+        notification.meta?.company?.toLowerCase().includes(query) ||
+        notification.meta?.companyName?.toLowerCase().includes(query) ||
+        notification.meta?.email?.toLowerCase().includes(query) ||
+        notification.meta?.contactNumber?.toLowerCase().includes(query)
       );
+      if (!matches) return false;
     }
 
     return true;
@@ -238,6 +308,10 @@ const Notifications = () => {
     
     try {
       await markNotificationAsRead(id);
+      // Update local state
+      setNotifications(prev => prev.map(n => 
+        n.id === id ? { ...n, isRead: true } : n
+      ));
     } catch (error) {
       console.error('Error marking notification as read:', error);
       alert('Failed to mark notification as read');
@@ -254,9 +328,12 @@ const Notifications = () => {
     
     try {
       await deleteNotification(id);
+      // Remove from local state
+      setNotifications(prev => prev.filter(n => n.id !== id));
+      console.log('✅ Notification deleted successfully');
     } catch (error) {
       console.error('Error deleting notification:', error);
-      alert('Failed to delete notification');
+      alert('Failed to delete notification: ' + error.message);
     } finally {
       setActionLoading({ ...actionLoading, [id]: false });
     }
@@ -270,6 +347,39 @@ const Notifications = () => {
     // Mark as read when opened
     if (!notification.isRead) {
       await markAsRead(notification.id);
+    }
+  };
+
+  // Handle query response
+  const handleRespondToQuery = async () => {
+    if (!selectedNotification?.meta?.queryId || !responseText.trim()) {
+      alert('Please enter a response');
+      return;
+    }
+
+    setRespondingToQuery(true);
+    try {
+      await respondToStudentQuery(selectedNotification.meta.queryId, {
+        response: responseText.trim(),
+        status: 'RESOLVED'
+      });
+      
+      // Update notification to reflect response
+      setNotifications(prev => prev.map(n => 
+        n.id === selectedNotification.id 
+          ? { ...n, isRead: true, meta: { ...n.meta, responded: true } }
+          : n
+      ));
+      
+      setShowResponseModal(false);
+      setShowDetailModal(false);
+      setResponseText('');
+      alert('Response sent successfully!');
+    } catch (error) {
+      console.error('Error responding to query:', error);
+      alert('Failed to send response: ' + error.message);
+    } finally {
+      setRespondingToQuery(false);
     }
   };
 
@@ -292,15 +402,7 @@ const Notifications = () => {
     setMarkingAllAsRead(true);
     
     try {
-      // Mark each unread notification as read
-      const markPromises = unreadNotifications.map(notification => 
-        markNotificationAsRead(notification.id).catch(err => {
-          console.error(`Failed to mark notification ${notification.id} as read:`, err);
-          return null;
-        })
-      );
-      
-      await Promise.all(markPromises);
+      await api.markAllNotificationsRead();
       
       // Update local state
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
@@ -328,11 +430,16 @@ const Notifications = () => {
         n.type === NOTIFICATION_TYPES.JD_APPROVAL || n.type === 'jd_approval'
       ).length,
       job_applications: notifications.filter(n => 
-        n.type === NOTIFICATION_TYPES.JOB_APPLICATION || n.type === 'applicationreview'
+        n.type === NOTIFICATION_TYPES.JOB_APPLICATION || 
+        n.type === 'applicationreview' || 
+        n.type === 'application'
       ).length,
       admin_coordination: notifications.filter(n => 
         n.type === 'admincollab' || n.type === 'admin_coordination'
       ).length + adminRequests.length,
+      recruiter_inquiries: notifications.filter(n => 
+        n.type === NOTIFICATION_TYPES.RECRUITER_INQUIRY || n.type === 'recruiter_inquiry'
+      ).length,
       unread: notifications.filter(n => !n.isRead).length + adminRequests.filter(req => !req.isApproved && !req.isRejected).length,
       high_priority: notifications.filter(n => 
         n.priority === PRIORITY_LEVELS.HIGH || n.priority === 'high'
@@ -386,6 +493,13 @@ const Notifications = () => {
       icon: FaUsers,
       color: 'from-violet-50 to-violet-100',
       count: filterCounts.admin_coordination
+    },
+    { 
+      id: 'recruiter_inquiries', 
+      name: 'Recruiter Inquiries', 
+      icon: FaEnvelopeOpen,
+      color: 'from-teal-50 to-teal-100',
+      count: filterCounts.recruiter_inquiries
     }
   ];
 
@@ -414,19 +528,42 @@ const Notifications = () => {
             </h1>
           </div>
           
-          <div className="flex items-center mt-4 md:mt-0">
-            <div className="relative">
+          <div className="flex items-center mt-4 md:mt-0 gap-3 flex-wrap md:flex-nowrap">
+            <form onSubmit={handleSearchSubmit} className="flex items-center">
+              <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <FaSearch className="text-gray-400" />
               </div>
               <input
                 type="text"
                 placeholder="Search notifications..."
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={searchInput}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setSearchInput(value);
+                    // Update search query immediately for real-time search
+                    setSearchQuery(value.trim());
+                  }}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={handleClearSearch}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                    title="Clear search"
+                  >
+                    <FaTimes />
+                  </button>
+                )}
+              </div>
+              <button
+                type="submit"
+                className="ml-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+              >
+                Search
+              </button>
+            </form>
             
             {/* Mark All Read Button - NO ICON */}
             <button 
@@ -445,6 +582,11 @@ const Notifications = () => {
             </button>
           </div>
         </div>
+        {searchQuery && (
+          <div className="mb-4 text-sm text-gray-500">
+            Showing results for <span className="font-semibold text-gray-700">"{searchQuery}"</span>
+          </div>
+        )}
 
         {/* SUBTITLE - Separate Line */}
         <div className="mb-8">
@@ -457,24 +599,26 @@ const Notifications = () => {
         </div>
 
         {/* Filter Buttons with COUNTS */}
-        <div className="flex flex-wrap gap-3 mb-6">
+        <div className="flex flex-wrap md:flex-nowrap gap-2 mb-6">
           {filters.map((filter) => (
             <button
               key={filter.id}
               onClick={() => setActiveFilter(filter.id)}
-              className={`px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center transition-all duration-200 ${
+              className={`flex-1 min-w-[140px] px-3 py-2 rounded-xl border text-xs font-semibold flex items-center justify-between transition-all duration-200 ${
                 activeFilter === filter.id
                   ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md border-blue-600'
                   : `bg-gradient-to-r ${filter.color} text-gray-700 border-gray-200 shadow-sm hover:shadow-md`
               }`}
             >
-              <filter.icon />
-              <span className="ml-2">{filter.name}</span>
+              <span className="flex items-center gap-2">
+                <filter.icon className="text-base" />
+                <span>{filter.name}</span>
+              </span>
               {/* Show count badge for all filters */}
               {filter.count > 0 && (
-                <span className={`ml-2 px-2 py-0.5 text-xs rounded-full font-semibold ${
+                <span className={`px-2 py-0.5 text-[10px] rounded-full font-semibold ${
                   activeFilter === filter.id
-                    ? 'bg-white/20 text-white'
+                    ? 'bg-white/30 text-white'
                     : filter.id === 'unread' || filter.id === 'high_priority'
                     ? 'bg-rose-500 text-white'
                     : 'bg-blue-100 text-blue-600'
@@ -632,11 +776,11 @@ const Notifications = () => {
                 {/* Admin Requests Section - Only show when admin_coordination filter is active */}
                 {activeFilter === 'admin_coordination' && (
                   <>
-                    {adminRequests.length > 0 && (
+                    {filteredAdminRequests.length > 0 && (
                       <div className="mt-6 pt-6 border-t border-gray-200">
                         <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                           <FaUsers className="mr-2 text-violet-600" />
-                          Pending Admin Requests ({adminRequests.length})
+                          Pending Admin Requests ({filteredAdminRequests.length})
                         </h3>
                         
                         {loadingAdminRequests ? (
@@ -646,7 +790,7 @@ const Notifications = () => {
                           </div>
                         ) : (
                           <div className="space-y-3">
-                            {adminRequests.map((request) => (
+                            {filteredAdminRequests.map((request) => (
                               <div
                                 key={request.id}
                                 className="p-4 bg-gradient-to-r from-violet-50 to-violet-100 border border-violet-200 rounded-xl"
@@ -713,7 +857,7 @@ const Notifications = () => {
                       </div>
                     )}
                     
-                    {adminRequests.length === 0 && !loadingAdminRequests && (
+                    {filteredAdminRequests.length === 0 && !loadingAdminRequests && (
                       <div className="mt-6 pt-6 border-t border-gray-200 text-center py-8">
                         <FaUsers className="text-4xl text-gray-300 mx-auto mb-3" />
                         <h3 className="text-lg font-medium text-gray-600 mb-2">No Pending Admin Requests</h3>
@@ -790,10 +934,86 @@ const Notifications = () => {
                           <p className="text-gray-800 font-medium">{selectedNotification.meta.subject}</p>
                         </div>
                       )}
+                      {/* Recruiter Inquiry Details */}
+                      {selectedNotification.meta?.companyName && (
+                        <div>
+                          <span className="text-gray-500">Company Name:</span>
+                          <p className="text-gray-800 font-medium">{selectedNotification.meta.companyName}</p>
+                        </div>
+                      )}
+                      {selectedNotification.meta?.contactNumber && (
+                        <div>
+                          <span className="text-gray-500">Contact Number:</span>
+                          <p className="text-gray-800 font-medium">{selectedNotification.meta.contactNumber}</p>
+                        </div>
+                      )}
+                      {selectedNotification.meta?.email && (
+                        <div>
+                          <span className="text-gray-500">Email:</span>
+                          <p className="text-gray-800 font-medium">
+                            <a href={`mailto:${selectedNotification.meta.email}`} className="text-blue-600 hover:underline">
+                              {selectedNotification.meta.email}
+                            </a>
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
                 
+                {/* Recruiter Inquiry Message */}
+                {selectedNotification.meta?.message && selectedNotification.type === NOTIFICATION_TYPES.RECRUITER_INQUIRY && (
+                  <div className="mb-6">
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Recruitment Needs</h3>
+                    <div className="bg-teal-50 rounded-lg p-4 border border-teal-200">
+                      <p className="text-gray-800 whitespace-pre-wrap">{selectedNotification.meta.message}</p>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Query Message Display */}
+                {selectedNotification.meta?.message && (
+                  <div className="mb-6">
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Query Message</h3>
+                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                      <p className="text-gray-800 whitespace-pre-wrap">{selectedNotification.meta.message}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Additional Query Details */}
+                {selectedNotification.meta?.queryType && (
+                  <div className="mb-6">
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Query Details</h3>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      {selectedNotification.meta.center && (
+                        <div>
+                          <span className="text-gray-500">Center:</span>
+                          <p className="text-gray-800 font-medium">{selectedNotification.meta.center}</p>
+                        </div>
+                      )}
+                      {selectedNotification.meta.school && (
+                        <div>
+                          <span className="text-gray-500">School:</span>
+                          <p className="text-gray-800 font-medium">{selectedNotification.meta.school}</p>
+                        </div>
+                      )}
+                      {selectedNotification.meta.batch && (
+                        <div>
+                          <span className="text-gray-500">Batch:</span>
+                          <p className="text-gray-800 font-medium">{selectedNotification.meta.batch}</p>
+                        </div>
+                      )}
+                      {selectedNotification.meta.referenceId && (
+                        <div>
+                          <span className="text-gray-500">Reference ID:</span>
+                          <p className="text-gray-800 font-medium">{selectedNotification.meta.referenceId}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Action Buttons */}
                 <div className="flex justify-end gap-3">
                   <button
@@ -804,11 +1024,104 @@ const Notifications = () => {
                   </button>
                   
                   {selectedNotification.meta?.queryId && (
-                    <button className="px-4 py-2 bg-blue-500 text-white hover:bg-blue-600 rounded-lg transition-colors flex items-center gap-2">
-                      <FaEye className="text-sm" />
-                      View Full Query
+                    <button 
+                      onClick={() => {
+                        setShowResponseModal(true);
+                        setShowDetailModal(false);
+                      }}
+                      className="px-4 py-2 bg-blue-500 text-white hover:bg-blue-600 rounded-lg transition-colors flex items-center gap-2"
+                    >
+                      <FaReply className="text-sm" />
+                      Respond to Query
                     </button>
                   )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Query Response Modal */}
+        {showResponseModal && selectedNotification && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-800 mb-1">
+                      Respond to Student Query
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                      {selectedNotification.meta?.studentName} - {selectedNotification.meta?.subject}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowResponseModal(false);
+                      setResponseText('');
+                    }}
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <FaTimes />
+                  </button>
+                </div>
+              </div>
+              
+              <div className="p-6">
+                {/* Query Details */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">Student Query</h3>
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <p className="text-gray-800 whitespace-pre-wrap">
+                      {selectedNotification.meta?.message || selectedNotification.message}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Response Input */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Your Response <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={responseText}
+                    onChange={(e) => setResponseText(e.target.value)}
+                    placeholder="Enter your response to the student..."
+                    rows={6}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
+                    required
+                  />
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => {
+                      setShowResponseModal(false);
+                      setResponseText('');
+                    }}
+                    className="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                    disabled={respondingToQuery}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleRespondToQuery}
+                    disabled={respondingToQuery || !responseText.trim()}
+                    className="px-4 py-2 bg-blue-500 text-white hover:bg-blue-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {respondingToQuery ? (
+                      <>
+                        <FaSpinner className="animate-spin text-sm" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <FaReply className="text-sm" />
+                        Send Response
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             </div>

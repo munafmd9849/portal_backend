@@ -159,15 +159,55 @@ export default function TestimonialSection() {
     },
   ];
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState({ type: null, message: '' });
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    // Clear status when user starts typing
+    if (submitStatus.type) {
+      setSubmitStatus({ type: null, message: '' });
+    }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    alert("Thank you for your message! We will get back to you soon.");
+    setIsSubmitting(true);
+    setSubmitStatus({ type: null, message: '' });
+
+      try {
+        // Import contact service dynamically to avoid issues
+        const { submitContactForm } = await import('../../services/contact.js');
+      
+      const result = await submitContactForm({
+        name: formData.name,
+        company: formData.company,
+        email: formData.email,
+        message: formData.message,
+      });
+
+      if (result.success) {
+        setSubmitStatus({ 
+          type: 'success', 
+          message: result.message || 'Thank you for your message! We will get back to you soon.' 
+        });
     setFormData({ name: "", company: "", email: "", message: "" });
+        
+        // Clear success message after 5 seconds
+        setTimeout(() => {
+          setSubmitStatus({ type: null, message: '' });
+        }, 5000);
+      }
+    } catch (error) {
+      console.error('Form submission error:', error);
+      setSubmitStatus({ 
+        type: 'error', 
+        message: error.message || 'Failed to submit form. Please try again later.' 
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -187,20 +227,22 @@ export default function TestimonialSection() {
             <input
               type="text"
               name="name"
-              placeholder="Company's Name"
+              placeholder="Company's Name (min. 2 characters)"
               className="w-full p-3 border border-gray-400 rounded-md mb-3 focus:border-indigo-500"
               value={formData.name}
               onChange={handleChange}
               required
+              minLength={2}
             />
             <input
-              type="text"
+              type="tel"
               name="company"
-              placeholder="Contact Number"
+              placeholder="Contact Number (min. 10 digits)"
               className="w-full p-3 border border-gray-400 rounded-md mb-3 focus:border-indigo-500"
               value={formData.company}
               onChange={handleChange}
               required
+              minLength={10}
             />
             <input
               type="email"
@@ -213,19 +255,36 @@ export default function TestimonialSection() {
             />
             <textarea
               name="message"
-              placeholder="Your recruitment needs"
+              placeholder="Your recruitment needs (min. 10 characters)"
               rows={4}
               className="w-full p-3 border border-gray-400 rounded-md mb-4 focus:border-indigo-500"
               value={formData.message}
               onChange={handleChange}
               required
+              minLength={10}
             ></textarea>
             <button
               type="submit"
-              className="w-full bg-blue-900 text-white py-3 rounded-md hover:bg-indigo-600 transition-colors"
+              disabled={isSubmitting}
+              className={`w-full bg-blue-900 text-white py-3 rounded-md transition-colors ${
+                isSubmitting 
+                  ? 'opacity-50 cursor-not-allowed' 
+                  : 'hover:bg-indigo-600'
+              }`}
             >
-              Let's Talk
+              {isSubmitting ? 'Submitting...' : "Let's Talk"}
             </button>
+            
+            {/* Status Messages */}
+            {submitStatus.type && (
+              <div className={`mt-3 p-3 rounded-md text-sm ${
+                submitStatus.type === 'success'
+                  ? 'bg-green-100 text-green-700 border border-green-300'
+                  : 'bg-red-100 text-red-700 border border-red-300'
+              }`}>
+                {submitStatus.message}
+              </div>
+            )}
           </form>
         </div>
       </div>

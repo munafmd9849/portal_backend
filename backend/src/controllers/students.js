@@ -7,6 +7,19 @@
 import prisma from '../config/database.js';
 import { uploadToS3, deleteFromS3 } from '../config/s3.js';
 
+async function updateUserProfilePhoto(userId, profilePhotoValue) {
+  if (profilePhotoValue === undefined) {
+    return;
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      profilePhoto: profilePhotoValue,
+    },
+  });
+}
+
 /**
  * Get student profile
  * Replaces: getStudentProfile()
@@ -23,6 +36,11 @@ export async function getStudentProfile(req, res) {
     const student = await prisma.student.findUnique({
       where: { userId },
       include: {
+        user: {
+          select: {
+            profilePhoto: true,
+          },
+        },
         skills: true,
         education: {
           orderBy: { endYear: 'desc' },
@@ -61,7 +79,32 @@ export async function getStudentProfile(req, res) {
       });
     }
 
-    res.json(student);
+    if (student) {
+      const { user, ...studentData } = student;
+      res.json({
+        ...studentData,
+        profilePhoto: user?.profilePhoto || null,
+      });
+    } else {
+      res.json({
+        id: null,
+        userId,
+        fullName: '',
+        email: '',
+        phone: '',
+        enrollmentId: '',
+        school: '',
+        center: '',
+        batch: '',
+        skills: [],
+        education: [],
+        projects: [],
+        achievements: [],
+        certifications: [],
+        codingProfiles: [],
+        profilePhoto: null,
+      });
+    }
   } catch (error) {
     console.error('Get student profile error:', error);
     console.error('Error details:', {
@@ -84,11 +127,20 @@ export async function updateStudentProfile(req, res) {
   try {
     const userId = req.userId;
     const profileData = req.body;
+    const hasProfilePhotoField = Object.prototype.hasOwnProperty.call(profileData, 'profilePhoto');
+    const rawProfilePhoto = hasProfilePhotoField ? profileData.profilePhoto : undefined;
+    const trimmedProfilePhoto =
+      typeof rawProfilePhoto === 'string' ? rawProfilePhoto.trim() : rawProfilePhoto;
+    const normalizedProfilePhoto = hasProfilePhotoField ? (trimmedProfilePhoto || null) : undefined;
 
     // Check if student exists first
     const existingStudent = await prisma.student.findUnique({
       where: { userId },
     });
+
+    if (hasProfilePhotoField) {
+      await updateUserProfilePhoto(userId, normalizedProfilePhoto);
+    }
 
     // If student doesn't exist, create it (defensive programming)
     if (!existingStudent) {

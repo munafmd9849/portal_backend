@@ -133,6 +133,7 @@ export default function DashboardLayout({ children }) {
   };
 
   const completionPercentage = calculateProfileCompletion();
+  const profileImageSrc = studentProfile?.profilePhoto || user?.profilePhoto;
 
   // dynamic color 
   const getProgressColor = (percentage) => {
@@ -199,19 +200,27 @@ export default function DashboardLayout({ children }) {
 
                   {/* Profile Image */}
                   <div
-                    className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center shadow-lg"
+                    className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center shadow-lg overflow-hidden"
                     style={{
                       width: `${profileConfig.imageSize * 0.25}rem`,
                       height: `${profileConfig.imageSize * 0.25}rem`
                     }}
                   >
-                    <User
-                      className="text-white"
-                      style={{
-                        width: `${profileConfig.iconSize * 0.25}rem`,
-                        height: `${profileConfig.iconSize * 0.25}rem`
-                      }}
-                    />
+                    {profileImageSrc ? (
+                      <img
+                        src={profileImageSrc}
+                        alt="Profile photo"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <User
+                        className="text-white"
+                        style={{
+                          width: `${profileConfig.iconSize * 0.25}rem`,
+                          height: `${profileConfig.iconSize * 0.25}rem`
+                        }}
+                      />
+                    )}
                   </div>
                 </div>
 

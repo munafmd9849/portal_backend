@@ -5,6 +5,7 @@
 
 import prisma from '../config/database.js';
 import { createNotification } from './notifications.js';
+import { getIO } from '../config/socket.js';
 
 /**
  * Get recruiter directory (admin)
@@ -118,6 +119,16 @@ export async function blockUnblockRecruiter(req, res) {
         reason: isUnblocking ? null : reason,
       },
     });
+
+    // Emit Socket.IO event to notify admins of recruiter status change
+    const io = getIO();
+    if (io) {
+      io.to('admins').emit('recruiter:updated', {
+        recruiterId,
+        action: isUnblocking ? 'unblocked' : 'blocked',
+        status: isUnblocking ? 'ACTIVE' : 'BLOCKED',
+      });
+    }
 
     res.json({
       success: true,

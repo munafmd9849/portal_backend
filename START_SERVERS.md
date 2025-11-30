@@ -14,6 +14,21 @@ Before starting, you need:
 2. **Redis** (Optional) - Required for background workers
    - Can skip for now if you just want to test the API
 
+3. **Web Search & AI Keys**
+   - [Bing Web Search API](https://www.microsoft.com/en-us/bing/apis/bing-web-search-api) – copy the key into `backend/.env`:
+     ```env
+     BING_API_KEY=your-bing-key
+     ```
+   - (Optional) Large language model credentials for richer summaries:
+     ```env
+     # Use whichever provider you already rely on
+     OPENAI_API_KEY=sk-...
+     OPENAI_MODEL=gpt-4o-mini # optional override
+     # or
+     OLLAMA_API_URL=http://localhost:11434
+     OLLAMA_MODEL=llama3.1
+     ```
+
 ### Setup Database
 
 **Option 1: Use a free cloud PostgreSQL service**

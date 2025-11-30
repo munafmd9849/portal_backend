@@ -7,6 +7,7 @@
 import prisma from '../config/database.js';
 import { addJobToQueue } from '../workers/queues.js';
 import { sendJobPostedNotification, sendBulkJobNotifications } from '../services/emailService.js';
+import { createNotification } from './notifications.js';
 import logger from '../config/logger.js';
 
 /**
@@ -240,34 +241,85 @@ export async function createJob(req, res) {
     }
 
     // Find or create company
+    // Handle both 'company' and 'companyName' fields from frontend
+    const companyName = jobData.companyName || jobData.company;
     let companyId = jobData.companyId;
-    if (!companyId && jobData.companyName) {
+    if (!companyId && companyName) {
       const company = await prisma.company.upsert({
-        where: { name: jobData.companyName },
+        where: { name: companyName },
         update: {},
         create: {
-          name: jobData.companyName,
+          name: companyName,
           location: jobData.companyLocation,
         },
       });
       companyId = company.id;
     }
 
-    // Convert array fields to JSON strings for database storage (SQLite compatibility)
-    const processedData = {
+    // Map frontend fields to database schema
+    // Frontend sends 'responsibilities' but DB expects 'description'
+    // Frontend sends 'skills' but DB expects 'requiredSkills'
+    const mappedData = {
       ...jobData,
-      requiredSkills: Array.isArray(jobData.requiredSkills) ? JSON.stringify(jobData.requiredSkills) : jobData.requiredSkills,
-      requirements: Array.isArray(jobData.requirements) ? JSON.stringify(jobData.requirements) : jobData.requirements,
-      targetSchools: Array.isArray(jobData.targetSchools) ? JSON.stringify(jobData.targetSchools) : jobData.targetSchools,
-      targetCenters: Array.isArray(jobData.targetCenters) ? JSON.stringify(jobData.targetCenters) : jobData.targetCenters,
-      targetBatches: Array.isArray(jobData.targetBatches) ? JSON.stringify(jobData.targetBatches) : jobData.targetBatches,
-      driveVenues: Array.isArray(jobData.driveVenues) ? JSON.stringify(jobData.driveVenues) : jobData.driveVenues,
-      spocs: Array.isArray(jobData.spocs) ? JSON.stringify(jobData.spocs) : jobData.spocs,
-      companyId,
-      recruiterId,
+      description: jobData.description || jobData.responsibilities || '',
+      requiredSkills: jobData.requiredSkills || jobData.skills || [],
+      companyName: companyName, // Store company name as fallback
+    };
+
+    // Extract interview rounds and convert to requirements string
+    // interviewRounds is not in DB schema, so we'll store it as part of requirements or instructions
+    let requirementsText = '';
+    if (jobData.interviewRounds && Array.isArray(jobData.interviewRounds)) {
+      requirementsText = jobData.interviewRounds
+        .map(round => `${round.title || 'Round'}: ${round.detail || ''}`)
+        .filter(r => r.trim().length > 0)
+        .join('\n');
+    }
+    
+    // If requirements field exists, combine with interview rounds
+    const existingRequirements = jobData.requirements || '';
+    const finalRequirements = existingRequirements 
+      ? (requirementsText ? `${existingRequirements}\n\n${requirementsText}` : existingRequirements)
+      : requirementsText || '[]';
+
+    // Filter and clean spocs array - remove empty entries
+    const cleanSpocs = Array.isArray(mappedData.spocs) 
+      ? mappedData.spocs.filter(spoc => spoc && (spoc.fullName || spoc.email || spoc.phone))
+      : [];
+
+    // Convert array fields to JSON strings for database storage (SQLite compatibility)
+    // Only include fields that exist in the schema
+    const processedData = {
+      // Required fields
+      jobTitle: mappedData.jobTitle || '',
+      description: mappedData.description || '',
+      requirements: typeof finalRequirements === 'string' ? finalRequirements : '[]',
+      requiredSkills: Array.isArray(mappedData.requiredSkills) ? JSON.stringify(mappedData.requiredSkills) : (mappedData.requiredSkills || '[]'),
+      driveVenues: Array.isArray(mappedData.driveVenues) ? JSON.stringify(mappedData.driveVenues) : (mappedData.driveVenues || '[]'),
+      targetSchools: Array.isArray(mappedData.targetSchools) ? JSON.stringify(mappedData.targetSchools) : (mappedData.targetSchools || '[]'),
+      targetCenters: Array.isArray(mappedData.targetCenters) ? JSON.stringify(mappedData.targetCenters) : (mappedData.targetCenters || '[]'),
+      targetBatches: Array.isArray(mappedData.targetBatches) ? JSON.stringify(mappedData.targetBatches) : (mappedData.targetBatches || '[]'),
+      spocs: JSON.stringify(cleanSpocs),
+      // Optional fields
+      companyId: companyId || null,
+      recruiterId: recruiterId || null,
+      companyName: companyName || null,
+      salary: mappedData.salary || null,
+      ctc: mappedData.ctc || null,
+      salaryRange: mappedData.salaryRange || null,
+      location: mappedData.location || null,
+      companyLocation: mappedData.companyLocation || null,
+      driveDate: mappedData.driveDate || null,
+      applicationDeadline: mappedData.applicationDeadline || null,
+      jobType: mappedData.jobType || null,
+      experienceLevel: mappedData.experienceLevel || null,
+      // Status fields
       status: userRole === 'ADMIN' ? 'POSTED' : 'IN_REVIEW',
+      isActive: false,
       isPosted: userRole === 'ADMIN',
-      submittedAt: userRole !== 'ADMIN' ? new Date() : undefined,
+      submittedAt: userRole !== 'ADMIN' ? new Date() : null,
+      postedBy: userRole === 'ADMIN' ? userId : null,
+      postedAt: userRole === 'ADMIN' ? new Date() : null,
     };
 
     // Create job
@@ -275,13 +327,78 @@ export async function createJob(req, res) {
       data: processedData,
       include: {
         company: true,
+        recruiter: {
+          include: {
+            user: {
+              select: {
+                email: true,
+                displayName: true,
+              },
+            },
+          },
+        },
       },
     });
+
+    // Notify all admins when a recruiter submits a job for approval
+    if (job.status === 'IN_REVIEW' && userRole === 'RECRUITER') {
+      try {
+        const admins = await prisma.user.findMany({
+          where: {
+            role: { in: ['ADMIN', 'SUPER_ADMIN'] },
+            status: 'ACTIVE',
+          },
+          select: { id: true },
+        });
+
+        if (admins.length > 0) {
+          const recruiterName = job.recruiter?.user?.displayName || 'A recruiter';
+          const companyName = job.company?.name || 'Unknown Company';
+          
+          await Promise.all(
+            admins.map((admin) =>
+              createNotification({
+                userId: admin.id,
+                title: `New Job Pending Approval: ${job.jobTitle}`,
+                body: `${recruiterName} submitted a job posting for ${companyName} that requires your approval.`,
+                data: {
+                  type: 'jd_approval',
+                  jobId: job.id,
+                  jobTitle: job.jobTitle,
+                  companyName: companyName,
+                  recruiterId: job.recruiterId,
+                  recruiterName: recruiterName,
+                  submittedAt: job.submittedAt || job.createdAt,
+                },
+              })
+            )
+          );
+          logger.info(`JD approval notifications sent to ${admins.length} admins for job ${job.id}`);
+        }
+      } catch (notificationError) {
+        // Don't fail job creation if notification fails
+        logger.error(`Failed to send JD approval notifications for job ${job.id}:`, notificationError);
+      }
+    }
 
     res.status(201).json(job);
   } catch (error) {
     console.error('Create job error:', error);
-    res.status(500).json({ error: 'Failed to create job' });
+    console.error('Error stack:', error.stack);
+    console.error('Job data that failed:', JSON.stringify(req.body, null, 2));
+    
+    // Provide more detailed error message in development
+    const errorMessage = process.env.NODE_ENV === 'development' 
+      ? error.message || 'Failed to create job'
+      : 'Failed to create job';
+    
+    res.status(500).json({ 
+      error: errorMessage,
+      ...(process.env.NODE_ENV === 'development' && { 
+        details: error.message,
+        stack: error.stack 
+      })
+    });
   }
 }
 
@@ -442,10 +559,13 @@ export async function approveJob(req, res) {
     const job = await prisma.job.update({
       where: { id: jobId },
       data: {
-        status: 'ACTIVE',
-        isActive: true,
+        status: 'POSTED', // Set to POSTED so it appears in "Posted" section
+        isPosted: true,   // Mark as posted
+        isActive: true,   // Mark as active
         approvedAt: new Date(),
         approvedBy: adminId,
+        postedAt: new Date(), // Set posted timestamp
+        postedBy: adminId,    // Set who posted it
       },
       include: {
         recruiter: {
@@ -453,6 +573,7 @@ export async function approveJob(req, res) {
             user: true,
           },
         },
+        company: true,
       },
     });
 

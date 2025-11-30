@@ -248,6 +248,46 @@ export async function applyToJob(req, res) {
       logger.error(`Failed to send application notification for application ${application.id}:`, emailError);
     }
 
+    // Notify all admins about the new application
+    try {
+      const admins = await prisma.user.findMany({
+        where: {
+          role: { in: ['ADMIN', 'SUPER_ADMIN'] },
+          status: 'ACTIVE',
+        },
+        select: { id: true },
+      });
+
+      if (admins.length > 0) {
+        const studentName = studentProfile?.fullName || 'A student';
+        const companyName = job.company?.name || 'Unknown Company';
+        
+        await Promise.all(
+          admins.map((admin) =>
+            createNotification({
+              userId: admin.id,
+              title: `New Application: ${studentName} applied for ${job.jobTitle}`,
+              body: `${studentName} applied for ${job.jobTitle} at ${companyName}.`,
+              data: {
+                type: 'application',
+                applicationId: application.id,
+                jobId: job.id,
+                jobTitle: job.jobTitle,
+                companyName: companyName,
+                studentId: student.id,
+                studentName: studentName,
+                appliedAt: application.appliedDate || new Date(),
+              },
+            })
+          )
+        );
+        logger.info(`Application notifications sent to ${admins.length} admins for application ${application.id}`);
+      }
+    } catch (notificationError) {
+      // Don't fail application creation if notification fails
+      logger.error(`Failed to send application notifications for application ${application.id}:`, notificationError);
+    }
+
     // Emit real-time update via Socket.IO
     const io = getIO();
     if (io) {

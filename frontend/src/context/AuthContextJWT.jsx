@@ -156,6 +156,36 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Admin request methods
+  const getPendingAdminRequests = async () => {
+    try {
+      return await api.getPendingAdminRequests();
+    } catch (error) {
+      console.error('Failed to fetch pending admin requests:', error);
+      throw error;
+    }
+  };
+
+  const approveAdminRequest = async (requestId, requestUid) => {
+    try {
+      // requestUid is kept for backward compatibility but not used
+      return await api.approveAdminRequest(requestId);
+    } catch (error) {
+      console.error('Failed to approve admin request:', error);
+      throw error;
+    }
+  };
+
+  const rejectAdminRequest = async (requestId, requestUid, reason) => {
+    try {
+      // requestUid is kept for backward compatibility but not used
+      return await api.rejectAdminRequest(requestId, { reason });
+    } catch (error) {
+      console.error('Failed to reject admin request:', error);
+      throw error;
+    }
+  };
+
   const value = useMemo(() => ({
     user,
     role,
@@ -169,6 +199,9 @@ export function AuthProvider({ children }) {
     resetPassword,
     resendEmailVerification,
     checkEmailVerification,
+    getPendingAdminRequests,
+    approveAdminRequest,
+    rejectAdminRequest,
   }), [user, role, userStatus, loading, emailVerified]);
 
   return (

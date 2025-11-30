@@ -106,6 +106,14 @@ const StudentQuerySystem = () => {
         [name]: ''
       });
     }
+    
+    // Clear submit error when user makes any change
+    if (formErrors.submit) {
+      setFormErrors({
+        ...formErrors,
+        submit: ''
+      });
+    }
   };
 
   const handleFileChange = (e) => {
@@ -250,24 +258,27 @@ const StudentQuerySystem = () => {
     } catch (error) {
       console.error('Error submitting query:', error);
       
-      // Fallback: Add to local state if Firebase fails
-      const newQuery = {
-        id: Date.now(),
-        type: formData.type,
-        subject: formData.subject,
-        date: new Date().toISOString().split('T')[0],
-        status: 'pending',
-        adminResponse: '',
-        responseDate: '',
-        ...formData
-      };
+      // Extract error message
+      let errorMessage = 'Failed to submit query. Please try again.';
       
-      setPastQueries(prev => [newQuery, ...prev]);
-      setReferenceId(`STU${Math.floor(1000 + Math.random() * 9000)}`);
-      setSubmitted(true);
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.response?.error) {
+        errorMessage = error.response.error;
+      } else if (error.response?.errors && Array.isArray(error.response.errors)) {
+        // Show validation errors
+        const validationErrors = error.response.errors.map(e => `${e.param}: ${e.msg}`).join(', ');
+        errorMessage = `Validation failed: ${validationErrors}`;
+      }
       
-      // Show error but still allow success flow
-      console.warn('Query saved locally due to connection issue');
+      // Set error in form errors
+      setFormErrors({
+        ...formErrors,
+        submit: errorMessage
+      });
+      
+      // Don't show success - show error instead
+      setSubmitted(false);
     } finally {
       setSubmitting(false);
     }
@@ -355,7 +366,10 @@ const StudentQuerySystem = () => {
             </div>
             <div className="flex gap-3">
               <button
-                onClick={() => setActiveView('history')}
+                onClick={() => {
+                  setActiveView('history');
+                  setSubmitted(false);
+                }}
                 className="px-4 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-all duration-200 flex-1 flex items-center justify-center"
               >
                 <FaHistory className="mr-2" />
@@ -761,6 +775,19 @@ const StudentQuerySystem = () => {
                     </div>
                   </div>
                 </>
+              )}
+
+              {/* Error Display */}
+              {formErrors.submit && (
+                <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+                  <div className="flex items-start">
+                    <FaExclamationCircle className="text-red-500 mr-3 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <h4 className="text-red-800 font-medium mb-1">Submission Failed</h4>
+                      <p className="text-red-700 text-sm">{formErrors.submit}</p>
+                    </div>
+                  </div>
+                </div>
               )}
 
               <div className="flex justify-between items-center mt-10 pt-6 border-t border-gray-100">

@@ -38,9 +38,9 @@ export default function JobPostingsManager() {
   const [analytics, setAnalytics] = useState({});
   const [lastSnapshot, setLastSnapshot] = useState(null);
   
-  // Filter and search state
+  // Filter and search state - default to showing IN_REVIEW jobs (pending approval)
   const [filters, setFilters] = useState({
-    status: 'all',
+    status: 'in_review', // Default to showing jobs pending approval
     companyId: '',
     recruiterId: '',
     startDate: '',
@@ -533,8 +533,8 @@ export default function JobPostingsManager() {
                             <FaEye className="w-4 h-4" />
                           </button>
 
-                          {/* Approve Button */}
-                          {job.status === 'draft' && (
+                          {/* Approve Button - Show for draft and in_review status */}
+                          {(job.status === 'draft' || job.status === 'in_review') && (
                             <button
                               onClick={() => handleApprove(job)}
                               disabled={actionLoading[`approve_${job.id}`]}
@@ -549,8 +549,8 @@ export default function JobPostingsManager() {
                             </button>
                           )}
 
-                          {/* Reject Button */}
-                          {job.status === 'draft' && (
+                          {/* Reject Button - Show for draft and in_review status */}
+                          {(job.status === 'draft' || job.status === 'in_review') && (
                             <button
                               onClick={() => setRejectModal({ isOpen: true, job, reason: '' })}
                               disabled={actionLoading[`reject_${job.id}`]}
@@ -823,7 +823,7 @@ const JobDetailsModal = ({
         {/* Footer with Actions */}
         {userRole === 'admin' && (
           <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
-            {job.status === 'draft' && (
+            {(job.status === 'draft' || job.status === 'in_review') && (
               <>
                 <button
                   onClick={() => onReject(job)}
