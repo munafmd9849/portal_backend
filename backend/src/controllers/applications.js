@@ -609,6 +609,10 @@ export async function getStudentInterviewHistory(req, res) {
         isCracked = true;
       } else if (app.status === 'REJECTED') {
         isRejected = true;
+      } else if (screeningStatus === 'RESUME_REJECTED' || screeningStatus === 'SCREENING_REJECTED' || screeningStatus === 'TEST_REJECTED') {
+        // Rejected in screening (before interview) - show in Past Applications
+        isRejected = true;
+        finalStatus = 'REJECTED';
       }
 
       return {
@@ -627,6 +631,7 @@ export async function getStudentInterviewHistory(req, res) {
           ...app.job,
         },
         // Interview history fields (NEW SYSTEM)
+        // Include isCracked/isRejected even when no session so screening-rejected apps show in Past Applications
         interviewHistory: session ? {
           interviewId: session.id,
           hasInterview: true,
@@ -650,6 +655,8 @@ export async function getStudentInterviewHistory(req, res) {
           isRejected,
         } : {
           hasInterview: false,
+          isCracked,
+          isRejected,
         },
       };
     });

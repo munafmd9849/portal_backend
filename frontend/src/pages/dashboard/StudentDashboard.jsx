@@ -2820,15 +2820,15 @@ export default function StudentDashboard() {
 
                                   {expandedApplications.has(record.id) && (
                                     <div className="mb-4 sm:mb-6 space-y-4 sm:space-y-6 border-t border-gray-200 pt-4 sm:pt-6">
-                                      {record.screeningStatusText && (
-                                        <div className={`p-3 sm:p-4 border rounded-lg ${record.screeningStatus === 'RESUME_REJECTED' || record.screeningStatus === 'TEST_REJECTED'
+                                      {record.screeningStatusText && !(isCracked || (isRejected && (record.screeningStatus === 'TEST_SELECTED' || record.screeningStatus === 'INTERVIEW_ELIGIBLE'))) && (
+                                        <div className={`p-3 sm:p-4 border rounded-lg ${record.screeningStatus === 'RESUME_REJECTED' || record.screeningStatus === 'SCREENING_REJECTED' || record.screeningStatus === 'TEST_REJECTED'
                                           ? 'bg-red-50 border-red-200'
                                           : record.screeningStatus === 'TEST_SELECTED'
                                             ? 'bg-green-50 border-green-200'
                                             : 'bg-yellow-50 border-yellow-200'
                                           }`}>
                                           <div className="flex items-center gap-2 mb-1">
-                                            <Info className={`w-5 h-5 ${record.screeningStatus === 'RESUME_REJECTED' || record.screeningStatus === 'TEST_REJECTED'
+                                            <Info className={`w-5 h-5 ${record.screeningStatus === 'RESUME_REJECTED' || record.screeningStatus === 'SCREENING_REJECTED' || record.screeningStatus === 'TEST_REJECTED'
                                               ? 'text-red-600'
                                               : record.screeningStatus === 'TEST_SELECTED'
                                                 ? 'text-green-600'
@@ -2836,7 +2836,7 @@ export default function StudentDashboard() {
                                               }`} />
                                             <span className="text-xs font-semibold uppercase tracking-wide text-gray-600">Screening Status</span>
                                           </div>
-                                          <p className={`text-base font-bold ${record.screeningStatus === 'RESUME_REJECTED' || record.screeningStatus === 'TEST_REJECTED'
+                                          <p className={`text-base font-bold ${record.screeningStatus === 'RESUME_REJECTED' || record.screeningStatus === 'SCREENING_REJECTED' || record.screeningStatus === 'TEST_REJECTED'
                                             ? 'text-red-800'
                                             : record.screeningStatus === 'TEST_SELECTED'
                                               ? 'text-green-800'
