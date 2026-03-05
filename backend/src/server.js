@@ -416,9 +416,13 @@ async function start() {
       console.log(`🌐 CORS origin: ${process.env.CORS_ORIGIN || 'NOT SET (CRITICAL)'}`);
       console.log(`🌍 Frontend URL: ${process.env.FRONTEND_URL}`);
       // Verify email transporter and log status (async, non-blocking)
-      verifyEmailTransport().then(({ ready, message }) => {
-        console.log(ready ? '📧 Email transporter: ready' : `📧 Email transporter: ${message}`);
-      });
+      verifyEmailTransport()
+        .then(({ ready, message }) => {
+          console.log(ready ? '📧 Email transporter: ready' : `📧 Email transporter: ${message}`);
+        })
+        .catch((err) => {
+          console.log('📧 Email transporter: error -', err?.message || err);
+        });
     }).on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
         console.error(`❌ Port ${PORT} is already in use. Please stop the existing process or use a different port.`);

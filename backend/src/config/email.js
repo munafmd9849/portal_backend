@@ -37,24 +37,34 @@ const transporter = nodemailer.createTransport({
 
 /**
  * Verify email transporter and return status for startup logging
+ * Includes timeout - SMTP verify can hang on cloud (Gmail often blocks cloud IPs)
  * @returns {Promise<{ready: boolean, message: string}>}
  */
 export async function verifyEmailTransport() {
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    return { ready: false, message: 'Not configured (EMAIL_USER/EMAIL_PASS missing)' };
+    return { ready: false, message: 'Not configured (add EMAIL_USER, EMAIL_PASS to Render env)' };
   }
+  const timeoutMs = 8000; // SMTP verify can hang; fail fast for startup log
   try {
-    await transporter.verify();
+    await Promise.race([
+      transporter.verify(),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('SMTP verify timeout (Gmail may block cloud IPs)')), timeoutMs)
+      ),
+    ]);
     return { ready: true, message: 'Ready' };
   } catch (error) {
     const msg = error?.message || String(error);
+    if (msg.includes('timeout') || msg.includes('ETIMEDOUT')) {
+      return { ready: false, message: 'Timeout - Gmail often blocks cloud IPs; try Resend/SendGrid' };
+    }
     if (msg.includes('ENOTFOUND') || msg.includes('getaddrinfo')) {
       return { ready: false, message: 'Cannot reach SMTP server (network/DNS)' };
     }
-    if (msg.includes('Invalid login') || msg.includes('Authentication')) {
-      return { ready: false, message: 'Auth failed - check App Password (Gmail)' };
+    if (msg.includes('Invalid login') || msg.includes('Authentication') || msg.includes('535')) {
+      return { ready: false, message: 'Auth failed - use Gmail App Password' };
     }
-    return { ready: false, message: msg.substring(0, 80) };
+    return { ready: false, message: msg.substring(0, 60) };
   }
 }
 
