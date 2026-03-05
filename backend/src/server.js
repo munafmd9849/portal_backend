@@ -424,6 +424,10 @@ async function start() {
         .catch((err) => {
           console.log('📧 Email transporter: error -', err?.message || err);
         });
+      // Start BullMQ workers in same process (required for Render - no separate worker service)
+      import('./workers/index.js').then(({ startWorkers }) => {
+        startWorkers().catch((err) => console.warn('⚠️ Workers failed to start:', err?.message || err));
+      });
     }).on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
         console.error(`❌ Port ${PORT} is already in use. Please stop the existing process or use a different port.`);
@@ -550,24 +554,20 @@ startScreeningEmailScheduler();
 startDriveReminderScheduler();
 
 // Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM received, shutting down gracefully...');
+async function shutdown() {
+  console.log('Shutting down gracefully...');
   if (screeningEmailInterval) clearInterval(screeningEmailInterval);
   if (driveReminderInterval) clearInterval(driveReminderInterval);
+  try {
+    const { closeWorkers } = await import('./workers/index.js');
+    await closeWorkers();
+  } catch (e) { /* workers may not have started */ }
   await prisma.$disconnect();
   server.close(() => {
     console.log('Server closed');
     process.exit(0);
   });
-});
+}
 
-process.on('SIGINT', async () => {
-  console.log('SIGINT received, shutting down gracefully...');
-  if (screeningEmailInterval) clearInterval(screeningEmailInterval);
-  if (driveReminderInterval) clearInterval(driveReminderInterval);
-  await prisma.$disconnect();
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
-});
+process.on('SIGTERM', () => { console.log('SIGTERM received'); shutdown(); });
+process.on('SIGINT', () => { console.log('SIGINT received'); shutdown(); });

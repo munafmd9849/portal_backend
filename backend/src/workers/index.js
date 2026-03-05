@@ -14,19 +14,36 @@ import { initJobDistributionWorker } from './jobDistribution.js';
 import { initEmailWorker } from './emailWorker.js';
 import { initCsvWorker } from './csvWorker.js';
 
-async function startWorkers() {
-    console.log('👷 Initializing Workers...');
+let workers = { jobWorker: null, emailWorker: null, csvWorker: null };
 
-    const [jobWorker, emailWorker, csvWorker] = await Promise.all([
-        initJobDistributionWorker(),
-        initEmailWorker(),
-        initCsvWorker()
-    ]);
+export async function startWorkers() {
+  console.log('👷 Initializing Workers...');
 
-    console.log('👷 Workers started');
-    console.log('📦 Job distribution worker:', jobWorker ? 'Running' : 'Disabled (Redis not available)');
-    console.log('📧 Email notification worker:', emailWorker ? 'Running' : 'Disabled (Redis not available)');
-    console.log('📝 CSV export worker:', csvWorker ? 'Running' : 'Disabled (Redis not available)');
+  const [jobWorker, emailWorker, csvWorker] = await Promise.all([
+    initJobDistributionWorker(),
+    initEmailWorker(),
+    initCsvWorker()
+  ]);
+
+  workers = { jobWorker, emailWorker, csvWorker };
+
+  console.log('👷 Workers started');
+  console.log('📦 Job distribution worker:', jobWorker ? 'Running' : 'Disabled (Redis not available)');
+  console.log('📧 Email notification worker:', emailWorker ? 'Running' : 'Disabled (Redis not available)');
+  console.log('📝 CSV export worker:', csvWorker ? 'Running' : 'Disabled (Redis not available)');
+
+  return workers;
 }
 
-startWorkers().catch(console.error);
+export async function closeWorkers() {
+  await Promise.all([
+    workers.jobWorker?.close(),
+    workers.emailWorker?.close(),
+    workers.csvWorker?.close(),
+  ].filter(Boolean));
+}
+
+// Run standalone when executed directly (npm run worker)
+if (process.argv[1]?.endsWith('workers/index.js') || process.argv[1]?.includes('workers\\index.js')) {
+  startWorkers().catch(console.error);
+}
