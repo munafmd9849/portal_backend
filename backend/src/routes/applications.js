@@ -16,11 +16,17 @@ router.use(authenticate);
 // Get all applications (admin only) - must be before /:applicationId routes
 router.get('/', requireRole(['ADMIN']), applicationController.getAllApplications);
 
+// Export all applications to CSV (admin only)
+router.post('/export', requireRole(['ADMIN']), applicationController.exportApplications);
+
+// Check CSV export status (admin only)
+router.get('/export/:jobId', requireRole(['ADMIN']), applicationController.getExportStatus);
+
 // Get screening summary for a job (admin only)
 router.get('/job/:jobId/screening-summary', requireRole(['ADMIN']), applicationController.getJobScreeningSummary);
 
-// Get student's applications (student only)
-router.get('/student', requireRole(['STUDENT']), applicationController.getStudentApplications);
+// Get student's applications (student only, admins via query)
+router.get('/student', requireRole(['STUDENT', 'ADMIN', 'SUPER_ADMIN']), applicationController.getStudentApplications);
 
 // Get student's interview history with rounds (student only)
 router.get('/student/interview-history', requireRole(['STUDENT']), applicationController.getStudentInterviewHistory);

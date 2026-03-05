@@ -372,6 +372,7 @@ export default function StudentDashboard() {
   const [loadingInterviewHistory, setLoadingInterviewHistory] = useState(false);
   const [applicationsView, setApplicationsView] = useState('current'); // 'current' or 'past'
   const [expandedApplications, setExpandedApplications] = useState(new Set()); // Track expanded application details
+  const [pendingApplicationJobId, setPendingApplicationJobId] = useState(null);
   const [currentApplicationsPage, setCurrentApplicationsPage] = useState(1);
   const [pastApplicationsPage, setPastApplicationsPage] = useState(1);
   const APPLICATIONS_LIST_PER_PAGE = 10;
@@ -385,6 +386,32 @@ export default function StudentDashboard() {
     setCurrentApplicationsPage(1);
     setPastApplicationsPage(1);
   }, [applicationsView]);
+
+  useEffect(() => {
+    if (!pendingApplicationJobId || !applications.length) return;
+    const matchIndex = applications.findIndex((app) => {
+      const jobId = app.jobId || app.job?.id;
+      return String(jobId) === String(pendingApplicationJobId);
+    });
+    if (matchIndex === -1) return;
+    const match = applications[matchIndex];
+    setExpandedApplications((prev) => {
+      const next = new Set(prev);
+      next.add(match.id);
+      return next;
+    });
+    const targetPage = Math.floor(matchIndex / APPLICATIONS_LIST_PER_PAGE) + 1;
+    setCurrentApplicationsPage(targetPage);
+    setApplicationsView('current');
+    setPendingApplicationJobId(null);
+  }, [pendingApplicationJobId, applications, APPLICATIONS_LIST_PER_PAGE]);
+
+  // Collapse all cards when leaving Track Applications tab
+  useEffect(() => {
+    if (activeTab !== 'applications') {
+      setExpandedApplications(new Set());
+    }
+  }, [activeTab]);
 
   // Jobs state
   const [jobs, setJobs] = useState([]);
@@ -1073,15 +1100,15 @@ export default function StudentDashboard() {
         await loadApplicationsData(true); // Force refresh after applying
         return; // Exit early, no error message needed
       }
-
-      // Handle CGPA requirement error with precise message
-      if (errorMessage === 'CGPA requirement not met' || errorMessage === 'CGPA requirement check failed' ||
-        errorData.error === 'CGPA requirement not met' || errorData.error === 'CGPA requirement check failed') {
-        // Clean and precise error message
-        const yourCgpa = errorData.yourCgpa || 'Not set';
-        const requiredCgpa = errorData.requiredCgpa || errorData.requirement || 'Not specified';
-        const message = errorData.message || 'Your CGPA does not meet the minimum requirement for this job.';
-        showError(`${message}\n\nYour CGPA: ${yourCgpa}\nRequired CGPA: ${requiredCgpa}\n\nPlease update your profile with a higher CGPA or apply to jobs with lower requirements.`);
+      
+      // Handle eligibility errors (CGPA, YOP, etc.) with consistent "E" toast
+      const isEligibilityError = 
+        errorMessage === 'CGPA requirement not met' || errorMessage === 'CGPA requirement check failed' ||
+        errorMessage?.toLowerCase?.().includes('eligibility') || errorMessage?.toLowerCase?.().includes('cgpa') ||
+        errorData.error === 'CGPA requirement not met' || errorData.error === 'CGPA requirement check failed' ||
+        errorData.error?.toLowerCase?.().includes('eligibility');
+      if (isEligibilityError) {
+        showError('Eligibility criteria not met', 'E');
       } else if (error.isNetworkError || error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
         // Network error - already handled by API layer, but show if not shown
         showError('Network error: Cannot connect to server. Please check your internet connection and ensure the backend server is running.');
@@ -1247,11 +1274,9 @@ export default function StudentDashboard() {
     const handleNavigateToApplications = (e) => {
       setActiveTab('applications');
       const view = e?.detail?.view || 'current';
-      setApplicationsView(view);
-      const applicationId = e?.detail?.applicationId || null;
       const jobId = e?.detail?.jobId || null;
-      if (applicationId) setFocusedJobId(applicationId);
-      else if (jobId) setFocusedJobId(jobId); // fallback to jobId (legacy)
+      setApplicationsView(view);
+      setPendingApplicationJobId(jobId);
       if (tab !== 'applications') {
         navigate('/student?tab=applications', { replace: true });
       }
@@ -3134,6 +3159,16 @@ export default function StudentDashboard() {
                                           })()}
                                         </span>
                                       </span>
+                                      {(application.jobId || application.job?.id) && (
+                                        <button
+                                          onClick={() => navigate(`/job/${application.jobId || application.job?.id}`)}
+                                          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-700 transition-colors duration-200 text-sm font-medium"
+                                          title="View Job Description"
+                                        >
+                                          <FileText className="w-4 h-4 flex-shrink-0" />
+                                          <span>View JD</span>
+                                        </button>
+                                      )}
                                       <button
                                         onClick={() => {
                                           setExpandedApplications(prev => {
@@ -3285,19 +3320,34 @@ export default function StudentDashboard() {
                                       </div>
                                     </div>
 
-                                    {application.job?.description && (
-                                      <div className="mb-4 sm:mb-6 bg-gradient-to-br from-indigo-50 to-purple-50 p-3 sm:p-5 rounded-lg sm:rounded-xl border border-indigo-100">
-                                        <div className="flex items-center gap-2 mb-3">
-                                          <FileText className="w-5 h-5 text-indigo-600" />
-                                          <p className="text-sm font-semibold text-indigo-600 uppercase tracking-wide">Job Description</p>
+                                    {(() => {
+                                      // Match JobContent mapping: jobDescription || description || responsibilities
+                                      const jdText = application.job?.jobDescription || application.job?.description || application.job?.responsibilities || '';
+                                      if (!jdText || typeof jdText !== 'string' || !jdText.trim()) return null;
+                                      const jobId = application.jobId || application.job?.id;
+                                      return (
+                                        <div className="mb-4 sm:mb-6 bg-gradient-to-br from-indigo-50 to-purple-50 p-3 sm:p-5 rounded-lg sm:rounded-xl border border-indigo-100">
+                                          <div className="flex items-center justify-between gap-3 mb-3">
+                                            <div className="flex items-center gap-2">
+                                              <FileText className="w-5 h-5 text-indigo-600" />
+                                              <p className="text-sm font-semibold text-indigo-600 uppercase tracking-wide">Job Description</p>
+                                            </div>
+                                            {jobId && (
+                                              <button
+                                                onClick={() => navigate(`/job/${jobId}`)}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium transition-colors"
+                                              >
+                                                <ExternalLink className="w-3.5 h-3.5" />
+                                                View Full JD
+                                              </button>
+                                            )}
+                                          </div>
+                                          <p className="text-sm text-gray-700 line-clamp-3 leading-relaxed">
+                                            {jdText.length > 200 ? `${jdText.substring(0, 200)}...` : jdText}
+                                          </p>
                                         </div>
-                                        <p className="text-sm text-gray-700 line-clamp-3 leading-relaxed">
-                                          {application.job.description.length > 200
-                                            ? `${application.job.description.substring(0, 200)}...`
-                                            : application.job.description}
-                                        </p>
-                                      </div>
-                                    )}
+                                      );
+                                    })()}
 
                                     {/* Enhanced Skills Required */}
                                     {(() => {
@@ -4654,7 +4704,7 @@ export default function StudentDashboard() {
         <div className="flex min-h-screen relative">
           {/* Desktop sidebar: visible from md up */}
           <aside
-            className="hidden md:block bg-white border-r border-gray-200 fixed h-[calc(100vh-5rem)] overflow-y-auto scrollbar-hide transition-all duration-200 ease-in-out z-40"
+            className="hidden md:block bg-white border-r border-gray-200 fixed h-[calc(100vh-5rem)] overflow-hidden transition-all duration-200 ease-in-out z-40"
             style={{ width: `${sidebarWidth}%` }}
           >
             <div className="p-3 h-full flex flex-col">
@@ -4801,7 +4851,7 @@ export default function StudentDashboard() {
           )}
           {/* Mobile drawer sidebar */}
           <aside
-            className={`fixed top-0 left-0 bottom-0 w-72 max-w-[85vw] bg-white border-r border-gray-200 shadow-xl z-50 md:hidden overflow-y-auto scrollbar-hide transition-transform duration-300 ease-out flex flex-col ${
+            className={`fixed top-0 left-0 bottom-0 w-72 max-w-[85vw] bg-white border-r border-gray-200 shadow-xl z-50 md:hidden overflow-hidden transition-transform duration-300 ease-out flex flex-col ${
               mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
             }`}
             aria-modal

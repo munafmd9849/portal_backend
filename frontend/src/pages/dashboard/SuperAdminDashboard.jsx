@@ -17,8 +17,9 @@ import AdminJobApplications from '../../components/dashboard/admin/AdminJobAppli
 import AdminApplicantsHub from '../../components/dashboard/admin/AdminApplicantsHub';
 import CreateDisableAdmins from '../../components/dashboard/admin/CreateDisableAdmins';
 import SuperAdminStats from '../../components/dashboard/admin/SuperAdminStats';
+import AuditLogs from '../../components/dashboard/admin/AuditLogs';
 import ConnectGoogleCalendar from '../ConnectGoogleCalendar';
-import { Home, FilePlus2, Briefcase, GripVertical, LogOut, Users, Bell, Settings, User, Calendar, UserPlus, BarChart3, X } from 'lucide-react';
+import { Home, FilePlus2, Briefcase, GripVertical, LogOut, Users, Bell, Settings, User, Calendar, UserPlus, BarChart3, X, History } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import showLogoutConfirm from '../../utils/logoutConfirm';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
@@ -98,6 +99,7 @@ export default function SuperAdminDashboard() {
     { id: 'recruiterDirectory', label: 'Recruiter Directory', icon: Briefcase },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'createDisableAdmins', label: 'Create / Disable Admins', icon: UserPlus },
+    { id: 'auditLogs', label: 'Audit Logs', icon: History },
     { id: 'adminPanel', label: 'Admin Panel', icon: Settings },
     { id: 'superAdminStats', label: 'Statistics', icon: BarChart3 },
     { id: 'profile', label: 'Profile', icon: User },
@@ -158,6 +160,7 @@ export default function SuperAdminDashboard() {
       case 'recruiterDirectory': return <RecruiterDirectory />;
       case 'notifications': return <Notifications />;
       case 'createDisableAdmins': return <CreateDisableAdmins />;
+      case 'auditLogs': return <AuditLogs />;
       case 'adminPanel': return <AdminPanel />;
       case 'superAdminStats': return <SuperAdminStats />;
       case 'profile': return <AdminProfile />;
@@ -176,7 +179,7 @@ export default function SuperAdminDashboard() {
       <AdminLayout>
         <div className="flex min-h-screen relative">
           <aside
-            className="hidden md:block bg-white border-r border-gray-200 fixed h-[calc(100vh-5rem)] overflow-y-auto transition-all duration-200 ease-in-out z-40"
+            className="hidden md:block bg-white border-r border-gray-200 fixed h-[calc(100vh-5rem)] overflow-hidden transition-all duration-200 ease-in-out z-40"
             style={{ width: `${sidebarWidth}%` }}
           >
             <div className="p-3 h-full flex flex-col">
@@ -189,9 +192,8 @@ export default function SuperAdminDashboard() {
                       <div key={tab.id} className="mb-1">
                         <button
                           onClick={() => { setActiveTab(tab.id); navigate(`${BASE}?tab=${encodeURIComponent(tab.id)}`); }}
-                          className={`w-full flex items-center rounded-lg text-xs font-medium transition-all duration-200 ${
-                            sidebarActiveTab === tab.id ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white' : 'text-gray-600 hover:text-violet-600 hover:bg-violet-50'
-                          } ${sidebarWidth < 9 ? 'justify-center px-2 py-2' : 'px-2 py-3'}`}
+                          className={`w-full flex items-center rounded-lg text-xs font-medium transition-all duration-200 ${sidebarActiveTab === tab.id ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white' : 'text-gray-600 hover:text-violet-600 hover:bg-violet-50'
+                            } ${sidebarWidth < 9 ? 'justify-center px-2 py-2' : 'px-2 py-3'}`}
                           title={sidebarWidth < 9 ? tab.label : ''}
                         >
                           <Icon className={`h-4 w-4 ${sidebarWidth >= 9 ? 'mr-2' : ''}`} />
@@ -219,7 +221,7 @@ export default function SuperAdminDashboard() {
             <div className="fixed inset-0 bg-black/50 z-40 md:hidden" aria-hidden onClick={() => setMobileMenuOpen(false)} />
           )}
           <aside
-            className={`fixed top-0 left-0 bottom-0 w-72 max-w-[85vw] bg-white border-r border-gray-200 shadow-xl z-50 md:hidden overflow-y-auto transition-transform duration-300 ease-out flex flex-col ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
+            className={`fixed top-0 left-0 bottom-0 w-72 max-w-[85vw] bg-white border-r border-gray-200 shadow-xl z-50 md:hidden overflow-hidden transition-transform duration-300 ease-out flex flex-col ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
             aria-modal
             aria-label="Navigation menu"
           >
