@@ -35,29 +35,27 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// Verify transporter on startup (async, don't block server)
-// Note: Verification is non-blocking - server will start even if email fails
-if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-  setImmediate(() => {
-    transporter.verify((error, success) => {
-      if (error) {
-        // Only show error if it's not a network/DNS issue (which is common)
-        if (error.message.includes('ENOTFOUND') || error.message.includes('getaddrinfo')) {
-          console.warn('⚠️  Email transporter verification skipped: Cannot reach SMTP server');
-          console.warn('   This is usually due to network/DNS issues and can be ignored during development');
-          console.warn('   Email functionality will work when network is available');
-        } else {
-          console.error('❌ Email transporter verification failed:', error.message);
-          console.error('   Check your EMAIL_USER and EMAIL_PASS in .env file');
-          if (error.message.includes('Invalid login')) {
-            console.error('   ⚠️  Gmail App Password might be incorrect or expired');
-          }
-        }
-      } else {
-        console.log('✅ Email transporter is ready');
-      }
-    });
-  });
+/**
+ * Verify email transporter and return status for startup logging
+ * @returns {Promise<{ready: boolean, message: string}>}
+ */
+export async function verifyEmailTransport() {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    return { ready: false, message: 'Not configured (EMAIL_USER/EMAIL_PASS missing)' };
+  }
+  try {
+    await transporter.verify();
+    return { ready: true, message: 'Ready' };
+  } catch (error) {
+    const msg = error?.message || String(error);
+    if (msg.includes('ENOTFOUND') || msg.includes('getaddrinfo')) {
+      return { ready: false, message: 'Cannot reach SMTP server (network/DNS)' };
+    }
+    if (msg.includes('Invalid login') || msg.includes('Authentication')) {
+      return { ready: false, message: 'Auth failed - check App Password (Gmail)' };
+    }
+    return { ready: false, message: msg.substring(0, 80) };
+  }
 }
 
 /**

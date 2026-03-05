@@ -25,6 +25,7 @@ import http from 'http';
 
 import { initSocket } from './config/socket.js';
 import prisma from './config/database.js';
+import { verifyEmailTransport } from './config/email.js';
 
 // Routes
 import authRoutes from './routes/auth.js';
@@ -105,14 +106,14 @@ function logDatabaseTarget() {
   }
 }
 
-// DEBUG: Verify .env loading for Google AI
-console.log('🔍 [DEBUG] Environment Variables Check:');
-console.log('  - GOOGLE_AI_API_KEY:', process.env.GOOGLE_AI_API_KEY ? `${process.env.GOOGLE_AI_API_KEY.substring(0, 10)}...${process.env.GOOGLE_AI_API_KEY.substring(process.env.GOOGLE_AI_API_KEY.length - 5)} (${process.env.GOOGLE_AI_API_KEY.length} chars)` : '❌ NOT SET');
-console.log('  - GOOGLE_AI_MODEL:', process.env.GOOGLE_AI_MODEL || process.env.GEMINI_MODEL || 'gemini-2.5-flash (default)');
-console.log('  - GOOGLE_AI_MAX_TOKENS:', process.env.GOOGLE_AI_MAX_TOKENS || '2048 (default)');
-console.log('  - GOOGLE_AI_TEMPERATURE:', process.env.GOOGLE_AI_TEMPERATURE || '0.7 (default)');
-console.log('  - AI_ENABLED:', process.env.AI_ENABLED !== 'false' ? 'true' : 'false');
-console.log('  - FRONTEND_URL:', process.env.FRONTEND_URL);
+// Startup info (skip verbose DEBUG in production)
+if (isDevelopment) {
+  console.log('🔍 [DEBUG] Environment Variables Check:');
+  console.log('  - GOOGLE_AI_API_KEY:', process.env.GOOGLE_AI_API_KEY ? '✅ Set' : '❌ NOT SET');
+  console.log('  - GOOGLE_AI_MODEL:', process.env.GOOGLE_AI_MODEL || process.env.GEMINI_MODEL || 'gemini-2.5-flash (default)');
+  console.log('  - AI_ENABLED:', process.env.AI_ENABLED !== 'false' ? 'true' : 'false');
+  console.log('  - FRONTEND_URL:', process.env.FRONTEND_URL);
+}
 logDatabaseTarget();
 
 const app = express();
@@ -414,7 +415,10 @@ async function start() {
       console.log(`📡 Socket.IO enabled`);
       console.log(`🌐 CORS origin: ${process.env.CORS_ORIGIN || 'NOT SET (CRITICAL)'}`);
       console.log(`🌍 Frontend URL: ${process.env.FRONTEND_URL}`);
-      console.log(`📧 Email configured: ${process.env.EMAIL_USER ? 'Yes' : 'No'}`);
+      // Verify email transporter and log status (async, non-blocking)
+      verifyEmailTransport().then(({ ready, message }) => {
+        console.log(ready ? '📧 Email transporter: ready' : `📧 Email transporter: ${message}`);
+      });
     }).on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
         console.error(`❌ Port ${PORT} is already in use. Please stop the existing process or use a different port.`);

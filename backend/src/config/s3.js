@@ -7,13 +7,11 @@ import { S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 
-// Validate S3 configuration
-if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
-  console.warn('⚠️  AWS credentials not configured. S3 uploads will fail.');
-}
-
-if (!process.env.S3_BUCKET_NAME) {
-  console.warn('⚠️  S3_BUCKET_NAME not configured. S3 uploads will fail.');
+// Validate S3 configuration (optional - app uses Cloudinary for uploads; S3 is legacy/alternative)
+// Only warn in development; in production, silence unless explicitly needed
+const s3Configured = process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY && process.env.S3_BUCKET_NAME;
+if (!s3Configured && process.env.NODE_ENV === 'development') {
+  console.warn('⚠️  S3 not configured (optional). Profile/resume uploads use Cloudinary.');
 }
 
 const s3Client = new S3Client({
