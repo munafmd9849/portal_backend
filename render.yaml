@@ -1,0 +1,33 @@
+# Render Blueprint - Backend Deployment
+# Docs: https://render.com/docs/blueprint-spec
+#
+# OPTION A: Deploy via Blueprint
+#   Render Dashboard > New > Blueprint > Connect repo > Select this file
+#
+# OPTION B: Manual setup (recommended for first deploy)
+#   See DEPLOYMENT.md for step-by-step instructions
+
+services:
+  - type: web
+    name: portal-backend
+    runtime: node
+    region: singapore  # Or oregon, frankfurt - match your DB region
+
+    # Root directory - set in Render Dashboard if different
+    rootDir: backend
+
+    # Build & Start
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+
+    # Set these in Render Dashboard > Environment (or link PostgreSQL for DATABASE_URL)
+    # Required: DATABASE_URL, JWT_SECRET, JWT_REFRESH_SECRET, FRONTEND_URL, CORS_ORIGIN
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+databases:
+  - name: portal-db
+    databaseName: portal
+    plan: free
