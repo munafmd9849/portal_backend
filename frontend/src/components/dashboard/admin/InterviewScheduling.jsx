@@ -109,21 +109,16 @@ export default function InterviewScheduling() {
       const completedSet = new Set();
       for (const job of jobsList) {
         try {
-          // Use centralized API client
-          const sessionData = await api.get(`/interview-sessions/${job.id}`, { silent: true });
-          
-          if (sessionData?.session && (sessionData.session.status === 'COMPLETED' || sessionData.session.status === 'INCOMPLETE')) {
+          const response = await api.get(`/interview-sessions/${job.id}`, { silent: true });
+          const session = response?.data?.session ?? response?.session;
+          if (session && (session.status === 'COMPLETED' || session.status === 'INCOMPLETE')) {
             completedSet.add(job.id);
           }
         } catch (error) {
           // Ignore errors - session might not exist yet
-          console.log(`No session found for job ${job.id}`);
         }
       }
-      
-      if (completedSet.size > 0) {
-        setCompletedSessions(completedSet);
-      }
+      setCompletedSessions(completedSet);
     } catch (error) {
       console.error('Error loading jobs:', error);
       // Error is already handled by centralized API client (toast shown)
