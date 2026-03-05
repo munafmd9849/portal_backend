@@ -118,6 +118,9 @@ logDatabaseTarget();
 const app = express();
 const server = http.createServer(app);
 
+// Trust proxy - REQUIRED when behind Render/Heroku/nginx (enables X-Forwarded-For for rate limiting)
+app.set('trust proxy', true);
+
 // Initialize Socket.IO
 const io = initSocket(server);
 // io is exported from socket.js config for use in controllers
@@ -175,6 +178,7 @@ const limiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  validate: { xForwardedForHeader: false }, // Disable check when behind Render/Heroku proxy
   skip: (req) => {
     // Skip rate limiting in development mode
     if (process.env.NODE_ENV === 'development') {
@@ -184,13 +188,15 @@ const limiter = rateLimit({
   },
 });
 
-// More lenient rate limiting for auth endpoints
+// More lenient rate limiting for auth endpoints (higher limit: proxy/NAT can pool IPs, OTP flow uses multiple requests)
+const authMax = parseInt(process.env.RATE_LIMIT_AUTH_MAX, 10) || (process.env.NODE_ENV === 'development' ? 10000 : 200);
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'development' ? 10000 : 50, // Very high limit in dev (effectively disabled)
+  max: authMax,
   message: 'Too many authentication attempts, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false }, // Disable check when behind Render/Heroku proxy
   skip: (req) => {
     // In development, allow unlimited auth requests
     return process.env.NODE_ENV === 'development';
@@ -198,12 +204,14 @@ const authLimiter = rateLimit({
 });
 
 // General API rate limiting - more lenient in development
+const apiMax = parseInt(process.env.RATE_LIMIT_API_MAX, 10) || (process.env.NODE_ENV === 'development' ? 10000 : 300);
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'development' ? 10000 : 100, // Much higher in dev
+  max: apiMax,
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false }, // Disable check when behind Render/Heroku proxy
 });
 
 // Apply rate limits (auth endpoints are effectively unlimited in dev)
@@ -232,6 +240,11 @@ app.get('/', (req, res) => {
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Favicon - return 204 to avoid 404 spam
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end();
 });
 
 // API Routes
@@ -441,10 +454,10 @@ function startScreeningEmailScheduler() {
   setTimeout(async () => {
     try {
       const result = await checkAndSendScreeningEmails();
-      if (result && result.skipped && result.reason === 'database_quota_exceeded') {
+      if (result && result.skipped && (result.reason === 'database_quota_exceeded' || result.reason === 'database_unreachable')) {
         consecutiveQuotaErrors++;
         if (consecutiveQuotaErrors === 1) {
-          console.warn(`⚠️ [Deadline Email] Database quota exceeded. Email checks paused until quota resets.`);
+          console.warn(`⚠️ [Deadline Email] Database unavailable (${result.reason}). Email checks paused. Will retry on next run.`);
         }
       } else {
         consecutiveQuotaErrors = 0;
@@ -455,7 +468,7 @@ function startScreeningEmailScheduler() {
         console.log(`✅ [Deadline Email] Initial check complete: ${result?.processed || 0} job(s) processed`);
       }
     } catch (error) {
-      if (error.message && error.message.includes('quota')) {
+      if (error.message && (error.message.includes('quota') || error.message.includes("Can't reach database"))) {
         consecutiveQuotaErrors++;
         if (consecutiveQuotaErrors === 1) {
           console.warn(`⚠️ [Deadline Email] Database quota exceeded. Email checks paused until quota resets.`);
@@ -472,11 +485,11 @@ function startScreeningEmailScheduler() {
     try {
       const result = await checkAndSendScreeningEmails();
 
-      if (result && result.skipped && result.reason === 'database_quota_exceeded') {
+      if (result && result.skipped && (result.reason === 'database_quota_exceeded' || result.reason === 'database_unreachable')) {
         consecutiveQuotaErrors++;
-        // Only log quota errors occasionally to reduce spam (every 10th error or first 3)
+        // Only log occasionally to reduce spam (every 10th error or first 3)
         if (consecutiveQuotaErrors <= MAX_QUOTA_ERRORS || consecutiveQuotaErrors % 10 === 0) {
-          console.warn(`⚠️ [Deadline Email] Database quota exceeded (${consecutiveQuotaErrors} consecutive). Email checks paused. Will resume when quota resets.`);
+          console.warn(`⚠️ [Deadline Email] Database unavailable (${consecutiveQuotaErrors} consecutive). Will retry on next run.`);
         }
       } else {
         // Reset counter on success
@@ -490,15 +503,14 @@ function startScreeningEmailScheduler() {
         }
       }
     } catch (error) {
-      if (error.message && error.message.includes('quota')) {
+      if (error.message && (error.message.includes('quota') || error.message.includes("Can't reach database"))) {
         consecutiveQuotaErrors++;
-        // Only log quota errors occasionally to reduce spam
         if (consecutiveQuotaErrors <= MAX_QUOTA_ERRORS || consecutiveQuotaErrors % 10 === 0) {
-          console.warn(`⚠️ [Deadline Email] Database quota exceeded (${consecutiveQuotaErrors} consecutive). Email checks paused. Will resume when quota resets.`);
+          console.warn(`⚠️ [Deadline Email] Database unavailable (${consecutiveQuotaErrors} consecutive). Will retry on next run.`);
         }
       } else {
         console.error(`❌ [Deadline Email] Error in scheduled check:`, error.message || error);
-        consecutiveQuotaErrors = 0; // Reset on non-quota errors
+        consecutiveQuotaErrors = 0;
       }
     }
   }, 60 * 1000); // Every 1 minute (60 seconds) - near-real-time

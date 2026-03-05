@@ -87,14 +87,28 @@ export async function checkAndSendScreeningEmails() {
         }
       });
     } catch (dbError) {
+      const msg = dbError?.message || '';
+      const code = dbError?.code || '';
       // Handle database quota exceeded gracefully
-      if (dbError.message && dbError.message.includes('quota')) {
+      if (msg.includes('quota')) {
         console.warn(`⚠️ [Deadline Email] Database quota exceeded. Skipping check at ${now.toISOString()}. Will retry when quota resets.`);
         return {
           success: false,
           skipped: true,
           reason: 'database_quota_exceeded',
           message: 'Database quota exceeded. Email checks will resume when quota resets.',
+          processed: 0,
+          results: []
+        };
+      }
+      // Handle DB unreachable (Render free tier spin-down, network issues)
+      if (code === 'P1001' || msg.includes("Can't reach database") || msg.includes('connection')) {
+        console.warn(`⚠️ [Deadline Email] Database unreachable. Skipping check. Use Render Internal Database URL if both services are on Render.`);
+        return {
+          success: false,
+          skipped: true,
+          reason: 'database_unreachable',
+          message: 'Database unreachable. Will retry on next run.',
           processed: 0,
           results: []
         };
