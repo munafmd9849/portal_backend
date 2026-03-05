@@ -55,8 +55,13 @@ export async function verifyEmailTransport() {
     return { ready: true, message: 'Ready' };
   } catch (error) {
     const msg = error?.message || String(error);
+    const host = process.env.EMAIL_HOST || 'smtp.gmail.com';
+    const isGmail = host.includes('gmail');
     if (msg.includes('timeout') || msg.includes('ETIMEDOUT')) {
-      return { ready: false, message: 'Timeout - Gmail often blocks cloud IPs; try Resend/SendGrid' };
+      const hint = isGmail && process.env.NODE_ENV === 'production'
+        ? 'Gmail blocks cloud IPs. Add SendGrid to Render env: EMAIL_HOST=smtp.sendgrid.net, EMAIL_USER=apikey, EMAIL_PASS=<key>'
+        : 'Timeout - Gmail often blocks cloud IPs; try Resend/SendGrid';
+      return { ready: false, message: hint };
     }
     if (msg.includes('ENOTFOUND') || msg.includes('getaddrinfo')) {
       return { ready: false, message: 'Cannot reach SMTP server (network/DNS)' };
@@ -120,28 +125,37 @@ export async function sendEmail({ to, subject, html, text, cc, bcc, attachments 
   }
 }
 
+const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+
 /**
- * Send email to multiple recipients
+ * Send email to multiple recipients (sequential with delay to avoid Gmail/SMTP rate limits)
  * @param {string[]} recipients - Email addresses
  * @param {string} subject - Subject
  * @param {string} html - HTML body
  * @param {string} text - Plain text body
+ * @param {number} delayMs - Delay between emails (Gmail needs ~1.5s to avoid 421; SendGrid ~500ms)
  * @returns {Promise<Object>} Results
  */
-export async function sendBulkEmail(recipients, subject, html, text) {
-  // For large lists, consider batching or using SES
-  const results = await Promise.allSettled(
-    recipients.map(email => sendEmail({ to: email, subject, html, text }))
-  );
+export async function sendBulkEmail(recipients, subject, html, text, delayMs) {
+  const isGmail = (process.env.EMAIL_HOST || '').includes('gmail');
+  const gap = delayMs ?? (isGmail ? 1800 : 600);
+  let successful = 0;
+  let failed = 0;
 
-  const successful = results.filter(r => r.status === 'fulfilled').length;
-  const failed = results.filter(r => r.status === 'rejected').length;
+  for (const email of recipients) {
+    try {
+      await sendEmail({ to: email, subject, html, text });
+      successful++;
+    } catch (err) {
+      failed++;
+      console.error(`Email to ${email} failed:`, err?.message || err);
+    }
+    if (recipients.indexOf(email) < recipients.length - 1) {
+      await delay(gap);
+    }
+  }
 
-  return {
-    total: recipients.length,
-    successful,
-    failed,
-  };
+  return { total: recipients.length, successful, failed };
 }
 
 export default transporter;

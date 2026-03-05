@@ -63,10 +63,12 @@ In your Web Service → **Environment** tab, add:
 | `CLOUDINARY_API_KEY` | From Cloudinary |
 | `CLOUDINARY_API_SECRET` | From Cloudinary |
 | `GOOGLE_AI_API_KEY` | For AI resume features |
-| `EMAIL_HOST` | e.g. `smtp.gmail.com` |
+| `REDIS_URL` | Upstash Redis URL (use `rediss://` for TLS) |
+| `EMAIL_HOST` | **Use SendGrid** for production: `smtp.sendgrid.net` (Gmail times out on cloud IPs) |
 | `EMAIL_PORT` | `587` |
-| `EMAIL_USER` | Your SMTP email |
-| `EMAIL_PASS` | App password for email |
+| `EMAIL_USER` | For SendGrid: `apikey` |
+| `EMAIL_PASS` | SendGrid API key (from dashboard) |
+| `EMAIL_FROM` | Verified sender, e.g. `Placement Portal <noreply@yourdomain.com>` |
 | `GOOGLE_CLIENT_ID` | For Google Calendar |
 | `GOOGLE_CLIENT_SECRET` | For Google Calendar |
 | `GOOGLE_REDIRECT_URI` | `https://YOUR-RENDER-URL.onrender.com/api/calendar/oauth/callback` |
@@ -156,6 +158,16 @@ Add these in **Settings** → **Environment Variables**:
 ### Frontend shows "VITE_API_BASE_URL not set"
 - Add `VITE_API_BASE_URL` and `VITE_SOCKET_URL` in Vercel Environment Variables
 - Redeploy after adding env vars (Vite bakes them into the build)
+
+### Email transporter: Timeout - Gmail blocks cloud IPs
+- **Gmail SMTP does not work reliably on Render** (cloud IPs are blocked)
+- **Use SendGrid** instead. In Render → Environment, add:
+  - `EMAIL_HOST` = `smtp.sendgrid.net`
+  - `EMAIL_PORT` = `587`
+  - `EMAIL_USER` = `apikey`
+  - `EMAIL_PASS` = your SendGrid API key
+  - `EMAIL_FROM` = verified sender (verify at [SendGrid Sender Auth](https://app.sendgrid.com/settings/sender_auth))
+- Redeploy after adding env vars
 
 ---
 

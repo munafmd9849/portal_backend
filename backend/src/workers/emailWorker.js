@@ -30,10 +30,11 @@ async function createWorker() {
         // Update email notification status
         let emailNotification = null;
         if (jobId) {
+          const recipientsStr = Array.isArray(recipients) ? recipients.join(', ') : String(recipients);
           emailNotification = await prisma.emailNotification.create({
             data: {
               jobId,
-              recipients,
+              recipients: recipientsStr,
               status: 'PENDING',
               subject,
               body: text || html,
