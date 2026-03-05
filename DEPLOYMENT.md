@@ -159,14 +159,15 @@ Add these in **Settings** → **Environment Variables**:
 - Add `VITE_API_BASE_URL` and `VITE_SOCKET_URL` in Vercel Environment Variables
 - Redeploy after adding env vars (Vite bakes them into the build)
 
-### Email transporter: Timeout - Gmail blocks cloud IPs
-- **Gmail SMTP does not work reliably on Render** (cloud IPs are blocked)
-- **Use SendGrid** instead. In Render → Environment, add:
-  - `EMAIL_HOST` = `smtp.sendgrid.net`
-  - `EMAIL_PORT` = `587`
+### Email transporter: Timeout / Connection timeout
+- **Render free tier blocks SMTP ports (25, 465, 587)** – direct SMTP does not work
+- **Solution: Use SendGrid with HTTP API** (auto-used when SendGrid is configured). In Render → Environment, add:
+  - `EMAIL_HOST` = `smtp.sendgrid.net` (triggers SendGrid API mode)
   - `EMAIL_USER` = `apikey`
   - `EMAIL_PASS` = your SendGrid API key
-  - `EMAIL_FROM` = verified sender (verify at [SendGrid Sender Auth](https://app.sendgrid.com/settings/sender_auth))
+  - `EMAIL_FROM` = verified sender (e.g. `Placement Portal <you@domain.com>`)
+- The app uses SendGrid's HTTP API (port 443) instead of SMTP when `EMAIL_HOST` contains `sendgrid`
+- Verify your sender at [SendGrid Sender Auth](https://app.sendgrid.com/settings/sender_auth)
 - Redeploy after adding env vars
 
 ---
