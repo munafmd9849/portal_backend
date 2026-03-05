@@ -25,6 +25,7 @@ const placementLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
   skip: (req) => {
     // Skip rate limiting in development for testing
     return process.env.NODE_ENV === 'development' && process.env.DISABLE_RATE_LIMIT === 'true';

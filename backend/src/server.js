@@ -120,7 +120,8 @@ const app = express();
 const server = http.createServer(app);
 
 // Trust proxy - REQUIRED when behind Render/Heroku/nginx (enables X-Forwarded-For for rate limiting)
-app.set('trust proxy', true);
+// Use 1 (not true) to satisfy express-rate-limit's security check; trusts first proxy only
+app.set('trust proxy', 1);
 
 // Initialize Socket.IO
 const io = initSocket(server);

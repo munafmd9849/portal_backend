@@ -16,6 +16,7 @@ const publicProfileRateLimit = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
 });
 
 // Public profile access (NO AUTH)
