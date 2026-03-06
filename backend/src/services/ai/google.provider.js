@@ -8,10 +8,11 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { AI_CONFIG } from '../../config/ai.config.js';
 import logger from '../../config/logger.js';
 
+// Singleton: client created once, never re-initialized
 let genAI = null;
 
 /**
- * Initialize Google AI client
+ * Initialize Google AI client (singleton - called once on first use)
  */
 function initializeGoogleAI() {
   if (genAI) {
@@ -52,6 +53,20 @@ function initializeGoogleAI() {
     logger.error('Failed to initialize Google AI client', { error: error.message, stack: error.stack });
     console.error('[GOOGLE_AI] ❌ Failed to initialize:', error.message);
     throw new Error('Failed to initialize Google AI service');
+  }
+}
+
+/**
+ * Pre-initialize the Google AI client at startup (singleton).
+ * Call from server.js to avoid initializing inside request handlers.
+ */
+export function ensureGoogleAIClientInitialized() {
+  if (genAI) return;
+  if (!AI_CONFIG.google.apiKey) return;
+  try {
+    initializeGoogleAI();
+  } catch (err) {
+    console.warn('[GOOGLE_AI] Pre-init skipped:', err.message);
   }
 }
 
@@ -110,20 +125,9 @@ export async function generateContent(prompt, overrideConfig = {}) {
     try {
       // Method 1: Try result.text() (standard method)
       text = result.text();
-      
-      // Log raw response for debugging (first 500 chars)
-      console.log('[GOOGLE_AI] Raw response preview:', text.substring(0, 500));
-      console.log('[GOOGLE_AI] Full response length:', text.length);
-      
-      // Verify response is complete (not truncated mid-sentence)
-      if (text.length > 0 && !text.trim().endsWith('.') && !text.trim().endsWith('!') && !text.trim().endsWith('?') && !text.trim().endsWith(':') && text.length > 50) {
-        // Check if response might be truncated (ends with incomplete word)
-        const lastChar = text.trim().slice(-1);
-        const incompleteEndings = [',', '-', '—', '–', ';'];
-        if (incompleteEndings.includes(lastChar)) {
-          console.warn('[GOOGLE_AI] ⚠️ Response may be truncated (ends with punctuation):', lastChar);
-        }
-      }
+
+      // Log response length (no punctuation/truncation checks - validation done in placement route)
+      console.log('[GOOGLE_AI] Response received:', { length: text.length });
     } catch (textError) {
       console.error('[GOOGLE_AI] Error reading response.text():', textError);
       
@@ -149,7 +153,6 @@ export async function generateContent(prompt, overrideConfig = {}) {
     logger.info('Received response from Google AI', {
       model: AI_CONFIG.google.model,
       responseLength: text.length,
-      endsWithCompleteSentence: /[.!?:]$/.test(text.trim()),
     });
 
     return text;
@@ -171,11 +174,20 @@ export async function generateContent(prompt, overrideConfig = {}) {
       errorStatus: error.status,
     });
 
-    // Re-throw with more context
+    // Model not found - try fallback model
     if (error.message.includes('not found') || error.message.includes('404') || error.status === 404) {
-      const detailedError = `Model "${AI_CONFIG.google.model}" is not available. Please check GOOGLE_AI_MODEL environment variable. Available models: gemini-2.5-flash, gemini-1.5-flash, gemini-1.5-pro`;
-      console.error('[GOOGLE_AI] Model not found. Try: gemini-1.5-flash or gemini-1.5-pro');
-      throw new Error(detailedError);
+      const fallbackModel = 'gemini-1.5-flash';
+      if (AI_CONFIG.google.model !== fallbackModel) {
+        console.warn(`[GOOGLE_AI] Model ${AI_CONFIG.google.model} not found, retrying with ${fallbackModel}`);
+        const origModel = AI_CONFIG.google.model;
+        AI_CONFIG.google.model = fallbackModel;
+        try {
+          return await generateContent(prompt, overrideConfig);
+        } finally {
+          AI_CONFIG.google.model = origModel;
+        }
+      }
+      throw new Error(`Model "${AI_CONFIG.google.model}" not available. Set GOOGLE_AI_MODEL=gemini-1.5-flash in .env`);
     }
 
     if (error.message.includes('quota') || error.message.includes('rate limit') || error.message.includes('429') || error.status === 429) {
@@ -210,13 +222,11 @@ export async function generateContent(prompt, overrideConfig = {}) {
         console.error('[GOOGLE_AI] ❌ CRITICAL: API key was reported as leaked by Google');
         console.error('  Your API key has been disabled for security reasons.');
         console.error('  SOLUTION:');
-        console.error('  1. Go to Google Cloud Console → APIs & Services → Credentials');
-        console.error('  2. Delete or restrict the old API key');
-        console.error('  3. Create a NEW API key');
-        console.error('  4. Enable "Generative AI API" for the new key');
-        console.error('  5. Update GOOGLE_AI_API_KEY in your .env file');
-        console.error('  6. Restart the server');
-        throw new Error('API key was reported as leaked. Please generate a new API key in Google Cloud Console and update your .env file.');
+        console.error('  1. Go to https://aistudio.google.com/apikey and create a NEW key');
+        console.error('  2. Local: Update GOOGLE_AI_API_KEY in backend/.env');
+        console.error('  3. Render: Dashboard → Your Service → Environment → set GOOGLE_AI_API_KEY → Redeploy');
+        console.error('  4. Never commit API keys to git (add .env to .gitignore)');
+        throw new Error('API key was reported as leaked. Create a new key at aistudio.google.com/apikey and update GOOGLE_AI_API_KEY (local .env or Render env).');
       }
       
       // Check for "API not enabled" error

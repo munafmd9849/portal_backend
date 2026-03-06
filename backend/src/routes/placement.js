@@ -185,10 +185,9 @@ Generate a complete placement preparation plan following the formatting contract
 
       const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
 
-      // Use lower temperature and max tokens for placement guidance
       const placementConfig = {
-        temperature: 0.35, // Between 0.3-0.4 as specified
-        maxTokens: 800, // ≤800 as specified
+        temperature: 0.7,
+        maxTokens: 1024,
       };
 
       console.log('[PLACEMENT_AI] Calling Google AI:', {
@@ -246,11 +245,15 @@ Generate a complete placement preparation plan following the formatting contract
         // Try DuckDuckGo fallback
         try {
           const fallbackResponse = await getDuckDuckGoFallback(topic);
-          
-          // Log fallback activation
-          console.log('[PLACEMENT_AI] DuckDuckGo fallback activated successfully');
-          
-          // Return fallback response
+
+          console.log('[PLACEMENT_AI] Fallback triggered:', {
+            responseLength: 0,
+            validationPassed: false,
+            fallbackTriggered: true,
+            reason: failureReason,
+            timestamp: new Date().toISOString(),
+          });
+
           return res.json(fallbackResponse);
         } catch (fallbackError) {
           console.error('[PLACEMENT_AI] DuckDuckGo fallback also failed:', fallbackError.message);
@@ -284,50 +287,63 @@ Generate a complete placement preparation plan following the formatting contract
         throw new Error('AI failed but fallback was not triggered');
       }
 
-      // Check if response appears truncated (ends mid-sentence)
-      const trimmedGuidance = guidance.trim();
-      const endsWithCompleteSentence = /[.!?:]$/.test(trimmedGuidance);
-      if (!endsWithCompleteSentence && trimmedGuidance.length > 100) {
-        console.warn('[PLACEMENT_AI] ⚠️ Response may be truncated (does not end with sentence punctuation)');
-        // Try to fix by ensuring it ends properly (but don't modify if it's intentional)
-        if (trimmedGuidance.endsWith(',') || trimmedGuidance.endsWith('-')) {
-          console.warn('[PLACEMENT_AI] Response ends with incomplete punctuation, may be cut off');
-        }
-      }
-
-      // Post-response validation
+      // Post-response validation (relaxed: length-based, no punctuation requirement)
       const validationResult = validatePlacementResponse(guidance, topic);
-      if (!validationResult.valid) {
-        console.warn('[PLACEMENT_AI] Response validation failed, regenerating with stricter prompt:', validationResult.reasons);
-        
-        // Regenerate with stricter prompt
-        const stricterPrompt = `${systemPrompt}\n\nTopic: ${topic}\n\nCRITICAL: Your previous response was rejected. Regenerate following ALL rules:\n- NO markdown symbols (**, ##, |, *, -, •).\n- NO emojis.\n- Use ONLY numbered points (1., 2., 3.) and line breaks.\n- Headings must be plain text followed by colon.\n- YouTube channel names are MANDATORY when resources are mentioned.\n- NO paragraphs longer than 3 lines.\n- Each point must be 1-2 lines max.\n- Start with 2-3 line plain text overview.\n- ALWAYS end with a complete sentence.`;
-        
+      const responseLength = guidance?.trim().length || 0;
+
+      // Only retry Gemini if response is too short (< 80 chars). Otherwise accept.
+      if (!validationResult.valid && responseLength < 80) {
+        console.warn('[PLACEMENT_AI] Response too short (< 80 chars), retrying:', {
+          responseLength,
+          reasons: validationResult.reasons,
+        });
+
         try {
-          guidance = await generateGoogleContent(stricterPrompt, placementConfig);
-          
-          // Log regenerated response
-          console.log('[PLACEMENT_AI] Regenerated response length:', guidance?.length || 0);
-          
-          // Validate again
+          guidance = await generateGoogleContent(fullPrompt, placementConfig);
           const revalidation = validatePlacementResponse(guidance, topic);
-          if (!revalidation.valid) {
-            console.error('[PLACEMENT_AI] Response still invalid after regeneration, using DuckDuckGo fallback');
-            // Use DuckDuckGo fallback instead of returning error
+          const retryLength = guidance?.trim().length || 0;
+
+          console.log('[PLACEMENT_AI] Retry result:', {
+            responseLength: retryLength,
+            validationPassed: revalidation.valid,
+          });
+
+          if (retryLength < 80) {
             const fallbackResponse = await getDuckDuckGoFallback(topic);
+            console.log('[PLACEMENT_AI] Fallback triggered:', {
+              responseLength: retryLength,
+              validationPassed: false,
+              fallbackTriggered: true,
+              reason: 'retry_too_short',
+              timestamp: new Date().toISOString(),
+            });
             return res.json(fallbackResponse);
           }
+          // Accept retry if length >= 80 (even if validation has minor issues)
         } catch (regenerationError) {
-          console.error('[PLACEMENT_AI] Regeneration failed, using DuckDuckGo fallback:', regenerationError.message);
-          // Use DuckDuckGo fallback
+          console.error('[PLACEMENT_AI] Retry failed, using DuckDuckGo fallback:', regenerationError.message);
           const fallbackResponse = await getDuckDuckGoFallback(topic);
+          console.log('[PLACEMENT_AI] Fallback triggered:', {
+            responseLength,
+            validationPassed: false,
+            fallbackTriggered: true,
+            reason: 'retry_error',
+            timestamp: new Date().toISOString(),
+          });
           return res.json(fallbackResponse);
         }
+      } else if (!validationResult.valid && responseLength >= 80) {
+        // Length OK - accept response despite validation warnings (e.g. no punctuation)
+        console.log('[PLACEMENT_AI] Validation had minor issues but response length OK, accepting:', {
+          responseLength,
+          validationReasons: validationResult.reasons,
+        });
       }
 
       console.log('[PLACEMENT_AI] Success:', {
-        responseLength: guidance?.length || 0,
-        endsWithCompleteSentence: /[.!?:]$/.test(guidance.trim()),
+        responseLength: guidance?.trim().length || 0,
+        validationPassed: validationResult.valid,
+        fallbackTriggered: false,
         timestamp: new Date().toISOString(),
       });
 
@@ -359,7 +375,13 @@ Generate a complete placement preparation plan following the formatting contract
       
       try {
         const fallbackResponse = await getDuckDuckGoFallback(topic);
-        console.log('[PLACEMENT_AI] DuckDuckGo fallback activated from catch block');
+        console.log('[PLACEMENT_AI] Fallback triggered:', {
+          responseLength: 0,
+          validationPassed: false,
+          fallbackTriggered: true,
+          reason: 'catch_block',
+          timestamp: new Date().toISOString(),
+        });
         return res.json(fallbackResponse);
       } catch (fallbackError) {
         console.error('[PLACEMENT_AI] DuckDuckGo fallback failed:', fallbackError.message);
@@ -390,20 +412,27 @@ Generate a complete placement preparation plan following the formatting contract
 );
 
 /**
- * Post-response validator for placement AI responses
- * Checks for YouTube channels, formatting rules, and content quality
+ * Post-response validator for placement AI responses (relaxed validation).
+ * No punctuation requirement. Length > 100 chars = acceptable.
+ * YouTube: accept youtube.com links OR known channel names.
  * @param {string} response - The AI-generated response
  * @param {string} topic - The original topic query
  * @returns {Object} { valid: boolean, reasons: string[] }
  */
 function validatePlacementResponse(response, topic) {
   const reasons = [];
-  
+
   if (!response || typeof response !== 'string' || response.trim().length === 0) {
     return { valid: false, reasons: ['Response is empty'] };
   }
 
-  const responseLower = response.toLowerCase();
+  const trimmed = response.trim();
+  const responseLower = trimmed.toLowerCase();
+
+  // Length-based: accept if > 100 characters (no punctuation requirement)
+  if (trimmed.length <= 100) {
+    reasons.push(`Response too short (${trimmed.length} chars, need > 100)`);
+  }
 
   // Check for forbidden markdown symbols
   const forbiddenMarkdown = [
@@ -425,79 +454,36 @@ function validatePlacementResponse(response, topic) {
     reasons.push('Response contains emojis');
   }
 
-  // Check for YouTube resources (mandatory when resources are mentioned)
+  // YouTube validation: accept youtube.com/youtu.be links OR known channel names
   const topicLower = topic.toLowerCase();
-  const mentionsResources = topicLower.includes('resource') || 
-                           topicLower.includes('youtube') || 
-                           topicLower.includes('video') ||
-                           topicLower.includes('channel') ||
-                           topicLower.includes('learn') ||
-                           topicLower.includes('study') ||
-                           topicLower.includes('prepare');
+  const mentionsResources = topicLower.includes('resource') ||
+    topicLower.includes('youtube') || topicLower.includes('video') ||
+    topicLower.includes('channel') || topicLower.includes('learn') ||
+    topicLower.includes('study') || topicLower.includes('prepare');
 
   if (mentionsResources) {
-    // Check for YouTube channel indicators
-    const youtubeIndicators = [
-      'youtube',
-      'channel',
-      'striver',
-      'takeuforward',
-      'abdul bari',
+    const hasYouTubeLink = responseLower.includes('youtube.com') || responseLower.includes('youtu.be');
+    const knownChannelNames = [
       'neetcode',
+      'abdul bari',
       'freecodecamp',
-      'coding ninjas',
-      'apna college',
+      'take u forward',
+      'takeuforward',
+      'striver',
       'love babbar',
-      'gfg',
+      'apna college',
+      'coding ninjas',
       'geeksforgeeks',
+      'gfg',
+      'gate smashers',
+      'tech dummies',
+      'gaurav sen',
     ];
-    
-    const hasYouTubeMention = youtubeIndicators.some(indicator => 
-      responseLower.includes(indicator)
-    );
-    
-    if (!hasYouTubeMention) {
-      reasons.push('YouTube resources requested but no YouTube channels found in response');
+    const hasKnownChannel = knownChannelNames.some((name) => responseLower.includes(name));
+
+    if (!hasYouTubeLink && !hasKnownChannel) {
+      reasons.push('YouTube resources expected but no youtube.com link or known channel name found');
     }
-  }
-
-  // Check for long paragraphs (>3 lines)
-  const paragraphs = response.split('\n\n').filter(p => p.trim().length > 0);
-  const longParagraphs = paragraphs.filter(p => {
-    const lines = p.split('\n').filter(l => l.trim().length > 0);
-    return lines.length > 3;
-  });
-
-  if (longParagraphs.length > 0) {
-    reasons.push(`Found ${longParagraphs.length} paragraph(s) longer than 3 lines`);
-  }
-
-  // Check for motivational/filler text indicators
-  const fillerPhrases = [
-    'remember that',
-    'keep in mind',
-    'don\'t forget',
-    'always remember',
-    'it\'s important to',
-    'you should know',
-    'believe in yourself',
-    'stay motivated',
-    'keep pushing',
-    'never give up',
-  ];
-  
-  const hasFiller = fillerPhrases.some(phrase => 
-    responseLower.includes(phrase)
-  );
-  
-  if (hasFiller) {
-    reasons.push('Response contains motivational/filler text');
-  }
-
-  // Check if response uses numbered points (preferred format)
-  const hasNumberedPoints = /\d+\.\s/.test(response);
-  if (!hasNumberedPoints && response.split('\n').length > 5) {
-    reasons.push('Response should use numbered points (1., 2., 3.) for structured content');
   }
 
   return {

@@ -45,6 +45,7 @@ import googleCalendarConnectRoutes from './routes/googleCalendarConnect.js';
 import calendarRoutes from './routes/calendar.js';
 import endorsementRoutes from './routes/endorsements.js';
 import placementRoutes from './routes/placement.js';
+import { ensureGoogleAIClientInitialized } from './services/ai/google.provider.js';
 import recruiterScreeningRoutes from './routes/recruiterScreening.js';
 import adminScreeningRoutes from './routes/adminScreening.js';
 import adminJobsRoutes from './routes/adminJobs.js';
@@ -424,6 +425,8 @@ async function start() {
         .catch((err) => {
           console.log('📧 Email transporter: error -', err?.message || err);
         });
+      // Pre-initialize Google AI client (singleton, avoids init in request handlers)
+      ensureGoogleAIClientInitialized();
       // Start BullMQ workers in same process (required for Render - no separate worker service)
       import('./workers/index.js').then(({ startWorkers }) => {
         startWorkers().catch((err) => console.warn('⚠️ Workers failed to start:', err?.message || err));
