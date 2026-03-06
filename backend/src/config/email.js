@@ -47,6 +47,8 @@ const transporter = nodemailer.createTransport({
 export async function verifyEmailTransport() {
   if (useSendGridApi()) {
     sgMail.setApiKey(getSendGridApiKey());
+    const fromAddr = process.env.EMAIL_FROM || 'PWIOI Portal <noreply@pwioi.com>';
+    console.log('[EMAIL] SendGrid API mode. FROM:', fromAddr, '(verify this sender in SendGrid dashboard)');
     try {
       // Quick validation - SendGrid API works over HTTPS (port 443), not blocked on Render
       return { ready: true, message: 'Ready (SendGrid API)' };

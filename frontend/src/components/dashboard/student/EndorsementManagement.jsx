@@ -138,14 +138,20 @@ export default function EndorsementManagement({ onEndorsementUpdate }) {
     setSuccess('');
 
     try {
-      await api.requestEndorsement({
+      const res = await api.requestEndorsement({
         teacherName: requestForm.teacherName.trim(),
         teacherEmail: requestForm.teacherEmail.trim().toLowerCase(),
         role: undefined,
         organization: undefined,
       });
 
-      setSuccess('Endorsement request sent successfully! The teacher will receive an email with a secure link.');
+      if (res?.emailSent !== false) {
+        setError('');
+        setSuccess('Endorsement request sent successfully! The teacher will receive an email with a secure link.');
+      } else {
+        setSuccess('');
+        setError('Request created, but the email to your mentor could not be sent. Please verify the mentor email address and try again.');
+      }
       setShowRequestForm(false);
       setRequestForm({
         teacherName: '',

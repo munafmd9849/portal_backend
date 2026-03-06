@@ -170,6 +170,21 @@ Add these in **Settings** → **Environment Variables**:
 - Verify your sender at [SendGrid Sender Auth](https://app.sendgrid.com/settings/sender_auth)
 - Redeploy after adding env vars
 
+### Endorsement magic link not received by mentor
+- **SendGrid requires sender verification**: The `EMAIL_FROM` address (e.g. `munafmd9849@gmail.com`) must be verified in SendGrid.
+  1. Go to [SendGrid → Settings → Sender Authentication](https://app.sendgrid.com/settings/sender_auth)
+  2. Under **Single Sender Verification**, add and verify the email you use in `EMAIL_FROM`
+  3. Check your inbox for SendGrid's verification link and complete it
+- **Render env vars** (no `#` comments – set each as a separate variable):
+  | Key | Value |
+  |-----|-------|
+  | `EMAIL_HOST` | `smtp.sendgrid.net` |
+  | `EMAIL_PASS` | Your full SendGrid API key (starts with `SG.`) |
+  | `EMAIL_FROM` | `Placement Portal <your-verified-email@gmail.com>` |
+- Alternatively, set `SENDGRID_API_KEY` instead of `EMAIL_HOST` + `EMAIL_PASS`
+- Check Render logs for `[EMAIL] SendGrid API mode. FROM:` – confirms config is loaded
+- If emails fail, the API now returns `emailSent: false` and the UI shows a clear error
+
 ---
 
 ## Summary Checklist

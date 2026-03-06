@@ -131,6 +131,7 @@ export async function requestEndorsement(req, res) {
     const magicLink = `${frontendUrl}/endorse/${token}`;
 
     // Send email with magic link
+    let emailSent = false;
     try {
       await sendEndorsementMagicLinkEmail({
         teacherEmail: teacherEmail.trim(),
@@ -140,16 +141,23 @@ export async function requestEndorsement(req, res) {
         magicLink: magicLink,
         expiresAt: expiresAt,
       });
+      emailSent = true;
     } catch (emailError) {
       logger.error('Failed to send endorsement email:', emailError);
-      // Don't fail the request if email fails - token is still created
-      // Student can resend email later if needed
+      logger.error('SendGrid/email error details:', {
+        to: teacherEmail.trim(),
+        code: emailError?.code,
+        response: emailError?.response?.body,
+        message: emailError?.message,
+      });
+      // Token is still created - student can resend later
     }
 
     res.json({
-      message: 'Endorsement request sent successfully',
+      message: emailSent ? 'Endorsement request sent successfully' : 'Endorsement request created, but the email to your mentor could not be sent. Please verify the mentor email address and try again.',
       tokenId: tokenRecord.id,
       expiresAt: expiresAt,
+      emailSent,
       // Don't return the actual token for security
     });
   } catch (error) {
