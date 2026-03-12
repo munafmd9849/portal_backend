@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import api from '../../../services/api';
 import { deleteJob, subscribeJobs, postJob, updateJob } from '../../../services/jobs';
 import { Loader, Trash2, Share2, Building2, Calendar, GraduationCap, View, Users, Briefcase, ChevronDown, CheckCircle, Clock, PlayCircle, CheckSquare, XCircle, AlertTriangle, MapPin, Edit } from 'lucide-react';
 import { useToast } from '../../ui/Toast';
@@ -9,14 +10,14 @@ export default function ManageJobs() {
   const { user, role } = useAuth();
   const location = useLocation();
   const base = location.pathname.startsWith('/super-admin') ? '/super-admin' : '/admin';
-  
+
   // MANDATORY: Role-based access control - Block STUDENT users immediately
   useEffect(() => {
     const userRole = role?.toUpperCase() || user?.role?.toUpperCase() || '';
     const isStudent = userRole === 'STUDENT';
-    const isAdmin = userRole === 'ADMIN';
+    const isAdmin = userRole === 'ADMIN' || userRole === 'SUPER_ADMIN';
     const isRecruiter = userRole === 'RECRUITER';
-    
+
     if (isStudent) {
       console.error('🚫 STUDENT user attempted to access ManageJobs component:', {
         userRole,
@@ -28,7 +29,7 @@ export default function ManageJobs() {
       window.location.href = '/student';
     }
   }, [user, role]);
-  
+
   // Don't render if user is STUDENT
   const userRole = role?.toUpperCase() || user?.role?.toUpperCase() || '';
   const isStudent = userRole === 'STUDENT';
@@ -45,7 +46,7 @@ export default function ManageJobs() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [postingJobs, setPostingJobs] = useState(new Set());
-  
+
   // Edit dates modal state (for POSTED jobs)
   const [editingDatesJobId, setEditingDatesJobId] = useState(null);
   const [editDatesForm, setEditDatesForm] = useState({
@@ -53,7 +54,7 @@ export default function ManageJobs() {
     driveDate: null
   });
   const [savingDates, setSavingDates] = useState(false);
-  
+
   const [showSchools, setShowSchools] = useState({});
   const [showBatches, setShowBatches] = useState({});
   const [showCenters, setShowCenters] = useState({});
@@ -62,7 +63,11 @@ export default function ManageJobs() {
   const [selectedCenters, setSelectedCenters] = useState({});
   const [activeFilter, setActiveFilter] = useState('in_review'); // Default to in_review to show jobs pending approval
   const [jobsPage, setJobsPage] = useState(1);
-  const JOBS_PER_PAGE = 10;
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalJobs, setTotalJobs] = useState(0);
+  const [inReviewCount, setInReviewCount] = useState(0);
+  const [postedCount, setPostedCount] = useState(0);
+  const JOBS_PER_PAGE = 25;
 
   // Reset to page 1 when filter changes
   useEffect(() => {
@@ -106,9 +111,7 @@ export default function ManageJobs() {
           { id: 'BANGALORE', display: 'Bangalore', storage: 'BANGALORE' },
           { id: 'NOIDA', display: 'Noida', storage: 'NOIDA' },
           { id: 'LUCKNOW', display: 'Lucknow', storage: 'LUCKNOW' },
-          { id: 'PUNE', display: 'Pune', storage: 'PUNE' },
-          { id: 'PATNA', display: 'Patna', storage: 'PATNA' },
-          { id: 'INDORE', display: 'Indore', storage: 'INDORE' }
+          { id: 'PUNE', display: 'Pune', storage: 'PUNE' }
         ];
 
         setSchoolOptions(schoolOptionsArray);
@@ -143,77 +146,112 @@ export default function ManageJobs() {
     return option ? option.display : storageCode;
   };
 
-  // Real-time jobs subscription with refresh capability
-  const jobsSubscriptionRef = useRef(null);
-  
-  useEffect(() => {
-    setLoading(true);
 
-    const subscription = subscribeJobs((jobsList) => {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('📡 Real-time update - Jobs received:', jobsList.length);
+  // Fetch total counts for both tabs (pre-computed, shown immediately)
+  const loadCounts = async () => {
+    try {
+      const [inReviewRes, postedRes] = await Promise.all([
+        api.getJobs({ limit: 1, page: 1, status: 'IN_REVIEW' }),
+        api.getJobs({ limit: 1, page: 1, status: 'POSTED', isPosted: true }),
+      ]);
+      setInReviewCount((inReviewRes?.pagination?.total) ?? 0);
+      setPostedCount((postedRes?.pagination?.total) ?? 0);
+    } catch (err) {
+      console.warn('ManageJobs: Failed to load tab counts', err);
+    }
+  };
+
+  const loadJobs = async () => {
+    try {
+      setLoading(true);
+      const params = {
+        limit: JOBS_PER_PAGE,
+        page: jobsPage
+      };
+
+      if (activeFilter === 'in_review') {
+        params.status = 'IN_REVIEW';
+      } else {
+        // posted
+        params.status = 'POSTED';
+        params.isPosted = true;
       }
+
+      const response = await api.getJobs(params);
+      const jobsList = response.jobs || [];
+      const pagination = response.pagination || { total: 0, totalPages: 1 };
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📡 Jobs loaded:', jobsList.length, 'Total:', pagination.total);
+      }
+
       setJobs(jobsList);
+      setTotalJobs(pagination.total);
+      setTotalPages(pagination.totalPages || 1);
+
+      // Refresh tab counts after jobs load (e.g. after post/delete)
+      loadCounts();
 
       // Load existing selections from database for posted jobs
       const schoolSelections = {};
       const batchSelections = {};
       const centerSelections = {};
 
+      const toArray = (v) => {
+        if (Array.isArray(v)) return v.map(x => (typeof x === 'string' ? x.trim() : String(x))).filter(Boolean);
+        if (typeof v === 'string' && v.trim()) {
+          const s = v.trim();
+          if (s.startsWith('[')) {
+            try {
+              const parsed = JSON.parse(s);
+              return Array.isArray(parsed) ? parsed.map(x => String(x).trim()).filter(Boolean) : [];
+            } catch (_) { /* fallback */ }
+          }
+          return s.split(',').map(x => x.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+        }
+        return [];
+      };
       jobsList.forEach(job => {
-        if (isJobPosted(job) && job.targetSchools) {
-          schoolSelections[job.id] = job.targetSchools;
-        }
-        if (isJobPosted(job) && job.targetBatches) {
-          batchSelections[job.id] = job.targetBatches;
-        }
-        if (isJobPosted(job) && job.targetCenters) {
-          centerSelections[job.id] = job.targetCenters;
+        if (job.status === 'POSTED' || job.isPosted === true) {
+          if (job.targetSchools) schoolSelections[job.id] = toArray(job.targetSchools);
+          if (job.targetBatches) batchSelections[job.id] = toArray(job.targetBatches);
+          if (job.targetCenters) centerSelections[job.id] = toArray(job.targetCenters);
         }
       });
 
-      // Update selections state with database data
-      if (Object.keys(schoolSelections).length > 0) {
-        setSelectedSchools(prev => ({ ...prev, ...schoolSelections }));
-      }
-      if (Object.keys(batchSelections).length > 0) {
-        setSelectedBatches(prev => ({ ...prev, ...batchSelections }));
-      }
-      if (Object.keys(centerSelections).length > 0) {
-        setSelectedCenters(prev => ({ ...prev, ...centerSelections }));
-      }
+      if (Object.keys(schoolSelections).length > 0) setSelectedSchools(prev => ({ ...prev, ...schoolSelections }));
+      if (Object.keys(batchSelections).length > 0) setSelectedBatches(prev => ({ ...prev, ...batchSelections }));
+      if (Object.keys(centerSelections).length > 0) setSelectedCenters(prev => ({ ...prev, ...centerSelections }));
 
+    } catch (err) {
+      console.error('Failed to load jobs:', err);
+    } finally {
       setLoading(false);
-    });
+    }
+  };
 
-    // Store subscription for manual refresh
-    jobsSubscriptionRef.current = subscription;
-
-    return () => {
-      if (subscription?.unsubscribe) {
-        subscription.unsubscribe();
-      } else if (typeof subscription === 'function') {
-        subscription(); // Backward compatibility
-      }
-      jobsSubscriptionRef.current = null;
-    };
+  useEffect(() => {
+    loadCounts();
   }, []);
+
+  useEffect(() => {
+    loadJobs();
+  }, [jobsPage, activeFilter]);
+
 
   // Listen for custom events to trigger refresh (from JobPostingsManager)
   useEffect(() => {
     const handleJobsRefresh = (event) => {
       const { action, jobId, jobTitle } = event.detail || {};
       console.log(`📢 ManageJobs received jobsRefresh event: ${action} for job ${jobId} (${jobTitle})`);
-      
+
       // Trigger immediate refresh
-      if (jobsSubscriptionRef.current?.refresh) {
-        console.log('🔄 Triggering ManageJobs refresh from event');
-        jobsSubscriptionRef.current.refresh();
-      }
+      console.log('🔄 Triggering ManageJobs refresh from event');
+      loadJobs();
     };
 
     window.addEventListener('jobsRefresh', handleJobsRefresh);
-    
+
     return () => {
       window.removeEventListener('jobsRefresh', handleJobsRefresh);
     };
@@ -252,12 +290,12 @@ export default function ManageJobs() {
   // Show both IN_REVIEW and POSTED jobs (exclude REJECTED and DRAFT)
   const shouldShowInManageJobs = (job) => {
     const status = (job.status || '').toLowerCase();
-    
+
     // Exclude REJECTED and DRAFT jobs
     if (status === 'rejected' || status === 'draft') {
       return false;
     }
-    
+
     // Include IN_REVIEW and POSTED jobs
     return status === 'in_review' || status === 'posted';
   };
@@ -397,111 +435,21 @@ export default function ManageJobs() {
   };
 
   // Database-driven sorting and categorization
-  const getSortedJobs = () => {
-    // Debug: Log all jobs and their statuses
-    if (process.env.NODE_ENV === 'development') {
-      console.log('📊 All jobs in ManageJobs:', jobs.map(j => ({
-        id: j.id,
-        title: j.jobTitle,
-        status: j.status,
-        statusLower: (j.status || '').toLowerCase(),
-        isPosted: j.isPosted,
-        posted: j.posted
-      })));
-    }
-    
-    // First, filter out jobs that shouldn't appear in Manage Jobs at all
-    // Only show ACCEPTED, POSTED, and ACTIVE jobs (exclude IN_REVIEW, DRAFT, REJECTED)
-    const manageJobsOnly = jobs.filter(job => shouldShowInManageJobs(job));
-    
-    if (process.env.NODE_ENV === 'development') {
-      console.log('✅ Jobs that should appear in Manage Jobs:', manageJobsOnly.map(j => ({
-        id: j.id,
-        title: j.jobTitle,
-        status: j.status,
-        statusLower: (j.status || '').toLowerCase()
-      })));
-    }
-    
-    // Filter based on active filter (in_review vs posted)
-    let filteredJobs;
-    if (activeFilter === 'in_review') {
-      // Show IN_REVIEW jobs (pending admin approval)
-      filteredJobs = manageJobsOnly.filter(job => {
-        const status = (job.status || '').toLowerCase();
-        return status === 'in_review';
-      });
-    } else {
-      // Show POSTED jobs (approved and visible to students)
-      filteredJobs = manageJobsOnly.filter(job => isJobPosted(job));
-    }
-
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🗂️ Manage Jobs Filter:', {
-        totalJobs: jobs.length,
-        manageJobsOnly: manageJobsOnly.length,
-        activeFilter: activeFilter,
-        filteredCount: filteredJobs.length,
-        statusBreakdown: manageJobsOnly.reduce((acc, j) => {
-          const status = (j.status || '').toLowerCase();
-          acc[status] = (acc[status] || 0) + 1;
-          return acc;
-        }, {}),
-        filteredJobs: filteredJobs.map(j => ({ id: j.id, title: j.jobTitle, status: j.status }))
-      });
-    }
-
-    // Sort based on filter
-    if (activeFilter === 'in_review') {
-      // Sort IN_REVIEW jobs by creation/submission time (newest first)
-      return filteredJobs.sort((a, b) => {
-        const getTimestamp = (job) => {
-          if (job.submittedAt?.toDate) return job.submittedAt.toDate();
-          if (job.createdAt?.toDate) return job.createdAt.toDate();
-          if (job.timestamp?.toDate) return job.timestamp.toDate();
-          return new Date(job.submittedAt || job.createdAt || job.timestamp || 0);
-        };
-        return getTimestamp(b) - getTimestamp(a);
-      });
-    } else {
-      // Sort POSTED jobs by posted time (latest posted first)
-      return filteredJobs.sort((a, b) => {
-        const getPostedTimestamp = (job) => {
-          if (job.postedAt?.toDate) return job.postedAt.toDate();
-          return new Date(job.postedAt || 0);
-        };
-        const postedTimeA = getPostedTimestamp(a);
-        const postedTimeB = getPostedTimestamp(b);
-
-        if (postedTimeA && postedTimeB) {
-          return postedTimeB - postedTimeA; // Latest posted first
-        }
-        // Fallback to creation time
-        const getTimestamp = (job) => {
-          if (job.createdAt?.toDate) return job.createdAt.toDate();
-          if (job.timestamp?.toDate) return job.timestamp.toDate();
-          return new Date(job.createdAt || job.timestamp || 0);
-        };
-        return getTimestamp(b) - getTimestamp(a);
-      });
-    }
-  };
-
   // Check if job can be posted
   const canPostJob = (job) => {
     const isAlreadyPosted = isJobPosted(job);
-    const hasSchoolSelection = selectedSchools[job.id]?.length > 0;
-    const hasBatchSelection = selectedBatches[job.id]?.length > 0;
-    const hasCenterSelection = selectedCenters[job.id]?.length > 0;
+    const hasSchoolSelection = Array.isArray(selectedSchools[job.id]) && selectedSchools[job.id].length > 0;
+    const hasBatchSelection = Array.isArray(selectedBatches[job.id]) && selectedBatches[job.id].length > 0;
+    const hasCenterSelection = Array.isArray(selectedCenters[job.id]) && selectedCenters[job.id].length > 0;
 
     return !isAlreadyPosted && hasSchoolSelection && hasBatchSelection && hasCenterSelection;
   };
 
   // Get posted job display text
   const getPostedJobDisplay = (jobId) => {
-    const schools = selectedSchools[jobId] || [];
-    const batches = selectedBatches[jobId] || [];
-    const centers = selectedCenters[jobId] || [];
+    const schools = Array.isArray(selectedSchools[jobId]) ? selectedSchools[jobId] : [];
+    const batches = Array.isArray(selectedBatches[jobId]) ? selectedBatches[jobId] : [];
+    const centers = Array.isArray(selectedCenters[jobId]) ? selectedCenters[jobId] : [];
 
     // Convert storage codes to display names
     const schoolText = schools.length === 1 ? getSchoolDisplay(schools[0]) :
@@ -523,9 +471,9 @@ export default function ManageJobs() {
       setPostingJobs(prev => new Set([...prev, jobId]));
 
       const postData = {
-        selectedSchools: selectedSchools[jobId] || [],
-        selectedBatches: selectedBatches[jobId] || [],
-        selectedCenters: selectedCenters[jobId] || [],
+        selectedSchools: Array.isArray(selectedSchools[jobId]) ? selectedSchools[jobId] : [],
+        selectedBatches: Array.isArray(selectedBatches[jobId]) ? selectedBatches[jobId] : [],
+        selectedCenters: Array.isArray(selectedCenters[jobId]) ? selectedCenters[jobId] : [],
         postedBy: 'admin',
       };
 
@@ -544,9 +492,7 @@ export default function ManageJobs() {
       );
 
       // Refresh jobs list to show updated status
-      if (jobsSubscriptionRef.current?.refresh) {
-        jobsSubscriptionRef.current.refresh();
-      }
+      loadJobs();
 
     } catch (err) {
       console.error('❌ Failed to post job:', err);
@@ -623,6 +569,7 @@ export default function ManageJobs() {
       await deleteJob(jobId);
       if (process.env.NODE_ENV === 'development') {
         console.log('🗑️ Job deleted successfully:', jobId);
+        loadJobs();
       }
     } catch (e) {
       console.error('❌ Failed to delete job:', e);
@@ -751,25 +698,12 @@ export default function ManageJobs() {
     });
   };
 
-  // Get statistics - calculate from all jobs
   const allManageJobs = jobs.filter(job => shouldShowInManageJobs(job));
-  const inReviewCount = allManageJobs.filter(job => {
-    const status = (job.status || '').toLowerCase();
-    return status === 'in_review';
-  }).length;
-  const postedCount = allManageJobs.filter(job => isJobPosted(job)).length;
 
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 overflow-x-hidden">
       {/* Header with Statistics */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Manage & Post Jobs</h2>
-          <p className="text-sm text-slate-600 mt-1">
-            Select target schools and batches, then post jobs to students
-          </p>
-        </div>
-      </div>
+
 
       {/* Filter Buttons - Show both IN_REVIEW and POSTED sections */}
       <div className="flex justify-center mb-4 sm:mb-6">
@@ -799,7 +733,7 @@ export default function ManageJobs() {
       <div className="bg-white border border-slate-200 rounded-lg">
         <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
           <h3 className="font-semibold">
-            {activeFilter === 'in_review' ? 'Jobs In Review' : 'Posted Jobs'} ({getSortedJobs().length})
+            {activeFilter === 'in_review' ? 'Jobs In Review' : 'Posted Jobs'} ({totalJobs})
           </h3>
           {loading && (
             <div className="inline-flex items-center gap-2 text-sm text-slate-500">
@@ -809,7 +743,7 @@ export default function ManageJobs() {
         </div>
 
         <div className="divide-y py-4">
-          {getSortedJobs().length === 0 && !loading && (
+          {totalJobs === 0 && !loading && (
             <div className="p-6 text-center">
               <div className="text-slate-500 text-sm">
                 No posted jobs available yet.
@@ -822,332 +756,319 @@ export default function ManageJobs() {
             </div>
           )}
 
-          {(() => {
-            const allJobs = getSortedJobs();
-            const totalJobs = allJobs.length;
-            const totalPages = Math.max(1, Math.ceil(totalJobs / JOBS_PER_PAGE));
-            const currentPage = Math.min(Math.max(1, jobsPage), totalPages);
-            const start = (currentPage - 1) * JOBS_PER_PAGE;
-            const paginatedJobs = allJobs.slice(start, start + JOBS_PER_PAGE);
-            
-            return (
-              <>
-                {paginatedJobs.map((job, index) => {
-            const jobStatus = isJobPosted(job) ? getJobStatus(job) : null;
+          {allManageJobs.map((job, index) => {
+                  const jobStatus = isJobPosted(job) ? getJobStatus(job) : null;
 
-            return (
-              <div key={job.id} className={`relative border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 mb-4 mx-2 sm:mx-4 ${isJobPosted(job) ? 'bg-green-50' : 'bg-blue-50'
-                }`}>
-                <div className="p-3 sm:p-4">
-                  {/* First Row: Company, Interview Date, School, Batch, Center - stack on mobile */}
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
-                    {/* Company - STATUS BADGE BACK HERE */}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-2 -mt-2">
-                        <Building2 className="w-4 h-4 text-slate-500" />
-                        <span className="text-sm font-medium text-slate-600">Company</span>
-                        {/* STATUS BADGE NEXT TO COMPANY SECTION */}
-                        {jobStatus && (
-                          <span className={`px-2 py-1 text-xs rounded-md border border-gray-600 flex items-center gap-2 ${jobStatus.color}`}>
-                            {jobStatus.icon}
-                            {jobStatus.text}
-                          </span>
-                        )}
-                      </div>
-                      <div className="font-semibold text-slate-900 text-lg sm:text-xl truncate md:ml-[5%]">
-                        {job.company?.name || job.companyName || job.company || 'N/A'}
-                      </div>
-                    </div>
-
-                    {/* Interview Date - full width on mobile */}
-                    <div className="w-full md:w-28 shrink-0">
-                      <div className="flex items-center justify-center gap-2 mb-2 -mt-2">
-                        <span className="text-sm font-medium text-slate-600">Interview</span>
-                      </div>
-                      <div className="text-slate-900 text-sm text-center">
-                        {job.driveDate ? (
-                          job.driveDate.toDate ?
-                            job.driveDate.toDate().toLocaleDateString('en-GB') :
-                            new Date(job.driveDate).toLocaleDateString('en-GB')
-                        ) : 'TBD'}
-                      </div>
-                    </div>
-
-                    {/* Dropdowns group: School, Batch, Center - stack on mobile */}
-                    <div className="flex flex-col sm:flex-row items-stretch gap-2 md:gap-1 md:shrink-0">
-                    {/* School - full width on mobile */}
-                    <div className="w-full sm:w-40 shrink-0 min-w-0 sm:min-w-[10rem]">
-                      <div className="flex justify-center -translate-x-2 items-center gap-2 mb-1">
-                        <GraduationCap className="w-4 h-4 text-slate-500" />
-                        <span className="text-sm font-medium text-slate-600">School</span>
-                      </div>
-                      <div className="relative w-full" ref={el => schoolDropdownRefs.current[job.id] = el}>
-                        {isJobPosted(job) ? (
-                          <div className={`w-full min-w-0 border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-left ${selectedSchools[job.id]?.length ? 'bg-green-100' : 'bg-slate-50'} text-slate-700`}>
-                            <span className="truncate block">
-                              {selectedSchools[job.id]?.length ? selectedSchools[job.id].map(code => getSchoolDisplay(code)).join(', ') : '—'}
-                            </span>
+                  return (
+                    <div key={job.id} className={`relative border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 mb-4 mx-2 sm:mx-4 ${isJobPosted(job) ? 'bg-green-50' : 'bg-blue-50'
+                      }`}>
+                      <div className="p-3 sm:p-4">
+                        {/* First Row: Company, Interview Date, School, Batch, Center - stack on mobile */}
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
+                          {/* Company - STATUS BADGE BACK HERE */}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 mb-2 -mt-2">
+                              <Building2 className="w-4 h-4 text-slate-500" />
+                              <span className="text-sm font-medium text-slate-600">Company</span>
+                              {/* STATUS BADGE NEXT TO COMPANY SECTION */}
+                              {jobStatus && (
+                                <span className={`px-2 py-1 text-xs rounded-md border border-gray-600 flex items-center gap-2 ${jobStatus.color}`}>
+                                  {jobStatus.icon}
+                                  {jobStatus.text}
+                                </span>
+                              )}
+                            </div>
+                            <div className="font-semibold text-slate-900 text-lg sm:text-xl truncate md:ml-[5%]">
+                              {job.company?.name || job.companyName || job.company || 'N/A'}
+                            </div>
                           </div>
-                        ) : (
-                          <>
-                        <button
-                          type="button"
-                          className={`w-full min-w-0 border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-left flex items-center justify-between gap-1 ${selectedSchools[job.id]?.length ? 'bg-green-100' : 'bg-blue-100'
-                            }`}
-                          onClick={() => toggleSchoolDropdown(job.id)}
-                        >
-                          <span className="truncate min-w-0">
-                            {selectedSchools[job.id]?.length ? selectedSchools[job.id].map(code => getSchoolDisplay(code)).join(', ') : 'Select Schools'}
-                          </span>
-                          <ChevronDown className="w-4 h-4 text-slate-500 flex-shrink-0" />
-                        </button>
-                        {showSchools[job.id] && (
-                          <div className="absolute z-10 overflow-hidden w-full bg-white border-2 border-slate-300 rounded-md shadow-lg">
-                            {schoolOptions.map((school) => (
-                              <label key={school.id} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 cursor-pointer border-b border-slate-200 last:border-b-0">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedSchools[job.id]?.includes(school.storage) || false}
-                                  onChange={() => toggleSchool(job.id, school.storage)}
-                                />
-                                <span>{school.display}</span>
-                              </label>
-                            ))}
+
+                          {/* Interview Date - full width on mobile */}
+                          <div className="w-full md:w-28 shrink-0">
+                            <div className="flex items-center justify-center gap-2 mb-2 -mt-2">
+                              <span className="text-sm font-medium text-slate-600">Interview</span>
+                            </div>
+                            <div className="text-slate-900 text-sm text-center">
+                              {job.driveDate ? (
+                                job.driveDate.toDate ?
+                                  job.driveDate.toDate().toLocaleDateString('en-GB') :
+                                  new Date(job.driveDate).toLocaleDateString('en-GB')
+                              ) : 'TBD'}
+                            </div>
                           </div>
-                        )}
-                        </>
-                        )}
+
+                          {/* Dropdowns group: School, Batch, Center - stack on mobile */}
+                          <div className="flex flex-col sm:flex-row items-stretch gap-2 md:gap-1 md:shrink-0">
+                            {/* School - full width on mobile */}
+                            <div className="w-full sm:w-40 shrink-0 min-w-0 sm:min-w-[10rem]">
+                              <div className="flex justify-center -translate-x-2 items-center gap-2 mb-1">
+                                <GraduationCap className="w-4 h-4 text-slate-500" />
+                                <span className="text-sm font-medium text-slate-600">School</span>
+                              </div>
+                              <div className="relative w-full" ref={el => schoolDropdownRefs.current[job.id] = el}>
+                                {isJobPosted(job) ? (
+                                  <div className={`w-full min-w-0 border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-left ${selectedSchools[job.id]?.length ? 'bg-green-100' : 'bg-slate-50'} text-slate-700`}>
+                                    <span className="truncate block">
+                                      {(Array.isArray(selectedSchools[job.id]) && selectedSchools[job.id].length) ? selectedSchools[job.id].map(code => getSchoolDisplay(code)).join(', ') : '—'}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className={`w-full min-w-0 border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-left flex items-center justify-between gap-1 ${selectedSchools[job.id]?.length ? 'bg-green-100' : 'bg-blue-100'
+                                        }`}
+                                      onClick={() => toggleSchoolDropdown(job.id)}
+                                    >
+                                      <span className="truncate min-w-0">
+                                        {(Array.isArray(selectedSchools[job.id]) && selectedSchools[job.id].length) ? selectedSchools[job.id].map(code => getSchoolDisplay(code)).join(', ') : 'Select Schools'}
+                                      </span>
+                                      <ChevronDown className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                                    </button>
+                                    {showSchools[job.id] && (
+                                      <div className="absolute z-10 w-full bg-white border-2 border-slate-300 rounded-md shadow-lg max-h-32 overflow-y-auto overscroll-contain touch-pan-y scrollbar-hide pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
+                                        {schoolOptions.map((school) => (
+                                          <label key={school.id} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 cursor-pointer border-b border-slate-200 last:border-b-0 shrink-0">
+                                            <input
+                                              type="checkbox"
+                                              checked={Array.isArray(selectedSchools[job.id]) && selectedSchools[job.id].includes(school.storage)}
+                                              onChange={() => toggleSchool(job.id, school.storage)}
+                                            />
+                                            <span>{school.display}</span>
+                                          </label>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            {/* Batch - full width on mobile */}
+                            <div className="w-full sm:w-40 shrink-0 min-w-0 sm:min-w-[10rem]">
+                              <div className="flex justify-center -translate-x-2 items-center gap-2 mb-1">
+                                <Users className="w-4 h-4 text-slate-500" />
+                                <span className="text-sm font-medium text-slate-600">Batch</span>
+                              </div>
+                              <div className="relative w-full" ref={el => batchDropdownRefs.current[job.id] = el}>
+                                {isJobPosted(job) ? (
+                                  <div className={`w-full min-w-0 border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-left ${selectedBatches[job.id]?.length ? 'bg-green-100' : 'bg-slate-50'} text-slate-700`}>
+                                    <span className="truncate block">
+                                      {(Array.isArray(selectedBatches[job.id]) && selectedBatches[job.id].length) ? selectedBatches[job.id].map(code => getBatchDisplay(code)).join(', ') : '—'}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className={`w-full min-w-0 border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-left flex items-center justify-between gap-1 ${selectedBatches[job.id]?.length ? 'bg-green-100' : 'bg-blue-100'
+                                        }`}
+                                      onClick={() => toggleBatchDropdown(job.id)}
+                                    >
+                                      <span className="truncate min-w-0">
+                                        {(Array.isArray(selectedBatches[job.id]) && selectedBatches[job.id].length) ? selectedBatches[job.id].map(code => getBatchDisplay(code)).join(', ') : 'Select Batches'}
+                                      </span>
+                                      <ChevronDown className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                                    </button>
+                                    {showBatches[job.id] && (
+                                      <div className="absolute z-10 w-full bg-white border-2 border-slate-300 rounded-md shadow-lg max-h-32 overflow-y-auto overscroll-contain touch-pan-y scrollbar-hide pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
+                                        {batchOptions.map((batch) => (
+                                          <label key={batch.id} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 cursor-pointer border-b border-slate-200 last:border-b-0 shrink-0">
+                                            <input
+                                              type="checkbox"
+                                              checked={Array.isArray(selectedBatches[job.id]) && selectedBatches[job.id].includes(batch.storage)}
+                                              onChange={() => toggleBatch(job.id, batch.storage)}
+                                            />
+                                            <span>{batch.display}</span>
+                                          </label>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Center - full width on mobile */}
+                            <div className="w-full sm:w-40 shrink-0 min-w-0 sm:min-w-[10rem]">
+                              <div className="flex justify-center -translate-x-2 items-center gap-2 mb-1">
+                                <MapPin className="w-4 h-4 text-slate-500" />
+                                <span className="text-sm font-medium text-slate-600">Center</span>
+                              </div>
+                              <div className="relative w-full" ref={el => centerDropdownRefs.current[job.id] = el}>
+                                {isJobPosted(job) ? (
+                                  <div className={`w-full min-w-0 border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-left ${selectedCenters[job.id]?.length ? 'bg-green-100' : 'bg-slate-50'} text-slate-700`}>
+                                    <span className="truncate block">
+                                      {(Array.isArray(selectedCenters[job.id]) && selectedCenters[job.id].length) ? selectedCenters[job.id].map(code => getCenterDisplay(code)).join(', ') : '—'}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className={`w-full min-w-0 border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-left flex items-center justify-between gap-1 ${selectedCenters[job.id]?.length ? 'bg-green-100' : 'bg-blue-100'
+                                        }`}
+                                      onClick={() => toggleCenterDropdown(job.id)}
+                                    >
+                                      <span className="truncate min-w-0">
+                                        {(Array.isArray(selectedCenters[job.id]) && selectedCenters[job.id].length) ? selectedCenters[job.id].map(code => getCenterDisplay(code)).join(', ') : 'Select Centers'}
+                                      </span>
+                                      <ChevronDown className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                                    </button>
+                                    {showCenters[job.id] && (
+                                      <div className="absolute z-10 w-full bg-white border-2 border-slate-300 rounded-md shadow-lg max-h-32 overflow-y-auto overscroll-contain touch-pan-y scrollbar-hide pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
+                                        {centerOptions.map((center) => (
+                                          <label key={center.id} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 cursor-pointer border-b border-slate-200 last:border-b-0 shrink-0">
+                                            <input
+                                              type="checkbox"
+                                              checked={Array.isArray(selectedCenters[job.id]) && selectedCenters[job.id].includes(center.storage)}
+                                              onChange={() => toggleCenter(job.id, center.storage)}
+                                            />
+                                            <span>{center.display}</span>
+                                          </label>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Second Row: Role and Actions - stack on mobile */}
+                        <div className="mt-2 pt-2 border-t border-slate-300">
+                          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Briefcase className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                              <span className="text-sm font-medium text-slate-600">Role:</span>
+                              <span className="font-semibold text-slate-900 truncate">{job.jobTitle || 'N/A'}</span>
+                            </div>
+
+                            {/* Post, Share and Delete Actions */}
+                            <div className="flex flex-wrap items-center gap-2 md:ml-4">
+                              {/* Post Action */}
+                              <button
+                                onClick={() => handlePostJob(job.id)}
+                                disabled={!canPostJob(job) || postingJobs.has(job.id)}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 justify-center w-full sm:w-auto sm:min-w-[120px] touch-manipulation ${isJobPosted(job)
+                                  ? 'bg-green-500 text-white cursor-not-allowed'
+                                  : postingJobs.has(job.id)
+                                    ? 'bg-blue-100 text-blue-500 cursor-not-allowed'
+                                    : canPostJob(job)
+                                      ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
+                                      : 'bg-blue-200 text-blue-400 cursor-not-allowed'
+                                  }`}
+                              >
+                                {isJobPosted(job) ? (
+                                  <>
+                                    <CheckCircle className="w-4 h-4" />
+                                    <span className="text-xs">{getPostedJobDisplay(job.id)}</span>
+                                  </>
+                                ) : postingJobs.has(job.id) ? (
+                                  <>
+                                    <Loader className="w-4 h-4 animate-spin" />
+                                    <span>Posting...</span>
+                                  </>
+                                ) : canPostJob(job) ? (
+                                  'Post Job'
+                                ) : (
+                                  'Post Job'
+                                )}
+                              </button>
+
+                              {/* Edit Button - Show for IN_REVIEW jobs (admin can edit all fields) */}
+                              {!isJobPosted(job) && (job.status === 'IN_REVIEW' || job.status === 'in_review') && (
+                                <button
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    // Navigate to job detail page - AdminJobDetail handles editing
+                                    navigate(`${base}/job/${job.id}`);
+                                  }}
+                                  className="p-2.5 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors shadow-sm"
+                                  title="View/Edit Job (Click Edit button on job detail page)"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                              )}
+
+                              {/* Edit Dates Button - Show for POSTED jobs only */}
+                              {isJobPosted(job) && (
+                                <button
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const deadlineDate = job.applicationDeadline
+                                      ? (typeof job.applicationDeadline === 'object' && job.applicationDeadline.toMillis
+                                        ? new Date(job.applicationDeadline.toMillis())
+                                        : new Date(job.applicationDeadline))
+                                      : null;
+                                    const driveDateValue = job.driveDate
+                                      ? (typeof job.driveDate === 'object' && job.driveDate.toMillis
+                                        ? new Date(job.driveDate.toMillis())
+                                        : new Date(job.driveDate))
+                                      : null;
+
+                                    setEditDatesForm({
+                                      applicationDeadline: deadlineDate,
+                                      driveDate: driveDateValue
+                                    });
+                                    setEditingDatesJobId(job.id);
+                                  }}
+                                  className="p-2.5 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors shadow-sm"
+                                  title="Edit Dates (Only dates can be edited for POSTED jobs)"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                              )}
+
+                              {/* View JD Button */}
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  navigate(`/job/${job.id}`);
+                                }}
+                                className="p-2.5 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors shadow-sm"
+                                title="View JD"
+                              >
+                                <View className="w-4 h-4" />
+                              </button>
+
+                              {/* Share Action */}
+                              <button
+                                onClick={() => handleShare(job)}
+                                className="p-2.5 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors shadow-sm"
+                                title="Share job"
+                              >
+                                <Share2 className="w-4 h-4" />
+                              </button>
+
+                              {/* Delete Action */}
+                              <button
+                                onClick={() => handleDelete(job.id)}
+                                className="p-2.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors shadow-sm"
+                                title="Delete job"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    {/* Batch - full width on mobile */}
-                    <div className="w-full sm:w-40 shrink-0 min-w-0 sm:min-w-[10rem]">
-                      <div className="flex justify-center -translate-x-2 items-center gap-2 mb-1">
-                        <Users className="w-4 h-4 text-slate-500" />
-                        <span className="text-sm font-medium text-slate-600">Batch</span>
-                      </div>
-                      <div className="relative w-full" ref={el => batchDropdownRefs.current[job.id] = el}>
-                        {isJobPosted(job) ? (
-                          <div className={`w-full min-w-0 border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-left ${selectedBatches[job.id]?.length ? 'bg-green-100' : 'bg-slate-50'} text-slate-700`}>
-                            <span className="truncate block">
-                              {selectedBatches[job.id]?.length ? selectedBatches[job.id].map(code => getBatchDisplay(code)).join(', ') : '—'}
-                            </span>
-                          </div>
-                        ) : (
-                          <>
-                        <button
-                          type="button"
-                          className={`w-full min-w-0 border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-left flex items-center justify-between gap-1 ${selectedBatches[job.id]?.length ? 'bg-green-100' : 'bg-blue-100'
-                            }`}
-                          onClick={() => toggleBatchDropdown(job.id)}
-                        >
-                          <span className="truncate min-w-0">
-                            {selectedBatches[job.id]?.length ? selectedBatches[job.id].map(code => getBatchDisplay(code)).join(', ') : 'Select Batches'}
-                          </span>
-                          <ChevronDown className="w-4 h-4 text-slate-500 flex-shrink-0" />
-                        </button>
-                        {showBatches[job.id] && (
-                          <div className="absolute z-10 overflow-hidden w-full bg-white border-2 border-slate-300 rounded-md shadow-lg">
-                            {batchOptions.map((batch) => (
-                              <label key={batch.id} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 cursor-pointer border-b border-slate-200 last:border-b-0">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedBatches[job.id]?.includes(batch.storage) || false}
-                                  onChange={() => toggleBatch(job.id, batch.storage)}
-                                />
-                                <span>{batch.display}</span>
-                              </label>
-                            ))}
-                          </div>
-                        )}
-                        </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Center - full width on mobile */}
-                    <div className="w-full sm:w-40 shrink-0 min-w-0 sm:min-w-[10rem]">
-                      <div className="flex justify-center -translate-x-2 items-center gap-2 mb-1">
-                        <MapPin className="w-4 h-4 text-slate-500" />
-                        <span className="text-sm font-medium text-slate-600">Center</span>
-                      </div>
-                      <div className="relative w-full" ref={el => centerDropdownRefs.current[job.id] = el}>
-                        {isJobPosted(job) ? (
-                          <div className={`w-full min-w-0 border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-left ${selectedCenters[job.id]?.length ? 'bg-green-100' : 'bg-slate-50'} text-slate-700`}>
-                            <span className="truncate block">
-                              {selectedCenters[job.id]?.length ? selectedCenters[job.id].map(code => getCenterDisplay(code)).join(', ') : '—'}
-                            </span>
-                          </div>
-                        ) : (
-                          <>
-                        <button
-                          type="button"
-                          className={`w-full min-w-0 border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-left flex items-center justify-between gap-1 ${selectedCenters[job.id]?.length ? 'bg-green-100' : 'bg-blue-100'
-                            }`}
-                          onClick={() => toggleCenterDropdown(job.id)}
-                        >
-                          <span className="truncate min-w-0">
-                            {selectedCenters[job.id]?.length ? selectedCenters[job.id].map(code => getCenterDisplay(code)).join(', ') : 'Select Centers'}
-                          </span>
-                          <ChevronDown className="w-4 h-4 text-slate-500 flex-shrink-0" />
-                        </button>
-                        {showCenters[job.id] && (
-                          <div className="absolute z-10 overflow-hidden w-full bg-white border-2 border-slate-300 rounded-md shadow-lg">
-                            {centerOptions.map((center) => (
-                              <label key={center.id} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 cursor-pointer border-b border-slate-200 last:border-b-0">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedCenters[job.id]?.includes(center.storage) || false}
-                                  onChange={() => toggleCenter(job.id, center.storage)}
-                                />
-                                <span>{center.display}</span>
-                              </label>
-                            ))}
-                          </div>
-                        )}
-                        </>
-                        )}
-                      </div>
-                    </div>
-                    </div>
-                  </div>
-
-                  {/* Second Row: Role and Actions - stack on mobile */}
-                  <div className="mt-2 pt-2 border-t border-slate-300">
-                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Briefcase className="w-4 h-4 text-slate-500 flex-shrink-0" />
-                        <span className="text-sm font-medium text-slate-600">Role:</span>
-                        <span className="font-semibold text-slate-900 truncate">{job.jobTitle || 'N/A'}</span>
-                      </div>
-
-                      {/* Post, Share and Delete Actions */}
-                      <div className="flex flex-wrap items-center gap-2 md:ml-4">
-                        {/* Post Action */}
-                        <button
-                          onClick={() => handlePostJob(job.id)}
-                          disabled={!canPostJob(job) || postingJobs.has(job.id)}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 justify-center w-full sm:w-auto sm:min-w-[120px] touch-manipulation ${isJobPosted(job)
-                            ? 'bg-green-500 text-white cursor-not-allowed'
-                            : postingJobs.has(job.id)
-                              ? 'bg-blue-100 text-blue-500 cursor-not-allowed'
-                              : canPostJob(job)
-                                ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
-                                : 'bg-blue-200 text-blue-400 cursor-not-allowed'
-                            }`}
-                        >
-                          {isJobPosted(job) ? (
-                            <>
-                              <CheckCircle className="w-4 h-4" />
-                              <span className="text-xs">{getPostedJobDisplay(job.id)}</span>
-                            </>
-                          ) : postingJobs.has(job.id) ? (
-                            <>
-                              <Loader className="w-4 h-4 animate-spin" />
-                              <span>Posting...</span>
-                            </>
-                          ) : canPostJob(job) ? (
-                            'Post Job'
-                          ) : (
-                            'Post Job'
-                          )}
-                        </button>
-
-                        {/* Edit Button - Show for IN_REVIEW jobs (admin can edit all fields) */}
-                        {!isJobPosted(job) && (job.status === 'IN_REVIEW' || job.status === 'in_review') && (
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              // Navigate to job detail page - AdminJobDetail handles editing
-                              navigate(`${base}/job/${job.id}`);
-                            }}
-                            className="p-2.5 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors shadow-sm"
-                            title="View/Edit Job (Click Edit button on job detail page)"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                        )}
-
-                        {/* Edit Dates Button - Show for POSTED jobs only */}
-                        {isJobPosted(job) && (
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              const deadlineDate = job.applicationDeadline 
-                                ? (typeof job.applicationDeadline === 'object' && job.applicationDeadline.toMillis
-                                    ? new Date(job.applicationDeadline.toMillis())
-                                    : new Date(job.applicationDeadline))
-                                : null;
-                              const driveDateValue = job.driveDate
-                                ? (typeof job.driveDate === 'object' && job.driveDate.toMillis
-                                    ? new Date(job.driveDate.toMillis())
-                                    : new Date(job.driveDate))
-                                : null;
-                              
-                              setEditDatesForm({
-                                applicationDeadline: deadlineDate,
-                                driveDate: driveDateValue
-                              });
-                              setEditingDatesJobId(job.id);
-                            }}
-                            className="p-2.5 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors shadow-sm"
-                            title="Edit Dates (Only dates can be edited for POSTED jobs)"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                        )}
-
-                        {/* View JD Button */}
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            navigate(`/job/${job.id}`);
-                          }}
-                          className="p-2.5 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors shadow-sm"
-                          title="View JD"
-                        >
-                          <View className="w-4 h-4" />
-                        </button>
-
-                        {/* Share Action */}
-                        <button
-                          onClick={() => handleShare(job)}
-                          className="p-2.5 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors shadow-sm"
-                          title="Share job"
-                        >
-                          <Share2 className="w-4 h-4" />
-                        </button>
-
-                        {/* Delete Action */}
-                        <button
-                          onClick={() => handleDelete(job.id)}
-                          className="p-2.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors shadow-sm"
-                          title="Delete job"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+                  );
+                })}
 
                 {/* Pagination */}
                 {(() => {
-                  const allJobs = getSortedJobs();
-                  const totalJobs = allJobs.length;
-                  const totalPages = Math.max(1, Math.ceil(totalJobs / JOBS_PER_PAGE));
                   const currentPage = Math.min(Math.max(1, jobsPage), totalPages);
                   const start = (currentPage - 1) * JOBS_PER_PAGE;
-                  
-                  return totalJobs > JOBS_PER_PAGE ? (
+
+                  return totalJobs > 0 ? (
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-6 border-t border-gray-200 px-4">
                       <p className="text-sm text-gray-600">
-                        Showing {start + 1}–{Math.min(start + JOBS_PER_PAGE, totalJobs)} of {totalJobs} jobs
+                        Showing {start + 1}–{Math.min(start + jobs.length, totalJobs)} of {totalJobs} jobs
                       </p>
                       <div className="flex items-center gap-2">
                         <button
@@ -1173,9 +1094,6 @@ export default function ManageJobs() {
                     </div>
                   ) : null;
                 })()}
-              </>
-            );
-          })()}
         </div>
       </div>
 
@@ -1232,14 +1150,14 @@ export default function ManageJobs() {
               </div>
 
               {/* Validation message */}
-              {editDatesForm.applicationDeadline && editDatesForm.driveDate && 
-               editDatesForm.driveDate <= editDatesForm.applicationDeadline && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <p className="text-red-800 text-sm">
-                    <strong>Error:</strong> Drive date must be after the application deadline.
-                  </p>
-                </div>
-              )}
+              {editDatesForm.applicationDeadline && editDatesForm.driveDate &&
+                editDatesForm.driveDate <= editDatesForm.applicationDeadline && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <p className="text-red-800 text-sm">
+                      <strong>Error:</strong> Drive date must be after the application deadline.
+                    </p>
+                  </div>
+                )}
             </div>
 
             <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3">
@@ -1272,12 +1190,10 @@ export default function ManageJobs() {
                       applicationDeadline: editDatesForm.applicationDeadline.toISOString(),
                       driveDate: editDatesForm.driveDate.toISOString()
                     });
-                    
+
                     // Refresh jobs list
-                    if (jobsSubscriptionRef.current?.refresh) {
-                      jobsSubscriptionRef.current.refresh();
-                    }
-                    
+                    loadJobs();
+
                     // Dispatch event to notify other components (e.g., InterviewScheduling)
                     const refreshEvent = new CustomEvent('jobsRefresh', {
                       detail: {
@@ -1288,7 +1204,7 @@ export default function ManageJobs() {
                     });
                     window.dispatchEvent(refreshEvent);
                     console.log('📢 Dispatched jobsRefresh event after date update');
-                    
+
                     toast.success('Dates updated successfully');
                     setEditingDatesJobId(null);
                     setEditDatesForm({ applicationDeadline: null, driveDate: null });
@@ -1300,8 +1216,8 @@ export default function ManageJobs() {
                     setSavingDates(false);
                   }
                 }}
-                disabled={savingDates || !editDatesForm.applicationDeadline || !editDatesForm.driveDate || 
-                         (editDatesForm.driveDate <= editDatesForm.applicationDeadline)}
+                disabled={savingDates || !editDatesForm.applicationDeadline || !editDatesForm.driveDate ||
+                  (editDatesForm.driveDate <= editDatesForm.applicationDeadline)}
                 className="px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-200 font-medium shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {savingDates ? (

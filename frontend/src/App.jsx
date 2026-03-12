@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import './App.css'
 import Header from './components/landing/Header'
@@ -34,17 +34,16 @@ import ResetPassword from './pages/ResetPassword'
 import Endorsement from './pages/Endorsement'
 import PublicProfile from './pages/PublicProfile'
 import GoogleAuthCallback from './pages/GoogleAuthCallback'
+import CalendarOAuthCallback from './pages/CalendarOAuthCallback'
 import StudentOnboarding from './pages/StudentOnboarding'
 import { useAuth } from './hooks/useAuth'
 import { AuthProvider } from './context/AuthContextJWT'
 import AuthRedirect from './components/AuthRedirect'
 import { ToastProvider } from './components/ui/Toast'
 
-const LANDING_PRELOADER_KEY = 'landingPreloaderSeen';
-
 function LandingPage() {
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(() => sessionStorage.getItem(LANDING_PRELOADER_KEY) === '1');
+  const [isLoading, setIsLoading] = useState(true);
   const [timelineAutoplay, setTimelineAutoplay] = useState(false)
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [loginRole, setLoginRole] = useState('Student');
@@ -100,7 +99,7 @@ function LandingPage() {
   return (
     <>
       {isLoading ? (
-        <Preloader onComplete={() => { sessionStorage.setItem(LANDING_PRELOADER_KEY, '1'); setIsLoading(false); }} />
+        <Preloader onComplete={() => setIsLoading(false)} />
       ) : (
         <main className='w-full min-h-screen'>
           <NotificationModal />
@@ -176,6 +175,17 @@ function LandingPage() {
 function AppContent() {
   const { loading } = useAuth();
 
+  // Global listener for calendar OAuth popup - survives tab switches so we always receive the result
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.data?.type === 'GOOGLE_CALENDAR_RESULT') {
+        window.dispatchEvent(new CustomEvent('calendar-oauth-complete', { detail: event.data }));
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
   if (loading) {
     return (
       <div className="w-full h-screen flex items-center justify-center">
@@ -197,6 +207,7 @@ function AppContent() {
         <Route path="/unsubscribe" element={<Unsubscribe />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/auth/google-callback" element={<GoogleAuthCallback />} />
+        <Route path="/calendar/oauth-callback" element={<CalendarOAuthCallback />} />
         <Route path="/profile/:publicProfileId" element={<PublicProfile />} />
         <Route path="/endorse/:token" element={<Endorsement />} />
         <Route path="/endorsement/:token" element={<Endorsement />} /> {/* Legacy route support */}

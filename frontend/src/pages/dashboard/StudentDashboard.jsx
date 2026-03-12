@@ -13,7 +13,7 @@ import {
 } from '../../services/students';
 import { getStudentApplications, applyToJob, subscribeStudentApplications, getStudentInterviewHistory } from '../../services/applications';
 import { getTargetedJobsForStudent, subscribeJobs, subscribePostedJobs } from '../../services/jobs';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import { showSuccess, showError, showWarning, showInfo, showLoading, replaceLoadingToast, dismissToast } from '../../utils/toast';
 import { SiCodeforces, SiGeeksforgeeks } from 'react-icons/si';
@@ -75,6 +75,19 @@ import Resources from '../../components/dashboard/student/Resources';
 import ConnectGoogleCalendar from '../ConnectGoogleCalendar';
 import EndorsementManagement from '../../components/dashboard/student/EndorsementManagement';
 import { StudentMobileMenuContext } from '../../contexts/StudentMobileMenuContext';
+
+/** Validate profile URL - must start with http:// or https:// */
+function isValidProfileUrl(url) {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) return false;
+  try {
+    new URL(trimmed);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** Format CGPA for display (avoids floating-point e.g. 8.699999999999999 → "8.70") */
 function formatCgpaForDisplay(val) {
@@ -255,12 +268,15 @@ export default function StudentDashboard() {
     setProfileSectionsOpen((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // Show mandatory profile completion modal when needed
+  const location = useLocation();
+  const fromOnboarding = location.state?.fromOnboarding === true;
+
+  // Show mandatory profile completion modal when needed (skip when just completed onboarding)
   useEffect(() => {
-    if (user?.role === 'STUDENT' && profileCompleted === false) {
+    if (user?.role === 'STUDENT' && profileCompleted === false && !fromOnboarding) {
       navigate('/student/onboarding', { replace: true });
     }
-  }, [user?.role, profileCompleted, navigate]);
+  }, [user?.role, profileCompleted, fromOnboarding, navigate]);
 
   const getCurrentProfileSnapshot = useCallback(() => normalizeProfileSnapshot({
     fullName,
@@ -372,6 +388,7 @@ export default function StudentDashboard() {
   const [loadingInterviewHistory, setLoadingInterviewHistory] = useState(false);
   const [applicationsView, setApplicationsView] = useState('current'); // 'current' or 'past'
   const [expandedApplications, setExpandedApplications] = useState(new Set()); // Track expanded application details
+  const [pendingApplicationJobId, setPendingApplicationJobId] = useState(null);
   const [currentApplicationsPage, setCurrentApplicationsPage] = useState(1);
   const [pastApplicationsPage, setPastApplicationsPage] = useState(1);
   const APPLICATIONS_LIST_PER_PAGE = 10;
@@ -385,6 +402,32 @@ export default function StudentDashboard() {
     setCurrentApplicationsPage(1);
     setPastApplicationsPage(1);
   }, [applicationsView]);
+
+  useEffect(() => {
+    if (!pendingApplicationJobId || !applications.length) return;
+    const matchIndex = applications.findIndex((app) => {
+      const jobId = app.jobId || app.job?.id;
+      return String(jobId) === String(pendingApplicationJobId);
+    });
+    if (matchIndex === -1) return;
+    const match = applications[matchIndex];
+    setExpandedApplications((prev) => {
+      const next = new Set(prev);
+      next.add(match.id);
+      return next;
+    });
+    const targetPage = Math.floor(matchIndex / APPLICATIONS_LIST_PER_PAGE) + 1;
+    setCurrentApplicationsPage(targetPage);
+    setApplicationsView('current');
+    setPendingApplicationJobId(null);
+  }, [pendingApplicationJobId, applications, APPLICATIONS_LIST_PER_PAGE]);
+
+  // Collapse all cards when leaving Track Applications tab
+  useEffect(() => {
+    if (activeTab !== 'applications') {
+      setExpandedApplications(new Set());
+    }
+  }, [activeTab]);
 
   // Jobs state
   const [jobs, setJobs] = useState([]);
@@ -1073,15 +1116,15 @@ export default function StudentDashboard() {
         await loadApplicationsData(true); // Force refresh after applying
         return; // Exit early, no error message needed
       }
-
-      // Handle CGPA requirement error with precise message
-      if (errorMessage === 'CGPA requirement not met' || errorMessage === 'CGPA requirement check failed' ||
-        errorData.error === 'CGPA requirement not met' || errorData.error === 'CGPA requirement check failed') {
-        // Clean and precise error message
-        const yourCgpa = errorData.yourCgpa || 'Not set';
-        const requiredCgpa = errorData.requiredCgpa || errorData.requirement || 'Not specified';
-        const message = errorData.message || 'Your CGPA does not meet the minimum requirement for this job.';
-        showError(`${message}\n\nYour CGPA: ${yourCgpa}\nRequired CGPA: ${requiredCgpa}\n\nPlease update your profile with a higher CGPA or apply to jobs with lower requirements.`);
+      
+      // Handle eligibility errors (CGPA, YOP, etc.) with consistent "E" toast
+      const isEligibilityError = 
+        errorMessage === 'CGPA requirement not met' || errorMessage === 'CGPA requirement check failed' ||
+        errorMessage?.toLowerCase?.().includes('eligibility') || errorMessage?.toLowerCase?.().includes('cgpa') ||
+        errorData.error === 'CGPA requirement not met' || errorData.error === 'CGPA requirement check failed' ||
+        errorData.error?.toLowerCase?.().includes('eligibility');
+      if (isEligibilityError) {
+        showError('Eligibility criteria not met', 'E');
       } else if (error.isNetworkError || error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
         // Network error - already handled by API layer, but show if not shown
         showError('Network error: Cannot connect to server. Please check your internet connection and ensure the backend server is running.');
@@ -1247,11 +1290,9 @@ export default function StudentDashboard() {
     const handleNavigateToApplications = (e) => {
       setActiveTab('applications');
       const view = e?.detail?.view || 'current';
-      setApplicationsView(view);
-      const applicationId = e?.detail?.applicationId || null;
       const jobId = e?.detail?.jobId || null;
-      if (applicationId) setFocusedJobId(applicationId);
-      else if (jobId) setFocusedJobId(jobId); // fallback to jobId (legacy)
+      setApplicationsView(view);
+      setPendingApplicationJobId(jobId);
       if (tab !== 'applications') {
         navigate('/student?tab=applications', { replace: true });
       }
@@ -1327,9 +1368,9 @@ export default function StudentDashboard() {
   useEffect(() => {
     if (user?.id && !dataLoaded) {
       const loadInitialData = async () => {
-        // Load profile and public profile settings in parallel
+        // Load profile and public profile settings in parallel (force refresh when coming from onboarding)
         await Promise.all([
-          loadProfile(),
+          loadProfile(Boolean(location.state?.fromOnboarding)),
           (async () => {
             try {
               const settings = await api.getPublicProfileSettings();
@@ -1710,6 +1751,13 @@ export default function StudentDashboard() {
       return;
     }
 
+    // Validate otherProfiles URLs before save
+    const invalidProfile = otherProfiles.find(p => p.profileId && !isValidProfileUrl(p.profileId));
+    if (invalidProfile) {
+      showError(`"${invalidProfile.platformName || 'Profile'}" has an invalid URL. Please enter a valid URL (e.g., https://kaggle.com/username).`);
+      return;
+    }
+
     // Validate form data
     const validation = validateProfile();
     if (validation.errors.length > 0) {
@@ -1799,6 +1847,10 @@ export default function StudentDashboard() {
         school: school.trim(),
         profilePhoto: profilePhoto.trim(),
         jobFlexibility: jobFlexibility.trim(),
+        otherProfiles: otherProfiles.filter(p => p.platformName?.trim() && isValidProfileUrl(p.profileId)).map(p => ({
+          platformName: p.platformName.trim(),
+          profileId: p.profileId.trim(),
+        })),
       };
 
       // Show success immediately for better UX (optimistic update)
@@ -2653,50 +2705,50 @@ export default function StudentDashboard() {
 
         return (
           <div className="space-y-5 sm:space-y-8 overflow-x-hidden">
-            {/* Application Dashboard – same style as Career Insights (fieldset + gradient legend) */}
-            <div className="py-3 px-3 sm:px-4 bg-gradient-to-r from-slate-50 via-white to-blue-50 rounded-xl border border-gray-200 shadow-sm">
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 w-full max-w-6xl mx-auto justify-items-stretch items-stretch">
-                <div className="bg-gradient-to-br from-white to-red-100 p-3 sm:p-5 rounded-lg sm:rounded-xl border-2 border-gray-200 hover:shadow-md transition-all duration-300 min-h-[64px] sm:min-h-[112px] flex flex-col justify-between group">
-                  <div className="flex items-start gap-2 sm:gap-3 min-w-0">
-                    <div className="p-1.5 sm:p-2.5 flex items-center justify-center shadow-md rounded-lg sm:rounded-xl flex-shrink-0 bg-red-600 group-hover:scale-105 transition-transform duration-300">
-                      <Briefcase className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
+            {/* Application Dashboard – same style as Career Insights (compact, responsive) */}
+            <div className="py-2 px-3 sm:px-4 bg-gradient-to-r from-slate-50 via-white to-blue-50 rounded-xl border border-gray-200 shadow-sm">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 w-full max-w-6xl mx-auto justify-items-stretch items-stretch">
+                <div className="bg-gradient-to-br from-white to-red-100 p-2 sm:p-3 lg:p-4 rounded-lg border-2 border-gray-200 hover:shadow-md transition-all duration-300 min-h-[56px] sm:min-h-[64px] lg:min-h-[80px] flex flex-col justify-between group">
+                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                    <div className="p-1 sm:p-1.5 flex items-center justify-center shadow-md rounded-md flex-shrink-0 bg-red-600 group-hover:scale-105 transition-transform duration-300">
+                      <Briefcase className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-white" />
                     </div>
                     <div className="flex-1 min-w-0 overflow-hidden">
-                      <p className="text-base sm:text-lg font-bold uppercase tracking-wider text-red-700 mb-0.5 truncate">Applied</p>
-                      <p className="text-3xl sm:text-5xl font-extrabold text-gray-900 truncate" title={String(totalApplied)}>{totalApplied}</p>
+                      <p className="text-xs sm:text-sm font-bold uppercase tracking-wide text-red-700 mb-0 truncate">Applied</p>
+                      <p className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 truncate" title={String(totalApplied)}>{totalApplied}</p>
                     </div>
                   </div>
                 </div>
-                <div className="bg-gradient-to-br from-white to-blue-200 p-3 sm:p-5 rounded-lg sm:rounded-xl border-2 border-gray-200 hover:shadow-md transition-all duration-300 min-h-[64px] sm:min-h-[112px] flex flex-col justify-between group">
-                  <div className="flex items-start gap-2 sm:gap-3 min-w-0">
-                    <div className="p-1.5 sm:p-2.5 flex items-center justify-center shadow-md rounded-lg sm:rounded-xl flex-shrink-0 bg-blue-600 group-hover:scale-105 transition-transform duration-300">
-                      <AlertCircle className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
+                <div className="bg-gradient-to-br from-white to-blue-200 p-2 sm:p-3 lg:p-4 rounded-lg border-2 border-gray-200 hover:shadow-md transition-all duration-300 min-h-[56px] sm:min-h-[64px] lg:min-h-[80px] flex flex-col justify-between group">
+                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                    <div className="p-1 sm:p-1.5 flex items-center justify-center shadow-md rounded-md flex-shrink-0 bg-blue-600 group-hover:scale-105 transition-transform duration-300">
+                      <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-white" />
                     </div>
                     <div className="flex-1 min-w-0 overflow-hidden">
-                      <p className="text-base sm:text-lg font-bold uppercase tracking-wider text-blue-700 mb-0.5 truncate">Shortlisted</p>
-                      <p className="text-3xl sm:text-5xl font-extrabold text-gray-900 truncate" title={String(shortlisted)}>{shortlisted}</p>
+                      <p className="text-xs sm:text-sm font-bold uppercase tracking-wide text-blue-700 mb-0 truncate">Shortlisted</p>
+                      <p className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 truncate" title={String(shortlisted)}>{shortlisted}</p>
                     </div>
                   </div>
                 </div>
-                <div className="bg-gradient-to-br from-white to-green-200 p-3 sm:p-5 rounded-lg sm:rounded-xl border-2 border-gray-200 hover:shadow-md transition-all duration-300 min-h-[64px] sm:min-h-[112px] flex flex-col justify-between group">
-                  <div className="flex items-start gap-2 sm:gap-3 min-w-0">
-                    <div className="p-1.5 sm:p-2.5 flex items-center justify-center shadow-md rounded-lg sm:rounded-xl flex-shrink-0 bg-green-600 group-hover:scale-105 transition-transform duration-300">
-                      <CheckCircle className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
+                <div className="bg-gradient-to-br from-white to-green-200 p-2 sm:p-3 lg:p-4 rounded-lg border-2 border-gray-200 hover:shadow-md transition-all duration-300 min-h-[56px] sm:min-h-[64px] lg:min-h-[80px] flex flex-col justify-between group">
+                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                    <div className="p-1 sm:p-1.5 flex items-center justify-center shadow-md rounded-md flex-shrink-0 bg-green-600 group-hover:scale-105 transition-transform duration-300">
+                      <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-white" />
                     </div>
                     <div className="flex-1 min-w-0 overflow-hidden">
-                      <p className="text-base sm:text-lg font-bold uppercase tracking-wider text-green-700 mb-0.5 truncate">Interviewed</p>
-                      <p className="text-3xl sm:text-5xl font-extrabold text-gray-900 truncate" title={String(interviewed)}>{interviewed}</p>
+                      <p className="text-xs sm:text-sm font-bold uppercase tracking-wide text-green-700 mb-0 truncate">Interviewed</p>
+                      <p className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 truncate" title={String(interviewed)}>{interviewed}</p>
                     </div>
                   </div>
                 </div>
-                <div className="bg-gradient-to-br from-white to-purple-200 p-3 sm:p-5 rounded-lg sm:rounded-xl border-2 border-gray-200 hover:shadow-md transition-all duration-300 min-h-[64px] sm:min-h-[112px] flex flex-col justify-between group">
-                  <div className="flex items-start gap-2 sm:gap-3 min-w-0">
-                    <div className="p-1.5 sm:p-2.5 flex items-center justify-center shadow-md rounded-lg sm:rounded-xl flex-shrink-0 bg-purple-600 group-hover:scale-105 transition-transform duration-300">
-                      <TrendingUp className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
+                <div className="bg-gradient-to-br from-white to-purple-200 p-2 sm:p-3 lg:p-4 rounded-lg border-2 border-gray-200 hover:shadow-md transition-all duration-300 min-h-[56px] sm:min-h-[64px] lg:min-h-[80px] flex flex-col justify-between group">
+                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                    <div className="p-1 sm:p-1.5 flex items-center justify-center shadow-md rounded-md flex-shrink-0 bg-purple-600 group-hover:scale-105 transition-transform duration-300">
+                      <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-white" />
                     </div>
                     <div className="flex-1 min-w-0 overflow-hidden">
-                      <p className="text-base sm:text-lg font-bold uppercase tracking-wider text-purple-700 mb-0.5 truncate">Offers</p>
-                      <p className="text-3xl sm:text-5xl font-extrabold text-gray-900 truncate" title={String(offers)}>{offers}</p>
+                      <p className="text-xs sm:text-sm font-bold uppercase tracking-wide text-purple-700 mb-0 truncate">Offers</p>
+                      <p className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 truncate" title={String(offers)}>{offers}</p>
                     </div>
                   </div>
                 </div>
@@ -2820,15 +2872,15 @@ export default function StudentDashboard() {
 
                                   {expandedApplications.has(record.id) && (
                                     <div className="mb-4 sm:mb-6 space-y-4 sm:space-y-6 border-t border-gray-200 pt-4 sm:pt-6">
-                                      {record.screeningStatusText && !(isCracked || (isRejected && (record.screeningStatus === 'TEST_SELECTED' || record.screeningStatus === 'INTERVIEW_ELIGIBLE'))) && (
-                                        <div className={`p-3 sm:p-4 border rounded-lg ${record.screeningStatus === 'RESUME_REJECTED' || record.screeningStatus === 'SCREENING_REJECTED' || record.screeningStatus === 'TEST_REJECTED'
+                                      {record.screeningStatusText && (
+                                        <div className={`p-3 sm:p-4 border rounded-lg ${record.screeningStatus === 'RESUME_REJECTED' || record.screeningStatus === 'TEST_REJECTED'
                                           ? 'bg-red-50 border-red-200'
                                           : record.screeningStatus === 'TEST_SELECTED'
                                             ? 'bg-green-50 border-green-200'
                                             : 'bg-yellow-50 border-yellow-200'
                                           }`}>
                                           <div className="flex items-center gap-2 mb-1">
-                                            <Info className={`w-5 h-5 ${record.screeningStatus === 'RESUME_REJECTED' || record.screeningStatus === 'SCREENING_REJECTED' || record.screeningStatus === 'TEST_REJECTED'
+                                            <Info className={`w-5 h-5 ${record.screeningStatus === 'RESUME_REJECTED' || record.screeningStatus === 'TEST_REJECTED'
                                               ? 'text-red-600'
                                               : record.screeningStatus === 'TEST_SELECTED'
                                                 ? 'text-green-600'
@@ -2836,7 +2888,7 @@ export default function StudentDashboard() {
                                               }`} />
                                             <span className="text-xs font-semibold uppercase tracking-wide text-gray-600">Screening Status</span>
                                           </div>
-                                          <p className={`text-base font-bold ${record.screeningStatus === 'RESUME_REJECTED' || record.screeningStatus === 'SCREENING_REJECTED' || record.screeningStatus === 'TEST_REJECTED'
+                                          <p className={`text-base font-bold ${record.screeningStatus === 'RESUME_REJECTED' || record.screeningStatus === 'TEST_REJECTED'
                                             ? 'text-red-800'
                                             : record.screeningStatus === 'TEST_SELECTED'
                                               ? 'text-green-800'
@@ -3134,6 +3186,16 @@ export default function StudentDashboard() {
                                           })()}
                                         </span>
                                       </span>
+                                      {(application.jobId || application.job?.id) && (
+                                        <button
+                                          onClick={() => navigate(`/job/${application.jobId || application.job?.id}`)}
+                                          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-700 transition-colors duration-200 text-sm font-medium"
+                                          title="View Job Description"
+                                        >
+                                          <FileText className="w-4 h-4 flex-shrink-0" />
+                                          <span>View JD</span>
+                                        </button>
+                                      )}
                                       <button
                                         onClick={() => {
                                           setExpandedApplications(prev => {
@@ -3285,19 +3347,34 @@ export default function StudentDashboard() {
                                       </div>
                                     </div>
 
-                                    {application.job?.description && (
-                                      <div className="mb-4 sm:mb-6 bg-gradient-to-br from-indigo-50 to-purple-50 p-3 sm:p-5 rounded-lg sm:rounded-xl border border-indigo-100">
-                                        <div className="flex items-center gap-2 mb-3">
-                                          <FileText className="w-5 h-5 text-indigo-600" />
-                                          <p className="text-sm font-semibold text-indigo-600 uppercase tracking-wide">Job Description</p>
+                                    {(() => {
+                                      // Match JobContent mapping: jobDescription || description || responsibilities
+                                      const jdText = application.job?.jobDescription || application.job?.description || application.job?.responsibilities || '';
+                                      if (!jdText || typeof jdText !== 'string' || !jdText.trim()) return null;
+                                      const jobId = application.jobId || application.job?.id;
+                                      return (
+                                        <div className="mb-4 sm:mb-6 bg-gradient-to-br from-indigo-50 to-purple-50 p-3 sm:p-5 rounded-lg sm:rounded-xl border border-indigo-100">
+                                          <div className="flex items-center justify-between gap-3 mb-3">
+                                            <div className="flex items-center gap-2">
+                                              <FileText className="w-5 h-5 text-indigo-600" />
+                                              <p className="text-sm font-semibold text-indigo-600 uppercase tracking-wide">Job Description</p>
+                                            </div>
+                                            {jobId && (
+                                              <button
+                                                onClick={() => navigate(`/job/${jobId}`)}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium transition-colors"
+                                              >
+                                                <ExternalLink className="w-3.5 h-3.5" />
+                                                View Full JD
+                                              </button>
+                                            )}
+                                          </div>
+                                          <p className="text-sm text-gray-700 line-clamp-3 leading-relaxed">
+                                            {jdText.length > 200 ? `${jdText.substring(0, 200)}...` : jdText}
+                                          </p>
                                         </div>
-                                        <p className="text-sm text-gray-700 line-clamp-3 leading-relaxed">
-                                          {application.job.description.length > 200
-                                            ? `${application.job.description.substring(0, 200)}...`
-                                            : application.job.description}
-                                        </p>
-                                      </div>
-                                    )}
+                                      );
+                                    })()}
 
                                     {/* Enhanced Skills Required */}
                                     {(() => {
@@ -3807,8 +3884,6 @@ export default function StudentDashboard() {
                               { value: 'NOIDA', label: 'Noida' },
                               { value: 'LUCKNOW', label: 'Lucknow' },
                               { value: 'PUNE', label: 'Pune' },
-                              { value: 'PATNA', label: 'Patna' },
-                              { value: 'INDORE', label: 'Indore' }
                             ]}
                             value={center}
                             onChange={(value) => {
@@ -4154,18 +4229,21 @@ export default function StudentDashboard() {
                                     />
                                   </div>
                                   <div>
-                                    <label className="block text-xs font-medium text-gray-600 mb-1">Profile ID/URL</label>
+                                    <label className="block text-xs font-medium text-gray-600 mb-1">Profile URL</label>
                                     <input
-                                      type="text"
+                                      type="url"
                                       value={profile.profileId || ''}
                                       onChange={(e) => {
                                         const updated = [...otherProfiles];
                                         updated[index] = { ...updated[index], profileId: e.target.value };
                                         setOtherProfiles(updated);
                                       }}
-                                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                      placeholder="username or URL"
+                                      className={`w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${profile.profileId && !isValidProfileUrl(profile.profileId) ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+                                      placeholder="e.g., https://kaggle.com/username"
                                     />
+                                    {profile.profileId && !isValidProfileUrl(profile.profileId) && (
+                                      <p className="mt-1 text-xs text-red-600">Enter a valid URL (https://...)</p>
+                                    )}
                                   </div>
                                 </div>
                                 <button
@@ -4208,15 +4286,18 @@ export default function StudentDashboard() {
 
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                  Profile ID/URL <span className="text-red-500">*</span>
+                                  Profile URL <span className="text-red-500">*</span>
                                 </label>
                                 <input
-                                  type="text"
+                                  type="url"
                                   value={newProfile.profileId}
                                   onChange={(e) => setNewProfile({ ...newProfile, profileId: e.target.value })}
-                                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  placeholder="username or full URL"
+                                  className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${newProfile.profileId && !isValidProfileUrl(newProfile.profileId) ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+                                  placeholder="e.g., https://kaggle.com/username"
                                 />
+                                {newProfile.profileId && !isValidProfileUrl(newProfile.profileId) && (
+                                  <p className="mt-1 text-xs text-red-600">Enter a valid URL starting with https://</p>
+                                )}
                               </div>
                             </div>
 
@@ -4234,10 +4315,15 @@ export default function StudentDashboard() {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  if (newProfile.platformName.trim() && newProfile.profileId.trim()) {
+                                  const url = newProfile.profileId.trim();
+                                  if (!isValidProfileUrl(url)) {
+                                    showWarning('Please enter a valid profile URL (e.g., https://kaggle.com/username)');
+                                    return;
+                                  }
+                                  if (newProfile.platformName.trim() && url) {
                                     setOtherProfiles([...otherProfiles, {
                                       platformName: newProfile.platformName.trim(),
-                                      profileId: newProfile.profileId.trim()
+                                      profileId: url
                                     }]);
                                     setShowAddProfileForm(false);
                                     setNewProfile({ platformName: '', profileId: '' });
@@ -4654,16 +4740,16 @@ export default function StudentDashboard() {
         <div className="flex min-h-screen relative">
           {/* Desktop sidebar: visible from md up */}
           <aside
-            className="hidden md:block bg-white border-r border-gray-200 fixed h-[calc(100vh-5rem)] overflow-y-auto scrollbar-hide transition-all duration-200 ease-in-out z-40"
+            className="hidden md:block bg-white border-r border-gray-200 fixed top-[6.5rem] left-0 bottom-[4rem] overflow-y-auto overflow-x-hidden scrollbar-hide transition-all duration-200 ease-in-out z-40"
             style={{ width: `${sidebarWidth}%` }}
           >
-            <div className="p-3 h-full flex flex-col">
-              <div className="mb-6">
-                {sidebarWidth >= 9 && (
-                  <h2 className="text-base font-bold text-gray-900 mb-3">Navigation</h2>
-                )}
-                <nav className="space-y-1">
-                  {tabs.map((tab) => {
+            <div className="p-3 pb-4">
+                <div className="mb-6">
+                  {sidebarWidth >= 9 && (
+                    <h2 className="text-base font-bold text-gray-900 mb-3">Navigation</h2>
+                  )}
+                  <nav className="space-y-1">
+                    {tabs.map((tab) => {
                     const Icon = tab.icon;
                     return (
                       <div key={tab.id} className="mb-1">
@@ -4680,11 +4766,11 @@ export default function StudentDashboard() {
                         </button>
                       </div>
                     );
-                  })}
-                </nav>
-              </div>
+                    })}
+                  </nav>
+                </div>
 
-              {(visibleSkillsCredentials.length > 0 || (otherProfiles && otherProfiles.length > 0)) && (
+                {(visibleSkillsCredentials.length > 0 || (otherProfiles && otherProfiles.length > 0)) && (
                 <div className="mb-6">
                   {sidebarWidth >= 9 && (
                     <h2 className="text-base font-bold text-gray-900 mb-3">Skills & Credentials</h2>
@@ -4766,30 +4852,32 @@ export default function StudentDashboard() {
                         </div>
                       );
                     })}
-                  </nav>
-                </div>
-              )}
-
-              <div className="mt-auto pt-4 pb-[35%] border-t border-gray-300">
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className={`w-full flex items-center rounded-lg text-xs font-medium text-red-500 hover:bg-red-100 transition-all duration-200 cursor-pointer ${sidebarWidth < 9 ? 'justify-center px-2 py-2 mb-10' : 'px-2 py-3'
-                    }`}
-                  title={sidebarWidth < 9 ? 'Logout' : ''}
-                >
-                  <LogOut className={`h-4 w-4 ${sidebarWidth >= 9 ? 'mr-2' : ''}`} />
-                  {sidebarWidth >= 9 && 'Logout'}
-                </button>
-              </div>
+                    </nav>
+                  </div>
+                )}
             </div>
-
             <div
               ref={dragRef}
               className="absolute top-0 right-0 w-1 h-full cursor-col-resize bg-gray-300 hover:bg-blue-500 transition-colors duration-200"
               onMouseDown={handleMouseDown}
             />
           </aside>
+          {/* Logout - fixed at bottom-left, always visible */}
+          <div
+            className="hidden md:block fixed bottom-0 left-0 z-50 p-3 border-t border-gray-300 bg-white"
+            style={{ width: `${sidebarWidth}%` }}
+          >
+            <button
+              type="button"
+              onClick={handleLogout}
+              className={`w-full flex items-center rounded-lg text-xs font-medium text-red-500 hover:bg-red-100 transition-all duration-200 cursor-pointer ${sidebarWidth < 9 ? 'justify-center px-2 py-2' : 'px-2 py-3'
+                }`}
+              title={sidebarWidth < 9 ? 'Logout' : ''}
+            >
+              <LogOut className={`h-4 w-4 ${sidebarWidth >= 9 ? 'mr-2' : ''}`} />
+              {sidebarWidth >= 9 && 'Logout'}
+            </button>
+          </div>
 
           {/* Mobile drawer overlay */}
           {mobileMenuOpen && (
@@ -4801,25 +4889,25 @@ export default function StudentDashboard() {
           )}
           {/* Mobile drawer sidebar */}
           <aside
-            className={`fixed top-0 left-0 bottom-0 w-72 max-w-[85vw] bg-white border-r border-gray-200 shadow-xl z-50 md:hidden overflow-y-auto scrollbar-hide transition-transform duration-300 ease-out flex flex-col ${
+            className={`fixed top-0 left-0 bottom-0 w-72 max-w-[85vw] bg-white border-r border-gray-200 shadow-xl z-50 md:hidden flex flex-col overflow-hidden transition-transform duration-300 ease-out ${
               mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
             }`}
             aria-modal
             aria-label="Navigation menu"
           >
-            <div className="p-3 h-full flex flex-col">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-bold text-gray-900">Navigation</h2>
-                <button
-                  type="button"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-                  aria-label="Close menu"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              <nav className="space-y-1">
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide p-3">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-base font-bold text-gray-900">Navigation</h2>
+                  <button
+                    type="button"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                    aria-label="Close menu"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <nav className="space-y-1">
                 {(tabs || []).map((tab) => {
                   const Icon = tab.icon;
                   return (
@@ -4884,16 +4972,16 @@ export default function StudentDashboard() {
                   </nav>
                 </div>
               )}
-              <div className="mt-auto pt-4 border-t border-gray-300">
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="w-full flex items-center rounded-lg text-sm font-medium text-red-500 hover:bg-red-100 px-3 py-3"
-                >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </button>
-              </div>
+            </div>
+            <div className="flex-shrink-0 p-3 pt-4 pb-6 border-t border-gray-300 bg-white">
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="w-full flex items-center rounded-lg text-sm font-medium text-red-500 hover:bg-red-100 px-3 py-3"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
+              </button>
             </div>
           </aside>
 

@@ -17,11 +17,12 @@ import AdminJobApplications from '../../components/dashboard/admin/AdminJobAppli
 import AdminApplicantsHub from '../../components/dashboard/admin/AdminApplicantsHub';
 import AdminAnnouncements from '../../components/dashboard/admin/AdminAnnouncements';
 import ConnectGoogleCalendar from '../ConnectGoogleCalendar';
-import { Home, FilePlus2, Briefcase, GripVertical, LogOut, Users, Bell, Settings, User, Calendar, Megaphone, X } from 'lucide-react';
+import { Home, FilePlus2, Briefcase, GripVertical, LogOut, Users, Bell, Settings, User, Calendar, Megaphone, X, Loader2 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import showLogoutConfirm from '../../utils/logoutConfirm';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import RequireRole from '../../components/RequireRole';
+import ErrorBoundary from '../../components/common/ErrorBoundary';
 
 export default function AdminDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -65,7 +66,7 @@ export default function AdminDashboard() {
     if (loading) return;
 
     const userRole = role?.toUpperCase() || user?.role?.toUpperCase() || '';
-    const allowedRoles = ['ADMIN', 'RECRUITER'];
+    const allowedRoles = ['ADMIN', 'RECRUITER', 'SUPER_ADMIN'];
 
     if (!user) {
       console.error('🚫 AdminDashboard: No authenticated user');
@@ -88,14 +89,30 @@ export default function AdminDashboard() {
     }
   }, [user, role, loading, navigate, location.pathname]);
 
-  // Don't render anything if unauthorized
-  if (loading) return null;
-
   const userRole = role?.toUpperCase() || user?.role?.toUpperCase() || '';
-  const allowedRoles = ['ADMIN', 'RECRUITER'];
+  const allowedRoles = ['ADMIN', 'RECRUITER', 'SUPER_ADMIN'];
+
+  // Show loading state instead of blank screen while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user || !allowedRoles.includes(userRole)) {
-    return null; // Will redirect via useEffect
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
+          <p className="text-slate-600">Redirecting...</p>
+        </div>
+      </div>
+    );
   }
 
   // Sync activeTab with URL params
@@ -131,9 +148,8 @@ export default function AdminDashboard() {
   }, [navigate]);
 
   // Role-based tab filtering - STUDENT users cannot see Create Job or other admin-only tabs
-  // userRole is already declared above (line 68), reuse it here
   const userRoleUpper = userRole.toUpperCase();
-  const isAdmin = userRoleUpper === 'ADMIN';
+  const isAdmin = userRoleUpper === 'ADMIN' || userRoleUpper === 'SUPER_ADMIN';
   const isSuperAdmin = userRoleUpper === 'SUPER_ADMIN';
   const isRecruiter = userRoleUpper === 'RECRUITER';
   const isStudent = userRoleUpper === 'STUDENT';
@@ -143,20 +159,20 @@ export default function AdminDashboard() {
 
   // Base tabs available to all authorized users
   const allTabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: Home, roles: ['ADMIN', 'RECRUITER', 'STUDENT'] },
-    { id: 'createJob', label: 'Create Job', icon: FilePlus2, roles: ['ADMIN', 'RECRUITER'] }, // ADMIN and RECRUITER only
-    { id: 'manageJobs', label: 'Manage Jobs', icon: Briefcase, roles: ['ADMIN', 'RECRUITER'] }, // ADMIN and RECRUITER only
-    { id: 'jobApplications', label: 'Applicants', icon: Users, roles: ['ADMIN', 'RECRUITER'] }, // ADMIN and RECRUITER only
+    { id: 'dashboard', label: 'Dashboard', icon: Home, roles: ['ADMIN', 'RECRUITER', 'STUDENT', 'SUPER_ADMIN'] },
+    { id: 'createJob', label: 'Create Job', icon: FilePlus2, roles: ['ADMIN', 'RECRUITER', 'SUPER_ADMIN'] }, // ADMIN and RECRUITER only
+    { id: 'manageJobs', label: 'Manage Jobs', icon: Briefcase, roles: ['ADMIN', 'RECRUITER', 'SUPER_ADMIN'] }, // ADMIN and RECRUITER only
+    { id: 'jobApplications', label: 'Applicants', icon: Users, roles: ['ADMIN', 'RECRUITER', 'SUPER_ADMIN'] }, // ADMIN and RECRUITER only
     // { id: 'scheduleInterview', label: 'Schedule Interview', icon: Calendar }, // Commented out - replaced by InterviewScheduling
-    { id: 'interviewScheduling', label: 'Interview Scheduling', icon: Calendar, roles: ['ADMIN', 'RECRUITER'] },
-    { id: 'calendar', label: 'Calendar', icon: Calendar, roles: ['ADMIN', 'RECRUITER'] },
+    { id: 'interviewScheduling', label: 'Interview Scheduling', icon: Calendar, roles: ['ADMIN', 'RECRUITER', 'SUPER_ADMIN'] },
+    { id: 'calendar', label: 'Calendar', icon: Calendar, roles: ['ADMIN', 'RECRUITER', 'SUPER_ADMIN'] },
     // { id: 'jobPostingsManager', label: 'Job Moderation', icon: ClipboardList }, // Removed from sidebar - page still exists
-    { id: 'studentDirectory', label: 'Student Directory', icon: Users, roles: ['ADMIN'] }, // ADMIN only
-    { id: 'recruiterDirectory', label: 'Recruiter Directory', icon: Briefcase, roles: ['ADMIN'] }, // ADMIN only
-    { id: 'announcements', label: 'Announcements', icon: Megaphone, roles: ['ADMIN'] }, // ADMIN only
+    { id: 'studentDirectory', label: 'Student Directory', icon: Users, roles: ['ADMIN', 'SUPER_ADMIN'] }, // ADMIN only
+    { id: 'recruiterDirectory', label: 'Recruiter Directory', icon: Briefcase, roles: ['ADMIN', 'SUPER_ADMIN'] }, // ADMIN only
+    { id: 'announcements', label: 'Announcements', icon: Megaphone, roles: ['ADMIN', 'SUPER_ADMIN'] }, // ADMIN only
     { id: 'adminPanel', label: 'Admin Panel', icon: Settings, roles: ['SUPER_ADMIN'] }, // SUPER_ADMIN only
-    { id: 'notifications', label: 'Notifications', icon: Bell, roles: ['ADMIN', 'RECRUITER', 'STUDENT'] },
-    { id: 'profile', label: 'Profile', icon: User, roles: ['ADMIN', 'RECRUITER', 'STUDENT'] },
+    { id: 'notifications', label: 'Notifications', icon: Bell, roles: ['ADMIN', 'RECRUITER', 'STUDENT', 'SUPER_ADMIN'] },
+    { id: 'profile', label: 'Profile', icon: User, roles: ['ADMIN', 'RECRUITER', 'STUDENT', 'SUPER_ADMIN'] },
   ];
 
   // Filter tabs based on user role - STUDENT users should not see job creation tabs
@@ -209,6 +225,8 @@ export default function AdminDashboard() {
 
     try {
       console.log('Attempting logout...');
+      // Clear admin dashboard cache
+      localStorage.removeItem('admin_dashboard_cache');
       await logout();
       console.log('Logout successful - navigating to home');
       navigate('/', { replace: true });
@@ -312,7 +330,7 @@ export default function AdminDashboard() {
 
     }
   };
-  
+
 
   const handleTabClick = (tabId) => {
     setActiveTab(tabId);
@@ -326,10 +344,10 @@ export default function AdminDashboard() {
         <div className="flex min-h-screen relative">
           {/* Desktop sidebar: visible from md up */}
           <aside
-            className="hidden md:block bg-white border-r border-gray-200 fixed h-[calc(100vh-5rem)] overflow-y-auto transition-all duration-200 ease-in-out z-40"
+            className="hidden md:block bg-white border-r border-gray-200 fixed top-[6.5rem] left-0 bottom-[4rem] overflow-y-auto overflow-x-hidden scrollbar-hide transition-all duration-200 ease-in-out z-40"
             style={{ width: `${sidebarWidth}%` }}
           >
-            <div className="p-3 h-full flex flex-col">
+            <div className="p-3 pb-4">
               <div className="mb-6">
                 {sidebarWidth >= 9 && (
                   <h2 className="text-base font-bold text-gray-900 mb-3">Navigation</h2>
@@ -344,11 +362,10 @@ export default function AdminDashboard() {
                             setActiveTab(tab.id);
                             navigate(`/admin?tab=${encodeURIComponent(tab.id)}`);
                           }}
-                          className={`w-full flex items-center rounded-lg text-xs font-medium transition-all duration-200 ${
-                            sidebarActiveTab === tab.id
-                              ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white'
-                              : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
-                          } ${sidebarWidth < 9 ? 'justify-center px-2 py-2' : 'px-2 py-3'}`}
+                          className={`w-full flex items-center rounded-lg text-xs font-medium transition-all duration-200 ${sidebarActiveTab === tab.id
+                            ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white'
+                            : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                            } ${sidebarWidth < 9 ? 'justify-center px-2 py-2' : 'px-2 py-3'}`}
                           title={sidebarWidth < 9 ? tab.label : ''}
                         >
                           <Icon className={`h-4 w-4 ${sidebarWidth >= 9 ? 'mr-2' : ''}`} />
@@ -359,22 +376,24 @@ export default function AdminDashboard() {
                   })}
                 </nav>
               </div>
-
-              <div className="mt-auto pt-4 pb-[35%] border-t border-gray-300">
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className={`w-full flex items-center rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200 ${
-                    sidebarWidth < 12 ? 'justify-center px-2 py-2 mb-15' : 'px-3 py-2.5'
-                  }`}
-                  title={sidebarWidth < 9 ? 'Logout' : ''}
-                >
-                  <LogOut className={`h-4 w-4 ${sidebarWidth >= 9 ? 'mr-2' : ''}`} />
-                  {sidebarWidth >= 9 && 'Logout'}
-                </button>
-              </div>
             </div>
           </aside>
+          {/* Logout - fixed at bottom-left, always visible */}
+          <div
+            className="hidden md:block fixed bottom-0 left-0 z-50 p-3 border-t border-gray-300 bg-white"
+            style={{ width: `${sidebarWidth}%` }}
+          >
+            <button
+              type="button"
+              onClick={handleLogout}
+              className={`w-full flex items-center rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200 ${sidebarWidth < 12 ? 'justify-center px-2 py-2' : 'px-3 py-2.5'
+                }`}
+              title={sidebarWidth < 9 ? 'Logout' : ''}
+            >
+              <LogOut className={`h-4 w-4 ${sidebarWidth >= 9 ? 'mr-2' : ''}`} />
+              {sidebarWidth >= 9 && 'Logout'}
+            </button>
+          </div>
 
           {/* Mobile drawer overlay */}
           {mobileMenuOpen && (
@@ -386,14 +405,13 @@ export default function AdminDashboard() {
           )}
           {/* Mobile drawer sidebar */}
           <aside
-            className={`fixed top-0 left-0 bottom-0 w-72 max-w-[85vw] bg-white border-r border-gray-200 shadow-xl z-50 md:hidden overflow-y-auto transition-transform duration-300 ease-out flex flex-col ${
-              mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-            }`}
+            className={`fixed top-0 left-0 bottom-0 w-72 max-w-[85vw] bg-white border-r border-gray-200 shadow-xl z-50 md:hidden flex flex-col overflow-hidden transition-transform duration-300 ease-out ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+              }`}
             role="dialog"
             aria-modal="true"
             aria-label="Navigation menu"
           >
-            <div className="p-3 h-full flex flex-col">
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide p-3">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-base font-bold text-gray-900">Navigation</h2>
                 <button
@@ -412,11 +430,10 @@ export default function AdminDashboard() {
                     <div key={tab.id} className="mb-1">
                       <button
                         onClick={() => handleTabClick(tab.id)}
-                        className={`w-full flex items-center rounded-lg text-base font-medium transition-all px-4 py-3 touch-manipulation ${
-                          sidebarActiveTab === tab.id
-                            ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white'
-                            : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
-                        }`}
+                        className={`w-full flex items-center rounded-lg text-base font-medium transition-all px-4 py-3 touch-manipulation ${sidebarActiveTab === tab.id
+                          ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white'
+                          : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                          }`}
                       >
                         <Icon className="h-4 w-4 mr-2" />
                         {tab.label}
@@ -425,16 +442,16 @@ export default function AdminDashboard() {
                   );
                 })}
               </nav>
-              <div className="mt-auto pt-4 border-t border-gray-300">
-                <button
-                  type="button"
-                  onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
-                  className="w-full flex items-center rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 px-3 py-3 touch-manipulation"
-                >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </button>
-              </div>
+            </div>
+            <div className="flex-shrink-0 p-3 pt-4 pb-6 border-t border-gray-300 bg-white">
+              <button
+                type="button"
+                onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
+                className="w-full flex items-center rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 px-3 py-3 touch-manipulation"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
+              </button>
             </div>
           </aside>
 
@@ -459,7 +476,16 @@ export default function AdminDashboard() {
             }
           >
             <div className="p-3 sm:p-6 md:p-8">
-              {renderContent()}
+              <ErrorBoundary
+                fallback={
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-amber-800">
+                    <p className="font-semibold">Something went wrong on this page.</p>
+                    <p className="mt-1 text-sm opacity-90">Try another tab or refresh the page. If it persists, check the console for details.</p>
+                  </div>
+                }
+              >
+                {renderContent()}
+              </ErrorBoundary>
             </div>
           </main>
         </div>

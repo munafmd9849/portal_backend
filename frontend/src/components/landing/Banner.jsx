@@ -4,8 +4,6 @@ import BannerImage1 from '../../assets/images/IndiaMapBlend.png'
 import '../../index.css'
 import { TypeWriter, ScribbledText } from "./TextStyle";
 import r2 from '../../assets/images/r2.png'
-
-
 // Load Lottie web component
 if (typeof window !== 'undefined') {
   const script = document.createElement('script');
@@ -109,78 +107,12 @@ const Banner = () => {
     >
       {/* Laptop and up: original layout (Map + overlay facts) */}
       <div className="hidden lg:grid max-w-7xl mx-auto grid-cols-1 lg:grid-cols-2 gap-12 xl:gap-16 items-center w-full">
-        <div className="w-full h-full order-1 pr-2 xl:pr-6">
-          <div ref={mapRef} className="relative pt-10 lg:pt-0 mb-4 w-full h-full">
-            <img
-              className="absolute -left-[6%] w-[75%] lg:w-[85%]"
-              style={{ transform: 'rotateX(20deg) rotateY(-5deg) rotateZ(5deg)' }}
-              src={BannerImage1}
-              alt=""
-            />
-            {/* Facts + arrows around India map (desktop) */}
-            <div ref={factsRef} className="absolute w-full h-full">
-              <div className="relative w-full h-full">
-                <div className="absolute right-[6%] top-[13%] flex items-center gap-2 text-sm font-semibold text-gray-600">
-                  <span className="shrink-0 font-bold">70%</span>
-                  <span>Students lack industry‑relevant skills</span>
-                </div>
-                <svg xmlns="http://www.w3.org/2000/svg" className="absolute right-[18%] -top-[22%]" viewBox="0 0 800 800">
-                  <g strokeWidth="2" stroke="hsl(0,0%,0%)" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="3 6" transform="rotate(273, 400, 400)">
-                    <path d="M350.5 350.5Q410.5 384.5 449.5 449.5 " markerEnd="url(#BannerArrow1)" />
-                  </g>
-                  <defs>
-                    <marker id="BannerArrow1" markerWidth="5" markerHeight="5" refX="2.5" refY="2.5" viewBox="0 0 5 5" orient="auto">
-                      <polygon points="0,5 1.67,2.5 0,0 5,2.5" fill="hsl(0,0%,0%)" />
-                    </marker>
-                  </defs>
-                </svg>
-
-                <div className="absolute right-[4%] top-[22%] w-1/2 flex items-start gap-2 text-sm font-semibold text-gray-600">
-                  <span className="mt-0.5 shrink-0 font-bold">40%</span>
-                  <span>Students choose the wrong career path</span>
-                </div>
-                <svg xmlns="http://www.w3.org/2000/svg" className="absolute right-[25%] -top-[30%]" viewBox="0 0 800 800">
-                  <g strokeWidth="2" stroke="hsl(0,0%,0%)" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="3 6" transform="rotate(284, 400, 400)">
-                    <path d="M350.5 350.5Q410.5 384.5 449.5 449.5 " markerEnd="url(#BannerArrow2)" />
-                  </g>
-                  <defs>
-                    <marker id="BannerArrow2" markerWidth="5" markerHeight="5" refX="2.5" refY="2.5" viewBox="0 0 5 5" orient="auto">
-                      <polygon points="0,5 1.67,2.5 0,0 5,2.5" fill="hsl(0,0%,0%)" />
-                    </marker>
-                  </defs>
-                </svg>
-
-                <div className="absolute right-[3%] bottom-[8%] w-1/2 flex items-start gap-2 text-sm font-semibold text-gray-600">
-                  <span className="mt-0.5 shrink-0 font-bold">29%</span>
-                  <span>Young population lacks industry exposure</span>
-                </div>
-                <svg xmlns="http://www.w3.org/2000/svg" className="absolute right-[17%] top-[16%]" viewBox="0 0 800 800">
-                  <g strokeWidth="2" stroke="hsl(0,0%,0%)" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="3 6" transform="rotate(351, 400, 400)">
-                    <path d="M350.5 350.5Q447.5 370.5 449.5 449.5 " markerEnd="url(#BannerArrow3)" />
-                  </g>
-                  <defs>
-                    <marker id="BannerArrow3" markerWidth="5" markerHeight="5" refX="2.5" refY="2.5" viewBox="0 0 5 5" orient="auto">
-                      <polygon points="0,5 1.67,2.5 0,0 5,2.5" fill="hsl(0,0%,0%)" />
-                    </marker>
-                  </defs>
-                </svg>
-
-                <svg xmlns="http://www.w3.org/2000/svg" className="absolute right-[35%] top-[56%]" viewBox="0 0 800 800">
-                  <g strokeWidth="2" stroke="hsl(0,0%,0%)" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="3 6" transform="rotate(330, 400, 400)">
-                    <path d="M350.5 350.5Q362.5 419.5 449.5 449.5 " markerEnd="url(#BannerArrow4)" />
-                  </g>
-                  <defs>
-                    <marker id="BannerArrow4" markerWidth="5" markerHeight="5" refX="2.5" refY="2.5" viewBox="0 0 5 5" orient="auto">
-                      <polygon points="0,5 1.67,2.5 0,0 5,2.5" fill="hsl(0,0%,0%)" />
-                    </marker>
-                  </defs>
-                </svg>
-
-                <div className="absolute right-[4%] -bottom-[8%] w-[60%] flex items-start gap-2 text-sm font-semibold text-gray-600">
-                  <span className="mt-0.5 shrink-0 font-bold">55%</span>
-                  <span>Students are unprepared for real interview and hiring processes</span>
-                </div>
-              </div>
+        <div className="w-full order-1 pr-2 xl:pr-6 self-start -ml-4 lg:-ml-6" style={{ marginTop: '20px' }}>
+          <div ref={mapRef} className="relative pt-10 lg:pt-0 mb-4 w-full h-full flex items-center justify-center">
+            <div ref={factsRef} className="w-full h-full flex items-center justify-center">
+              <svg viewBox="0 0 800 650" className="w-full h-auto max-w-[120%] lg:max-w-[145%] drop-shadow-2xl mt-4 lg:mt-6">
+                <image href={BannerImage1} x="0" y="0" width="800" height="650" preserveAspectRatio="xMidYMid meet" />
+              </svg>
             </div>
           </div>
         </div>
@@ -188,7 +120,7 @@ const Banner = () => {
           <div ref={missionRef} className="text-center lg:text-left relative">
             <h1 className="text-3xl md:text-4xl lg:text-[2.6rem] font-bold text-gray-900 leading-tight">
               On a mission to change the
-              <span className="text-blue-900"> Skilling landscape</span> of <span className="px-1 rounded-xs bg-gradient-to-t from-yellow-400 to-yellow-400 bg-no-repeat [background-size:100%_25%] [background-position:0_100%] transition-all duration-300 ease-in-out hover:[background-size:100%_100%] hover:[background-position:100%_100%]"> INDIA</span>
+              <span className="text-blue-900"> Skilling landscape</span> of <span className="italic px-1 rounded-xs bg-gradient-to-t from-yellow-400 to-yellow-400 bg-no-repeat [background-size:100%_25%] [background-position:0_100%] transition-all duration-300 ease-in-out hover:[background-size:100%_100%] hover:[background-position:100%_100%]"> INDIA</span>
             </h1>
             <div className="absolute w-[70%] right-0 top-[80%] -z-10">
               <img src={r2} alt="" className="opacity-30 brightness-90" loading="lazy" />
@@ -270,11 +202,11 @@ const Banner = () => {
         <div className="text-center">
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 leading-tight">
             On a mission to change the
-            <span className="text-blue-900"> Skilling landscape</span> of <span className="px-1 rounded-xs bg-gradient-to-t from-yellow-400 to-yellow-400 bg-no-repeat [background-size:100%_25%] [background-position:0_100%]"> INDIA</span>
+            <span className="text-blue-900"> Skilling landscape</span> of <span className="italic px-1 rounded-xs bg-gradient-to-t from-yellow-400 to-yellow-400 bg-no-repeat [background-size:100%_25%] [background-position:0_100%] transition-all duration-300 ease-in-out hover:[background-size:100%_100%] hover:[background-position:100%_100%]"> INDIA</span>
           </h1>
         </div>
-        <div className="mt-6 relative">
-          <div className="relative mx-auto w-full max-w-sm aspect-square">
+        <div className="mt-6 relative -ml-3">
+          <div className="relative mx-auto w-full max-w-2xl aspect-square mt-4">
             <img
               src={BannerImage1}
               alt=""
@@ -316,7 +248,7 @@ const Banner = () => {
             <div className="rounded-2xl px-5 py-5 shadow-sm border border-gray-200 bg-white/90">
               <div className="flex items-start gap-3">
                 <div className="shrink-0 h-10 w-10 rounded-2xl border border-gray-200 bg-blue-50 flex items-center justify-center text-blue-900">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 19V5a2 2 0 0 1 2-2h10l4 4v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/><path d="M8 11h8M8 15h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 19V5a2 2 0 0 1 2-2h10l4 4v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /><path d="M8 11h8M8 15h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
                 </div>
                 <div className="min-w-0">
                   <div className="text-sm font-semibold text-gray-900 leading-snug">Industry‑Relevant <span className="italic">Skills</span></div>
@@ -327,7 +259,7 @@ const Banner = () => {
             <div className="rounded-2xl px-5 py-5 shadow-sm border border-gray-200 bg-white/90">
               <div className="flex items-start gap-3">
                 <div className="shrink-0 h-10 w-10 rounded-2xl border border-gray-200 bg-amber-50 flex items-center justify-center text-amber-700">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M7 7l-3-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M17 7l3-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M12 22v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M4 12h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M16 12h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M8.5 15.5a5 5 0 1 1 7 0l-3.5 3.5-3.5-3.5Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/></svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /><path d="M7 7l-3-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /><path d="M17 7l3-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /><path d="M12 22v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /><path d="M4 12h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /><path d="M16 12h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /><path d="M8.5 15.5a5 5 0 1 1 7 0l-3.5 3.5-3.5-3.5Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /></svg>
                 </div>
                 <div className="min-w-0">
                   <div className="text-sm font-semibold text-gray-900 leading-snug">Passion‑Aligned <span className="italic">Opportunities</span></div>

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import api from '../../../services/api';
 import { Search, Users, ExternalLink, ArrowLeft, Filter, ChevronLeft, ChevronRight, X, Calendar } from 'lucide-react';
 import CustomDropdown from '../../common/CustomDropdown';
@@ -73,8 +73,12 @@ function StageBadge({ stage }) {
 }
 
 export default function AdminJobApplications() {
-  const { jobId } = useParams();
+  const params = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
+  // Fallback: extract jobId from pathname if useParams doesn't have it (e.g. nested route context)
+  const jobId = params.jobId || location.pathname.match(/\/admin\/jobs\/([^/]+)\/applications/)?.[1] ||
+    location.pathname.match(/\/super-admin\/jobs\/([^/]+)\/applications/)?.[1];
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -107,18 +111,20 @@ export default function AdminJobApplications() {
     let cancelled = false;
 
     async function load() {
-      if (!jobId) return;
+      if (!jobId) {
+        setLoading(false);
+        setError('Job ID is missing. Please go back and select a job.');
+        return;
+      }
 
       setLoading(true);
       setError('');
       try {
-        const params = {
+        const queryParams = {
           page,
           limit,
-          // Simple filters
           q: debouncedSearch || undefined,
           applicationStatus: filters.applicationStatus || undefined,
-          // Legacy filters (for backward compatibility)
           stage: filters.stage || undefined,
           finalStatus: filters.finalStatus || undefined,
           lastRoundReached: filters.lastRoundReached || undefined,
@@ -126,14 +132,13 @@ export default function AdminJobApplications() {
           order,
         };
 
-        // Remove undefined params
-        Object.keys(params).forEach(key => {
-          if (params[key] === undefined || params[key] === '') {
-            delete params[key];
+        Object.keys(queryParams).forEach(key => {
+          if (queryParams[key] === undefined || queryParams[key] === '') {
+            delete queryParams[key];
           }
         });
 
-        const res = await api.get(`/admin/jobs/${jobId}/applications`, { params });
+        const res = await api.get(`/admin/jobs/${jobId}/applications`, { params: queryParams });
         if (cancelled) return;
         setPayload(res?.data || null);
       } catch (e) {
@@ -184,6 +189,77 @@ export default function AdminJobApplications() {
   const clientFiltered = useMemo(() => {
     return applications; // Server-side filtering is now comprehensive, no need for client-side filtering
   }, [applications]);
+
+  // Table rows - must be at top level (Rules of Hooks: no hooks inside conditionals)
+  const tableRows = useMemo(
+    () =>
+      clientFiltered.map((row) => (
+        <tr key={row.applicationId} className="hover:bg-indigo-50/50 transition-colors group">
+          <td className="px-4 py-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+                {(row?.student?.name || 'U')[0].toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="font-semibold text-slate-900 truncate">{row?.student?.name || 'Unknown'}</div>
+                {row?.student?.enrollmentId && (
+                  <div className="text-xs text-slate-500 mt-0.5">ID: {row.student.enrollmentId}</div>
+                )}
+                {row?.student?.phone && (
+                  <a href={`tel:${row.student.phone}`} className="text-xs text-indigo-600 hover:text-indigo-800 mt-0.5 inline-block">
+                    📞 {row.student.phone}
+                  </a>
+                )}
+              </div>
+            </div>
+          </td>
+          <td className="px-4 py-4">
+            <div className="flex flex-col gap-1">
+              <a href={`mailto:${row?.student?.email || ''}`} className="text-slate-700 hover:text-indigo-600 truncate text-sm">
+                {row?.student?.email || ''}
+              </a>
+              {row?.student?.city && row?.student?.stateRegion && (
+                <div className="text-xs text-slate-500 flex items-center gap-1">
+                  📍 {row.student.city}, {row.student.stateRegion}
+                </div>
+              )}
+            </div>
+          </td>
+          <td className="px-4 py-4">
+            <StageBadge stage={row.currentStage} />
+            {row.finalStatus === 'REJECTED' && row.rejectedIn && (
+              <div className="text-xs text-rose-600 mt-2 flex items-center gap-1">
+                ⚠️ Rejected in: {row.rejectedIn}
+              </div>
+            )}
+          </td>
+          <td className="px-4 py-4">
+            <div className="flex items-center justify-center">
+              <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-semibold text-sm">
+                {row.lastRoundReached || 0}
+              </span>
+            </div>
+          </td>
+          <td className="px-4 py-4">
+            <StatusPill value={row.finalStatus} />
+          </td>
+          <td className="px-4 py-4">
+            <button
+              disabled={!row?.student?.profileLink}
+              onClick={() => row?.student?.profileLink && window.open(row.student.profileLink, '_blank')}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border transition-all ${row?.student?.profileLink
+                ? 'bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50 hover:border-indigo-300 hover:shadow-md'
+                : 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed'
+              }`}
+            >
+              View Profile
+              <ExternalLink className="w-4 h-4" />
+            </button>
+          </td>
+        </tr>
+      )),
+    [clientFiltered]
+  );
 
   const total = payload?.pagination?.total ?? null;
   const totalPages = payload?.pagination?.totalPages ?? null;
@@ -339,55 +415,13 @@ export default function AdminJobApplications() {
           </div>
         )}
 
-        {/* Row 2: Sort, Order, Limit, Pagination Info */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-4 pt-4 border-t border-slate-200">
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Sort By</label>
-            <CustomDropdown
-              options={[
-                { value: 'appliedAt', label: 'Applied Date' },
-                { value: 'name', label: 'Student Name' },
-              ]}
-              value={sortBy}
-              onChange={(value) => setSortBy(value)}
-              placeholder="Sort By"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Order</label>
-            <CustomDropdown
-              options={[
-                { value: 'desc', label: 'Descending' },
-                { value: 'asc', label: 'Ascending' },
-              ]}
-              value={order}
-              onChange={(value) => setOrder(value)}
-              placeholder="Order"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Per Page</label>
-            <CustomDropdown
-              options={[
-                { value: '25', label: '25 / page' },
-                { value: '50', label: '50 / page' },
-                { value: '100', label: '100 / page' },
-              ]}
-              value={String(limit)}
-              onChange={(value) => { setLimit(parseInt(value, 10)); setPage(1); }}
-              placeholder="Per Page"
-            />
-          </div>
-
-          <div className="flex items-end justify-end text-sm text-slate-600 pb-2">
-            {total !== null && (
-              <span>
-                {total} total • page {page}{totalPages ? ` / ${totalPages}` : ''}
-              </span>
-            )}
-          </div>
+        {/* Pagination Info */}
+        <div className="mt-4 pt-4 border-t border-slate-200 flex justify-end">
+          {total !== null && (
+            <span className="text-sm text-slate-600">
+              {total} total • page {page}{totalPages ? ` / ${totalPages}` : ''}
+            </span>
+          )}
         </div>
       </div>
 
@@ -396,12 +430,29 @@ export default function AdminJobApplications() {
         {error ? (
           <div className="p-8 text-center">
             <div className="text-rose-700 font-semibold mb-2">{error}</div>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
-            >
-              Retry
-            </button>
+            <div className="flex flex-wrap justify-center gap-3 mt-4">
+              {!jobId ? (
+                <button
+                  onClick={() => navigate(location.pathname.startsWith('/super-admin') ? '/super-admin?tab=jobApplications' : '/admin?tab=jobApplications')}
+                  className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
+                >
+                  Go to Applicants
+                </button>
+              ) : (
+                <button
+                  onClick={() => window.location.reload()}
+                  className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
+                >
+                  Retry
+                </button>
+              )}
+              <button
+                onClick={() => navigate(-1)}
+                className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"
+              >
+                Back
+              </button>
+            </div>
           </div>
         ) : loading ? (
           <div className="p-4 sm:p-6">
@@ -448,72 +499,7 @@ export default function AdminJobApplications() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {clientFiltered.map((row) => (
-                  <tr key={row.applicationId} className="hover:bg-indigo-50/50 transition-colors group">
-                    <td className="px-4 py-4">
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold text-sm shadow-sm">
-                          {(row?.student?.name || 'U')[0].toUpperCase()}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="font-semibold text-slate-900 truncate">{row?.student?.name || 'Unknown'}</div>
-                          {row?.student?.enrollmentId && (
-                            <div className="text-xs text-slate-500 mt-0.5">ID: {row.student.enrollmentId}</div>
-                          )}
-                          {row?.student?.phone && (
-                            <a href={`tel:${row.student.phone}`} className="text-xs text-indigo-600 hover:text-indigo-800 mt-0.5 inline-block">
-                              📞 {row.student.phone}
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex flex-col gap-1">
-                        <a href={`mailto:${row?.student?.email || ''}`} className="text-slate-700 hover:text-indigo-600 truncate text-sm">
-                          {row?.student?.email || ''}
-                        </a>
-                        {row?.student?.city && row?.student?.stateRegion && (
-                          <div className="text-xs text-slate-500 flex items-center gap-1">
-                            📍 {row.student.city}, {row.student.stateRegion}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <StageBadge stage={row.currentStage} />
-                      {row.finalStatus === 'REJECTED' && row.rejectedIn && (
-                        <div className="text-xs text-rose-600 mt-2 flex items-center gap-1">
-                          ⚠️ Rejected in: {row.rejectedIn}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center justify-center">
-                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-semibold text-sm">
-                          {row.lastRoundReached || 0}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <StatusPill value={row.finalStatus} />
-                    </td>
-                    <td className="px-4 py-4">
-                      <button
-                        disabled={!row?.student?.profileLink}
-                        onClick={() => row?.student?.profileLink && window.open(row.student.profileLink, '_blank')}
-                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border transition-all ${
-                          row?.student?.profileLink
-                            ? 'bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50 hover:border-indigo-300 hover:shadow-md'
-                            : 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed'
-                        }`}
-                      >
-                        View Profile
-                        <ExternalLink className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {tableRows}
               </tbody>
             </table>
           </div>
@@ -525,9 +511,8 @@ export default function AdminJobApplications() {
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1}
-              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border ${
-                page <= 1 ? 'text-slate-400 border-slate-200 bg-slate-50 cursor-not-allowed' : 'text-slate-700 border-slate-300 bg-white hover:bg-slate-50'
-              }`}
+              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border ${page <= 1 ? 'text-slate-400 border-slate-200 bg-slate-50 cursor-not-allowed' : 'text-slate-700 border-slate-300 bg-white hover:bg-slate-50'
+                }`}
             >
               <ChevronLeft className="w-4 h-4" />
               Prev
@@ -541,9 +526,8 @@ export default function AdminJobApplications() {
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages}
-              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border ${
-                page >= totalPages ? 'text-slate-400 border-slate-200 bg-slate-50 cursor-not-allowed' : 'text-slate-700 border-slate-300 bg-white hover:bg-slate-50'
-              }`}
+              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border ${page >= totalPages ? 'text-slate-400 border-slate-200 bg-slate-50 cursor-not-allowed' : 'text-slate-700 border-slate-300 bg-white hover:bg-slate-50'
+                }`}
             >
               Next
               <ChevronRight className="w-4 h-4" />

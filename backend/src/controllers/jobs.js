@@ -10,6 +10,7 @@ import { sendJobPostedNotification, sendBulkJobNotifications } from '../services
 import { createNotification } from './notifications.js';
 import logger from '../config/logger.js';
 import { sendServerError } from '../utils/response.js';
+import { logAction } from '../utils/auditLogger.js';
 
 /**
  * Get all jobs with filters
@@ -17,19 +18,22 @@ import { sendServerError } from '../utils/response.js';
  */
 export async function getJobs(req, res) {
   try {
-    const { 
-      status, 
-      recruiterId, 
+    const {
+      status,
+      recruiterId,
       companyId,
-      isPosted, 
+      isPosted,
       search, // Search by job title or company name
       driveDateFilter, // 'upcoming', 'today', 'past'
       postedDateStart, // Filter by posted date range
       postedDateEnd,
       createdAtStart, // Filter by created date range
       createdAtEnd,
-      page = 1, 
-      limit = 50 
+      school, // Targeted school
+      center, // Targeted center
+      batch,  // Targeted batch
+      page = 1,
+      limit = 50
     } = req.query;
 
     const where = {};
@@ -40,6 +44,33 @@ export async function getJobs(req, res) {
       // Handle both string 'true'/'false' and boolean
       const isPostedValue = isPosted === 'true' || isPosted === true;
       where.isPosted = isPostedValue;
+    }
+
+    // Targeted School filter
+    if (school) {
+      const schools = school.split(',').map(s => s.trim());
+      where.AND = [
+        ...(where.AND || []),
+        { OR: schools.map(s => ({ targetSchools: { contains: s, mode: 'insensitive' } })) }
+      ];
+    }
+
+    // Targeted Center filter
+    if (center) {
+      const centers = center.split(',').map(c => c.trim());
+      where.AND = [
+        ...(where.AND || []),
+        { OR: centers.map(c => ({ targetCenters: { contains: c, mode: 'insensitive' } })) }
+      ];
+    }
+
+    // Targeted Batch filter
+    if (batch) {
+      const batches = batch.split(',').map(b => b.trim());
+      where.AND = [
+        ...(where.AND || []),
+        { OR: batches.map(b => ({ targetBatches: { contains: b, mode: 'insensitive' } })) }
+      ];
     }
 
     // Search filter (job title or company name)
@@ -126,6 +157,11 @@ export async function getJobs(req, res) {
               },
             },
           },
+          interviewSession: {
+            select: {
+              status: true,
+            },
+          },
           _count: {
             select: {
               applications: true,
@@ -171,24 +207,43 @@ export async function getJobs(req, res) {
 export async function getTargetedJobs(req, res) {
   try {
     const userId = req.userId;
-
-    if (!userId) {
-      return res.status(400).json({ error: 'User ID is required' });
+    let studentId;
+    if (req.query.studentId && ['ADMIN', 'SUPER_ADMIN'].includes(req.user?.role)) {
+      studentId = req.query.studentId;
+    } else {
+      const student = await prisma.student.findUnique({
+        where: { userId: req.userId },
+        select: { id: true, school: true, center: true, batch: true },
+      });
+      if (student) {
+        studentId = student.id;
+        // Make the school, center, batch available for targeting evaluation
+        req.student = student;
+      }
     }
 
-    // Get student profile
-    const student = await prisma.student.findUnique({
-      where: { userId },
-      select: {
-        school: true,
-        center: true,
-        batch: true,
-      },
-    });
+    if (!studentId) {
+      console.log('No student profile found for user');
+      return res.json([]);
+    }
+
+    let studentProfile = req.student;
+    if (req.query.studentId && ['ADMIN', 'SUPER_ADMIN'].includes(req.user?.role)) {
+      studentProfile = await prisma.student.findUnique({
+        where: { id: studentId },
+        select: { id: true, school: true, center: true, batch: true },
+      });
+    }
+
+    if (!studentProfile) {
+      return res.json([]);
+    }
+
+    const { school, center, batch } = studentProfile;
 
     // If student doesn't have profile yet, return all posted jobs (no targeting)
     // Only POSTED jobs are visible to students (visibility = status = POSTED AND isPosted = true)
-    if (!student || !student.school || !student.center || !student.batch) {
+    if (!studentProfile || !studentProfile.school || !studentProfile.center || !studentProfile.batch) {
       const jobs = await prisma.job.findMany({
         where: {
           status: 'POSTED',
@@ -226,8 +281,8 @@ export async function getTargetedJobs(req, res) {
 
       try {
         if (job.targetSchools) {
-          targetSchools = typeof job.targetSchools === 'string' 
-            ? JSON.parse(job.targetSchools) 
+          targetSchools = typeof job.targetSchools === 'string'
+            ? JSON.parse(job.targetSchools)
             : job.targetSchools;
         }
         if (job.targetCenters) {
@@ -262,9 +317,9 @@ export async function getTargetedJobs(req, res) {
       }
 
       // Match student's attributes
-      const schoolMatch = targetSchools.length === 0 || targetSchools.includes(student.school);
-      const centerMatch = targetCenters.length === 0 || targetCenters.includes(student.center);
-      const batchMatch = targetBatches.length === 0 || targetBatches.includes(student.batch);
+      const schoolMatch = targetSchools.length === 0 || targetSchools.includes(school);
+      const centerMatch = targetCenters.length === 0 || targetCenters.includes(center);
+      const batchMatch = targetBatches.length === 0 || targetBatches.includes(batch);
 
       return schoolMatch && centerMatch && batchMatch;
     });
@@ -279,7 +334,7 @@ export async function getTargetedJobs(req, res) {
       meta: error.meta,
       stack: error.stack,
     });
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get targeted jobs',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
@@ -312,7 +367,7 @@ export async function getJob(req, res) {
     });
 
     if (!job) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
         error: 'Job not found',
         message: 'The requested job does not exist.'
@@ -350,7 +405,7 @@ export async function createJob(req, res) {
         ip: req.ip || req.headers['x-forwarded-for'] || 'unknown',
       });
 
-      return res.status(403).json({ 
+      return res.status(403).json({
         error: 'Forbidden',
         message: 'You do not have permission to access this resource'
       });
@@ -360,7 +415,7 @@ export async function createJob(req, res) {
 
     // VALIDATE REQUIRED RECRUITER EMAILS (support both old single email and new array format)
     let recruiterEmails = [];
-    
+
     // Handle backward compatibility: if recruiterEmail exists, convert to array format
     if (jobData.recruiterEmail) {
       recruiterEmails = [{
@@ -373,7 +428,7 @@ export async function createJob(req, res) {
 
     // Validate at least one email is provided
     if (!recruiterEmails || recruiterEmails.length === 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         error: 'Recruiter/HR email is required',
         field: 'recruiterEmails',
@@ -383,7 +438,7 @@ export async function createJob(req, res) {
 
     // CRITICAL: Validate both dates are required
     if (!jobData.applicationDeadline) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         error: 'Application deadline is required',
         field: 'applicationDeadline',
@@ -396,7 +451,7 @@ export async function createJob(req, res) {
       const deadline = new Date(jobData.applicationDeadline);
       const driveDate = new Date(jobData.driveDate);
       if (driveDate <= deadline) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
           error: 'Invalid date configuration',
           field: 'driveDate',
@@ -413,7 +468,7 @@ export async function createJob(req, res) {
     for (let i = 0; i < recruiterEmails.length; i++) {
       const rec = recruiterEmails[i];
       const email = rec?.email?.trim();
-      
+
       if (!email) {
         invalidEmails.push({ index: i, reason: 'Email is required' });
         continue;
@@ -431,7 +486,7 @@ export async function createJob(req, res) {
     }
 
     if (validEmails.length === 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         error: 'Invalid recruiter email format',
         field: 'recruiterEmails',
@@ -469,7 +524,7 @@ export async function createJob(req, res) {
         location: jobData.companyLocation || null,
         website: jobData.website || null,
       };
-      
+
       const company = await prisma.company.upsert({
         where: { name: companyName },
         update: {
@@ -507,15 +562,15 @@ export async function createJob(req, res) {
         .filter(r => r.trim().length > 0)
         .join('\n');
     }
-    
+
     // If requirements field exists, combine with interview rounds
     const existingRequirements = jobData.requirements || '';
-    const finalRequirements = existingRequirements 
+    const finalRequirements = existingRequirements
       ? (requirementsText ? `${existingRequirements}\n\n${requirementsText}` : existingRequirements)
       : requirementsText || '[]';
 
     // Filter and clean spocs array - remove empty entries
-    const cleanSpocs = Array.isArray(mappedData.spocs) 
+    const cleanSpocs = Array.isArray(mappedData.spocs)
       ? mappedData.spocs.filter(spoc => spoc && (spoc.fullName || spoc.email || spoc.phone))
       : [];
 
@@ -529,7 +584,7 @@ export async function createJob(req, res) {
     cleanJobTitle = cleanJobTitle.replace(/^(?:job\s*description\s*)?role[:\s]*/i, '');
     cleanJobTitle = cleanJobTitle.replace(/^(?:job\s*description\s*)?title[:\s]*/i, '');
     cleanJobTitle = cleanJobTitle.trim();
-    
+
     const processedData = {
       // Required fields
       jobTitle: cleanJobTitle || '',
@@ -576,8 +631,8 @@ export async function createJob(req, res) {
         }
         return 'As per industry standards';
       })(),
-      salaryRange: (mappedData.salaryRange && mappedData.salaryRange.trim() !== '') 
-        ? mappedData.salaryRange 
+      salaryRange: (mappedData.salaryRange && mappedData.salaryRange.trim() !== '')
+        ? mappedData.salaryRange
         : null,
       location: mappedData.location || null,
       companyLocation: mappedData.companyLocation || null,
@@ -647,12 +702,12 @@ export async function createJob(req, res) {
         });
 
         if (admins.length > 0) {
-          const creatorName = userRole === 'RECRUITER' 
+          const creatorName = userRole === 'RECRUITER'
             ? (job.recruiter?.user?.displayName || 'A recruiter')
             : 'An admin';
           const companyName = job.company?.name || job.companyName || 'Unknown Company';
           const isAdminCreated = userRole === 'ADMIN';
-          
+
           await Promise.all(
             admins.map((admin) =>
               createNotification({
@@ -682,6 +737,14 @@ export async function createJob(req, res) {
       }
     }
 
+    // Audit log
+    await logAction(req, {
+      actionType: 'Create Job',
+      targetType: 'Job',
+      targetId: job.id,
+      details: `Created job: ${job.jobTitle} at ${job.companyName}`,
+    });
+
     res.status(201).json({
       success: true,
       message: 'Job created successfully. It has been sent for review and will appear in the "In Review" section.',
@@ -691,17 +754,17 @@ export async function createJob(req, res) {
     console.error('Create job error:', error);
     console.error('Error stack:', error.stack);
     console.error('Job data that failed:', JSON.stringify(req.body, null, 2));
-    
+
     // Provide more detailed error message in development
-    const errorMessage = process.env.NODE_ENV === 'development' 
+    const errorMessage = process.env.NODE_ENV === 'development'
       ? error.message || 'Failed to create job'
       : 'Failed to create job';
-    
-    res.status(500).json({ 
+
+    res.status(500).json({
       error: errorMessage,
-      ...(process.env.NODE_ENV === 'development' && { 
+      ...(process.env.NODE_ENV === 'development' && {
         details: error.message,
-        stack: error.stack 
+        stack: error.stack
       })
     });
   }
@@ -732,7 +795,7 @@ export async function updateJob(req, res) {
         ip: req.ip || req.headers['x-forwarded-for'] || 'unknown',
       });
 
-      return res.status(403).json({ 
+      return res.status(403).json({
         error: 'Forbidden',
         message: 'You do not have permission to access this resource'
       });
@@ -768,7 +831,7 @@ export async function updateJob(req, res) {
         updateData.submittedAt = new Date();
       } else if (existingJob.status !== 'REJECTED' || updateData.status !== 'IN_REVIEW') {
         // Recruiters cannot edit jobs in any other state
-        return res.status(403).json({ 
+        return res.status(403).json({
           error: 'Not authorized',
           message: 'Recruiters cannot edit jobs after creation. Only rejected jobs can be resubmitted for review.'
         });
@@ -779,25 +842,25 @@ export async function updateJob(req, res) {
     if (existingJob.status === 'POSTED') {
       // Define allowed fields for POSTED jobs
       const allowedFieldsForPosted = ['applicationDeadline', 'driveDate'];
-      
+
       // Check if any restricted fields are being updated
-      const restrictedFields = Object.keys(updateData).filter(key => 
-        !allowedFieldsForPosted.includes(key) && 
+      const restrictedFields = Object.keys(updateData).filter(key =>
+        !allowedFieldsForPosted.includes(key) &&
         key !== 'status' && // Status changes handled separately
         updateData[key] !== undefined
       );
-      
+
       if (restrictedFields.length > 0) {
-        return res.status(403).json({ 
+        return res.status(403).json({
           error: 'Field editing restricted',
           message: `For POSTED jobs, only applicationDeadline and driveDate can be edited. Attempted to edit: ${restrictedFields.join(', ')}`,
           restrictedFields
         });
       }
-      
+
       // Status changes not allowed via updateJob for POSTED jobs
       if (updateData.status && updateData.status !== 'POSTED') {
-        return res.status(403).json({ 
+        return res.status(403).json({
           error: 'Status change not allowed',
           message: 'POSTED jobs cannot have their status changed through this endpoint.'
         });
@@ -811,7 +874,7 @@ export async function updateJob(req, res) {
     if (updateData.applicationDeadline !== undefined || updateData.driveDate !== undefined) {
       const oldDeadline = existingJob.applicationDeadline ? new Date(existingJob.applicationDeadline) : null;
       const oldDriveDate = existingJob.driveDate ? new Date(existingJob.driveDate) : null;
-      
+
       const newDeadline = updateData.applicationDeadline ? new Date(updateData.applicationDeadline) : oldDeadline;
       const newDriveDate = updateData.driveDate != null && updateData.driveDate !== ''
         ? new Date(updateData.driveDate)
@@ -832,7 +895,7 @@ export async function updateJob(req, res) {
       });
 
       if (!existingJob.applicationDeadline && !updateData.applicationDeadline) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'Application deadline is required',
           message: 'Application deadline must be set for this job.'
         });
@@ -846,7 +909,7 @@ export async function updateJob(req, res) {
           driveDate: newDriveDate?.toISOString(),
           difference: newDriveDate && newDeadline ? (newDriveDate - newDeadline) / (1000 * 60) + ' minutes' : 'N/A',
         });
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'Invalid date configuration',
           message: 'Drive date must be after the application deadline. Interviews happen after applications close.'
         });
@@ -868,20 +931,20 @@ export async function updateJob(req, res) {
       'submittedAt', 'postedAt', 'postedBy', 'approvedAt', 'approvedBy',
       'rejectedAt', 'rejectedBy', 'rejectionReason', 'archivedAt', 'archivedBy',
     ];
-    
+
     const finalUpdateData = {};
     for (const [key, value] of Object.entries(updateData)) {
       if (jobUpdateAllowedFields.includes(key) && value !== undefined) {
         finalUpdateData[key] = value;
       }
     }
-    
+
     // Map frontend fields to database fields
     // Map responsibilities to description if description is not provided
     if (updateData.responsibilities && !finalUpdateData.description) {
       finalUpdateData.description = updateData.responsibilities;
     }
-    
+
     // Map stipend to salary for internships
     if (updateData.stipend && updateData.jobType === 'Internship' && !finalUpdateData.salary) {
       finalUpdateData.salary = updateData.stipend;
@@ -891,14 +954,14 @@ export async function updateJob(req, res) {
     if (updateData.companyLocation !== undefined) {
       finalUpdateData.companyLocation = updateData.companyLocation || null;
     }
-    
+
     // Handle company update if companyName is provided
     if (updateData.companyName && !updateData.companyId) {
       // Find or create company by name
       let company = await prisma.company.findFirst({
         where: { name: updateData.companyName },
       });
-      
+
       if (!company) {
         company = await prisma.company.create({
           data: {
@@ -916,7 +979,7 @@ export async function updateJob(req, res) {
         if (updateData.companyLocation !== undefined) {
           companyUpdateData.location = updateData.companyLocation || null;
         }
-        
+
         if (Object.keys(companyUpdateData).length > 0) {
           await prisma.company.update({
             where: { id: company.id },
@@ -924,7 +987,7 @@ export async function updateJob(req, res) {
           });
         }
       }
-      
+
       finalUpdateData.companyId = company.id;
     } else if (updateData.companyId && (updateData.website !== undefined || updateData.companyLocation !== undefined)) {
       // If companyId is provided, update the company directly
@@ -935,7 +998,7 @@ export async function updateJob(req, res) {
       if (updateData.companyLocation !== undefined) {
         companyUpdateData.location = updateData.companyLocation || null;
       }
-      
+
       if (Object.keys(companyUpdateData).length > 0) {
         await prisma.company.update({
           where: { id: updateData.companyId },
@@ -943,12 +1006,12 @@ export async function updateJob(req, res) {
         });
       }
     }
-    
+
     // Handle recruiterEmails if provided (store as JSON string)
     if (updateData.recruiterEmails && Array.isArray(updateData.recruiterEmails)) {
       finalUpdateData.recruiterEmails = JSON.stringify(updateData.recruiterEmails);
     }
-    
+
     // Handle other JSON string fields
     if (updateData.driveVenues && Array.isArray(updateData.driveVenues)) {
       finalUpdateData.driveVenues = JSON.stringify(updateData.driveVenues);
@@ -974,7 +1037,7 @@ export async function updateJob(req, res) {
     if (updateData.spocs && Array.isArray(updateData.spocs)) {
       finalUpdateData.spocs = JSON.stringify(updateData.spocs);
     }
-    
+
     // Handle interviewRounds - convert to requirements text (interviewRounds is not a DB field)
     if (updateData.interviewRounds) {
       let interviewRoundsArray = [];
@@ -987,22 +1050,22 @@ export async function updateJob(req, res) {
           // If parsing fails, ignore
         }
       }
-      
+
       if (interviewRoundsArray.length > 0) {
         const requirementsText = interviewRoundsArray
           .map(round => `${round.title || 'Round'}: ${round.detail || ''}`)
           .filter(r => r.trim().length > 0)
           .join('\n');
-        
+
         // Merge with existing requirements if any
         const existingRequirements = finalUpdateData.requirements || updateData.requirements || '';
-        finalUpdateData.requirements = existingRequirements 
+        finalUpdateData.requirements = existingRequirements
           ? (requirementsText ? `${existingRequirements}\n\n${requirementsText}` : existingRequirements)
           : requirementsText;
         finalUpdateData.interviewRounds = JSON.stringify(interviewRoundsArray);
       }
     }
-    
+
     // Ensure dates are properly formatted as Date objects
     if (finalUpdateData.applicationDeadline) {
       finalUpdateData.applicationDeadline = new Date(finalUpdateData.applicationDeadline);
@@ -1026,7 +1089,7 @@ export async function updateJob(req, res) {
           const recruiter = await prisma.recruiter.findUnique({
             where: { id: finalUpdateData.recruiterId },
           });
-          
+
           if (!recruiter) {
             // If recruiterId doesn't exist, try to see if it's a userId that should map to a recruiter
             // But for now, if it's being changed and doesn't exist, preserve the existing one
@@ -1042,9 +1105,9 @@ export async function updateJob(req, res) {
       const company = await prisma.company.findUnique({
         where: { id: finalUpdateData.companyId },
       });
-      
+
       if (!company) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'Invalid company',
           message: `Company with ID ${finalUpdateData.companyId} does not exist.`
         });
@@ -1079,6 +1142,14 @@ export async function updateJob(req, res) {
       finalApplicationDeadline: job.applicationDeadline?.toISOString(),
       finalDriveDate: job.driveDate?.toISOString(),
       timestamp: new Date().toISOString(),
+    });
+
+    // Audit log
+    await logAction(req, {
+      actionType: 'Update Job',
+      targetType: 'Job',
+      targetId: jobId,
+      details: `Updated job: ${job.jobTitle}`,
     });
 
     res.json(job);
@@ -1125,15 +1196,15 @@ export async function postJob(req, res) {
     // Allow posting from IN_REVIEW or POSTED status
     // Rejected jobs cannot be posted
     if (existingJob.status === 'REJECTED') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Job rejected',
         message: 'Rejected jobs cannot be posted. Please edit and resubmit the job for review.'
       });
     }
-    
+
     // Only allow posting from IN_REVIEW or POSTED status
     if (existingJob.status !== 'IN_REVIEW' && existingJob.status !== 'in_review' && existingJob.status !== 'POSTED' && existingJob.status !== 'posted') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Invalid job status',
         message: `Only jobs in IN_REVIEW or POSTED status can be posted. Current status: ${existingJob.status}`
       });
@@ -1217,59 +1288,18 @@ export async function postJob(req, res) {
       logger.error(`Failed to send job posted notification for job ${job.id}:`, emailError);
     }
 
-    // Send email notifications to matching students about new job
-    try {
-      // Build query to find matching students based on job targeting
-      const where = {
-        // Only active students
-        user: {
-          status: 'ACTIVE',
-        },
-      };
-
-      // Apply targeting filters if specified
-      if (targetSchools.length > 0 && !targetSchools.includes('ALL')) {
-        where.school = { in: targetSchools };
-      }
-      if (targetCenters.length > 0 && !targetCenters.includes('ALL')) {
-        where.center = { in: targetCenters };
-      }
-      if (targetBatches.length > 0 && !targetBatches.includes('ALL')) {
-        where.batch = { in: targetBatches };
-      }
-
-      // Find matching students
-      const matchingStudents = await prisma.student.findMany({
-        where,
-        include: {
-          user: {
-            select: {
-              email: true,
-              displayName: true,
-            },
-          },
-        },
-        take: 500, // Limit to avoid too many emails (adjust as needed)
-      });
-
-      if (matchingStudents.length > 0) {
-        // Send bulk email notifications to students
-        const emailResults = await sendBulkJobNotifications(matchingStudents, job);
-        logger.info(
-          `New job notifications sent to ${emailResults.successful} students for job ${job.id} (${emailResults.failed} failed)`
-        );
-      } else {
-        logger.info(`No matching students found for job ${job.id} targeting`);
-      }
-    } catch (emailError) {
-      // Don't fail the request if email fails - log and continue
-      logger.error(`Failed to send new job notifications to students for job ${job.id}:`, emailError);
-    }
+    // Audit log
+    await logAction(req, {
+      actionType: 'Post Job',
+      targetType: 'Job',
+      targetId: jobId,
+      details: `Posted job: ${job.jobTitle}`,
+    });
 
     res.json({
       success: true,
       job,
-      message: 'Job posted successfully. Students have been notified.',
+      message: 'Job posted successfully. Job distribution and email notification dispatched to asynchronous background worker.',
     });
   } catch (error) {
     logger.error('Post job error:', {
@@ -1278,12 +1308,12 @@ export async function postJob(req, res) {
       stack: error.stack,
     });
     console.error('Post job error details:', error);
-    
-    const errorMessage = process.env.NODE_ENV === 'development' 
+
+    const errorMessage = process.env.NODE_ENV === 'development'
       ? error.message || 'Failed to post job'
       : 'Failed to post job. Please try again or contact support.';
-    
-    res.status(500).json({ 
+
+    res.status(500).json({
       error: 'Failed to post job',
       message: errorMessage,
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
@@ -1320,7 +1350,7 @@ export async function approveJob(req, res) {
     }
 
     if (existingJob.status !== 'IN_REVIEW') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Invalid job status',
         message: `Job must be in IN_REVIEW status to be approved. Current status: ${existingJob.status}`
       });
@@ -1449,8 +1479,16 @@ export async function approveJob(req, res) {
       logger.error(`Failed to send new job notifications to students for job ${job.id}:`, emailError);
     }
 
-    res.json({ 
-      success: true, 
+    // Audit log
+    await logAction(req, {
+      actionType: 'Approve Job',
+      targetType: 'Job',
+      targetId: jobId,
+      details: `Approved and posted job: ${job.jobTitle}`,
+    });
+
+    res.json({
+      success: true,
       job,
       message: 'Job approved and posted successfully. Students have been notified.'
     });
@@ -1510,6 +1548,14 @@ export async function deleteJob(req, res) {
 
     logger.info(`Job ${jobId} deleted by user ${userId}`);
 
+    // Audit log
+    await logAction(req, {
+      actionType: 'Delete Job',
+      targetType: 'Job',
+      targetId: id,
+      details: `Deleted job: ${job.jobTitle}`,
+    });
+
     res.json({ message: 'Job deleted successfully' });
   } catch (error) {
     console.error('Delete job error:', error);
@@ -1534,7 +1580,7 @@ export async function rejectJob(req, res) {
     }
 
     if (existingJob.status !== 'IN_REVIEW') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Invalid job status',
         message: `Job must be in IN_REVIEW status to be rejected. Current status: ${existingJob.status}`
       });
@@ -1582,6 +1628,14 @@ export async function rejectJob(req, res) {
       }
     }
 
+    // Audit log
+    await logAction(req, {
+      actionType: 'Reject Job',
+      targetType: 'Job',
+      targetId: jobId,
+      details: `Rejected job: ${job.jobTitle}. Reason: ${rejectionReason || 'No reason provided'}`,
+    });
+
     res.json({ success: true, job });
   } catch (error) {
     console.error('Reject job error:', error);
@@ -1600,7 +1654,7 @@ export async function autoArchiveExpiredJobs(req, res) {
     // NOTE: Auto-archiving is not part of the new workflow
     // Jobs remain POSTED even after deadline passes
     // Application deadline is enforced in the applyToJob logic
-    
+
     return res.json({
       success: true,
       successful: 0,
@@ -1610,7 +1664,7 @@ export async function autoArchiveExpiredJobs(req, res) {
   } catch (error) {
     logger.error('Auto-archive expired jobs error:', error);
     console.error('Auto-archive expired jobs error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to auto-archive expired jobs',
       message: error.message || 'An unexpected error occurred',
     });

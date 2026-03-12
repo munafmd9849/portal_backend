@@ -1,26 +1,27 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import ProfileCard from './ProfileCard.jsx';
-import ProfileCardCompact from './ProfileCardCompact.jsx';
-import ProfileCardAngular from './ProfileCardAngular.jsx';
 import ProfileCardBrutalist from './ProfileCardBrutalist.jsx';
-import ProfileCardCareerStyle from './ProfileCardCareerStyle.jsx';
-import ProfileCardMinimal from './ProfileCardMinimal.jsx';
 import './Records.css';
+import miteshImg from '../../assets/images/mitesh.png';
+import shoyaibImg from '../../assets/images/shoyaib.png';
+import harshImg from '../../assets/images/Harsh.png';
+import munafImg from '../../assets/images/munaf1.png';
+import irfanImg from '../../assets/images/Irfan.png';
+import saiCharanImg from '../../assets/images/sai1.png';
 
 const STUDENT_RECORDS = [
   [
-    { name: "Priya Sharma", company: "Microsoft", role: "Software Engineer", package: "18 LPA", batch: "2023-2027", profileImg: "https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=150&h=150&fit=crop&crop=face", linkedin: "https://linkedin.com/in/priya-sharma" },
-    { name: "Rahul Kumar", company: "Google", role: "Data Scientist", package: "22 LPA", batch: "2023-2027", profileImg: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face", linkedin: "https://linkedin.com/in/rahul-kumar" },
-    { name: "Anjali Patel", company: "Amazon", role: "Product Manager", package: "20 LPA", batch: "2023-2027", profileImg: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face", linkedin: "https://linkedin.com/in/anjali-patel" },
+    { name: "Mitesh", company: "Microsoft", role: "Software Engineer", package: "18 LPA", batch: "2023-2027", profileImg: miteshImg, linkedin: "https://linkedin.com/in/mitesh" },
+    { name: "Shoyaib", company: "Google", role: "Data Scientist", package: "22 LPA", batch: "2023-2027", profileImg: shoyaibImg, linkedin: "https://linkedin.com/in/shoyaib" },
+    { name: "Harsh", company: "Amazon", role: "Product Manager", package: "20 LPA", batch: "2023-2027", profileImg: harshImg, linkedin: "https://linkedin.com/in/harsh" },
     { name: "Vikram Singh", company: "Tesla", role: "ML Engineer", package: "25 LPA", batch: "2023-2027", profileImg: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face", linkedin: "https://linkedin.com/in/vikram-singh" },
     { name: "Meera Reddy", company: "Netflix", role: "Frontend Developer", package: "19 LPA", batch: "2023-2027", profileImg: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face", linkedin: "https://linkedin.com/in/meera-reddy" },
     { name: "Arjun Mehta", company: "Adobe", role: "UX Designer", package: "16 LPA", batch: "2023-2027", profileImg: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face", linkedin: "https://linkedin.com/in/arjun-mehta" },
     { name: "Zara Khan", company: "Intel", role: "Hardware Engineer", package: "17 LPA", batch: "2023-2027", profileImg: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=face", linkedin: "https://linkedin.com/in/zara-khan" }
   ],
   [
-    { name: "Aditya Verma", company: "IBM", role: "Cloud Architect", package: "21 LPA", batch: "2024-2028", profileImg: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop&crop=face", linkedin: "https://linkedin.com/in/aditya-verma" },
-    { name: "Kavya Iyer", company: "Oracle", role: "Database Admin", package: "18 LPA", batch: "2024-2028", profileImg: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&h=150&fit=crop&crop=face", linkedin: "https://linkedin.com/in/kavya-iyer" },
-    { name: "Rohan Desai", company: "Salesforce", role: "Business Analyst", package: "16 LPA", batch: "2024-2028", profileImg: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face", linkedin: "https://linkedin.com/in/rohan-desai" },
+    { name: "Md Munaf", company: "Oracle", role: "Backend Engineer", package: "46 LPA", batch: "2024-2028", profileImg: munafImg, linkedin: "https://www.linkedin.com/in/munafmohammad/" },
+    { name: "Md Irfan", company: "Microsoft", role: "Full Stack", package: "46 LPA", batch: "2024-2028", profileImg: irfanImg, linkedin: "https://www.linkedin.com/in/mohammad-irfan-638a2b308/" },
+    { name: "Sai Charan", company: "ULICA", role: "Entrepreneur", package: "Turnover 100Cr", batch: "2024-2028", profileImg: saiCharanImg, linkedin: "https://linkedin.com/in/sai-charan" },
     { name: "Ishita Gupta", company: "Microsoft", role: "DevOps Engineer", package: "19 LPA", batch: "2024-2028", profileImg: "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=150&h=150&fit=crop&crop=face", linkedin: "https://linkedin.com/in/ishita-gupta" },
     { name: "Shaurya Malhotra", company: "Google", role: "Backend Developer", package: "23 LPA", batch: "2024-2028", profileImg: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face", linkedin: "https://linkedin.com/in/shaurya-malhotra" },
     { name: "Aisha Rahman", company: "Amazon", role: "QA Engineer", package: "17 LPA", batch: "2024-2028", profileImg: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face", linkedin: "https://linkedin.com/in/aisha-rahman" },
@@ -182,96 +183,28 @@ export default function PlacementRecords({ onLoginOpen }) {
           </div>
 
           <div className="relative">
-            {/* Laptop and up: 5-card grid — 5 options for comparison: Brutalist, Career, Compact, Minimal, ProfileCard */}
+            {/* Laptop and up: 5-card grid — first 3 are Mitesh, Shoyaib, Harsh; rest from STUDENT_RECORDS */}
             <div
-              className="hidden lg:grid grid-cols-5 gap-8 xl:gap-10 transition-all duration-1000 ease-in-out max-w-7xl mx-auto justify-items-center w-full pt-9"
+              className="hidden lg:grid grid-cols-5 gap-8 xl:gap-10 transition-all duration-1000 ease-in-out max-w-7xl mx-auto justify-items-center items-start w-full pt-9"
               onMouseEnter={() => setIsRotating(false)}
               onMouseLeave={() => setIsRotating(true)}
             >
               {currentCards.map((student, index) => {
-                const title = `${student.company} • ${student.role}`;
                 const emailHref = `mailto:${String(student.name || '').toLowerCase().trim().replace(/\s+/g, '.')}@${String(student.company || '').toLowerCase().trim().replace(/\s+/g, '')}.com`;
                 const testimonial = TESTIMONIALS[(currentRow * cardsToShow + index) % TESTIMONIALS.length];
-                const wrapperClass = "w-full max-w-[230px] xl:max-w-[250px]";
+                const wrapperClass = "w-full max-w-[200px] xl:max-w-[220px]";
                 const wrapperStyle = { animationDelay: `${index * 80}ms`, animation: 'slideInUp 0.6s ease-out forwards' };
 
-                if (index === 0) {
-                  return (
-                    <div key={`${currentRow}-${index}`} className={wrapperClass} style={wrapperStyle}>
-                      <ProfileCardBrutalist
-                        name={student.name}
-                        role={student.role}
-                        company={student.company}
-                        status={student.package}
-                        testimonial={testimonial}
-                        linkedinUrl={student.linkedin}
-                        emailHref={emailHref}
-                      />
-                    </div>
-                  );
-                }
-                if (index === 1) {
-                  const careerTitle = `${student.company} • ${student.package}`;
-                  return (
-                    <div key={`${currentRow}-${index}`} className={wrapperClass} style={wrapperStyle}>
-                      <ProfileCardCareerStyle
-                        name={student.name}
-                        title={careerTitle}
-                        avatarUrl={student.profileImg}
-                        testimonial={testimonial}
-                        linkedinUrl={student.linkedin}
-                        emailHref={emailHref}
-                      />
-                    </div>
-                  );
-                }
-                if (index === 2) {
-                  return (
-                    <div key={`${currentRow}-${index}`} className={wrapperClass} style={wrapperStyle}>
-                      <ProfileCardAngular
-                        name={student.name}
-                        company={student.company}
-                        status={student.package}
-                        testimonial={testimonial}
-                        avatarUrl={student.profileImg}
-                        linkedinUrl={student.linkedin}
-                        emailHref={emailHref}
-                      />
-                    </div>
-                  );
-                }
-                if (index === 3) {
-                  return (
-                    <div key={`${currentRow}-${index}`} className={wrapperClass} style={wrapperStyle}>
-                      <ProfileCardMinimal
-                        name={student.name}
-                        title={title}
-                        status={student.package}
-                        avatarUrl={student.profileImg}
-                        linkedinUrl={student.linkedin}
-                        emailHref={emailHref}
-                        batch={student.batch}
-                      />
-                    </div>
-                  );
-                }
                 return (
                   <div key={`${currentRow}-${index}`} className={wrapperClass} style={wrapperStyle}>
-                    <ProfileCard
+                    <ProfileCardBrutalist
                       name={student.name}
-                      title={title}
-                      batch={student.batch}
-                      handle={String(student.name || '').toLowerCase().replace(/\s+/g, '')}
+                      role={student.role}
+                      company={student.company}
                       status={student.package}
-                      contactText="View Profile"
-                      avatarUrl={student.profileImg}
-                      showUserInfo={false}
-                      enableTilt={true}
-                      enableMobileTilt={false}
-                      showBehindGlow
-                      behindGlowColor="rgba(148,163,184,0.4)"
-                      customInnerGradient="linear-gradient(145deg,#334155cc 0%,#64748b66 100%)"
+                      batch={student.batch}
                       testimonial={testimonial}
+                      avatarUrl={student.profileImg}
                       linkedinUrl={student.linkedin}
                       emailHref={emailHref}
                     />
@@ -293,7 +226,7 @@ export default function PlacementRecords({ onLoginOpen }) {
               ))}
             </div>
 
-            {/* Mobile only: ProfileCard carousel — 1 full card + 1/4 of next */}
+            {/* Mobile only: Brutalist card carousel */}
             <div
               ref={mobileScrollRef}
               className="lg:hidden -mx-4 sm:-mx-6 px-4 sm:px-6 flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide"
@@ -308,21 +241,14 @@ export default function PlacementRecords({ onLoginOpen }) {
                   style={{ width: '80%', minWidth: '80%' }}
                 >
                   <div className="w-full max-w-[240px]">
-                    <ProfileCard
+                    <ProfileCardBrutalist
                       name={student.name}
-                      title={`${student.company} • ${student.role}`}
-                      batch={student.batch}
-                      handle={String(student.name || '').toLowerCase().replace(/\s+/g, '')}
+                      role={student.role}
+                      company={student.company}
                       status={student.package}
-                      contactText="View Profile"
-                      avatarUrl={student.profileImg}
-                      showUserInfo={false}
-                      enableTilt={false}
-                      enableMobileTilt={false}
-                      showBehindGlow
-                      behindGlowColor="rgba(148,163,184,0.4)"
-                      customInnerGradient="linear-gradient(145deg,#334155cc 0%,#64748b66 100%)"
+                      batch={student.batch}
                       testimonial={TESTIMONIALS[idx % TESTIMONIALS.length]}
+                      avatarUrl={student.profileImg}
                       linkedinUrl={student.linkedin}
                       emailHref={`mailto:${String(student.name || '').toLowerCase().trim().replace(/\s+/g, '.')}@${String(student.company || '').toLowerCase().trim().replace(/\s+/g, '')}.com`}
                     />
