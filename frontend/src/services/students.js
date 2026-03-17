@@ -23,7 +23,7 @@ export const getStudentProfile = async (studentId) => {
  */
 export const updateStudentProfile = async (studentId, data) => {
   try {
-    const updated = await api.updateStudentProfile(data);
+    const updated = await api.updateStudentProfile(data, studentId);
     return updated;
   } catch (error) {
     console.error('updateStudentProfile error:', error);

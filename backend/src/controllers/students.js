@@ -207,9 +207,9 @@ export async function updateStudentProfile(req, res) {
     const profileData = req.body;
     const userRole = req.user?.role;
 
-    // For admin users, allow updating other students' profiles if studentId is provided
+    // For admin / super admin users, allow updating other students' profiles if studentId is provided
     let targetUserId = userId;
-    if (userRole === 'ADMIN' && profileData.studentId) {
+    if (['ADMIN', 'SUPER_ADMIN'].includes(userRole) && profileData.studentId) {
       // Admin is updating another student's profile
       const targetStudent = await prisma.student.findUnique({
         where: { id: profileData.studentId },

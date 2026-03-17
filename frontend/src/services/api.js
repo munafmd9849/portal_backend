@@ -514,10 +514,13 @@ export const api = {
 
   // Students
   getStudentProfile: (studentId) => apiRequest(studentId ? `/students/profile?studentId=${studentId}` : '/students/profile'),
-  updateStudentProfile: (data) => apiRequest('/students/profile', {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  }),
+  updateStudentProfile: (data, studentId) => {
+    const endpoint = studentId ? `/students/profile?studentId=${studentId}` : '/students/profile';
+    return apiRequest(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
   blockUnblockStudent: (studentId, data) => apiRequest(`/students/${studentId}/block`, {
     method: 'PATCH',
     body: JSON.stringify(data),

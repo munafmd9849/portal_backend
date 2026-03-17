@@ -484,10 +484,11 @@ export default function StudentDirectory() {
   const [blockModalOpen, setBlockModalOpen] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [cgpaModalOpen, setCgpaModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [operationLoading, setOperationLoading] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
-  const [dashboardData, setDashboardData] = useState({ loading: true, error: null, jobs: [], applications: [], skills: [] });
+  const [dashboardData, setDashboardData] = useState({ loading: true, error: null, jobs: [], applications: [], skills: [], education: [], profile: null });
   const studentsPerPage = 50;
   const [totalPages, setTotalPages] = useState(1);
   const [totalStudents, setTotalStudents] = useState(0);
@@ -860,6 +861,13 @@ export default function StudentDirectory() {
         getStudentApplications(student.id)
       ]);
 
+      // Merge loaded profile data into selected student so the sidebar shows complete info
+      if (profile && student && profile.id === student.id) {
+        setSelectedStudent(prev =>
+          prev && prev.id === student.id ? { ...prev, ...profile } : prev
+        );
+      }
+
       setDashboardData({
         loading: false,
         error: null,
@@ -867,6 +875,7 @@ export default function StudentDirectory() {
         applications: applications || [],
         skills: skills || [],
         education: education || [],
+        profile: profile || null,
       });
     } catch (error) {
       console.error('Error loading student data:', error);
@@ -890,6 +899,11 @@ export default function StudentDirectory() {
     setEditModalOpen(true);
   };
 
+  const handleEditCgpa = (student) => {
+    setSelectedStudent(student);
+    setCgpaModalOpen(true);
+  };
+
   const handleEditSave = async (studentId, updatedData) => {
     if (!canModifyStudents()) {
       alert('Only administrators can edit student information.');
@@ -908,6 +922,29 @@ export default function StudentDirectory() {
       console.error('Error updating student:', error);
       setError('Failed to update student');
       alert('Failed to update student: ' + (error.message || 'Unknown error'));
+      throw error;
+    } finally {
+      setOperationLoading(false);
+    }
+  };
+
+  const handleCgpaSave = async (studentId, updatedData) => {
+    if (!canModifyStudents()) {
+      alert('Only administrators can edit student information.');
+      throw new Error('Permission denied');
+    }
+
+    try {
+      setOperationLoading(true);
+      await updateStudentProfile(studentId, updatedData);
+
+      await handleStudentUpdate(studentId, updatedData);
+
+      alert('CGPA updated successfully!');
+    } catch (error) {
+      console.error('Error updating CGPA:', error);
+      setError('Failed to update CGPA');
+      alert('Failed to update CGPA: ' + (error.message || 'Unknown error'));
       throw error;
     } finally {
       setOperationLoading(false);
@@ -1106,6 +1143,20 @@ export default function StudentDirectory() {
             title="View Student Profile"
           >
             <ImEye className="w-4 h-4" />
+          </button>
+
+          {/* Edit CGPA Button */}
+          <button
+            onClick={() => handleEditCgpa(student)}
+            disabled={!canModifyStudents() || operationLoading}
+            className="p-2 bg-white border border-green-300 text-green-700 hover:bg-green-50 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
+            title="Edit CGPA"
+          >
+            {operationLoading ? (
+              <Loader className="w-4 h-4 animate-spin" />
+            ) : (
+              <FaGraduationCap className="w-4 h-4" />
+            )}
           </button>
 
           {/* Edit Button */}
@@ -1562,6 +1613,13 @@ export default function StudentDirectory() {
         onClose={() => setEditModalOpen(false)}
         student={selectedStudent}
         onSave={handleEditSave}
+      />
+
+      <EditCGPAModal
+        isOpen={cgpaModalOpen}
+        onClose={() => setCgpaModalOpen(false)}
+        student={selectedStudent}
+        onSave={handleCgpaSave}
       />
 
       <BlockModal

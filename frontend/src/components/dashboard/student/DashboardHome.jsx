@@ -83,11 +83,13 @@ const DashboardHome = ({
     studentData?.stats && typeof studentData.stats.applied === 'number'
       ? studentData.stats
       : { applied: 0, shortlisted: 0, interviewed: 0, offers: 0 };
-  const formattedStudentData = studentData ? {
-    id: user?.id,
-    ...studentData,
-    stats,
-  } : null;
+  const formattedStudentData = studentData
+    ? {
+        ...studentData,
+        id: studentData.id || user?.id,
+        stats,
+      }
+    : null;
 
 
   //job details navigation
