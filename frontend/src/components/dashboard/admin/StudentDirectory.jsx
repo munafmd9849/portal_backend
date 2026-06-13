@@ -7,9 +7,8 @@ import { Loader, Download, Upload, SquarePen, User, Activity, TrendingUp, Gradua
 import PWIOILOGO from '../../../assets/images/brand_logo.webp';
 import { getAllStudents, updateStudentProfile } from '../../../services/students';
 import { fetchStudentsWithScores } from '../../../services/adminReadiness';
-import { fetchStudentDirectory, exportStudentDirectory, exportStudentDirectoryToGoogleSheets, fetchStudentPanelExtras } from '../../../services/studentDirectory';
+import { fetchStudentDirectory, exportStudentDirectory, fetchStudentPanelExtras } from '../../../services/studentDirectory';
 import StudentDirectoryTable from './StudentDirectoryTable';
-import GoogleSheetsConfigModal from './GoogleSheetsConfigModal';
 import DirectoryLoadingPanel from './DirectoryLoading';
 import { useAuth } from '../../../hooks/useAuth';
 import api from '../../../services/api';
@@ -196,91 +195,80 @@ const EditStudentModal = ({ isOpen, onClose, student, onSave }) => {
     }
   };
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [isOpen]);
-
   if (!isOpen || !student) return null;
 
-  const inputClass = (hasError) =>
-    `w-full px-4 py-3 border rounded-xl text-sm transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/20 ${
-      hasError
-        ? 'border-rose-300 bg-rose-50 focus:border-rose-400'
-        : 'border-slate-200 bg-white focus:border-emerald-400'
-    }`;
-
-  return createPortal(
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95 duration-300">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-white">
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <FaEdit className="text-emerald-600" />
-            Edit Student
-          </h2>
+  return (
+    <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
+        <div className="flex items-center justify-between px-6 py-4 bg-slate-800 text-white border-b border-slate-700">
+          <h2 className="text-lg font-semibold">Edit student</h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-            aria-label="Close"
+            className="p-1.5 rounded-md text-slate-300 hover:text-white hover:bg-slate-700 transition-colors"
           >
             <FaTimes size={18} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6">
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
-                Full Name *
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Full name *
               </label>
               <input
                 type="text"
                 name="fullName"
                 value={formData.fullName}
                 onChange={handleChange}
-                className={inputClass(errors.fullName)}
-                placeholder="Enter student's full name"
+                className={`w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-800 focus:border-blue-800 transition-colors ${errors.fullName
+                  ? 'border-red-300 bg-red-50'
+                  : 'border-gray-300 bg-white'
+                  }`}
+                placeholder="Student full name"
               />
-              {errors.fullName && <p className="text-rose-600 text-xs mt-1.5 font-medium">{errors.fullName}</p>}
+              {errors.fullName && <p className="text-red-600 text-xs mt-1">{errors.fullName}</p>}
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
-                Email Address *
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Email *
               </label>
               <input
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                className={inputClass(errors.email)}
-                placeholder="Enter student email"
+                className={`w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-800 focus:border-blue-800 transition-colors ${errors.email
+                  ? 'border-red-300 bg-red-50'
+                  : 'border-gray-300 bg-white'
+                  }`}
+                placeholder="Email address"
               />
-              {errors.email && <p className="text-rose-600 text-xs mt-1.5 font-medium">{errors.email}</p>}
+              {errors.email && <p className="text-red-600 text-xs mt-1">{errors.email}</p>}
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
-                Phone Number *
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Phone *
               </label>
               <input
                 type="tel"
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
-                className={inputClass(errors.phone)}
+                className={`w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-800 focus:border-blue-800 transition-colors ${errors.phone
+                  ? 'border-red-300 bg-red-50'
+                  : 'border-gray-300 bg-white'
+                  }`}
                 placeholder="+91 12345 67890"
               />
-              {errors.phone && <p className="text-rose-600 text-xs mt-1.5 font-medium">{errors.phone}</p>}
+              {errors.phone && <p className="text-red-600 text-xs mt-1">{errors.phone}</p>}
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 CGPA *
               </label>
               <input
@@ -291,18 +279,21 @@ const EditStudentModal = ({ isOpen, onClose, student, onSave }) => {
                 min="0"
                 max="10"
                 step="0.01"
-                placeholder="e.g. 9.00"
-                className={inputClass(errors.cgpa)}
+                placeholder="e.g. 8.75"
+                className={`w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-800 focus:border-blue-800 transition-colors ${errors.cgpa
+                  ? 'border-red-300 bg-red-50'
+                  : 'border-gray-300 bg-white'
+                  }`}
               />
-              {errors.cgpa && <p className="text-rose-600 text-xs mt-1.5 font-medium">{errors.cgpa}</p>}
+              {errors.cgpa && <p className="text-red-600 text-xs mt-1">{errors.cgpa}</p>}
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 mt-6 pt-5 border-t border-slate-100">
+          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-colors"
+              className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
               disabled={loading}
             >
               Cancel
@@ -310,16 +301,15 @@ const EditStudentModal = ({ isOpen, onClose, student, onSave }) => {
             <button
               type="submit"
               disabled={loading}
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
+              className="px-5 py-2 bg-blue-800 text-white rounded-md text-sm font-medium hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center transition-colors"
             >
-              {loading && <Loader className="h-4 w-4 animate-spin" />}
-              {loading ? 'Saving...' : 'Save Changes'}
+              {loading && <Loader className="h-4 w-4 animate-spin mr-2" />}
+              {loading ? 'Saving…' : 'Save changes'}
             </button>
           </div>
         </form>
       </div>
-    </div>,
-    document.body
+    </div>
   );
 };
 
@@ -563,8 +553,6 @@ export default function StudentDirectory() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [operationLoading, setOperationLoading] = useState(false);
-  const [sheetsExporting, setSheetsExporting] = useState(false);
-  const [showSheetsConfigModal, setShowSheetsConfigModal] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [dashboardData, setDashboardData] = useState({ loading: true, error: null, jobs: [], applications: [], skills: [] });
   const studentsPerPage = 50;
@@ -694,15 +682,6 @@ export default function StudentDirectory() {
       setTotalStudents(paginationData.total || studentsArray.length);
       if (studentsData?.summary) {
         setStudentSummary(studentsData.summary);
-      } else if (studentsData?.statusBreakdown) {
-        const b = studentsData.statusBreakdown;
-        setStudentSummary({
-          totalStudents: b.total ?? 0,
-          activeStudents: b.active ?? 0,
-          blockedStudents: b.blocked ?? 0,
-          pendingStudents: 0,
-          rejectedStudents: 0,
-        });
       }
 
       // Format students with safe defaults
@@ -959,51 +938,7 @@ export default function StudentDirectory() {
     }
   }, [filters, appliedSearch]);
 
-  const exportToGoogleSheets = useCallback(async () => {
-    setSheetsExporting(true);
-    try {
-      const result = await exportStudentDirectoryToGoogleSheets({
-        search: appliedSearch,
-        center: filters.center,
-        school: filters.school,
-        status: filters.status,
-        batch: filters.batch,
-        minCgpa: filters.minCgpa,
-        maxCgpa: filters.maxCgpa,
-        tier: filters.tier,
-        limit: 2000,
-        page: 1,
-      });
-
-      if (result?.error) {
-        throw new Error(result.message || result.error);
-      }
-
-      const rowCount = result?.rowCount ?? 0;
-      const tabName = result?.tabName || 'new tab';
-      if (result?.spreadsheetUrl) {
-        window.open(result.spreadsheetUrl, '_blank', 'noopener,noreferrer');
-      }
-
-      alert(`Exported ${rowCount} students to Google Sheets tab "${tabName}".`);
-    } catch (error) {
-      console.error('Google Sheets export error:', error);
-      const message = error?.response?.data?.message
-        || error?.response?.data?.error
-        || error?.message
-        || 'Failed to export to Google Sheets';
-
-      const isSuperAdminUser = (user?.role || user?.userType || '').toLowerCase() === 'super_admin';
-      if (error?.response?.status === 503 && isSuperAdminUser) {
-        const openConfig = window.confirm(`${message}\n\nOpen Google Sheets setup now?`);
-        if (openConfig) setShowSheetsConfigModal(true);
-      } else {
-        alert(message);
-      }
-    } finally {
-      setSheetsExporting(false);
-    }
-  }, [filters, appliedSearch, user]);
+  
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -1265,6 +1200,7 @@ export default function StudentDirectory() {
     }
   };
 
+  // Calculate statistics from ALL students (not filtered) - must be before conditional returns to follow Rules of Hooks
   const stats = studentSummary;
 
   if (loading) {
@@ -1381,73 +1317,60 @@ export default function StudentDirectory() {
       )}
 
       {/* Filters and Search - Upgraded design */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6">
-        <div className="flex items-center gap-2.5 mb-5">
-          <FaFilter className="w-4 h-4 text-indigo-500" />
-          <h3 className="text-md font-bold text-slate-800 font-outfit uppercase tracking-wider">Filters & Search</h3>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-          {/* Center Filter */}
+      <div className="bg-white p-4 rounded-lg border border-gray-200 mb-6">
+        <h3 className="text-sm font-semibold text-gray-800 mb-3">Filters</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
           <CustomDropdown
             label="Center"
-            icon={FaMapMarkerAlt}
-            iconColor="text-indigo-600"
+            compact
             options={academicFilterOptions.centers.map((opt) => ({ value: opt.id, label: opt.name }))}
             value={filters.center}
             onChange={(value) => handleFilterDropdownChange('center', value)}
-            placeholder="All Centers"
+            placeholder="All centres"
           />
 
-          {/* School Filter */}
           <CustomDropdown
             label="School"
-            icon={FaGraduationCap}
-            iconColor="text-purple-600"
+            compact
             options={academicFilterOptions.schools.map((opt) => ({ value: opt.id, label: opt.name }))}
             value={filters.school}
             onChange={(value) => handleFilterDropdownChange('school', value)}
-            placeholder="All Schools"
+            placeholder="All schools"
           />
 
-          {/* Batch Filter */}
           <CustomDropdown
             label="Batch"
-            icon={FaCalendarAlt}
-            iconColor="text-fuchsia-600"
+            compact
             options={academicFilterOptions.batches.map((opt) => ({
               value: opt.id,
               label: opt.label || opt.name,
             }))}
             value={filters.batch}
             onChange={(value) => handleFilterDropdownChange('batch', value)}
-            placeholder="All Batches"
+            placeholder="All batches"
           />
 
-          {/* Status Filter */}
           <CustomDropdown
             label="Status"
-            icon={FaCheckCircle}
-            iconColor="text-green-600"
+            compact
             options={STATUS_OPTIONS.map(opt => ({ value: opt.id, label: opt.name }))}
             value={filters.status}
             onChange={(value) => handleFilterDropdownChange('status', value)}
-            placeholder="All Status"
+            placeholder="All status"
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <CustomDropdown
             label="Readiness tier"
-            icon={FaChartLine}
-            iconColor="text-indigo-600"
+            compact
             options={READINESS_TIER_OPTIONS.map(opt => ({ value: opt.id, label: opt.name }))}
             value={filters.tier}
             onChange={(value) => handleFilterDropdownChange('tier', value)}
             placeholder="All readiness"
           />
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-              <FaGraduationCap className="w-4 h-4 text-blue-600" />
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
               Min CGPA
             </label>
             <input
@@ -1459,12 +1382,11 @@ export default function StudentDirectory() {
               step="0.01"
               value={filters.minCgpa}
               onChange={handleFilterChange}
-              className="w-full pl-4 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer bg-white text-slate-800 font-medium hover:border-slate-300 shadow-sm"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-800 focus:border-blue-800 bg-white text-gray-800"
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-              <FaGraduationCap className="w-4 h-4 text-orange-600" />
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
               Max CGPA
             </label>
             <input
@@ -1476,15 +1398,16 @@ export default function StudentDirectory() {
               step="0.01"
               value={filters.maxCgpa}
               onChange={handleFilterChange}
-              className="w-full pl-4 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer bg-white text-slate-800 font-medium hover:border-slate-300 shadow-sm"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-800 focus:border-blue-800 bg-white text-gray-800"
             />
           </div>
           <div className="flex items-end">
             <button
+              type="button"
               onClick={clearFilters}
-              className="w-full px-4 py-2.5 bg-gradient-to-r from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 text-slate-700 rounded-xl transition-all duration-200 font-bold shadow-sm"
+              className="w-full px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-md text-sm font-medium transition-colors"
             >
-              Reset Filters
+              Reset filters
             </button>
           </div>
         </div>
@@ -1530,10 +1453,6 @@ export default function StudentDirectory() {
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
               onExport={() => downloadFilteredStudents('export')}
-              onExportToSheets={exportToGoogleSheets}
-              sheetsExporting={sheetsExporting}
-              showSheetsConfig={isSuperAdmin()}
-              onConfigureSheets={() => setShowSheetsConfigModal(true)}
               operationLoading={operationLoading}
               canModifyStudents={canModifyStudents}
               isSuperAdmin={isSuperAdmin}
@@ -1607,11 +1526,6 @@ export default function StudentDirectory() {
         isUnblocking={selectedStudent?.status === 'Blocked'}
         canUnblockPermanent={isSuperAdmin()}
         onConfirm={handleBlockConfirm}
-      />
-
-      <GoogleSheetsConfigModal
-        isOpen={showSheetsConfigModal}
-        onClose={() => setShowSheetsConfigModal(false)}
       />
 
       {/* Student Profile Sidebar */}
@@ -1791,11 +1705,6 @@ const StudentDashboardPanel = ({ isOpen, onClose, student, dashboardData }) => {
       .join('')
       .substring(0, 2)
       .toUpperCase();
-  };
-
-  const getSkillLabel = (skill) => {
-    if (typeof skill === 'string') return skill.trim();
-    return (skill?.skillName || skill?.name || skill?.title || '').trim();
   };
 
   const readiness = getReadinessDisplay(
@@ -2200,28 +2109,15 @@ const StudentDashboardPanel = ({ isOpen, onClose, student, dashboardData }) => {
                       <CheckCircle2 className="w-4.5 h-4.5 text-indigo-500" /> Skills
                     </h3>
                     <div className="flex flex-wrap gap-2">
-                      {dashboardData.skills
-                        ?.map((skill, idx) => ({
-                          key: skill?.id || idx,
-                          label: getSkillLabel(skill),
-                          skill: typeof skill === 'object' ? skill : null,
-                        }))
-                        .filter(({ label }) => label)
-                        .map(({ key, label, skill }) => (
-                          <span
-                            key={key}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100"
-                          >
-                            {label}
-                            {typeof skill?.rating === 'number' && skill.rating > 0 && (
-                              <span className="text-[10px] font-bold text-indigo-500/80">
-                                {skill.rating}/5
-                              </span>
-                            )}
-                          </span>
-                        ))}
-                      {(!dashboardData.skills?.length ||
-                        !dashboardData.skills.some((skill) => getSkillLabel(skill))) && (
+                      {dashboardData.skills?.map((skill, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100"
+                        >
+                          {typeof skill === 'string' ? skill : (skill.name || skill.title)}
+                        </span>
+                      ))}
+                      {(!dashboardData.skills || dashboardData.skills.length === 0) && (
                         <span className="text-slate-400 text-xs font-medium">No verified skills entered.</span>
                       )}
                     </div>
