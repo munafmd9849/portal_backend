@@ -3,16 +3,16 @@ import { createPortal } from 'react-dom';
 import { ImEye } from 'react-icons/im';
 import { FaSearch, FaFilter, FaChevronLeft, FaChevronRight, FaTimes, FaEdit, FaUser, FaEnvelope, FaPhone, FaGraduationCap, FaMapMarkerAlt, FaCalendarAlt, FaIdCard, FaInfoCircle, FaCheckCircle, FaUsers, FaChartLine, FaExternalLinkAlt } from 'react-icons/fa';
 import { MdBlock } from 'react-icons/md';
-import { Loader, Download, Upload, SquarePen, User, Activity, TrendingUp, GraduationCap, BarChart2, Phone, CheckCircle2, MessageSquare, Briefcase, Code, X, Tag, Folder, ExternalLink, Check, ClipboardList } from 'lucide-react';
+import { Loader, Download, Upload, SquarePen, User, Activity, TrendingUp, GraduationCap, BarChart2, Phone, CheckCircle2, MessageSquare, Briefcase, Code, X, Tag, Folder, ExternalLink, Check, ClipboardList, FileText } from 'lucide-react';
 import PWIOILOGO from '../../../assets/images/brand_logo.webp';
 import { getAllStudents, updateStudentProfile } from '../../../services/students';
 import { fetchStudentsWithScores } from '../../../services/adminReadiness';
-import { fetchStudentDirectory, exportStudentDirectory, fetchStudentPanelExtras } from '../../../services/studentDirectory';
+import { fetchStudentDirectory, exportStudentDirectory, fetchStudentPanelExtras, fetchStudentResumeViewUrl } from '../../../services/studentDirectory';
 import StudentDirectoryTable from './StudentDirectoryTable';
 import DirectoryLoadingPanel from './DirectoryLoading';
 import { useAuth } from '../../../hooks/useAuth';
 import api from '../../../services/api';
-import { API_BASE_URL } from '../../../config/api';
+import { resolveBackendPath } from '../../../config/api';
 import CustomDropdown from '../../common/CustomDropdown';
 import StudentDetailsModal from '../../common/StudentDetailsModal';
 import BlockModal from '../../common/BlockModal';
@@ -1057,6 +1057,7 @@ export default function StudentDirectory() {
         experiences: panel.experiences || [],
         mockInterviews: panel.mockInterviews || { interviews: [], completedCount: 0 },
         assessments: panel.assessments || [],
+        resumes: panel.resumes || [],
         funnelStats: panel.funnelStats || {
           applied: panel.profile.statsApplied ?? 0,
           shortlisted: panel.profile.statsShortlisted ?? 0,
@@ -1580,6 +1581,80 @@ function InterviewAppraisalCard({ interview }) {
   );
 }
 
+function formatResumeFileSize(bytes) {
+  if (!bytes) return null;
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function StudentPanelResumesTab({ studentId, resumes = [], onViewResume }) {
+  const openResume = async (resume) => {
+    if (!studentId || !resume?.id) return;
+    try {
+      const result = await onViewResume(studentId, resume.id);
+      const url = result?.direct ? result.url : resolveBackendPath(result.url);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch {
+      if (resume.fileUrl) window.open(resume.fileUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  return (
+    <div className="space-y-4 animate-fade-in">
+      <div className="flex items-center justify-between">
+        <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+          <FileText className="w-4.5 h-4.5 text-indigo-500" /> Resumes
+        </h3>
+        <span className="text-xs text-slate-400">Total: {resumes.length}</span>
+      </div>
+
+      <div className="space-y-3">
+        {resumes.map((resume) => (
+          <div key={resume.id} className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
+            <div className="flex justify-between items-start gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h5 className="font-bold text-slate-800 text-sm font-outfit truncate">
+                    {resume.title || resume.fileName || 'Resume'}
+                  </h5>
+                  {resume.isDefault && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-100">
+                      Default
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 mt-1 truncate">{resume.fileName}</p>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  {resume.uploadedAt
+                    ? `Uploaded ${new Date(resume.uploadedAt).toLocaleDateString()}`
+                    : 'Upload date unknown'}
+                  {formatResumeFileSize(resume.fileSize)
+                    ? ` · ${formatResumeFileSize(resume.fileSize)}`
+                    : ''}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => openResume(resume)}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 shrink-0"
+              >
+                Open
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {resumes.length === 0 && (
+          <p className="text-center py-8 text-sm text-slate-400 font-medium bg-white rounded-2xl border border-dashed border-slate-200">
+            No resumes uploaded yet.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Student Dashboard Panel Component - Similar to Assessment.jsx
 const StudentDashboardPanel = ({ isOpen, onClose, student, dashboardData }) => {
   const [currentStudent, setCurrentStudent] = useState(student);
@@ -1797,6 +1872,7 @@ const StudentDashboardPanel = ({ isOpen, onClose, student, dashboardData }) => {
               { id: 'mock', label: 'Mock Interviews', icon: MessageSquare },
               { id: 'assessments', label: 'Assessments', icon: ClipboardList },
               { id: 'applications', label: 'Applications', icon: Briefcase },
+              { id: 'resumes', label: 'Resumes', icon: FileText },
               { id: 'skills', label: 'Skills & Projects', icon: Code },
             ].map(({ id, label, icon: Icon }) => (
               <button
@@ -2099,6 +2175,14 @@ const StudentDashboardPanel = ({ isOpen, onClose, student, dashboardData }) => {
                     )}
                   </div>
                 </div>
+              )}
+
+              {activeTab === 'resumes' && (
+                <StudentPanelResumesTab
+                  studentId={currentStudent?.id || student?.id}
+                  resumes={dashboardData.resumes || []}
+                  onViewResume={fetchStudentResumeViewUrl}
+                />
               )}
 
               {/* Skills & Projects Content */}

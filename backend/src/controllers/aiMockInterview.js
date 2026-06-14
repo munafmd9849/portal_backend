@@ -575,9 +575,6 @@ export async function getStudentAiInterviewSession(req, res) {
     });
 
     if (!enrollment) return res.status(404).json({ error: 'Interview not assigned' });
-    if (enrollment.interview.sessionMode === 'CONVERSATIONAL') {
-      return res.status(400).json({ error: 'Use the conversational interview portal for this session' });
-    }
 
     const now = new Date();
     if (enrollment.status === 'COMPLETED') {

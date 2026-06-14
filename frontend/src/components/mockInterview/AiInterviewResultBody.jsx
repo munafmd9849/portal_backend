@@ -56,7 +56,7 @@ export default function AiInterviewResultBody({
     );
   }
 
-  const modeLabel = sessionMode === 'CONVERSATIONAL' ? 'Conversational AI' : 'Guided AI';
+  const modeLabel = 'Guided AI';
 
   return (
     <div className="space-y-8">

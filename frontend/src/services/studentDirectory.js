@@ -39,3 +39,11 @@ export async function fetchStudentPanelExtras(studentId) {
   const data = res?.data ?? res;
   return data;
 }
+
+export async function fetchStudentResumeViewUrl(studentId, resumeId) {
+  const res = await api.get(
+    `/admin/student-directory/${studentId}/resumes/${resumeId}/view-url`,
+    { noCache: true },
+  );
+  return res?.data ?? res;
+}

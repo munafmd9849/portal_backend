@@ -173,7 +173,11 @@ async function apiRequest(endpoint, options = {}) {
           (isStudentResumeMutation && isStudentResumeCache)
         ) {
           localStorage.removeItem(key);
-        } else if (cachedUrl.startsWith(basePath)) {
+        } else if (
+          cachedUrl.startsWith(basePath) ||
+          // PATCH /super-admin/admins/:id must bust GET /super-admin/admins list cache
+          basePath.startsWith(cachedUrl)
+        ) {
           localStorage.removeItem(key);
         }
       }
@@ -295,6 +299,15 @@ async function apiRequest(endpoint, options = {}) {
 
       // Use exact backend error message (backend is source of truth)
       const errorMessage = errorData.error || errorData.message || errorData.details || `HTTP ${response.status}: ${response.statusText}`;
+
+      if (response.status === 401 && errorData.code === 'SESSION_SUPERSEDED') {
+        clearAuthTokens();
+        localStorage.removeItem('user');
+        if (typeof window !== 'undefined' && !window.__sessionSupersededHandled) {
+          window.__sessionSupersededHandled = true;
+          window.location.href = '/login?reason=session_superseded';
+        }
+      }
 
       const error = new Error(errorMessage);
       error.response = {
@@ -1112,7 +1125,7 @@ export const api = {
   }),
 
   // Super Admin
-  listSuperAdminAdmins: () => apiRequest('/super-admin/admins'),
+  listSuperAdminAdmins: () => apiRequest('/super-admin/admins', { noCache: true }),
   createSuperAdminAdmin: (data) => apiRequest('/super-admin/admins', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1303,60 +1316,6 @@ export const api = {
     if (meta.riskFlag != null) formData.append('riskFlag', meta.riskFlag ? 'true' : 'false');
     if (meta.faceCount != null) formData.append('faceCount', String(meta.faceCount));
     return uploadAiInterviewMultipart(`/ai-mock-interviews/enrollment/${enrollmentId}/screenshot`, formData);
-  },
-
-  // Conversational AI Interviews (dynamic follow-up)
-  createConversationalInterview: (data) =>
-    apiRequest('/ai-conversational-interviews', { method: 'POST', body: JSON.stringify(data) }),
-  getConversationalInterviews: () => apiRequest('/ai-conversational-interviews', { noCache: true }),
-  deleteConversationalInterview: (id) =>
-    apiRequest(`/ai-conversational-interviews/${id}`, { method: 'DELETE' }),
-  getStudentConversationalInterviews: () =>
-    apiRequest('/ai-conversational-interviews/student/my-interviews'),
-  getStudentConversationalSession: (interviewId) =>
-    apiRequest(`/ai-conversational-interviews/student/session/${interviewId}`),
-  startConversationalSession: (enrollmentId) =>
-    apiRequest(`/ai-conversational-interviews/enrollment/${enrollmentId}/start`, { method: 'POST' }),
-  submitConversationalAnswer: (enrollmentId, blob, { questionId, durationSeconds }) => {
-    const formData = new FormData();
-    const mime = blob.type || 'video/webm';
-    const ext = mime.includes('mp4') ? 'mp4' : 'webm';
-    const file =
-      blob instanceof File
-        ? blob
-        : new File([blob], `answer-${Date.now()}.${ext}`, { type: mime });
-    formData.append('recording', file);
-    formData.append('questionId', questionId);
-    if (durationSeconds != null) formData.append('durationSeconds', String(durationSeconds));
-    return uploadAiInterviewMultipart(
-      `/ai-conversational-interviews/enrollment/${enrollmentId}/answer`,
-      formData
-    );
-  },
-  completeConversationalInterview: (enrollmentId) =>
-    apiRequest(`/ai-conversational-interviews/enrollment/${enrollmentId}/complete`, {
-      method: 'POST',
-    }),
-  logConversationalViolation: (enrollmentId, data) =>
-    apiRequest(`/ai-conversational-interviews/enrollment/${enrollmentId}/violation`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-  uploadConversationalScreenshot: (enrollmentId, blob, meta = {}) => {
-    const formData = new FormData();
-    const file =
-      blob instanceof File
-        ? blob
-        : new File([blob], `shot-${Date.now()}.jpg`, { type: blob.type || 'image/jpeg' });
-    formData.append('screenshot', file);
-    if (meta.captureType) formData.append('captureType', meta.captureType);
-    if (meta.event) formData.append('event', meta.event);
-    if (meta.riskFlag != null) formData.append('riskFlag', meta.riskFlag ? 'true' : 'false');
-    if (meta.faceCount != null) formData.append('faceCount', String(meta.faceCount));
-    return uploadAiInterviewMultipart(
-      `/ai-conversational-interviews/enrollment/${enrollmentId}/screenshot`,
-      formData
-    );
   },
 
   // Generic HTTP methods for calendar and other services

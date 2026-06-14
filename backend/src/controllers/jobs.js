@@ -16,6 +16,34 @@ import { getIO } from '../config/socket.js';
 import { getAdminScopeFilter } from '../utils/adminScope.js';
 import { applyAuditContext } from '../utils/auditContext.js';
 
+const creatorInclude = {
+  creator: {
+    select: {
+      id: true,
+      email: true,
+      displayName: true,
+    },
+  },
+};
+
+function normalizeCustomQuestions(value) {
+  if (!value) return '[]';
+  const list = Array.isArray(value)
+    ? value
+    : typeof value === 'string'
+      ? (() => {
+          try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : [value];
+          } catch {
+            return value.trim() ? [value] : [];
+          }
+        })()
+      : [];
+  const cleaned = list.map((q) => String(q).trim()).filter(Boolean);
+  return JSON.stringify(cleaned);
+}
+
 const isSqliteDb = () => (process.env.DATABASE_URL || '').toLowerCase().startsWith('file:');
 
 async function findCompanyByNameCaseInsensitive(companyName) {
@@ -244,6 +272,7 @@ export async function getJobs(req, res) {
               applications: true,
             },
           },
+          ...creatorInclude,
         },
       }),
       prisma.job.count({ where }),
@@ -339,6 +368,7 @@ export async function getTargetedJobs(req, res) {
         },
         include: {
           company: true,
+          ...creatorInclude,
         },
         orderBy: { postedAt: 'desc' },
         take: 100,
@@ -355,6 +385,7 @@ export async function getTargetedJobs(req, res) {
       },
       include: {
         company: true,
+        ...creatorInclude,
         jobTargets: {
           where: { studentId: studentId }
         }
@@ -496,6 +527,7 @@ export async function getJob(req, res) {
             },
           },
         },
+        ...creatorInclude,
       },
     });
 
@@ -867,6 +899,7 @@ export async function createJob(req, res) {
       ...(jobData.interviewRounds && Array.isArray(jobData.interviewRounds) && jobData.interviewRounds.length > 0
         ? { interviewRounds: JSON.stringify(jobData.interviewRounds) }
         : {}),
+      customQuestions: normalizeCustomQuestions(jobData.customQuestions),
       // Pre-Interview Requirements
       requiresScreening: mappedData.requiresScreening === true || mappedData.requiresScreening === 'true',
       requiresTest: mappedData.requiresTest === true || mappedData.requiresTest === 'true',
@@ -1132,7 +1165,7 @@ export async function updateJob(req, res) {
       'jobType', 'workMode', 'experienceLevel', 'driveVenues', 'reportingTime',
       'qualification', 'specialization', 'yop', 'minCgpa', 'gapAllowed', 'gapYears', 'backlogs',
       'spocs', 'status', 'isActive', 'isPosted', 'applicationDeadlineMailSent',
-      'requiresScreening', 'requiresTest',
+      'requiresScreening', 'requiresTest', 'customQuestions', 'interviewRounds',
       'targetSchools', 'targetCenters', 'targetBatches',
       'targetSchoolIds', 'targetCenterIds', 'targetBatchIds',
       'submittedAt', 'postedAt', 'postedBy', 'approvedAt', 'approvedBy',
@@ -1271,6 +1304,10 @@ export async function updateJob(req, res) {
           : requirementsText;
         finalUpdateData.interviewRounds = JSON.stringify(interviewRoundsArray);
       }
+    }
+
+    if (updateData.customQuestions !== undefined) {
+      finalUpdateData.customQuestions = normalizeCustomQuestions(updateData.customQuestions);
     }
 
     // Ensure dates are properly formatted as Date objects

@@ -1,5 +1,5 @@
 /**
- * Create 10 guided AI interviews + 10 conversational AI interviews for all students.
+ * Create 10 guided AI interviews for all students.
  * Run: node scripts/seedBulkAiInterviews.js
  */
 import prisma from '../src/config/database.js';
@@ -128,69 +128,6 @@ const GUIDED_TEMPLATES = [
   },
 ];
 
-const CONVERSATIONAL_TEMPLATES = [
-  {
-    title: 'Conversational — Career Goals & Motivation',
-    interviewType: 'PLACEMENT_READINESS',
-    conversationalTopic: 'Career goals, motivation, and placement readiness',
-    conversationalMaxTurns: 8,
-  },
-  {
-    title: 'Conversational — Technical Depth',
-    interviewType: 'TECHNICAL',
-    conversationalTopic: 'Technical projects, problem-solving approach, and stack preferences',
-    conversationalMaxTurns: 8,
-  },
-  {
-    title: 'Conversational — Teamwork & Communication',
-    interviewType: 'HR',
-    conversationalTopic: 'Teamwork, communication style, and handling conflict',
-    conversationalMaxTurns: 7,
-  },
-  {
-    title: 'Conversational — Leadership Stories',
-    interviewType: 'BEHAVIORAL',
-    conversationalTopic: 'Leadership, ownership, and learning from failure',
-    conversationalMaxTurns: 8,
-  },
-  {
-    title: 'Conversational — Resume & Experience',
-    interviewType: 'PLACEMENT_READINESS',
-    conversationalTopic: 'Resume highlights, internships, and skill evidence',
-    conversationalMaxTurns: 7,
-  },
-  {
-    title: 'Conversational — DSA & Coding Mindset',
-    interviewType: 'TECHNICAL',
-    conversationalTopic: 'Data structures, algorithms, and coding interview preparation',
-    conversationalMaxTurns: 8,
-  },
-  {
-    title: 'Conversational — Company Research',
-    interviewType: 'HR',
-    conversationalTopic: 'Company fit, work culture, and role expectations',
-    conversationalMaxTurns: 6,
-  },
-  {
-    title: 'Conversational — System Thinking',
-    interviewType: 'TECHNICAL',
-    conversationalTopic: 'System design intuition, scalability, and trade-offs',
-    conversationalMaxTurns: 8,
-  },
-  {
-    title: 'Conversational — Stress & Time Management',
-    interviewType: 'BEHAVIORAL',
-    conversationalTopic: 'Pressure, deadlines, and balancing academics with prep',
-    conversationalMaxTurns: 7,
-  },
-  {
-    title: 'Conversational — Final Placement Check-in',
-    interviewType: 'MIXED',
-    conversationalTopic: 'Overall placement readiness, gaps, and improvement plan',
-    conversationalMaxTurns: 8,
-  },
-];
-
 function buildWindow() {
   const startDate = new Date();
   startDate.setMinutes(startDate.getMinutes() - 5);
@@ -233,32 +170,6 @@ async function createGuidedInterview(template, studentIds, window) {
   return { interview, enrolled, questionCount: template.questions.length };
 }
 
-async function createConversationalInterview(template, studentIds, window) {
-  const interview = await prisma.aiMockInterview.create({
-    data: {
-      title: template.title,
-      description: `Conversational AI mock interview — dynamic follow-ups on: ${template.conversationalTopic}`,
-      sessionMode: 'CONVERSATIONAL',
-      interviewType: template.interviewType,
-      instructions:
-        'The AI will adapt each question based on your previous answers. Answer naturally while looking at the camera.',
-      conversationalTopic: template.conversationalTopic,
-      conversationalMaxTurns: template.conversationalMaxTurns,
-      startDate: window.startDate,
-      endDate: window.endDate,
-      targetBatches: '[]',
-      targetBranches: '[]',
-      targetCenters: '[]',
-      targetSchoolIds: '[]',
-      targetStudentIds: JSON.stringify(studentIds),
-      status: 'PUBLISHED',
-    },
-  });
-
-  const enrolled = await createEnrollmentsForInterview(interview.id, studentIds);
-  return { interview, enrolled };
-}
-
 async function main() {
   const students = await prisma.student.findMany({
     select: { id: true, fullName: true, email: true },
@@ -284,20 +195,10 @@ async function main() {
     console.log(`✓ Guided: ${template.title} (${result.enrolled} enrollments, ${result.questionCount} questions)`);
   }
 
-  const conversational = [];
-  for (const template of CONVERSATIONAL_TEMPLATES) {
-    const result = await createConversationalInterview(template, studentIds, window);
-    conversational.push(result);
-    console.log(`✓ Conversational: ${template.title} (${result.enrolled} enrollments)`);
-  }
-
-  const totalEnrollments =
-    guided.reduce((n, g) => n + g.enrolled, 0) +
-    conversational.reduce((n, c) => n + c.enrolled, 0);
+  const totalEnrollments = guided.reduce((n, g) => n + g.enrolled, 0);
 
   console.log('\n✅ Done\n');
   console.log(`Guided interviews:         ${guided.length}`);
-  console.log(`Conversational interviews: ${conversational.length}`);
   console.log(`Total enrollments created: ${totalEnrollments}`);
   console.log(`Students per interview:    ${studentIds.length}\n`);
 }

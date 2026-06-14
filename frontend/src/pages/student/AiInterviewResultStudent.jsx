@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, AlertTriangle, RefreshCw } from 'lucide-react';
 import api from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
@@ -11,16 +11,12 @@ const CONTENT_WIDTH = 'w-full lg:w-[75%] max-w-full mx-auto px-4 sm:px-6';
 function AiInterviewResultStudentComponent() {
   const { enrollmentId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [result, setResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
 
-  const backPath =
-    location.state?.from === 'conversational'
-      ? '/student/conversational-ai-interviews'
-      : '/student/guided-ai-interviews';
+  const backPath = '/student/guided-ai-interviews';
 
   const fetchResults = useCallback(async () => {
     try {

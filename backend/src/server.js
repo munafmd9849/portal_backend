@@ -62,7 +62,6 @@ import resumeViewRoutes from './routes/resumeView.js';
 import auditLogRoutes from './routes/auditLogs.js';
 import mockInterviewRoutes from './routes/mockInterview.js';
 import aiMockInterviewRoutes from './routes/aiMockInterview.js';
-import aiConversationalInterviewRoutes from './routes/aiConversationalInterview.js';
 import webrtcRoutes from './routes/webrtc.js';
 
 // ============================================
@@ -290,7 +289,6 @@ app.use('/api/code', codeRoutes); // Coding engine: run & evaluate
 app.use('/api/admin/audit-logs', auditLogRoutes); // Audit Logs: SUPER_ADMIN only
 app.use('/api/mock-interviews', mockInterviewRoutes); // Dedicated Mock Interview System
 app.use('/api/ai-mock-interviews', aiMockInterviewRoutes); // Guided AI video mock interviews
-app.use('/api/ai-conversational-interviews', aiConversationalInterviewRoutes);
 app.use('/api/webrtc', webrtcRoutes);
 
 // Google Calendar OAuth callback for popup flow

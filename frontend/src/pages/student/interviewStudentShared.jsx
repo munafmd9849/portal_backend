@@ -48,10 +48,6 @@ export function aiInterviewStatusMeta(status) {
   return { label: 'Not Started', color: 'text-indigo-600 bg-indigo-50 border-indigo-100' };
 }
 
-export function conversationalStatusMeta(status) {
-  return aiInterviewStatusMeta(status);
-}
-
 export function getAiEnrollmentStatusBadge(status) {
   switch (status) {
     case 'COMPLETED':

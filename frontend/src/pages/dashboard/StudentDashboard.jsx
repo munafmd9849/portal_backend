@@ -18,6 +18,8 @@ import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import { showSuccess, showError, showWarning, showInfo, showLoading, replaceLoadingToast, dismissToast } from '../../utils/toast';
 import { formatApplicationSuccessMessage } from '../../utils/applicationMessages';
+import { parseJobCustomQuestions } from '../../utils/jobHelpers';
+import JobApplyQuestionsModal from '../../components/dashboard/student/JobApplyQuestionsModal';
 import { sanitizeScoreInput, formatCgpaForDisplay } from '../../utils/scoreInput';
 import { SiCodeforces, SiGeeksforgeeks } from 'react-icons/si';
 import { FaHackerrank, FaInstagram, FaYoutube, FaUsers, FaGraduationCap, FaMapMarkerAlt } from 'react-icons/fa';
@@ -64,7 +66,6 @@ import {
   Camera,
   Video,
   Sparkles,
-  MessageCircle,
   Globe,
   Plus,
   Link as LinkIcon,
@@ -85,9 +86,9 @@ import EndorsementManagement from '../../components/dashboard/student/Endorsemen
 import StudentAssessments from '../../components/dashboard/student/StudentAssessments';
 import LiveMockInterviewsStudent from '../student/LiveMockInterviewsStudent';
 import GuidedAiInterviewsStudent from '../student/GuidedAiInterviewsStudent';
-import ConversationalAiInterviewsStudent from '../student/ConversationalAiInterviewsStudent';
 import { StudentMobileMenuContext } from '../../contexts/StudentMobileMenuContext';
 import StudentApplicationTracker from '../../components/dashboard/student/StudentApplicationTracker';
+import { EXPLORE_JOBS_GRID_COLS } from '../../components/dashboard/student/JobListingStatus';
 import {
   getApplicationPrimaryLabel,
   getApplicationPrimaryStatus,
@@ -413,8 +414,10 @@ export default function StudentDashboard() {
   const [pastApplicationsPage, setPastApplicationsPage] = useState(1);
   const APPLICATIONS_LIST_PER_PAGE = 10;
   const [focusedJobId, setFocusedJobId] = useState(null); // when navigating from dashboard tracker
-  // Explore Jobs tab — spacious action buttons (dashboard home preview uses compact JobListingStatus)
+  // Explore Jobs tab — spacious mobile buttons; desktop grid uses fixed-width status column
   const EXPLORE_JOBS_BUTTON_SIZE = 'w-full sm:min-w-[12rem] min-h-[36px] sm:min-h-[40px] px-3 sm:px-4 py-2 sm:py-2.5';
+  const EXPLORE_JOBS_DESKTOP_STATUS_BTN =
+    'w-full min-w-0 max-w-full min-h-[36px] px-2.5 py-2 text-[11px] leading-tight font-semibold';
 
   // Reset pagination to page 1 when switching between Current and Past applications
   useEffect(() => {
@@ -457,6 +460,7 @@ export default function StudentDashboard() {
 
 
   // Resume Selection Modal state
+  const [isQuestionsModalOpen, setIsQuestionsModalOpen] = useState(false);
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [pendingJob, setPendingJob] = useState(null);
   const [resumes, setResumes] = useState([]);
@@ -1006,6 +1010,12 @@ export default function StudentDashboard() {
     }
   }, [user?.id]);
 
+  const proceedToResumeSelection = async (job) => {
+    setPendingJob(job);
+    await loadResumes(true);
+    setIsResumeModalOpen(true);
+  };
+
   const handleApplyToJob = async (job) => {
     if (!user?.id || !job?.id) {
       console.error('Missing user ID or job ID');
@@ -1020,10 +1030,14 @@ export default function StudentDashboard() {
       return;
     }
 
-    // Store the job and show resume selection modal
-    setPendingJob(job);
-    await loadResumes(true);
-    setIsResumeModalOpen(true);
+    const questions = parseJobCustomQuestions(job);
+    if (questions.length > 0) {
+      setPendingJob(job);
+      setIsQuestionsModalOpen(true);
+      return;
+    }
+
+    await proceedToResumeSelection(job);
   };
 
   const handleResumeSelection = async (resumeId = null) => {
@@ -1307,7 +1321,7 @@ export default function StudentDashboard() {
     // Set active tab based on URL parameter
     if (tab === 'mockInterviews') {
       setActiveTab('liveMockInterviews');
-    } else if (tab && ['dashboard', 'jobs', 'resume', 'calendar', 'applications', 'liveMockInterviews', 'guidedAiInterviews', 'conversationalAiInterviews', 'assessments', 'resources', 'endorsements', 'editProfile', 'raiseQuery'].includes(tab)) {
+    } else if (tab && ['dashboard', 'jobs', 'resume', 'calendar', 'applications', 'liveMockInterviews', 'guidedAiInterviews', 'assessments', 'resources', 'endorsements', 'editProfile', 'raiseQuery'].includes(tab)) {
       setActiveTab(tab);
     } else if (tab === null || tab === '') {
       // Only reset to dashboard if there's no tab parameter at all
@@ -2062,7 +2076,6 @@ export default function StudentDashboard() {
     { id: 'applications', label: 'Track Applications', icon: ClipboardList },
     { id: 'liveMockInterviews', label: 'Live Mocks', icon: Video },
     { id: 'guidedAiInterviews', label: 'Guided AI', icon: Sparkles },
-    { id: 'conversationalAiInterviews', label: 'Conversational AI', icon: MessageCircle },
     { id: 'assessments', label: 'Assessments', icon: Shield },
     { id: 'resources', label: 'Placement Resources', icon: BookOpen },
     { id: 'endorsements', label: 'Endorsements', icon: Mail },
@@ -2463,7 +2476,7 @@ export default function StudentDashboard() {
               ) : (
                 <div className="space-y-4">
                   {/* Column Headers - Desktop Only; equal spacing between Company, Job Title, Drive Date, Salary (CTC), Status */}
-                  <div className="hidden md:grid mb-2 py-2 px-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100 min-w-0 items-center justify-items-stretch w-full" style={{ gridTemplateColumns: JOB_LISTING_GRID_COLS, columnGap: '0.75rem' }}>
+                  <div className="hidden md:grid mb-2 py-2 px-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100 min-w-0 items-center justify-items-stretch w-full" style={{ gridTemplateColumns: EXPLORE_JOBS_GRID_COLS, columnGap: '0.75rem' }}>
                     <div className="text-gray-700 font-bold text-sm uppercase tracking-wide min-w-0">Company</div>
                     <div className="text-gray-700 font-bold text-sm uppercase tracking-wide min-w-0">Job Title</div>
                     <div className="text-gray-700 font-bold text-sm uppercase tracking-wide min-w-0">Salary (CTC)</div>
@@ -2624,7 +2637,7 @@ export default function StudentDashboard() {
                                 </div>
 
                                 {/* Desktop Layout - 5 equal columns: Company, Job Title, Drive Date, Salary (CTC), Status */}
-                                <div className="hidden md:grid p-6 items-center min-w-0 overflow-hidden justify-items-stretch w-full" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', columnGap: '1.5rem' }}>
+                                <div className="hidden md:grid p-6 items-center min-w-0 justify-items-stretch w-full" style={{ gridTemplateColumns: EXPLORE_JOBS_GRID_COLS, columnGap: '0.75rem' }}>
                                   <div className="flex items-center gap-3 min-w-0 overflow-hidden">
                                     <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-white text-xl font-bold flex-shrink-0 shadow-lg ${getCompanyColor(companyName)}`}>
                                       {getCompanyInitial(companyName)}
@@ -2663,7 +2676,7 @@ export default function StudentDashboard() {
                                     </div>
                                   </div>
 
-                                  <div className="flex items-center min-w-0 overflow-hidden">
+                                  <div className="flex items-center justify-stretch min-w-0">
                                     <button
                                       onClick={(event) => {
                                         event.stopPropagation();
@@ -2671,39 +2684,39 @@ export default function StudentDashboard() {
                                       }}
                                       disabled={isApplied || isApplying || deadlinePassed || notEligible}
                                       title={isApplied ? 'Already applied' : (notEligible ? failedReasons.join(' • ') : (deadlinePassed ? 'Application deadline has passed. Applications are no longer being accepted.' : ''))}
-                                      className={`${EXPLORE_JOBS_BUTTON_SIZE} px-4 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2 border-2 shadow-sm hover:shadow-md ${isApplied
+                                      className={`${EXPLORE_JOBS_DESKTOP_STATUS_BTN} rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5 border-2 shadow-sm hover:shadow-md ${isApplied
                                         ? 'bg-green-100 text-green-700 cursor-not-allowed border-green-300'
                                         : isApplying
                                           ? 'bg-blue-100 text-blue-700 cursor-not-allowed border-blue-300'
                                           : deadlinePassed || notEligible
-                                            ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300'
+                                            ? 'bg-gray-100 text-gray-600 cursor-not-allowed border-gray-300'
                                             : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 border-transparent'
                                         }`}
                                     >
                                       {isApplied ? (
                                         <>
-                                          <CheckCircle className="h-4 w-4 flex-shrink-0" />
-                                          Applied
+                                          <CheckCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                                          <span className="text-center">Applied</span>
                                         </>
                                       ) : isApplying ? (
                                         <>
-                                          <Loader className="h-4 w-4 flex-shrink-0 animate-spin" />
-                                          Applying...
+                                          <Loader className="h-3.5 w-3.5 flex-shrink-0 animate-spin" />
+                                          <span className="text-center">Applying</span>
                                         </>
                                       ) : deadlinePassed ? (
                                         <>
-                                          <XCircle className="h-4 w-4 flex-shrink-0" />
-                                          Deadline Passed
+                                          <XCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                                          <span className="text-center whitespace-normal">Deadline passed</span>
                                         </>
                                       ) : notEligible ? (
                                         <>
-                                          <XCircle className="h-4 w-4 flex-shrink-0" />
-                                          Not eligible
+                                          <XCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                                          <span className="text-center whitespace-normal">Not eligible</span>
                                         </>
                                       ) : (
                                         <>
-                                          <Briefcase className="h-4 w-4 flex-shrink-0" />
-                                          Apply Now
+                                          <Briefcase className="h-3.5 w-3.5 flex-shrink-0" />
+                                          <span className="text-center">Apply Now</span>
                                         </>
                                       )}
                                     </button>
@@ -4651,8 +4664,6 @@ export default function StudentDashboard() {
         return <LiveMockInterviewsStudent />;
       case 'guidedAiInterviews':
         return <GuidedAiInterviewsStudent />;
-      case 'conversationalAiInterviews':
-        return <ConversationalAiInterviewsStudent />;
       case 'mockInterviews':
         return <LiveMockInterviewsStudent />;
 
@@ -4984,6 +4995,21 @@ export default function StudentDashboard() {
 
       {/* Old floating alert removed - using toast notifications instead */}
 
+
+      {/* Custom apply questions (read-only) before resume selection */}
+      {isQuestionsModalOpen && pendingJob && (
+        <JobApplyQuestionsModal
+          job={pendingJob}
+          onContinue={async () => {
+            setIsQuestionsModalOpen(false);
+            await proceedToResumeSelection(pendingJob);
+          }}
+          onCancel={() => {
+            setIsQuestionsModalOpen(false);
+            setPendingJob(null);
+          }}
+        />
+      )}
 
       {/* Resume Selection Modal */}
       {isResumeModalOpen && (

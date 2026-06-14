@@ -7,6 +7,36 @@ import prisma from '../config/database.js';
 import bcrypt from 'bcryptjs';
 import { createNotification } from './notifications.js';
 import logger from '../config/logger.js';
+import {
+  resolveAdminScopeFromIds,
+  isFullAccessScope,
+} from '../utils/adminScope.js';
+
+function parseScopeList(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function asIdList(value) {
+  return parseScopeList(value).filter((id) => id && id !== '*');
+}
+
+function validateRestrictedScope(fullAccess, allowedSchoolIds, allowedCenterIds, allowedBatchIds) {
+  if (fullAccess) return null;
+  const schoolIds = asIdList(allowedSchoolIds);
+  const centerIds = asIdList(allowedCenterIds);
+  const batchIds = asIdList(allowedBatchIds);
+  if (!schoolIds.length || !centerIds.length || !batchIds.length) {
+    return 'Restricted access requires at least one school, campus, and batch — or enable full access';
+  }
+  return null;
+}
 
 /**
  * List all admin users (Super Admin only)
@@ -31,9 +61,13 @@ export async function listAdmins(req, res) {
       adminId: u.admin?.id,
       adminRole: u.admin?.role,
       permissions: u.admin?.permissions ? JSON.parse(u.admin.permissions) : [],
-      allowedSchools: u.admin?.allowedSchools ? JSON.parse(u.admin.allowedSchools) : [],
-      allowedCenters: u.admin?.allowedCenters ? JSON.parse(u.admin.allowedCenters) : [],
-      allowedBatches: u.admin?.allowedBatches ? JSON.parse(u.admin.allowedBatches) : [],
+      allowedSchools: parseScopeList(u.admin?.allowedSchools),
+      allowedCenters: parseScopeList(u.admin?.allowedCenters),
+      allowedBatches: parseScopeList(u.admin?.allowedBatches),
+      allowedSchoolIds: parseScopeList(u.admin?.allowedSchoolIds),
+      allowedCenterIds: parseScopeList(u.admin?.allowedCenterIds),
+      allowedBatchIds: parseScopeList(u.admin?.allowedBatchIds),
+      fullAccess: u.admin ? isFullAccessScope(u.admin) : false,
     }));
 
     res.json({ admins: list });
@@ -48,15 +82,19 @@ export async function listAdmins(req, res) {
  */
 export async function createAdmin(req, res) {
   try {
-    const { 
-      email, 
-      password, 
-      displayName, 
-      role = 'ADMIN', 
-      permissions = [], 
-      allowedSchools = [], 
-      allowedCenters = [], 
-      allowedBatches = [] 
+    const {
+      email,
+      password,
+      displayName,
+      role = 'ADMIN',
+      permissions = [],
+      allowedSchools = [],
+      allowedCenters = [],
+      allowedBatches = [],
+      allowedSchoolIds = [],
+      allowedCenterIds = [],
+      allowedBatchIds = [],
+      fullAccess,
     } = req.body;
 
     if (!email || typeof email !== 'string' || !email.trim()) {
@@ -75,6 +113,31 @@ export async function createAdmin(req, res) {
     const passwordHash = await bcrypt.hash(password, 10);
     const name = (displayName && typeof displayName === 'string' ? displayName.trim() : null) || emailTrim;
 
+    const hasIdScope =
+      asIdList(allowedSchoolIds).length > 0 ||
+      asIdList(allowedCenterIds).length > 0 ||
+      asIdList(allowedBatchIds).length > 0;
+    const isFullAccess =
+      fullAccess === true ||
+      (fullAccess !== false && !hasIdScope && !allowedSchools?.length && !allowedCenters?.length && !allowedBatches?.length);
+
+    const scopeError = validateRestrictedScope(
+      isFullAccess,
+      allowedSchoolIds,
+      allowedCenterIds,
+      allowedBatchIds
+    );
+    if (scopeError) {
+      return res.status(400).json({ error: scopeError });
+    }
+
+    const scopeFields = await resolveAdminScopeFromIds({
+      fullAccess: isFullAccess,
+      allowedSchoolIds,
+      allowedCenterIds,
+      allowedBatchIds,
+    });
+
     const { user, admin } = await prisma.$transaction(async (tx) => {
       const u = await tx.user.create({
         data: {
@@ -88,14 +151,12 @@ export async function createAdmin(req, res) {
         },
       });
       const a = await tx.admin.create({
-        data: { 
-          userId: u.id, 
+        data: {
+          userId: u.id,
           name,
           role,
           permissions: JSON.stringify(permissions),
-          allowedSchools: JSON.stringify(allowedSchools),
-          allowedCenters: JSON.stringify(allowedCenters),
-          allowedBatches: JSON.stringify(allowedBatches),
+          ...scopeFields,
         },
       });
       return { user: u, admin: a };
@@ -201,14 +262,18 @@ export async function enableAdmin(req, res) {
 export async function updateAdmin(req, res) {
   try {
     const { userId } = req.params;
-    const { 
-      displayName, 
-      role, 
-      permissions, 
-      allowedSchools, 
-      allowedCenters, 
+    const {
+      displayName,
+      role,
+      permissions,
+      allowedSchools,
+      allowedCenters,
       allowedBatches,
-      status
+      allowedSchoolIds,
+      allowedCenterIds,
+      allowedBatchIds,
+      fullAccess,
+      status,
     } = req.body;
 
     const target = await prisma.user.findUnique({
@@ -218,6 +283,39 @@ export async function updateAdmin(req, res) {
 
     if (!target || target.role !== 'ADMIN') {
       return res.status(404).json({ error: 'Admin user not found' });
+    }
+
+    const scopeTouched =
+      fullAccess !== undefined ||
+      allowedSchoolIds !== undefined ||
+      allowedCenterIds !== undefined ||
+      allowedBatchIds !== undefined;
+
+    let scopePayload = null;
+    if (scopeTouched) {
+      const resolvedFullAccess =
+        fullAccess === true
+          ? true
+          : fullAccess === false
+            ? false
+            : isFullAccessScope(target.admin);
+
+      const scopeError = validateRestrictedScope(
+        resolvedFullAccess,
+        allowedSchoolIds ?? [],
+        allowedCenterIds ?? [],
+        allowedBatchIds ?? []
+      );
+      if (scopeError) {
+        return res.status(400).json({ error: scopeError });
+      }
+
+      scopePayload = await resolveAdminScopeFromIds({
+        fullAccess: resolvedFullAccess,
+        allowedSchoolIds: allowedSchoolIds ?? [],
+        allowedCenterIds: allowedCenterIds ?? [],
+        allowedBatchIds: allowedBatchIds ?? [],
+      });
     }
 
     await prisma.$transaction(async (tx) => {
@@ -231,16 +329,43 @@ export async function updateAdmin(req, res) {
       });
 
       // Update Admin fields
-      await tx.admin.update({
+      const adminUpdate = {
+        ...(displayName && { name: displayName }),
+        ...(role && { role }),
+        ...(permissions && { permissions: JSON.stringify(permissions) }),
+      };
+
+      if (scopePayload) {
+        Object.assign(adminUpdate, scopePayload);
+      } else {
+        if (allowedSchools !== undefined) {
+          adminUpdate.allowedSchools = JSON.stringify(allowedSchools);
+        }
+        if (allowedCenters !== undefined) {
+          adminUpdate.allowedCenters = JSON.stringify(allowedCenters);
+        }
+        if (allowedBatches !== undefined) {
+          adminUpdate.allowedBatches = JSON.stringify(allowedBatches);
+        }
+      }
+
+      const adminDefaults = {
+        userId,
+        name: displayName || target.displayName || target.email,
+        role: role || target.admin?.role || 'ADMIN',
+        permissions: permissions ? JSON.stringify(permissions) : (target.admin?.permissions ?? '["*"]'),
+        allowedSchools: scopePayload?.allowedSchools ?? target.admin?.allowedSchools ?? '[]',
+        allowedCenters: scopePayload?.allowedCenters ?? target.admin?.allowedCenters ?? '[]',
+        allowedBatches: scopePayload?.allowedBatches ?? target.admin?.allowedBatches ?? '[]',
+        allowedSchoolIds: scopePayload?.allowedSchoolIds ?? target.admin?.allowedSchoolIds ?? '[]',
+        allowedCenterIds: scopePayload?.allowedCenterIds ?? target.admin?.allowedCenterIds ?? '[]',
+        allowedBatchIds: scopePayload?.allowedBatchIds ?? target.admin?.allowedBatchIds ?? '[]',
+      };
+
+      await tx.admin.upsert({
         where: { userId },
-        data: {
-          ...(displayName && { name: displayName }),
-          ...(role && { role }),
-          ...(permissions && { permissions: JSON.stringify(permissions) }),
-          ...(allowedSchools && { allowedSchools: JSON.stringify(allowedSchools) }),
-          ...(allowedCenters && { allowedCenters: JSON.stringify(allowedCenters) }),
-          ...(allowedBatches && { allowedBatches: JSON.stringify(allowedBatches) }),
-        },
+        update: adminUpdate,
+        create: { ...adminDefaults, ...adminUpdate },
       });
     });
 

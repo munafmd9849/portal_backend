@@ -245,11 +245,37 @@ export default function CreateJob({ onCreated }) {
           backlogs: jobData.backlogs || '',
           serviceAgreement: jobData.serviceAgreement || '',
           blockingPeriod: jobData.blockingPeriod || '',
-          baseRoundDetails: jobData.baseRoundDetails || ['', '', ''],
-          extraRounds: jobData.extraRounds || [],
           instructions: jobData.instructions || '',
           requiresScreening: jobData.requiresScreening || false,
           requiresTest: jobData.requiresTest || false,
+          customQuestions: (() => {
+            try {
+              const raw = jobData.customQuestions;
+              const parsed = typeof raw === 'string' ? JSON.parse(raw || '[]') : raw;
+              const list = Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+              return list.length ? list : [''];
+            } catch {
+              return [''];
+            }
+          })(),
+          baseRoundDetails: (() => {
+            if (Array.isArray(jobData.baseRoundDetails) && jobData.baseRoundDetails.length) {
+              return jobData.baseRoundDetails;
+            }
+            try {
+              const raw = jobData.interviewRounds;
+              const rounds = typeof raw === 'string' ? JSON.parse(raw || '[]') : raw;
+              if (Array.isArray(rounds) && rounds.length) {
+                const details = rounds.map((r) => r.detail || r.title || '').slice(0, 3);
+                while (details.length < 3) details.push('');
+                return details;
+              }
+            } catch {
+              /* ignore */
+            }
+            return ['', '', ''];
+          })(),
+          extraRounds: jobData.extraRounds || [],
         };
 
         setDriveDraft({
@@ -464,6 +490,7 @@ export default function CreateJob({ onCreated }) {
     // Pre-Interview Requirements
     requiresScreening: false,
     requiresTest: false,
+    customQuestions: [''],
   });
 
   // Local draft for About Drive section
@@ -787,8 +814,8 @@ export default function CreateJob({ onCreated }) {
   }, [form.baseRoundDetails]);
 
   const canPost = useMemo(() => {
-    return isCompanyDetailsComplete && isDriveDetailsComplete && isSkillsEligibilityComplete && isInterviewProcessComplete;
-  }, [isCompanyDetailsComplete, isDriveDetailsComplete, isSkillsEligibilityComplete, isInterviewProcessComplete]);
+    return isCompanyDetailsComplete && isDriveDetailsComplete;
+  }, [isCompanyDetailsComplete, isDriveDetailsComplete]);
 
   const update = (patch) => setForm((f) => ({ ...f, ...patch }));
 
@@ -1110,6 +1137,9 @@ export default function CreateJob({ onCreated }) {
       baseRoundDetails: ['', '', ''],
       extraRounds: [],
       instructions: '',
+      requiresScreening: false,
+      requiresTest: false,
+      customQuestions: [''],
     }));
 
     setDriveDraft({
@@ -1147,8 +1177,19 @@ export default function CreateJob({ onCreated }) {
       throw new Error('Job title is required');
     }
     if (requiredSkills.length === 0) {
-      throw new Error('At least one required skill is needed');
+      // Skills are optional when eligibility section is not filled
     }
+
+    const cleanedQuestions = (Array.isArray(form.customQuestions) ? form.customQuestions : [])
+      .map((q) => String(q).trim())
+      .filter(Boolean);
+
+    const interviewRounds = [
+      { title: `${toRoman(1)} Round`, detail: form.baseRoundDetails[0] || '' },
+      { title: `${toRoman(2)} Round`, detail: form.baseRoundDetails[1] || '' },
+      { title: `${toRoman(3)} Round`, detail: form.baseRoundDetails[2] || '' },
+      ...(Array.isArray(form.extraRounds) ? form.extraRounds : []),
+    ].filter((round) => round.detail?.trim());
 
     return {
       // Company fields - send both for compatibility
@@ -1191,13 +1232,9 @@ export default function CreateJob({ onCreated }) {
       targetSchoolIds: [],
       targetCenterIds: [],
       targetBatchIds: [],
-      // Interview process
-      interviewRounds: [
-        { title: `${toRoman(1)} Round`, detail: form.baseRoundDetails[0] || '' },
-        { title: `${toRoman(2)} Round`, detail: form.baseRoundDetails[1] || '' },
-        { title: `${toRoman(3)} Round`, detail: form.baseRoundDetails[2] || '' },
-        ...(Array.isArray(form.extraRounds) ? form.extraRounds : []),
-      ],
+      // Interview process (optional)
+      interviewRounds,
+      customQuestions: cleanedQuestions,
       // Additional fields
       spocs: Array.isArray(form.spocs) ? form.spocs : [],
       serviceAgreement: form.serviceAgreement || '',
@@ -2460,7 +2497,7 @@ export default function CreateJob({ onCreated }) {
           <section className="space-y-4">
             <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
               <GraduationCap size={20} className="text-purple-600" />
-              <h3 className="text-lg font-semibold text-gray-900">Skills & Eligibility</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Skills & Eligibility <span className="text-sm font-normal text-gray-500">(Optional)</span></h3>
             </div>
 
             {!isSectionCollapsed('skills') && (
@@ -2704,7 +2741,7 @@ export default function CreateJob({ onCreated }) {
           <section className="space-y-4">
             <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
               <Code2 size={20} className="text-indigo-600" />
-              <h3 className="text-lg font-semibold text-gray-900">Interview Process</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Interview Process <span className="text-sm font-normal text-gray-500">(Optional)</span></h3>
             </div>
 
             {!isSectionCollapsed('interview') && (
@@ -2717,15 +2754,14 @@ export default function CreateJob({ onCreated }) {
                         <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                           <Code2 size={16} className="text-indigo-600" />
                           {[`${toRoman(1)} Round`, `${toRoman(2)} Round`, `${toRoman(3)} Round`][i]}
-                          {i < 2 && <span className="text-red-500">*</span>}
+                          {i < 2 && <span className="text-gray-400 text-xs font-normal">(optional)</span>}
                         </label>
                         <input
                           className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${form.baseRoundDetails[i]?.trim() ? 'border-green-300 bg-green-50' : 'border-gray-300'
                             }`}
-                          placeholder={i < 2 ? "e.g. Online test, DS&A (required)" : "e.g. HR round (optional)"}
+                          placeholder={i < 2 ? "e.g. Online test, DS&A" : "e.g. HR round (optional)"}
                           value={form.baseRoundDetails[i]}
                           onChange={(e) => updateBaseRoundDetail(i, e.target.value)}
-                          required={i < 2}
                         />
                       </div>
                     ))}
@@ -2835,6 +2871,56 @@ export default function CreateJob({ onCreated }) {
                 title={isSectionCollapsed('interview') ? 'Expand section' : 'Minimize section'}
               >
                 {isSectionCollapsed('interview') ? <ChevronsDown className="w-6 h-6" /> : <ChevronsUp className="w-6 h-6" />}
+              </button>
+            </div>
+          </section>
+
+          {/* Section 4b: Custom apply questions (display-only for students) */}
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+              <Info size={20} className="text-indigo-600" />
+              <h3 className="text-lg font-semibold text-gray-900">
+                Custom Apply Questions <span className="text-sm font-normal text-gray-500">(Optional)</span>
+              </h3>
+            </div>
+            <p className="text-sm text-gray-600">
+              Students will see these questions when they click Apply Now (read-only). Examples: relocation, bond, notice period.
+            </p>
+            <div className="space-y-3">
+              {(form.customQuestions || ['']).map((question, idx) => (
+                <div key={`custom-q-${idx}`} className="flex gap-2">
+                  <input
+                    type="text"
+                    className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="e.g. Are you ready to relocate to the job location?"
+                    value={question}
+                    onChange={(e) => {
+                      const next = [...(form.customQuestions || [''])];
+                      next[idx] = e.target.value;
+                      update({ customQuestions: next });
+                    }}
+                  />
+                  {(form.customQuestions || []).length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = (form.customQuestions || []).filter((_, i) => i !== idx);
+                        update({ customQuestions: next.length ? next : [''] });
+                      }}
+                      className="px-3 py-2 text-red-500 hover:bg-red-50 rounded-md"
+                      title="Remove question"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => update({ customQuestions: [...(form.customQuestions || ['']), ''] })}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200"
+              >
+                <Plus className="w-4 h-4" /> Add question
               </button>
             </div>
           </section>

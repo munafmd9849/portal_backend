@@ -8,6 +8,11 @@ import { FaUserPlus, FaBan, FaCheckCircle, FaSpinner, FaUsers } from 'react-icon
 import { Settings, X, Briefcase, Users, Target, Activity, Clock, ChevronRight, Mail, User, Shield, Info, BarChart3, TrendingUp, History } from 'lucide-react';
 import api from '../../../services/api';
 import { useToast } from '../../ui/Toast';
+import {
+  adminRecordToForm,
+  formatScopeDimensionDisplay,
+  isAdminFullAccess,
+} from '../../../utils/adminScopeDisplay';
 
 export default function CreateDisableAdmins() {
   const toast = useToast();
@@ -25,6 +30,7 @@ export default function CreateDisableAdmins() {
     password: '', 
     displayName: '',
     role: 'ADMIN',
+    fullAccess: true,
     allowedSchoolIds: [],
     allowedCenterIds: [],
     allowedBatchIds: []
@@ -70,12 +76,22 @@ export default function CreateDisableAdmins() {
     loadAcademicData();
   }, []);
 
+  const validateScopeForm = () => {
+    if (form.fullAccess) return true;
+    if (!form.allowedSchoolIds.length || !form.allowedCenterIds.length || !form.allowedBatchIds.length) {
+      toast?.error('Select at least one school, campus, and batch — or enable full access');
+      return false;
+    }
+    return true;
+  };
+
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!form.email?.trim() || !form.password?.trim()) {
       toast?.error('Email and password are required');
       return;
     }
+    if (!validateScopeForm()) return;
     try {
       setActionLoading({ create: true });
       await api.createSuperAdminAdmin({
@@ -83,9 +99,10 @@ export default function CreateDisableAdmins() {
         password: form.password,
         displayName: form.displayName?.trim() || undefined,
         role: form.role,
-        allowedSchoolIds: form.allowedSchoolIds,
-        allowedCenterIds: form.allowedCenterIds,
-        allowedBatchIds: form.allowedBatchIds,
+        fullAccess: form.fullAccess,
+        allowedSchoolIds: form.fullAccess ? [] : form.allowedSchoolIds,
+        allowedCenterIds: form.fullAccess ? [] : form.allowedCenterIds,
+        allowedBatchIds: form.fullAccess ? [] : form.allowedBatchIds,
         permissions: ['*'] 
       });
       toast?.success('Admin created successfully');
@@ -101,14 +118,16 @@ export default function CreateDisableAdmins() {
 
   const handleUpdate = async (e) => {
     e.preventDefault();
+    if (!validateScopeForm()) return;
     try {
       setActionLoading({ update: true });
-      await api.updateSuperAdminAdmin(selectedAdmin.userId, {
+      await api.updateSuperAdminAdmin(selectedAdmin.id, {
         displayName: form.displayName?.trim(),
         role: form.role,
-        allowedSchoolIds: form.allowedSchoolIds,
-        allowedCenterIds: form.allowedCenterIds,
-        allowedBatchIds: form.allowedBatchIds,
+        fullAccess: form.fullAccess,
+        allowedSchoolIds: form.fullAccess ? [] : form.allowedSchoolIds,
+        allowedCenterIds: form.fullAccess ? [] : form.allowedCenterIds,
+        allowedBatchIds: form.fullAccess ? [] : form.allowedBatchIds,
       });
       toast?.success('Admin updated successfully');
       setEditModal(false);
@@ -127,6 +146,7 @@ export default function CreateDisableAdmins() {
       password: '', 
       displayName: '', 
       role: 'ADMIN',
+      fullAccess: true,
       allowedSchoolIds: [],
       allowedCenterIds: [],
       allowedBatchIds: []
@@ -136,13 +156,15 @@ export default function CreateDisableAdmins() {
 
   const openEditModal = (admin) => {
     setSelectedAdmin(admin);
+    const scopeForm = adminRecordToForm(admin, academicData);
     setForm({
       email: admin.email,
       displayName: admin.displayName || '',
-      role: admin.role || 'ADMIN',
-      allowedSchoolIds: Array.isArray(admin.allowedSchoolIds) ? admin.allowedSchoolIds : (admin.allowedSchoolIds ? JSON.parse(admin.allowedSchoolIds) : []),
-      allowedCenterIds: Array.isArray(admin.allowedCenterIds) ? admin.allowedCenterIds : (admin.allowedCenterIds ? JSON.parse(admin.allowedCenterIds) : []),
-      allowedBatchIds: Array.isArray(admin.allowedBatchIds) ? admin.allowedBatchIds : (admin.allowedBatchIds ? JSON.parse(admin.allowedBatchIds) : []),
+      role: admin.adminRole || 'ADMIN',
+      fullAccess: scopeForm.fullAccess,
+      allowedSchoolIds: scopeForm.allowedSchoolIds,
+      allowedCenterIds: scopeForm.allowedCenterIds,
+      allowedBatchIds: scopeForm.allowedBatchIds,
     });
     setEditModal(true);
   };
@@ -176,7 +198,7 @@ export default function CreateDisableAdmins() {
     if (!window.confirm(`Disable admin "${admin.email}"?`)) return;
     try {
       setActionLoading((p) => ({ ...p, [admin.id]: true }));
-      await api.disableSuperAdminAdmin(admin.userId);
+      await api.disableSuperAdminAdmin(admin.id);
       toast?.success('Admin disabled');
       await loadAdmins();
     } catch (e) {
@@ -189,7 +211,7 @@ export default function CreateDisableAdmins() {
   const handleEnable = async (admin) => {
     try {
       setActionLoading((p) => ({ ...p, [admin.id]: true }));
-      await api.enableSuperAdminAdmin(admin.userId);
+      await api.enableSuperAdminAdmin(admin.id);
       toast?.success('Admin enabled');
       await loadAdmins();
     } catch (e) {
@@ -254,31 +276,51 @@ export default function CreateDisableAdmins() {
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                          a.role === 'SUPER_ADMIN' ? 'bg-amber-100 text-amber-700' : 
-                          a.role === 'COORDINATOR' ? 'bg-blue-100 text-blue-700' : 'bg-violet-100 text-violet-700'
+                          a.adminRole === 'SUPER_ADMIN' ? 'bg-amber-100 text-amber-700' : 
+                          a.adminRole === 'COORDINATOR' ? 'bg-blue-100 text-blue-700' : 'bg-violet-100 text-violet-700'
                         }`}>
-                          {a.role || 'ADMIN'}
+                          {a.adminRole || 'ADMIN'}
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-xs text-gray-600 max-w-[200px] truncate">
-                          <span className="font-semibold text-violet-600">Branches:</span> {
-                            (() => {
-                              const ids = Array.isArray(a.allowedSchoolIds) ? a.allowedSchoolIds : (a.allowedSchoolIds ? JSON.parse(a.allowedSchoolIds) : []);
-                              if (ids.length === 0) return 'All Access';
-                              return ids.map(id => academicData.schools.find(s => s.id === id)?.name || 'Unknown').join(', ');
-                            })()
-                          }
-                        </div>
-                        <div className="text-xs text-gray-500 max-w-[200px] truncate">
-                          <span className="font-semibold text-violet-600">Campuses:</span> {
-                            (() => {
-                              const ids = Array.isArray(a.allowedCenterIds) ? a.allowedCenterIds : (a.allowedCenterIds ? JSON.parse(a.allowedCenterIds) : []);
-                              if (ids.length === 0) return 'All Access';
-                              return ids.map(id => academicData.centers.find(c => c.id === id)?.name || 'Unknown').join(', ');
-                            })()
-                          }
-                        </div>
+                        {isAdminFullAccess(a) ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-100 text-emerald-700">
+                            Full access
+                          </span>
+                        ) : (
+                          <>
+                            <div className="text-xs text-gray-600 max-w-[220px]">
+                              <span className="font-semibold text-violet-600">Branches:</span>{' '}
+                              {formatScopeDimensionDisplay(
+                                a.allowedSchoolIds,
+                                a.allowedSchools,
+                                academicData.schools,
+                                'schools',
+                                (school) => school?.name
+                              )}
+                            </div>
+                            <div className="text-xs text-gray-500 max-w-[220px] mt-0.5">
+                              <span className="font-semibold text-violet-600">Campuses:</span>{' '}
+                              {formatScopeDimensionDisplay(
+                                a.allowedCenterIds,
+                                a.allowedCenters,
+                                academicData.centers,
+                                'campuses',
+                                (center) => center?.name
+                              )}
+                            </div>
+                            <div className="text-xs text-gray-500 max-w-[220px] mt-0.5">
+                              <span className="font-semibold text-violet-600">Batches:</span>{' '}
+                              {formatScopeDimensionDisplay(
+                                a.allowedBatchIds,
+                                a.allowedBatches,
+                                academicData.batches,
+                                'batches',
+                                (batch) => batch?.year?.trim() || batch?.label
+                              )}
+                            </div>
+                          </>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-2 py-1 rounded text-[10px] font-bold ${
@@ -296,7 +338,7 @@ export default function CreateDisableAdmins() {
                           >
                             <Settings className="w-4 h-4" />
                           </button>
-                          {a.role !== 'SUPER_ADMIN' && (
+                          {a.adminRole !== 'SUPER_ADMIN' && (
                             a.status === 'ACTIVE' ? (
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleDisable(a); }}
@@ -398,6 +440,40 @@ export default function CreateDisableAdmins() {
 
               <div className="pt-2 border-t border-gray-50">
                 <h3 className="text-xs font-bold text-violet-600 uppercase mb-3">Institutional Scope (Data Isolation)</h3>
+
+                <label className="flex items-start gap-3 p-3 mb-4 rounded-xl border border-emerald-200 bg-emerald-50/60 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.fullAccess}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setForm((p) => ({
+                        ...p,
+                        fullAccess: checked,
+                        ...(checked
+                          ? {
+                              allowedSchoolIds: [],
+                              allowedCenterIds: [],
+                              allowedBatchIds: [],
+                            }
+                          : {}),
+                      }));
+                    }}
+                    className="mt-0.5 w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <span>
+                    <span className="block text-sm font-semibold text-emerald-900">Full access</span>
+                    <span className="block text-[11px] text-emerald-700/80 mt-0.5">
+                      Can view and manage all schools, campuses, and batches
+                    </span>
+                  </span>
+                </label>
+
+                {!form.fullAccess && (
+                  <>
+                    <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-3">
+                      Restricted mode: pick at least one branch, campus, and batch.
+                    </p>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Allowed Branches</label>
@@ -479,6 +555,8 @@ export default function CreateDisableAdmins() {
                     )}
                   </div>
                 </div>
+                  </>
+                )}
               </div>
 
               <div className="flex gap-3 justify-end pt-4">

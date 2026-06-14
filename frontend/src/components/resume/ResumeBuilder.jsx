@@ -1083,7 +1083,7 @@ const ResumeBuilder = () => {
   };
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden space-y-4 sm:space-y-6">
+    <div className="w-full max-w-full overflow-x-clip space-y-4 sm:space-y-6">
       <style>{`
         .resume-ai-glare {
           position: relative;
@@ -2450,7 +2450,7 @@ const ResumeBuilder = () => {
           </div>
 
           {/* Job Picker */}
-          <div>
+          <div className="relative z-20 overflow-visible">
             <label className="block text-sm font-semibold text-gray-700 mb-2">Select Target Job</label>
             <JobPickerDropdown selectedJob={optimizeJob} onSelect={setOptimizeJob} placeholder="Pick a job to optimize your resume for" />
           </div>

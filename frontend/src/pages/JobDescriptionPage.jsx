@@ -14,6 +14,8 @@ import { getStudentProfile } from '../services/students';
 import api from '../services/api';
 import { showSuccess, showError } from '../utils/toast';
 import { formatApplicationSuccessMessage } from '../utils/applicationMessages';
+import { parseJobCustomQuestions } from '../utils/jobHelpers';
+import JobApplyQuestionsModal from '../components/dashboard/student/JobApplyQuestionsModal';
 import JobDescriptionSkeleton from '../components/dashboard/student/JobDescriptionSkeleton';
 import { FaRedo } from 'react-icons/fa';
 
@@ -67,6 +69,7 @@ const JobDescriptionPage = () => {
   const navigate = useNavigate();
   const { user, role } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
+  const [isQuestionsModalOpen, setIsQuestionsModalOpen] = useState(false);
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [pendingJob, setPendingJob] = useState(null);
   const [resumes, setResumes] = useState([]);
@@ -133,6 +136,12 @@ const JobDescriptionPage = () => {
     }
   }, [user?.id]);
 
+  const proceedToResumeSelection = useCallback(async (job) => {
+    setPendingJob(job);
+    await loadResumes();
+    setIsResumeModalOpen(true);
+  }, [loadResumes]);
+
   const handleApply = useCallback(async (job) => {
     if (!job?.id) return;
 
@@ -173,10 +182,15 @@ const JobDescriptionPage = () => {
       // On profile fetch error, allow proceed (backend will validate)
     }
 
-    setPendingJob(job);
-    await loadResumes();
-    setIsResumeModalOpen(true);
-  }, [user, role, navigate, loadResumes, hasApplied]);
+    const questions = parseJobCustomQuestions(job);
+    if (questions.length > 0) {
+      setPendingJob(job);
+      setIsQuestionsModalOpen(true);
+      return;
+    }
+
+    await proceedToResumeSelection(job);
+  }, [user, role, navigate, hasApplied, proceedToResumeSelection]);
 
   const handleWithdraw = useCallback(async () => {
     if (!jobApplication?.id) return;
@@ -419,6 +433,20 @@ const JobDescriptionPage = () => {
           </div>
         )}
       </div>
+
+      {isQuestionsModalOpen && pendingJob && (
+        <JobApplyQuestionsModal
+          job={pendingJob}
+          onContinue={async () => {
+            setIsQuestionsModalOpen(false);
+            await proceedToResumeSelection(pendingJob);
+          }}
+          onCancel={() => {
+            setIsQuestionsModalOpen(false);
+            setPendingJob(null);
+          }}
+        />
+      )}
 
       {/* Resume Selection Modal */}
       {isResumeModalOpen && (

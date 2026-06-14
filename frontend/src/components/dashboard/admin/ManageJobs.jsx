@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../../services/api';
 import { deleteJob, subscribeJobs, postJob, updateJob } from '../../../services/jobs';
-import { Loader, Trash2, Share2, Building2, Calendar, GraduationCap, View, Users, Briefcase, ChevronDown, CheckCircle, Clock, PlayCircle, CheckSquare, XCircle, AlertTriangle, MapPin, Edit } from 'lucide-react';
+import { Loader, Trash2, Share2, Building2, Calendar, GraduationCap, View, Users, User, Briefcase, ChevronDown, CheckCircle, Clock, PlayCircle, CheckSquare, XCircle, AlertTriangle, MapPin, Edit } from 'lucide-react';
 import { useToast } from '../../ui/Toast';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
@@ -869,15 +869,14 @@ export default function ManageJobs() {
                         <Building2 className="w-3.5 h-3.5" />
                         <span className="text-xs sm:text-sm font-medium truncate">{companyName}</span>
                       </div>
-                      {/* Super Admin Visibility: Show who posted/created the job */}
-                      {/* {(role === 'SUPER_ADMIN' || user?.role === 'SUPER_ADMIN') && job.creator && (
-                        <div className="flex items-center gap-1.5 text-indigo-500 mt-1">
+                      {(job.creator?.displayName || job.creator?.email) && (
+                        <div className="flex items-center gap-1.5 text-indigo-600 mt-1">
                           <User className="w-3 h-3" />
-                          <span className="text-[10px] font-bold uppercase tracking-tight">
-                            Posted by: {job.creator.displayName || job.creator.email}
+                          <span className="text-[10px] font-semibold uppercase tracking-tight">
+                            Created by: {job.creator.displayName || job.creator.email}
                           </span>
                         </div>
-                      )} */}
+                      )}
                     </div>
                   </div>
 
