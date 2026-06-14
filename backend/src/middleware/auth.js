@@ -42,6 +42,19 @@ export async function authenticate(req, res, next) {
       return res.status(403).json({ error: 'Account is blocked' });
     }
 
+    // Single-device login for students: reject tokens from a superseded session
+    if (
+      user.role === 'STUDENT' &&
+      decoded.sessionVersion !== undefined &&
+      (user.sessionVersion ?? 0) !== decoded.sessionVersion
+    ) {
+      return res.status(401).json({
+        error: 'Session expired',
+        code: 'SESSION_SUPERSEDED',
+        message: 'Your account was logged in on another device. Please log in again.',
+      });
+    }
+
     // Attach user to request
     req.user = user;
     req.userId = user.id;
@@ -98,15 +111,22 @@ export async function verifyRefreshToken(req, res, next) {
  */
 export function generateAccessToken(user) {
   // Backwards compatibility: if a string or number is passed instead of an object, use it as userId
-  const payload = typeof user === 'object' && user !== null
-    ? { userId: user.id, type: 'access', role: user.role, status: user.status }
-    : { userId: user, type: 'access' };
+  const payload =
+    typeof user === 'object' && user !== null
+      ? {
+          userId: user.id,
+          type: 'access',
+          role: user.role,
+          status: user.status,
+          ...(user.role === 'STUDENT'
+            ? { sessionVersion: user.sessionVersion ?? 0 }
+            : {}),
+        }
+      : { userId: user, type: 'access' };
 
-  return jwt.sign(
-    payload,
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '1h' }
-  );
+  return jwt.sign(payload, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN || '1h',
+  });
 }
 
 /**

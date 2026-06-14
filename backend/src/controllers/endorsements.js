@@ -8,6 +8,7 @@ import prisma from '../config/database.js';
 import logger from '../config/logger.js';
 import crypto from 'crypto';
 import { sendEndorsementMagicLinkEmail } from '../services/emailService.js';
+import { isFullAccessScope, safeParseScope, SCOPE_WILDCARD } from '../utils/adminScope.js';
 
 /**
  * Generate cryptographically secure token
@@ -1175,20 +1176,23 @@ function safeParseJson(val) {
   }
 }
 
-function adminScopeMatchesStudent(admin, student) {
-  const schools = safeParseJson(admin.allowedSchools);
-  const centers = safeParseJson(admin.allowedCenters);
-  const batches = safeParseJson(admin.allowedBatches);
+function scopeValueMatches(allowed, value) {
+  if (!allowed.length || allowed.includes(SCOPE_WILDCARD)) return true;
+  if (!value) return true;
+  const needle = String(value).trim().toLowerCase();
+  return allowed.some((entry) => String(entry).trim().toLowerCase() === needle);
+}
 
-  if (schools.length && !schools.includes('*') && student.school && !schools.includes(student.school)) {
-    return false;
-  }
-  if (centers.length && !centers.includes('*') && student.center && !centers.includes(student.center)) {
-    return false;
-  }
-  if (batches.length && !batches.includes('*') && student.batch && !batches.includes(student.batch)) {
-    return false;
-  }
+function adminScopeMatchesStudent(admin, student) {
+  if (isFullAccessScope(admin)) return true;
+
+  const schools = safeParseScope(admin.allowedSchools);
+  const centers = safeParseScope(admin.allowedCenters);
+  const batches = safeParseScope(admin.allowedBatches);
+
+  if (!scopeValueMatches(schools, student.school)) return false;
+  if (!scopeValueMatches(centers, student.center)) return false;
+  if (!scopeValueMatches(batches, student.batch)) return false;
   return true;
 }
 

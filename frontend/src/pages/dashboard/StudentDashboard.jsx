@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import DashboardLayout from '../../components/dashboard/shared/DashboardLayout';
 import DashboardHome from '../../components/dashboard/student/DashboardHome';
-import { JobListingStatus, JOB_LISTING_GRID_COLS } from '../../components/dashboard/student/JobListingStatus';
 
 import { useAuth } from '../../hooks/useAuth';
 import showLogoutConfirm from '../../utils/logoutConfirm';
@@ -12,14 +11,16 @@ import {
   getStudentSkills,
   getEducationalBackground,
 } from '../../services/students';
-import { getStudentApplications, applyToJob, subscribeStudentApplications, getStudentInterviewHistory } from '../../services/applications';
+import { getStudentApplications, applyToJob, withdrawApplication, subscribeStudentApplications, getStudentInterviewHistory } from '../../services/applications';
 import { getTargetedJobsForStudent, subscribeJobs, subscribePostedJobs } from '../../services/jobs';
 import { subscribeToUpdates } from '../../services/socket';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import { showSuccess, showError, showWarning, showInfo, showLoading, replaceLoadingToast, dismissToast } from '../../utils/toast';
 import { formatApplicationSuccessMessage } from '../../utils/applicationMessages';
-import { sanitizeScoreInput } from '../../utils/scoreInput';
+import { parseJobCustomQuestions } from '../../utils/jobHelpers';
+import JobApplyQuestionsModal from '../../components/dashboard/student/JobApplyQuestionsModal';
+import { sanitizeScoreInput, formatCgpaForDisplay } from '../../utils/scoreInput';
 import { SiCodeforces, SiGeeksforgeeks } from 'react-icons/si';
 import { FaHackerrank, FaInstagram, FaYoutube, FaUsers, FaGraduationCap, FaMapMarkerAlt } from 'react-icons/fa';
 import { IoIosArrowDropdown, IoIosArrowDropup } from 'react-icons/io';
@@ -63,6 +64,8 @@ import {
   Linkedin,
   Image as ImageIcon,
   Camera,
+  Video,
+  Sparkles,
   Globe,
   Plus,
   Link as LinkIcon,
@@ -81,15 +84,18 @@ import Resources from '../../components/dashboard/student/Resources';
 import ConnectGoogleCalendar from '../ConnectGoogleCalendar';
 import EndorsementManagement from '../../components/dashboard/student/EndorsementManagement';
 import StudentAssessments from '../../components/dashboard/student/StudentAssessments';
-import MockInterviewStudentDashboard from '../student/MockInterviewStudentDashboard';
+import LiveMockInterviewsStudent from '../student/LiveMockInterviewsStudent';
+import GuidedAiInterviewsStudent from '../student/GuidedAiInterviewsStudent';
 import { StudentMobileMenuContext } from '../../contexts/StudentMobileMenuContext';
 import StudentApplicationTracker from '../../components/dashboard/student/StudentApplicationTracker';
+import { EXPLORE_JOBS_GRID_COLS } from '../../components/dashboard/student/JobListingStatus';
 import {
   getApplicationPrimaryLabel,
   getApplicationPrimaryStatus,
   getPrimaryStatusBadgeClass,
   getPrimaryStatusGradient,
 } from '../../utils/applicationTrackerState';
+import { canStudentWithdrawApplication } from '../../utils/applicationWithdraw';
 
 /** Validate profile URL - must start with http:// or https:// */
 function isValidProfileUrl(url) {
@@ -102,15 +108,6 @@ function isValidProfileUrl(url) {
   } catch {
     return false;
   }
-}
-
-/** Format CGPA for display (avoids floating-point e.g. 8.699999999999999 → "8.70") */
-function formatCgpaForDisplay(val) {
-  if (val === undefined || val === null || val === '') return '';
-  const n = parseFloat(val);
-  if (Number.isNaN(n)) return String(val).trim();
-  const clamped = Math.max(0, Math.min(10, n));
-  return clamped.toFixed(2);
 }
 
 const normalizeProfileSnapshot = (profile = {}) => ({
@@ -411,11 +408,16 @@ export default function StudentDashboard() {
   const [loadingInterviewHistory, setLoadingInterviewHistory] = useState(false);
   const [applicationsView, setApplicationsView] = useState('current'); // 'current' or 'past'
   const [expandedApplications, setExpandedApplications] = useState(new Set()); // Track expanded application details
+  const [withdrawingApplicationId, setWithdrawingApplicationId] = useState(null);
   const [pendingApplicationJobId, setPendingApplicationJobId] = useState(null);
   const [currentApplicationsPage, setCurrentApplicationsPage] = useState(1);
   const [pastApplicationsPage, setPastApplicationsPage] = useState(1);
   const APPLICATIONS_LIST_PER_PAGE = 10;
   const [focusedJobId, setFocusedJobId] = useState(null); // when navigating from dashboard tracker
+  // Explore Jobs tab — spacious mobile buttons; desktop grid uses fixed-width status column
+  const EXPLORE_JOBS_BUTTON_SIZE = 'w-full sm:min-w-[12rem] min-h-[36px] sm:min-h-[40px] px-3 sm:px-4 py-2 sm:py-2.5';
+  const EXPLORE_JOBS_DESKTOP_STATUS_BTN =
+    'w-full min-w-0 max-w-full min-h-[36px] px-2.5 py-2 text-[11px] leading-tight font-semibold';
 
   // Reset pagination to page 1 when switching between Current and Past applications
   useEffect(() => {
@@ -458,6 +460,7 @@ export default function StudentDashboard() {
 
 
   // Resume Selection Modal state
+  const [isQuestionsModalOpen, setIsQuestionsModalOpen] = useState(false);
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [pendingJob, setPendingJob] = useState(null);
   const [resumes, setResumes] = useState([]);
@@ -792,7 +795,9 @@ export default function StudentDashboard() {
           email: profileData.email || '',
           phone: profileData.phone || '',
           enrollmentId: profileData.enrollmentId || '',
-          cgpa: profileData.cgpa?.toString?.() || '',
+          cgpa: profileData.cgpa != null && profileData.cgpa !== ''
+            ? formatCgpaForDisplay(profileData.cgpa)
+            : '',
           batch: profileData.batch || '',
           center: profileData.center || '',
           school: profileData.school || '',
@@ -920,6 +925,33 @@ export default function StudentDashboard() {
     }
   }, [user?.id, getCacheKey, getCachedData, setCachedData]);
 
+  const handleWithdrawApplication = useCallback(async (application) => {
+    if (!application?.id) return;
+
+    const check = canStudentWithdrawApplication(application);
+    if (!check.allowed) {
+      showError(check.reason || 'This application cannot be withdrawn');
+      return;
+    }
+
+    const jobTitle = application.job?.jobTitle || 'this job';
+    if (!window.confirm(`Withdraw your application for ${jobTitle}? You can apply again later if the job is still open.`)) {
+      return;
+    }
+
+    setWithdrawingApplicationId(application.id);
+    try {
+      await withdrawApplication(application.id);
+      showSuccess('Application withdrawn successfully');
+      await loadApplicationsData(true);
+    } catch (err) {
+      const errMsg = err?.response?.data?.error || err?.message || 'Failed to withdraw application';
+      showError(errMsg);
+    } finally {
+      setWithdrawingApplicationId(null);
+    }
+  }, [loadApplicationsData]);
+
   // Load interview history
   const loadInterviewHistory = useCallback(async (forceRefresh = false) => {
     if (!user?.id) return;
@@ -978,6 +1010,12 @@ export default function StudentDashboard() {
     }
   }, [user?.id]);
 
+  const proceedToResumeSelection = async (job) => {
+    setPendingJob(job);
+    await loadResumes(true);
+    setIsResumeModalOpen(true);
+  };
+
   const handleApplyToJob = async (job) => {
     if (!user?.id || !job?.id) {
       console.error('Missing user ID or job ID');
@@ -992,10 +1030,14 @@ export default function StudentDashboard() {
       return;
     }
 
-    // Store the job and show resume selection modal
-    setPendingJob(job);
-    await loadResumes(true);
-    setIsResumeModalOpen(true);
+    const questions = parseJobCustomQuestions(job);
+    if (questions.length > 0) {
+      setPendingJob(job);
+      setIsQuestionsModalOpen(true);
+      return;
+    }
+
+    await proceedToResumeSelection(job);
   };
 
   const handleResumeSelection = async (resumeId = null) => {
@@ -1277,7 +1319,9 @@ export default function StudentDashboard() {
     window.addEventListener('navigateToQuery', handleNavigateToQuery);
 
     // Set active tab based on URL parameter
-    if (tab && ['dashboard', 'jobs', 'resume', 'calendar', 'applications', 'mockInterviews', 'assessments', 'resources', 'endorsements', 'editProfile', 'raiseQuery'].includes(tab)) {
+    if (tab === 'mockInterviews') {
+      setActiveTab('liveMockInterviews');
+    } else if (tab && ['dashboard', 'jobs', 'resume', 'calendar', 'applications', 'liveMockInterviews', 'guidedAiInterviews', 'assessments', 'resources', 'endorsements', 'editProfile', 'raiseQuery'].includes(tab)) {
       setActiveTab(tab);
     } else if (tab === null || tab === '') {
       // Only reset to dashboard if there's no tab parameter at all
@@ -1933,7 +1977,9 @@ export default function StudentDashboard() {
           email: updatedProfile.email || '',
           phone: updatedProfile.phone || '',
           enrollmentId: updatedProfile.enrollmentId || '',
-          cgpa: updatedProfile.cgpa?.toString?.() || '',
+          cgpa: updatedProfile.cgpa != null && updatedProfile.cgpa !== ''
+            ? formatCgpaForDisplay(updatedProfile.cgpa)
+            : '',
           backlogs: updatedProfile.backlogs || '',
           batch: updatedProfile.batch || '',
           center: updatedProfile.center || '',
@@ -2028,7 +2074,8 @@ export default function StudentDashboard() {
     { id: 'resume', label: 'Resume', icon: FileText },
     { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'applications', label: 'Track Applications', icon: ClipboardList },
-    { id: 'mockInterviews', label: 'Mock Interviews', icon: Camera },
+    { id: 'liveMockInterviews', label: 'Live Mocks', icon: Video },
+    { id: 'guidedAiInterviews', label: 'Guided AI', icon: Sparkles },
     { id: 'assessments', label: 'Assessments', icon: Shield },
     { id: 'resources', label: 'Placement Resources', icon: BookOpen },
     { id: 'endorsements', label: 'Endorsements', icon: Mail },
@@ -2429,7 +2476,7 @@ export default function StudentDashboard() {
               ) : (
                 <div className="space-y-4">
                   {/* Column Headers - Desktop Only; equal spacing between Company, Job Title, Drive Date, Salary (CTC), Status */}
-                  <div className="hidden md:grid mb-2 py-2 px-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100 min-w-0 items-center justify-items-stretch w-full" style={{ gridTemplateColumns: JOB_LISTING_GRID_COLS, columnGap: '0.75rem' }}>
+                  <div className="hidden md:grid mb-2 py-2 px-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100 min-w-0 items-center justify-items-stretch w-full" style={{ gridTemplateColumns: EXPLORE_JOBS_GRID_COLS, columnGap: '0.75rem' }}>
                     <div className="text-gray-700 font-bold text-sm uppercase tracking-wide min-w-0">Company</div>
                     <div className="text-gray-700 font-bold text-sm uppercase tracking-wide min-w-0">Job Title</div>
                     <div className="text-gray-700 font-bold text-sm uppercase tracking-wide min-w-0">Salary (CTC)</div>
@@ -2446,7 +2493,7 @@ export default function StudentDashboard() {
                     const paginatedJobs = jobs.slice(start, start + JOBS_PER_PAGE);
                     return (
                       <>
-                        <div className="grid grid-cols-1 md:grid-cols-1 gap-2">
+                        <div className="grid grid-cols-1 md:grid-cols-1 gap-3 sm:gap-4">
                           {paginatedJobs.map((job) => {
                             const companyName = job.company?.name || job.company || 'Company';
                             const isApplied = hasApplied(job.id);
@@ -2509,7 +2556,7 @@ export default function StudentDashboard() {
                                 }`}
                               >
                                 {/* Mobile Layout */}
-                                <div className="md:hidden p-2.5 space-y-2">
+                                <div className="md:hidden p-3 sm:p-5 space-y-2.5 sm:space-y-4">
                                   <div className="flex items-start gap-3 sm:gap-4 min-w-0">
                                     <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center text-white text-base sm:text-lg font-bold flex-shrink-0 shadow-md ${getCompanyColor(companyName)}`}>
                                       {getCompanyInitial(companyName)}
@@ -2542,34 +2589,57 @@ export default function StudentDashboard() {
                                       </div>
                                     </div>
                                   </div>
-                                  <div className="flex pt-1.5 border-t border-gray-200">
-                                    <JobListingStatus
-                                      mobile
-                                      isApplied={isApplied}
-                                      isApplying={isApplying}
-                                      deadlinePassed={deadlinePassed}
-                                      notEligible={notEligible && !deadlinePassed}
-                                      title={
-                                        isApplied
-                                          ? 'Already applied'
-                                          : notEligible
-                                            ? failedReasons.join(' • ')
-                                            : deadlinePassed
-                                              ? 'Application deadline has passed. Applications are no longer being accepted.'
-                                              : ''
-                                      }
-                                      onApply={(event) => {
+                                  <div className="flex gap-1.5 sm:gap-2 pt-1.5 sm:pt-2 border-t border-gray-200">
+                                    <button
+                                      onClick={(event) => {
                                         event.stopPropagation();
                                         handleApplyToJob(job);
                                       }}
-                                    />
+                                      disabled={isApplied || isApplying || deadlinePassed || notEligible}
+                                      title={isApplied ? 'Already applied' : (notEligible ? failedReasons.join(' • ') : (deadlinePassed ? 'Application deadline has passed. Applications are no longer being accepted.' : ''))}
+                                      className={`flex-1 min-w-0 ${EXPLORE_JOBS_BUTTON_SIZE} rounded-md sm:rounded-lg font-semibold text-sm transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 border-2 shadow-sm hover:shadow-md touch-manipulation ${isApplied
+                                        ? 'bg-green-100 text-green-700 cursor-not-allowed border-green-300'
+                                        : isApplying
+                                          ? 'bg-blue-100 text-blue-700 cursor-not-allowed border-blue-300'
+                                          : deadlinePassed || notEligible
+                                            ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300'
+                                            : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 border-transparent'
+                                        }`}
+                                    >
+                                      {isApplied ? (
+                                        <>
+                                          <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+                                          <span className="truncate">Applied</span>
+                                        </>
+                                      ) : isApplying ? (
+                                        <>
+                                          <Loader className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0 animate-spin" />
+                                          <span className="truncate">Applying...</span>
+                                        </>
+                                      ) : deadlinePassed ? (
+                                        <>
+                                          <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+                                          <span className="truncate">Deadline Passed</span>
+                                        </>
+                                      ) : notEligible ? (
+                                        <>
+                                          <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+                                          <span className="truncate">Not eligible</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Briefcase className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+                                          <span className="truncate">Apply Now</span>
+                                        </>
+                                      )}
+                                    </button>
                                   </div>
                                 </div>
 
                                 {/* Desktop Layout - 5 equal columns: Company, Job Title, Drive Date, Salary (CTC), Status */}
-                                <div className="hidden md:grid px-3 py-2.5 items-center min-w-0 overflow-hidden justify-items-stretch w-full" style={{ gridTemplateColumns: JOB_LISTING_GRID_COLS, columnGap: '0.75rem' }}>
-                                  <div className="flex items-center gap-2 min-w-0 overflow-hidden">
-                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-md ${getCompanyColor(companyName)}`}>
+                                <div className="hidden md:grid p-6 items-center min-w-0 justify-items-stretch w-full" style={{ gridTemplateColumns: EXPLORE_JOBS_GRID_COLS, columnGap: '0.75rem' }}>
+                                  <div className="flex items-center gap-3 min-w-0 overflow-hidden">
+                                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-white text-xl font-bold flex-shrink-0 shadow-lg ${getCompanyColor(companyName)}`}>
                                       {getCompanyInitial(companyName)}
                                     </div>
                                     <div className="min-w-0 flex-1 overflow-hidden">
@@ -2606,26 +2676,50 @@ export default function StudentDashboard() {
                                     </div>
                                   </div>
 
-                                  <div className="flex items-center justify-end min-w-0 overflow-hidden">
-                                    <JobListingStatus
-                                      isApplied={isApplied}
-                                      isApplying={isApplying}
-                                      deadlinePassed={deadlinePassed}
-                                      notEligible={notEligible && !deadlinePassed}
-                                      title={
-                                        isApplied
-                                          ? 'Already applied'
-                                          : notEligible
-                                            ? failedReasons.join(' • ')
-                                            : deadlinePassed
-                                              ? 'Application deadline has passed. Applications are no longer being accepted.'
-                                              : ''
-                                      }
-                                      onApply={(event) => {
+                                  <div className="flex items-center justify-stretch min-w-0">
+                                    <button
+                                      onClick={(event) => {
                                         event.stopPropagation();
                                         handleApplyToJob(job);
                                       }}
-                                    />
+                                      disabled={isApplied || isApplying || deadlinePassed || notEligible}
+                                      title={isApplied ? 'Already applied' : (notEligible ? failedReasons.join(' • ') : (deadlinePassed ? 'Application deadline has passed. Applications are no longer being accepted.' : ''))}
+                                      className={`${EXPLORE_JOBS_DESKTOP_STATUS_BTN} rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5 border-2 shadow-sm hover:shadow-md ${isApplied
+                                        ? 'bg-green-100 text-green-700 cursor-not-allowed border-green-300'
+                                        : isApplying
+                                          ? 'bg-blue-100 text-blue-700 cursor-not-allowed border-blue-300'
+                                          : deadlinePassed || notEligible
+                                            ? 'bg-gray-100 text-gray-600 cursor-not-allowed border-gray-300'
+                                            : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 border-transparent'
+                                        }`}
+                                    >
+                                      {isApplied ? (
+                                        <>
+                                          <CheckCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                                          <span className="text-center">Applied</span>
+                                        </>
+                                      ) : isApplying ? (
+                                        <>
+                                          <Loader className="h-3.5 w-3.5 flex-shrink-0 animate-spin" />
+                                          <span className="text-center">Applying</span>
+                                        </>
+                                      ) : deadlinePassed ? (
+                                        <>
+                                          <XCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                                          <span className="text-center whitespace-normal">Deadline passed</span>
+                                        </>
+                                      ) : notEligible ? (
+                                        <>
+                                          <XCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                                          <span className="text-center whitespace-normal">Not eligible</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Briefcase className="h-3.5 w-3.5 flex-shrink-0" />
+                                          <span className="text-center">Apply Now</span>
+                                        </>
+                                      )}
+                                    </button>
                                   </div>
                                 </div>
                               </div>
@@ -3090,8 +3184,9 @@ export default function StudentDashboard() {
                   <div className="space-y-4 sm:space-y-6">
                     {(() => {
                       const isFinalOutcome = (app) => {
-                        const finalStatus = String(app?.finalStatus || '').toUpperCase();
+                        const finalStatus = String(app?.finalStatus || app?.tracker?.details?.finalStatus || '').toUpperCase();
                         if (finalStatus === 'SELECTED' || finalStatus === 'REJECTED') return true;
+                        if (finalStatus === 'WITHDRAWN' || finalStatus === 'REVOKED' || finalStatus === 'REVOKED_BY_ADMIN') return true;
 
                         const interviewStatus = app?.interviewStatus;
                         if (typeof interviewStatus === 'string') {
@@ -3100,7 +3195,7 @@ export default function StudentDashboard() {
                         }
 
                         const status = String(app?.status || '').toUpperCase();
-                        return status === 'SELECTED' || status === 'REJECTED';
+                        return status === 'SELECTED' || status === 'REJECTED' || status === 'WITHDRAWN' || status === 'REVOKED_BY_ADMIN';
                       };
 
                       const currentApplications = applications.filter(app => !isFinalOutcome(app));
@@ -3163,6 +3258,22 @@ export default function StudentDashboard() {
                                       >
                                         <FileText className="w-3.5 h-3.5" />
                                         View JD
+                                      </button>
+                                    )}
+                                    {canStudentWithdrawApplication(application).allowed && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleWithdrawApplication(application)}
+                                        disabled={withdrawingApplicationId === application.id}
+                                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                        title="Withdraw application"
+                                      >
+                                        {withdrawingApplicationId === application.id ? (
+                                          <Loader className="w-3.5 h-3.5 animate-spin" />
+                                        ) : (
+                                          <XCircle className="w-3.5 h-3.5" />
+                                        )}
+                                        Withdraw
                                       </button>
                                     )}
                                     <button
@@ -4549,8 +4660,12 @@ export default function StudentDashboard() {
       case 'assessments':
         return <StudentAssessments />;
 
+      case 'liveMockInterviews':
+        return <LiveMockInterviewsStudent />;
+      case 'guidedAiInterviews':
+        return <GuidedAiInterviewsStudent />;
       case 'mockInterviews':
-        return <MockInterviewStudentDashboard />;
+        return <LiveMockInterviewsStudent />;
 
       case 'raiseQuery':
         return <Query />;
@@ -4880,6 +4995,21 @@ export default function StudentDashboard() {
 
       {/* Old floating alert removed - using toast notifications instead */}
 
+
+      {/* Custom apply questions (read-only) before resume selection */}
+      {isQuestionsModalOpen && pendingJob && (
+        <JobApplyQuestionsModal
+          job={pendingJob}
+          onContinue={async () => {
+            setIsQuestionsModalOpen(false);
+            await proceedToResumeSelection(pendingJob);
+          }}
+          onCancel={() => {
+            setIsQuestionsModalOpen(false);
+            setPendingJob(null);
+          }}
+        />
+      )}
 
       {/* Resume Selection Modal */}
       {isResumeModalOpen && (

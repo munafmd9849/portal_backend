@@ -23,7 +23,9 @@ import {
   FaUsers,
   FaCheckCircle,
   FaTimes,
+  FaUser,
 } from 'react-icons/fa';
+import { getJobCreatorLabel } from '../../../utils/jobHelpers';
 
 // Register GSAP ScrollTrigger plugin
 if (typeof window !== 'undefined') {
@@ -275,6 +277,7 @@ const JobContent = React.memo(({
       // Salary
       salary: job.salary || job.stipend || job.ctc || job.salaryRange,
       // Dates
+      createdByLabel: getJobCreatorLabel(job),
       deadline: job.driveDate || job.applicationDeadline,
       // CGPA
       minCgpa: job.minCgpa || job.cgpaRequirement,
@@ -602,6 +605,12 @@ const JobContent = React.memo(({
                   </>
                 )}
               </p>
+              {displayJob.createdByLabel && (
+                <p className="text-sm text-gray-500 mt-2 flex items-center gap-1.5">
+                  <FaUser className="text-indigo-500" size={12} />
+                  <span>Posted by {displayJob.createdByLabel}</span>
+                </p>
+              )}
             </div>
           </div>
           {onClose && (

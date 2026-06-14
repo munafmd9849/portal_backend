@@ -7,6 +7,7 @@ import prisma from '../config/database.js';
 import logger from '../config/logger.js';
 import { generateAuthOAuthUrl, exchangeCodeForAuthTokens } from '../utils/googleAuth.js';
 import { generateAccessToken, generateRefreshToken } from '../middleware/auth.js';
+import { establishStudentSession, persistRefreshToken } from '../utils/sessionManager.js';
 import bcrypt from 'bcryptjs';
 
 /**
@@ -122,9 +123,14 @@ export const handleGoogleLoginCallback = async (req, res) => {
         },
       });
 
-      // Generate JWT tokens (pass user object so role and status are included)
-      const accessToken = generateAccessToken(user);
+      let sessionUser = user;
+      if (user.role === 'STUDENT') {
+        sessionUser = await establishStudentSession(user.id);
+      }
+
+      const accessToken = generateAccessToken(sessionUser);
       const refreshToken = generateRefreshToken(user.id);
+      await persistRefreshToken(user.id, refreshToken);
 
       // Redirect to frontend with tokens
       return res.redirect(`${frontendUrl}/auth/google-callback?accessToken=${accessToken}&refreshToken=${refreshToken}`);
@@ -188,9 +194,9 @@ export const handleGoogleLoginCallback = async (req, res) => {
 
       logger.info(`New user created via Google login: ${email} (${role})`);
 
-      // Generate JWT tokens (pass user object so role and status are included)
       const accessToken = generateAccessToken(user);
       const refreshToken = generateRefreshToken(user.id);
+      await persistRefreshToken(user.id, refreshToken);
 
       // Redirect to frontend with tokens
       return res.redirect(`${frontendUrl}/auth/google-callback?accessToken=${accessToken}&refreshToken=${refreshToken}`);

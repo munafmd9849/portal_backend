@@ -24,6 +24,7 @@ model User {
   createdAt               DateTime             @default(now())
   updatedAt               DateTime             @updatedAt
   lastLoginAt             DateTime?
+  sessionVersion          Int                  @default(0)
   adminRequests           AdminRequest[]
   admin                   Admin?
   googleCalendarToken     GoogleCalendarToken?
@@ -348,6 +349,7 @@ model Job {
   adminNote                   String?
   recruiterNote               String?
   interviewRounds             String?
+  customQuestions             String                     @default("[]")
   requiresScreening           Boolean                    @default(false)
   requiresTest                Boolean                    @default(false)
   targetSchools               String

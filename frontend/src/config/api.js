@@ -72,6 +72,14 @@ const getSocketUrl = () => {
 export const API_BASE_URL = getApiBaseUrl();
 export const SOCKET_URL = getSocketUrl();
 
+/** Turn `/api/resume/view?...` or full Cloudinary URL into a browser-openable URL. */
+export function resolveBackendPath(path) {
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  const origin = API_BASE_URL.replace(/\/api\/?$/, '');
+  return `${origin}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
 // Export getters for dynamic access (if needed)
 export const getAPIBaseURL = () => getApiBaseUrl();
 export const getSocketURL = () => getSocketUrl();

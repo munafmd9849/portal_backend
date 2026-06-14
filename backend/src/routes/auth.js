@@ -13,6 +13,7 @@ import {
   generateRefreshToken,
   verifyRefreshToken,
 } from '../middleware/auth.js';
+import { establishStudentSession, persistRefreshToken } from '../utils/sessionManager.js';
 import { requireRole } from '../middleware/roles.js';
 import jwt from 'jsonwebtoken';
 import { validateUUID } from '../middleware/validation.js';
@@ -180,17 +181,14 @@ router.post('/register', [
     });
 
     // Generate tokens
-    const accessToken = generateAccessToken(user.id);
+    let sessionUser = user;
+    if (user.role === 'STUDENT') {
+      sessionUser = await establishStudentSession(user.id);
+    }
+    const accessToken = generateAccessToken(sessionUser);
     const refreshToken = generateRefreshToken(user.id);
 
-    // Save refresh token
-    await prisma.refreshToken.create({
-      data: {
-        userId: user.id,
-        token: refreshToken,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-      },
-    });
+    await persistRefreshToken(user.id, refreshToken);
 
     // TODO: Send email verification
 
@@ -338,17 +336,22 @@ router.post('/login', [
 
     // Update last login; students who can log in are email-verified (OTP at registration)
     const loginAt = new Date();
-    const loginUpdate = { lastLoginAt: loginAt };
-    if (user.role === 'STUDENT' && !user.emailVerified) {
-      loginUpdate.emailVerified = true;
-      loginUpdate.emailVerifiedAt = loginAt;
-    }
-    await prisma.user.update({
-      where: { id: user.id },
-      data: loginUpdate,
-    });
-    if (user.role === 'STUDENT' && !user.emailVerified) {
-      user.emailVerified = true;
+    let sessionUser = user;
+    if (user.role === 'STUDENT') {
+      sessionUser = await establishStudentSession(user.id);
+      if (!sessionUser.emailVerified) {
+        sessionUser = await prisma.user.update({
+          where: { id: user.id },
+          data: { emailVerified: true, emailVerifiedAt: loginAt },
+          include: { student: true, recruiter: true, admin: true },
+        });
+      }
+      user.emailVerified = sessionUser.emailVerified;
+    } else {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: loginAt },
+      });
     }
     if (user.student?.id) {
       recordStudentActivity(user.student.id, 'LOGIN', null, { source: 'password_login' }).catch(() => {});
@@ -386,17 +389,12 @@ router.post('/login', [
     }
 
     // Generate tokens
-    const accessToken = generateAccessToken(user.id);
+    const tokenUser = user.role === 'STUDENT' ? sessionUser : user;
+    const accessToken = generateAccessToken(tokenUser);
     const refreshToken = generateRefreshToken(user.id);
 
     // Save refresh token
-    await prisma.refreshToken.create({
-      data: {
-        userId: user.id,
-        token: refreshToken,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      },
-    });
+    await persistRefreshToken(user.id, refreshToken);
 
     // For students: treat as completed if DB flag is true OR all required profile fields are filled
     const profileCompleted =
@@ -457,7 +455,7 @@ router.post('/login', [
  */
 router.post('/refresh', verifyRefreshToken, async (req, res) => {
   try {
-    const newAccessToken = generateAccessToken(req.user.id);
+    const newAccessToken = generateAccessToken(req.user);
 
     res.json({
       accessToken: newAccessToken,

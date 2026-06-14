@@ -194,6 +194,37 @@ function formatApplicationForPanel(app) {
   };
 }
 
+function formatResumeForPanel(file) {
+  return {
+    id: file.id,
+    fileName: file.fileName || file.title || 'Resume',
+    fileUrl: file.fileUrl,
+    fileSize: file.fileSize ?? null,
+    isDefault: Boolean(file.isDefault),
+    uploadedAt: file.uploadedAt || null,
+    title: file.title || null,
+  };
+}
+
+function buildPanelResumes(student) {
+  const files = (student.resumeFiles || []).map(formatResumeForPanel);
+  if (
+    student.resumeUrl
+    && !files.some((f) => f.fileUrl === student.resumeUrl)
+  ) {
+    files.unshift({
+      id: 'legacy',
+      fileName: student.resumeFileName || 'Resume',
+      fileUrl: student.resumeUrl,
+      fileSize: null,
+      isDefault: files.every((f) => !f.isDefault),
+      uploadedAt: student.resumeUploadedAt || null,
+      title: null,
+    });
+  }
+  return files;
+}
+
 function hasMetricsInputs(student, applications, assessments, mockInterviews) {
   if (student.profileCompleted) return true;
   if ((applications?.length || 0) > 0) return true;
@@ -220,7 +251,7 @@ const panelStudentInclude = {
   achievements: { orderBy: { createdAt: 'desc' } },
   certifications: { orderBy: { issuedDate: 'desc' } },
   experiences: { orderBy: { start: 'desc' } },
-  resumeFiles: { take: 5 },
+  resumeFiles: { orderBy: { uploadedAt: 'desc' }, take: 20 },
   applications: {
     include: {
       job: { include: { company: true } },
@@ -334,6 +365,7 @@ export async function getAdminStudentProfilePanel(studentId) {
     metricsAvailable,
     mockInterviews,
     assessments,
+    resumes: buildPanelResumes(student),
   };
 }
 

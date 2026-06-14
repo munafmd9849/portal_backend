@@ -173,7 +173,11 @@ async function apiRequest(endpoint, options = {}) {
           (isStudentResumeMutation && isStudentResumeCache)
         ) {
           localStorage.removeItem(key);
-        } else if (cachedUrl.startsWith(basePath)) {
+        } else if (
+          cachedUrl.startsWith(basePath) ||
+          // PATCH /super-admin/admins/:id must bust GET /super-admin/admins list cache
+          basePath.startsWith(cachedUrl)
+        ) {
           localStorage.removeItem(key);
         }
       }
@@ -295,6 +299,15 @@ async function apiRequest(endpoint, options = {}) {
 
       // Use exact backend error message (backend is source of truth)
       const errorMessage = errorData.error || errorData.message || errorData.details || `HTTP ${response.status}: ${response.statusText}`;
+
+      if (response.status === 401 && errorData.code === 'SESSION_SUPERSEDED') {
+        clearAuthTokens();
+        localStorage.removeItem('user');
+        if (typeof window !== 'undefined' && !window.__sessionSupersededHandled) {
+          window.__sessionSupersededHandled = true;
+          window.location.href = '/login?reason=session_superseded';
+        }
+      }
 
       const error = new Error(errorMessage);
       error.response = {
@@ -1086,7 +1099,7 @@ export const api = {
   }),
 
   // Super Admin
-  listSuperAdminAdmins: () => apiRequest('/super-admin/admins'),
+  listSuperAdminAdmins: () => apiRequest('/super-admin/admins', { noCache: true }),
   createSuperAdminAdmin: (data) => apiRequest('/super-admin/admins', {
     method: 'POST',
     body: JSON.stringify(data),

@@ -57,6 +57,8 @@ export default function AuthRedirect() {
         || currentPath.startsWith('/mock-interview-precheck/')
         || currentPath.startsWith('/mock-interview/results/')
         || currentPath.startsWith('/student/mock-interviews')
+        || currentPath.startsWith('/student/live-mock-interviews')
+        || currentPath.startsWith('/student/guided-ai-interviews')
         || currentPath.startsWith('/student/interviews/')
         || currentPath.startsWith('/assessment/');
 
