@@ -1,5 +1,6 @@
-import React from 'react';
-import { CheckCircle2, Circle, Clock, XCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { CheckCircle2, Circle, Clock, XCircle, ClipboardList } from 'lucide-react';
 import {
   getApplicationPrimaryStatus,
   getApplicationTimeline,
@@ -7,6 +8,7 @@ import {
   getPrimaryStatusColorClass,
   isTerminalApplication,
 } from '../../../utils/applicationTrackerState';
+import { respondToOffer } from '../../../services/applications';
 
 function TimelineIcon({ status }) {
   if (status === 'completed') {
@@ -36,11 +38,32 @@ function formatDate(value) {
   }
 }
 
-export default function StudentApplicationTracker({ application }) {
+export default function StudentApplicationTracker({ application, onApplicationUpdated }) {
+  const [offerLoading, setOfferLoading] = useState(false);
   const primary = getApplicationPrimaryStatus(application);
   const timeline = getApplicationTimeline(application);
   const details = getApplicationTrackerDetails(application);
   const isFinal = primary.final || isTerminalApplication(application);
+  const appStatus = String(application?.status || application?.tracker?.details?.finalStatus || '').toUpperCase();
+  const hasPendingOffer = appStatus === 'OFFERED';
+  const needsAssessment =
+    !isFinal
+    && Boolean(application?.job?.requiresTest)
+    && details.qaTest === 'Pending';
+
+  const handleOfferResponse = async (action) => {
+    if (!application?.id || offerLoading) return;
+    try {
+      setOfferLoading(true);
+      await respondToOffer(application.id, action);
+      onApplicationUpdated?.();
+    } catch (error) {
+      console.error('Offer response failed:', error);
+      alert(error?.response?.data?.message || error?.message || 'Failed to update offer response');
+    } finally {
+      setOfferLoading(false);
+    }
+  };
 
   const detailFields = [
     { label: 'Applied', value: formatDate(details.appliedDate || application.appliedDate) },
@@ -86,6 +109,37 @@ export default function StudentApplicationTracker({ application }) {
           <p className="text-xs text-slate-500 mt-3">
             Placement status: <span className="font-semibold text-slate-700">{details.placementStatus}</span>
           </p>
+        )}
+        {hasPendingOffer && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={offerLoading}
+              onClick={() => handleOfferResponse('accept')}
+              className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
+            >
+              Accept offer
+            </button>
+            <button
+              type="button"
+              disabled={offerLoading}
+              onClick={() => handleOfferResponse('decline')}
+              className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50 disabled:opacity-60"
+            >
+              Decline offer
+            </button>
+          </div>
+        )}
+        {needsAssessment && (
+          <div className="mt-4">
+            <Link
+              to="/student?tab=assessments"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700"
+            >
+              <ClipboardList className="w-4 h-4" />
+              Complete required assessment
+            </Link>
+          </div>
         )}
       </div>
 

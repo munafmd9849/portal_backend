@@ -463,6 +463,7 @@ export default function StudentDashboard() {
   const [isQuestionsModalOpen, setIsQuestionsModalOpen] = useState(false);
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [pendingJob, setPendingJob] = useState(null);
+  const [pendingCustomAnswers, setPendingCustomAnswers] = useState(null);
   const [resumes, setResumes] = useState([]);
   const [loadingResumes, setLoadingResumes] = useState(false);
 
@@ -1063,7 +1064,11 @@ export default function StudentDashboard() {
       // Pass resumeId in applicationData if backend supports it
       let applicationResult;
       try {
-        applicationResult = await applyToJob(user.id, pendingJob.id, { companyId, resumeId });
+        applicationResult = await applyToJob(user.id, pendingJob.id, {
+          companyId,
+          resumeId,
+          customAnswers: pendingCustomAnswers || {},
+        });
       } catch (applyError) {
         // Re-throw with more context
         console.error('❌ [handleResumeSelection] applyToJob error:', applyError);
@@ -1145,12 +1150,14 @@ export default function StudentDashboard() {
     } finally {
       setApplying(prev => ({ ...prev, [pendingJob.id]: false }));
       setPendingJob(null);
+      setPendingCustomAnswers(null);
     }
   };
 
   const handleCreateResume = () => {
     setIsResumeModalOpen(false);
     setPendingJob(null);
+    setPendingCustomAnswers(null);
     setActiveTab('resume');
     navigate('/student?tab=resume', { replace: true });
   };
@@ -5000,13 +5007,15 @@ export default function StudentDashboard() {
       {isQuestionsModalOpen && pendingJob && (
         <JobApplyQuestionsModal
           job={pendingJob}
-          onContinue={async () => {
+          onContinue={async (answers) => {
             setIsQuestionsModalOpen(false);
+            setPendingCustomAnswers(answers);
             await proceedToResumeSelection(pendingJob);
           }}
           onCancel={() => {
             setIsQuestionsModalOpen(false);
             setPendingJob(null);
+            setPendingCustomAnswers(null);
           }}
         />
       )}

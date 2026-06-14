@@ -1,0 +1,22 @@
+---
+description: Pre-interview requirements flow — implemented (Interview Scheduling + tracker aligned)
+globs: backend/src/controllers/interviewScheduling.js,backend/src/utils/applicationTrackerState.js,backend/src/controllers/applications.js
+alwaysApply: false
+---
+
+# Pre-interview requirements flow (implemented)
+
+## Intended behavior
+
+When **both** `requiresScreening` and `requiresTest` are false, all applicants become interview-eligible after the application deadline (or immediately on apply as `INTERVIEW_ELIGIBLE`).
+
+## Implementation
+
+- `buildInterviewEligibleApplicationWhere()` + `getInitialScreeningStatusForJob()` in `applicationTrackerState.js`
+- `interviewScheduling.js` uses job-aware eligibility everywhere; `backfillNoGateInterviewEligibility()` promotes legacy `APPLIED` rows on session open
+- Tracker shows resume/QA as **Not Required** when flags are off
+- `Boolean(job.requiresScreening)` used consistently (not `!== false`)
+
+## Legacy interview API
+
+`/api/admin/interview/*` returns **410 Gone**. Use `/api/admin/interview-scheduling` only.

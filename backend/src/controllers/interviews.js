@@ -96,7 +96,7 @@ export const startInterviewSession = async (req, res) => {
     // Get eligible applications for this job based on pre-interview requirements
     // CASE A: No screening/test required -> all applications
     // CASE B: Screening/test required -> only INTERVIEW_ELIGIBLE applications
-    const requiresScreening = job.requiresScreening || false;
+    const requiresScreening = Boolean(job.requiresScreening);
     const requiresTest = job.requiresTest || false;
     
     let applicationsWhere = { jobId };
@@ -540,7 +540,7 @@ export const getRoundCandidates = async (req, res) => {
     // Get eligible applications for this job based on pre-interview requirements
     // For Round 1: Filter based on requirements
     // For later rounds: Filter based on previous round evaluations
-    const requiresScreening = job?.requiresScreening || false;
+    const requiresScreening = Boolean(job?.requiresScreening);
     const requiresTest = job?.requiresTest || false;
     
     let applicationsWhere = { jobId: interview.jobId };

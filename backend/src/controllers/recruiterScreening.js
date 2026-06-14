@@ -9,6 +9,8 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { syncApplicationPipeline } from '../services/jobOpportunitiesPipeline.js';
 import { notifyStudentApplicationUpdate } from './applications.js';
+import { assertApplicationEditable, patchApplication } from '../services/applicationStateService.js';
+import { logAction, logSystemAction } from '../utils/auditLogger.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
@@ -45,7 +47,7 @@ function verifyScreeningToken(token) {
 }
 
 function buildScreeningSummary(applications, job) {
-  const requiresScreening = job?.requiresScreening || false;
+  const requiresScreening = Boolean(job?.requiresScreening);
   const requiresTest = job?.requiresTest || false;
 
   return {
@@ -235,7 +237,7 @@ export async function getOrCreateScreeningSession(req, res) {
         recruiterEmail: job.recruiterEmail,
         recruiterName: job.recruiterName,
         applicationDeadline: job.applicationDeadline,
-        requiresScreening: job.requiresScreening || false,
+        requiresScreening: Boolean(job.requiresScreening),
         requiresTest: job.requiresTest || false
       },
       applications: applications.map(app => {
@@ -255,7 +257,15 @@ export async function getOrCreateScreeningSession(req, res) {
           screeningStatus: app.screeningStatus || 'APPLIED',
           screeningRemarks: app.screeningRemarks || null,
           screeningCompletedAt: app.screeningCompletedAt || null,
-          appliedDate: app.appliedDate
+          appliedDate: app.appliedDate,
+          customAnswers: (() => {
+            try {
+              const raw = app.customAnswers;
+              return typeof raw === 'string' ? JSON.parse(raw || '{}') : (raw || {});
+            } catch {
+              return {};
+            }
+          })(),
         };
       }),
       summary: buildScreeningSummary(applications, job)
@@ -354,6 +364,15 @@ export async function updateScreeningStatus(req, res) {
       });
     }
 
+    try {
+      await assertApplicationEditable(applicationId);
+    } catch (lockErr) {
+      return res.status(409).json({
+        success: false,
+        error: lockErr.message,
+      });
+    }
+
     // Validate status transitions and job requirements
     const currentStatus = application.screeningStatus || 'APPLIED';
     const job = application.job;
@@ -436,13 +455,19 @@ export async function updateScreeningStatus(req, res) {
       updateData.screeningRemarks = screeningRemarks.trim();
     }
 
-    const updated = await prisma.application.update({
-      where: { id: applicationId },
-      data: updateData,
-    });
+    const updated = await patchApplication(applicationId, updateData);
 
-    await syncApplicationPipeline(applicationId);
-    await notifyStudentApplicationUpdate(applicationId);
+    await logAction(req, {
+      actionType: 'Recruiter Screening Decision',
+      targetType: 'Application',
+      targetId: applicationId,
+      details: JSON.stringify({
+        jobId: application.job.id,
+        from: currentStatus,
+        to: finalStatus,
+        screeningRemarks: updateData.screeningRemarks || null,
+      }),
+    });
 
     res.json({
       success: true,
@@ -574,6 +599,16 @@ export async function finalizeScreening(req, res) {
     });
 
     const refreshedApplications = await prisma.application.findMany({ where: { jobId } });
+
+    await logSystemAction({
+      actionType: 'Finalize Screening',
+      targetType: 'Job',
+      targetId: jobId,
+      details: JSON.stringify({
+        interviewEligible: refreshedApplications.filter((a) => a.screeningStatus === 'INTERVIEW_ELIGIBLE').length,
+        total: refreshedApplications.length,
+      }),
+    });
 
     for (const app of refreshedApplications) {
       await syncApplicationPipeline(app.id);

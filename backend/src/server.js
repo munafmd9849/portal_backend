@@ -60,6 +60,7 @@ import academicRoutes from './routes/academic.js';
 import publicRoutes from './routes/public.js';
 import resumeViewRoutes from './routes/resumeView.js';
 import auditLogRoutes from './routes/auditLogs.js';
+import adminPlacementCalendarRoutes from './routes/adminPlacementCalendar.js';
 import mockInterviewRoutes from './routes/mockInterview.js';
 import aiMockInterviewRoutes from './routes/aiMockInterview.js';
 import webrtcRoutes from './routes/webrtc.js';
@@ -286,6 +287,7 @@ app.use('/api/announcements', announcementsRoutes);
 app.use('/api/super-admin', superAdminRoutes); // Super Admin: create/disable admins, stats
 app.use('/api/assessments', assessmentRoutes); // Assessment Engine: Tests, Interviews, Proctoring
 app.use('/api/code', codeRoutes); // Coding engine: run & evaluate
+app.use('/api/admin/placement-calendar', adminPlacementCalendarRoutes);
 app.use('/api/admin/audit-logs', auditLogRoutes); // Audit Logs: SUPER_ADMIN only
 app.use('/api/mock-interviews', mockInterviewRoutes); // Dedicated Mock Interview System
 app.use('/api/ai-mock-interviews', aiMockInterviewRoutes); // Guided AI video mock interviews

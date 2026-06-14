@@ -17,6 +17,12 @@ function normalizeInterviewStatus(value) {
 function getFinalStatus({ status, screeningStatus, interviewStatus }) {
   const interview = normalizeInterviewStatus(interviewStatus);
   const screening = normalizeScreeningStatus(screeningStatus);
+  const normalizedStatus = status ? String(status).toUpperCase() : null;
+
+  if (normalizedStatus === 'JOINED' || interview === 'JOINED') return 'JOINED';
+  if (normalizedStatus === 'ACCEPTED' || interview === 'ACCEPTED') return 'ACCEPTED';
+  if (normalizedStatus === 'OFFER_DECLINED' || interview === 'OFFER_DECLINED') return 'OFFER_DECLINED';
+  if (normalizedStatus === 'OFFERED' || interview === 'OFFERED') return 'OFFERED';
 
   if (interview === 'SELECTED') return 'SELECTED';
   if (interview && interview.startsWith('REJECTED_IN_ROUND_')) return 'REJECTED';
@@ -25,26 +31,62 @@ function getFinalStatus({ status, screeningStatus, interviewStatus }) {
     return 'REJECTED';
   }
 
-  const normalized = status ? String(status).toUpperCase() : null;
-  if (normalized === 'WITHDRAWN') return 'WITHDRAWN';
-  if (normalized === 'REVOKED_BY_ADMIN') return 'REVOKED';
-  if (normalized === 'SELECTED') return 'SELECTED';
-  if (normalized === 'REJECTED') return 'REJECTED';
+  if (normalizedStatus === 'WITHDRAWN') return 'WITHDRAWN';
+  if (normalizedStatus === 'REVOKED_BY_ADMIN') return 'REVOKED';
+  if (normalizedStatus === 'SELECTED') return 'SELECTED';
+  if (normalizedStatus === 'REJECTED') return 'REJECTED';
 
   return 'ONGOING';
 }
 
-function screeningPhaseComplete(screening) {
+const REJECTED_SCREENING_STATUSES = ['RESUME_REJECTED', 'SCREENING_REJECTED', 'TEST_REJECTED'];
+
+export function jobRequiresPreInterviewGate(job = {}) {
+  return Boolean(job.requiresScreening) || Boolean(job.requiresTest);
+}
+
+/** Initial screeningStatus when a student applies. */
+export function getInitialScreeningStatusForJob(job = {}) {
+  return jobRequiresPreInterviewGate(job) ? 'APPLIED' : 'INTERVIEW_ELIGIBLE';
+}
+
+/** Prisma where fragment for applications eligible for interview round 1. */
+export function buildInterviewEligibleApplicationWhere(jobId, job = {}) {
+  const where = { jobId };
+  if (jobRequiresPreInterviewGate(job)) {
+    where.screeningStatus = { in: ['INTERVIEW_ELIGIBLE', 'TEST_SELECTED'] };
+  } else {
+    where.status = { not: 'WITHDRAWN' };
+    where.NOT = {
+      OR: [
+        { screeningStatus: { in: REJECTED_SCREENING_STATUSES } },
+        { status: { in: ['REJECTED', 'REVOKED_BY_ADMIN'] } },
+      ],
+    };
+  }
+  return where;
+}
+
+function screeningPhaseComplete(screening, requiresScreening = true, requiresTest = false) {
+  if (!requiresScreening && !requiresTest) {
+    const normalized = normalizeScreeningStatus(screening);
+    return !REJECTED_SCREENING_STATUSES.includes(normalized);
+  }
   return ['RESUME_SELECTED', 'SCREENING_SELECTED', 'TEST_SELECTED', 'INTERVIEW_ELIGIBLE'].includes(screening);
 }
 
-function interviewEligible(screening) {
-  return screening === 'TEST_SELECTED' || screening === 'INTERVIEW_ELIGIBLE';
+function interviewEligible(screening, requiresScreening = true, requiresTest = false) {
+  const normalized = normalizeScreeningStatus(screening);
+  if (!requiresScreening && !requiresTest) {
+    return !REJECTED_SCREENING_STATUSES.includes(normalized);
+  }
+  return normalized === 'TEST_SELECTED' || normalized === 'INTERVIEW_ELIGIBLE';
 }
 
 function variantForPrimary(code) {
-  if (code === 'SELECTED') return 'success';
-  if (code === 'REJECTED' || String(code).startsWith('REJECTED_')) return 'danger';
+  if (code === 'SELECTED' || code === 'JOINED' || code === 'ACCEPTED') return 'success';
+  if (code === 'REJECTED' || String(code).startsWith('REJECTED_') || code === 'OFFER_DECLINED') return 'danger';
+  if (code === 'OFFERED') return 'info';
   if (String(code).includes('QUALIFIED') || code === 'SCREENING_COMPLETED' || code === 'INTERVIEW_SCHEDULED') {
     return 'info';
   }
@@ -67,7 +109,7 @@ export function buildApplicationTrackerState(input = {}) {
     interviewDate,
     screeningRemarks,
     screeningCompletedAt,
-    requiresScreening = true,
+    requiresScreening = false,
     requiresTest = false,
     session = null,
     evaluations = [],
@@ -75,6 +117,7 @@ export function buildApplicationTrackerState(input = {}) {
 
   const screening = normalizeScreeningStatus(screeningStatus);
   const interview = normalizeInterviewStatus(interviewStatus);
+  const noPreInterviewGate = !requiresScreening && !requiresTest;
   const finalStatus = getFinalStatus({ status, screeningStatus: screening, interviewStatus: interview });
   const sessionRounds = Array.isArray(session?.rounds) ? [...session.rounds].sort((a, b) => a.roundNumber - b.roundNumber) : [];
 
@@ -132,8 +175,11 @@ export function buildApplicationTrackerState(input = {}) {
     addStep('under_review', 'Under Review', screening === 'APPLIED' && !screeningRejected ? 'current' : 'completed');
   }
 
-  // Resume screening (always part of pipeline)
-  if (screening === 'RESUME_REJECTED') {
+  if (noPreInterviewGate) {
+    if (!screeningRejected && (screening === 'APPLIED' || screening === 'INTERVIEW_ELIGIBLE')) {
+      addStep('interview_ready', 'Ready for Interview', interviewEligible(screening, requiresScreening, requiresTest) ? 'completed' : 'current');
+    }
+  } else if (screening === 'RESUME_REJECTED') {
     addStep('resume_screening', 'Resume Screening Rejected', 'rejected', screeningRemarks || null);
   } else if (screening !== 'APPLIED') {
     addStep('resume_screening', 'Resume Screening Passed', 'completed');
@@ -156,7 +202,7 @@ export function buildApplicationTrackerState(input = {}) {
   if (requiresTest) {
     if (screening === 'TEST_REJECTED') {
       addStep('qa_test', 'QA Test Rejected', 'rejected', screeningRemarks || null);
-    } else if (interviewEligible(screening)) {
+    } else if (interviewEligible(screening, requiresScreening, requiresTest)) {
       addStep('qa_test', 'QA Test Passed', 'completed');
     } else if (!screeningRejected && ['SCREENING_SELECTED', 'RESUME_SELECTED'].includes(screening)) {
       addStep('qa_test', 'QA Test', 'current');
@@ -165,14 +211,14 @@ export function buildApplicationTrackerState(input = {}) {
     }
   }
 
-  if (screeningPhaseComplete(screening) && !screeningRejected) {
-    addStep('screening_completed', 'Screening Completed', 'completed', null, screeningCompletedAt);
+  if (screeningPhaseComplete(screening, requiresScreening, requiresTest) && !screeningRejected) {
+    addStep('screening_completed', noPreInterviewGate ? 'Application Verified' : 'Screening Completed', 'completed', null, screeningCompletedAt);
   }
 
-  const showInterviewSteps = interviewEligible(screening) && !screeningRejected
+  const showInterviewSteps = interviewEligible(screening, requiresScreening, requiresTest) && !screeningRejected
     && (finalStatus === 'ONGOING' || finalStatus === 'SELECTED' || rejectedRoundNumber != null);
 
-  const isTerminal = ['SELECTED', 'REJECTED', 'WITHDRAWN', 'REVOKED'].includes(finalStatus);
+  const isTerminal = ['SELECTED', 'REJECTED', 'WITHDRAWN', 'REVOKED', 'JOINED', 'OFFER_DECLINED'].includes(finalStatus);
 
   if (showInterviewSteps && hasSession) {
     if (interviewStarted || interviewDate) {
@@ -232,6 +278,19 @@ export function buildApplicationTrackerState(input = {}) {
     addStep('selected', 'Selected', 'completed');
   }
 
+  if (['OFFERED', 'ACCEPTED', 'JOINED'].includes(finalStatus)) {
+    addStep('offer_extended', 'Offer Extended', finalStatus === 'OFFERED' ? 'current' : 'completed');
+  }
+  if (['ACCEPTED', 'JOINED'].includes(finalStatus)) {
+    addStep('offer_accepted', 'Offer Accepted', finalStatus === 'ACCEPTED' ? 'current' : 'completed');
+  }
+  if (finalStatus === 'JOINED') {
+    addStep('joined', 'Joined Company', 'completed');
+  }
+  if (finalStatus === 'OFFER_DECLINED') {
+    addStep('offer_declined', 'Offer Declined', 'rejected');
+  }
+
   // Terminal outcomes: timeline is history-only — no current/pending/future steps
   if (isTerminal) {
     let trimmed = timeline.filter((step) => step.status !== 'pending' && step.status !== 'current');
@@ -275,6 +334,18 @@ export function buildApplicationTrackerState(input = {}) {
   if (finalStatus === 'SELECTED') {
     primaryLabel = 'Selected';
     primaryCode = 'SELECTED';
+  } else if (finalStatus === 'OFFERED') {
+    primaryLabel = 'Offer Extended';
+    primaryCode = 'OFFERED';
+  } else if (finalStatus === 'ACCEPTED') {
+    primaryLabel = 'Offer Accepted';
+    primaryCode = 'ACCEPTED';
+  } else if (finalStatus === 'JOINED') {
+    primaryLabel = 'Joined';
+    primaryCode = 'JOINED';
+  } else if (finalStatus === 'OFFER_DECLINED') {
+    primaryLabel = 'Offer Declined';
+    primaryCode = 'OFFER_DECLINED';
   } else if (finalStatus === 'REJECTED') {
     primaryLabel = 'Rejected';
     primaryCode = 'REJECTED';
@@ -287,10 +358,13 @@ export function buildApplicationTrackerState(input = {}) {
   } else if (highestQualifiedRound > 0) {
     primaryLabel = `Round ${highestQualifiedRound} Qualified`;
     primaryCode = `ROUND_${highestQualifiedRound}_QUALIFIED`;
-  } else if (interviewEligible(screening) && hasSession && (interviewStarted || interviewDate)) {
+  } else if (interviewEligible(screening, requiresScreening, requiresTest) && hasSession && (interviewStarted || interviewDate)) {
     primaryLabel = 'Interview Scheduled';
     primaryCode = 'INTERVIEW_SCHEDULED';
-  } else if (screeningPhaseComplete(screening)) {
+  } else if (noPreInterviewGate && interviewEligible(screening, requiresScreening, requiresTest)) {
+    primaryLabel = 'Ready for Interview';
+    primaryCode = 'INTERVIEW_READY';
+  } else if (screeningPhaseComplete(screening, requiresScreening, requiresTest)) {
     primaryLabel = 'Screening Completed';
     primaryCode = 'SCREENING_COMPLETED';
   } else if (screening === 'APPLIED') {
@@ -326,16 +400,22 @@ export function buildApplicationTrackerState(input = {}) {
       ? 'Not Required'
       : screening === 'TEST_REJECTED'
         ? 'Rejected'
-        : interviewEligible(screening)
+        : interviewEligible(screening, requiresScreening, requiresTest)
           ? 'Passed'
           : 'Pending',
-    interviewEligible: isTerminal ? false : interviewEligible(screening),
+    interviewEligible: isTerminal ? false : interviewEligible(screening, requiresScreening, requiresTest),
     activeRound: !isTerminal && activeRound
       ? { roundNumber: activeRound.roundNumber, name: activeRound.name, status: activeRound.status }
       : null,
     highestQualifiedRound: !isTerminal && highestQualifiedRound ? highestQualifiedRound : null,
     finalOutcome: isTerminal ? primaryLabel : null,
-    placementStatus: finalStatus === 'SELECTED' ? 'Selected' : finalStatus === 'REJECTED' ? 'Not Selected' : 'In Process',
+    placementStatus: finalStatus === 'JOINED'
+      ? 'Joined'
+      : finalStatus === 'SELECTED' || finalStatus === 'ACCEPTED' || finalStatus === 'OFFERED'
+        ? 'Selected'
+        : finalStatus === 'REJECTED' || finalStatus === 'OFFER_DECLINED'
+          ? 'Not Selected'
+          : 'In Process',
   };
 
   return {

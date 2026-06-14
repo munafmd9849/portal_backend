@@ -158,6 +158,18 @@ export const withdrawApplication = async (applicationId) => {
 };
 
 /**
+ * Accept or decline a job offer (student only)
+ */
+export const respondToOffer = async (applicationId, action) => {
+  try {
+    return await api.respondToOffer(applicationId, action);
+  } catch (error) {
+    console.error('respondToOffer error:', error);
+    throw error;
+  }
+};
+
+/**
  * Update application status (admin/recruiter only)
  */
 export const updateApplicationStatus = async (applicationId, status, interviewDate) => {

@@ -93,4 +93,26 @@ export function handleDatabaseError(error) {
   return error;
 }
 
+const RETRYABLE_CODES = new Set(['P2024', 'P1017', 'P1001']);
+
+/**
+ * Retry transient DB pool / connectivity errors (Render free tier P2024).
+ */
+export async function withDbRetry(fn, maxAttempts = 3) {
+  let lastError;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = handleDatabaseError(error);
+      if (RETRYABLE_CODES.has(error?.code) && attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
+        continue;
+      }
+      throw lastError;
+    }
+  }
+  throw lastError;
+}
+
 export default prisma;

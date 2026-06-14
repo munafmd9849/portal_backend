@@ -19,6 +19,7 @@ import {
   computeInterviewAttendanceScore,
   computeResumeQualityScore,
 } from './placementReadinessService.js';
+import { mergeScopeIntoStudentWhere } from '../utils/adminScope.js';
 
 const MS_DAY = 24 * 60 * 60 * 1000;
 
@@ -442,17 +443,36 @@ async function computeDirectoryStatusBreakdown(query = {}) {
   return { total, active, blocked, inactive };
 }
 
-export async function getStudentDirectory(query = {}) {
+export async function getStudentDirectory(query = {}, adminScope = {}) {
   const page = Math.max(1, parseInt(query.page, 10) || 1);
   const limit = Math.min(500, Math.max(1, parseInt(query.limit, 10) || 50));
-  const where = buildDirectoryWhere(query);
+  let where = buildDirectoryWhere(query);
+  where = mergeScopeIntoStudentWhere(where, adminScope);
+
+  if (where.id === '__BLOCKED__') {
+    return {
+      students: [],
+      total: 0,
+      page,
+      limit,
+      totalPages: 0,
+      summary: {
+        total: 0,
+        active: 0,
+        blocked: 0,
+        pending: 0,
+        rejected: 0,
+      },
+    };
+  }
 
   const summaryQuery = { ...query };
   delete summaryQuery.status;
   delete summaryQuery.csStatus;
   delete summaryQuery.activityTier;
   delete summaryQuery.tier;
-  const summaryWhere = buildDirectoryWhere(summaryQuery);
+  let summaryWhere = buildDirectoryWhere(summaryQuery);
+  summaryWhere = mergeScopeIntoStudentWhere(summaryWhere, adminScope);
 
   const [activeJobSkills, total, students, summaryTotal, activeStudents, blockedStudents, pendingStudents, rejectedStudents] = await Promise.all([
     fetchActiveJobSkills(),
@@ -521,9 +541,9 @@ export async function getStudentDirectory(query = {}) {
   };
 }
 
-export async function getStudentDirectoryExport(query = {}) {
+export async function getStudentDirectoryExport(query = {}, adminScope = {}) {
   const exportQuery = { ...query, page: 1, limit: Math.min(2000, parseInt(query.limit, 10) || 1000) };
-  return getStudentDirectory(exportQuery);
+  return getStudentDirectory(exportQuery, adminScope);
 }
 
 /**

@@ -4,13 +4,10 @@ import { JobOpportunitiesSection } from './JobOpportunitiesDashboard';
 import CrManagerCard from './CrManagerCard';
 import FunnelStatCard from './FunnelStatCard';
 import { fetchCrManagers } from '../../../services/jobOpportunities';
-// import useRef removed - unused
 import { PieChart } from 'react-minimal-pie-chart';
-import { ChevronDown, Filter, TrendingUp, Users, Briefcase, MessageSquare, Bell, Target, DollarSign, X, Loader2 } from 'lucide-react';
-import { FaChevronDown, FaTimes, FaMapMarkerAlt, FaGraduationCap, FaUsers, FaUserShield } from 'react-icons/fa';
+import { Filter, TrendingUp, Users, Briefcase, MessageSquare, X, Loader2 } from 'lucide-react';
+import { FaMapMarkerAlt, FaGraduationCap, FaUsers, FaUserShield } from 'react-icons/fa';
 import CustomDropdown from '../../common/CustomDropdown';
-import { Chart as ChartJS, CategoryScale, LinearScale, RadialLinearScale, BarElement, LineElement, PointElement, ArcElement, Filler, Title, Tooltip, Legend } from 'chart.js';
-import { Radar } from 'react-chartjs-2';
 import { adminDashboardService } from '../../../services/adminDashboard';
 import { useAuth } from '../../../hooks/useAuth';
 import {
@@ -18,10 +15,6 @@ import {
   getAdminWelcomePrefix,
   getDashboardWelcomeSubtitle,
 } from '../../../utils/adminScopeDisplay';
-// import api from '../../../services/api'; // Unused import removed
-// TODO: Replace Firebase operations with API calls
-// Register Chart.js components
-ChartJS.register(CategoryScale, LinearScale, RadialLinearScale, BarElement, LineElement, PointElement, ArcElement, Filler, Title, Tooltip, Legend);
 
 export default function AdminHome() {
   const { user, role } = useAuth();
@@ -30,8 +23,6 @@ export default function AdminHome() {
   const isAdminUser = userRole === 'ADMIN' || isSuperAdmin;
   
   const [filters, setFilters] = useState({ campus: '', school: '', batch: '', admin: '' });
-  const [selectedSchool, setSelectedSchool] = useState('');
-
 
   // Chart.js color palette
   const chartColors = {
@@ -110,14 +101,6 @@ export default function AdminHome() {
     loadAdminOverview();
     return () => { cancelled = true; };
   }, []);
-
-  useEffect(() => {
-    const ids = filterOptions.schools.map((s) => s.id).filter(Boolean);
-    if (!ids.length) return;
-    if (!selectedSchool || !ids.includes(selectedSchool)) {
-      setSelectedSchool(ids[0]);
-    }
-  }, [filterOptions.schools, selectedSchool]);
 
   const mapFiltersForService = (uiFilters) => {
     return {
@@ -285,108 +268,6 @@ export default function AdminHome() {
       )}
     </div>
   );
-
-  // School data with real-time performance and application metrics
-  // Ensure we always have a valid structure with all schools
-  const emptySchoolChart = {
-    performance: { labels: [], values: [] },
-    applications: { labels: [], values: [] },
-  };
-
-  const incomingSchoolData = dashboardData?.chartData?.schoolPerformance || {};
-  const schoolTabIds = filterOptions.schools.map((s) => s.id).filter(Boolean);
-  const schoolData = {};
-  schoolTabIds.forEach((id) => {
-    schoolData[id] = incomingSchoolData[id] || emptySchoolChart;
-  });
-  Object.keys(incomingSchoolData).forEach((key) => {
-    if (!schoolData[key]) schoolData[key] = incomingSchoolData[key];
-  });
-
-  const schoolChartColors = [
-    { main: chartColors.blue, light: chartColors.blueLight },
-    { main: chartColors.purple, light: chartColors.purpleLight },
-    { main: chartColors.green, light: chartColors.greenLight },
-    { main: chartColors.red, light: chartColors.redLight },
-  ];
-  const getSchoolColor = (schoolId, type = 'main') => {
-    const idx = Math.max(0, schoolTabIds.indexOf(schoolId));
-    const palette = schoolChartColors[idx % schoolChartColors.length];
-    return palette[type];
-  };
-
-  // Build unified radar chart data with consistent colors
-  const buildSchoolRadarData = (schoolKey) => {
-    const school = schoolData[schoolKey];
-    
-    // Safety check: if school data doesn't exist or is incomplete, return empty data
-    if (!school || !school.performance || !school.applications) {
-      return {
-        labels: [],
-        datasets: [
-          {
-            label: 'Performance Metrics',
-            data: [],
-            backgroundColor: chartColors.blueLight,
-            borderColor: chartColors.blue,
-            borderWidth: 2,
-            pointBackgroundColor: chartColors.blue,
-            pointBorderColor: '#fff',
-            pointHoverBackgroundColor: '#fff',
-            pointHoverBorderColor: chartColors.blue
-          },
-          {
-            label: 'Application Metrics',
-            data: [],
-            backgroundColor: chartColors.greenLight,
-            borderColor: chartColors.green,
-            borderWidth: 2,
-            pointBackgroundColor: chartColors.green,
-            pointBorderColor: '#fff',
-            pointHoverBackgroundColor: '#fff',
-            pointHoverBorderColor: chartColors.green
-          }
-        ]
-      };
-    }
-    
-    const labels = school.performance.labels || [];
-    const performanceValues = school.performance.values || [];
-    const applicationValues = school.applications.values || [];
-    
-    return {
-      labels,
-      datasets: [
-        {
-          label: 'Performance Metrics',
-          data: performanceValues,
-          backgroundColor: chartColors.blueLight,
-          borderColor: chartColors.blue,
-          borderWidth: 2,
-          pointBackgroundColor: chartColors.blue,
-          pointBorderColor: '#fff',
-          pointHoverBackgroundColor: '#fff',
-          pointHoverBorderColor: chartColors.blue
-        },
-        {
-          label: 'Application Metrics',
-          data: applicationValues.map((val, index) => {
-            const maxVal = index === 0 ? 4000 : index === 1 ? 1000 : index === 2 ? 600 : 100;
-            return maxVal > 0 ? Math.round((val / maxVal) * 100) : 0;
-          }),
-          backgroundColor: chartColors.greenLight,
-          borderColor: chartColors.green,
-          borderWidth: 2,
-          pointBackgroundColor: chartColors.green,
-          pointBorderColor: '#fff',
-          pointHoverBackgroundColor: '#fff',
-          pointHoverBorderColor: chartColors.green
-        }
-      ]
-    };
-  };
-
-  const schoolRadarData = buildSchoolRadarData(selectedSchool);
 
   return (
     <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 bg-gradient-to-br from-gray-50 to-blue-50/30 min-h-screen overflow-x-hidden">
@@ -617,136 +498,6 @@ export default function AdminHome() {
 
       {/* Job Opportunities */}
       {isAdminUser && <JobOpportunitiesSection embedded showAdminOverview={false} />}
-
-      {/* School Performance Radar Chart */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-800 flex items-center">
-                <Target className="w-5 h-5 mr-2" style={{ color: chartColors.blue }} />
-                School Performance & Applications
-              </h2>
-            </div>
-            {/* School selector with consistent Chart.js colors */}
-            <div className="flex gap-2 flex-wrap">
-              {filterOptions.schools.map((school) => (
-                <button
-                  key={school.id}
-                  onClick={() => setSelectedSchool(school.id)}
-                  className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 relative overflow-hidden group ${
-                    selectedSchool === school.id
-                      ? 'text-white shadow-sm'
-                      : 'text-gray-700 bg-white border border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  {selectedSchool === school.id && (
-                    <div
-                      className="absolute inset-0 rounded-xl p-[1.5px] animate-pulse"
-                      style={{
-                        background: `linear-gradient(to right, ${getSchoolColor(school.id)}, ${getSchoolColor(school.id, 'light')})`,
-                      }}
-                    >
-                      <div
-                        className="w-full h-full rounded-lg"
-                        style={{ background: getSchoolColor(school.id) }}
-                      />
-                    </div>
-                  )}
-
-                  <span className="relative z-10">{school.code || school.name}</span>
-
-                  {selectedSchool !== school.id && (
-                    <div
-                      className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 border"
-                      style={{
-                        background: getSchoolColor(school.id, 'light'),
-                        borderColor: getSchoolColor(school.id),
-                      }}
-                    />
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-        
-        <div className="p-6">
-          <div className="h-96">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <Loader2 className="w-12 h-12 mx-auto mb-4 text-blue-500 animate-spin" />
-                  <p className="text-gray-500 text-lg">Loading school performance data...</p>
-                </div>
-              </div>
-            ) : schoolData[selectedSchool] && schoolData[selectedSchool].performance.labels.length > 0 ? (
-              <Radar 
-                data={schoolRadarData} 
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  scales: {
-                    r: {
-                      beginAtZero: true,
-                      max: 100,
-                      ticks: {
-                        display: false
-                      },
-                      grid: {
-                        color: 'rgba(0, 0, 0, 0.05)'
-                      },
-                      angleLines: {
-                        color: 'rgba(0, 0, 0, 0.1)'
-                      },
-                      pointLabels: {
-                        font: {
-                          size: 11,
-                          weight: '500'
-                        },
-                        color: '#374151'
-                      }
-                    }
-                  },
-                  plugins: {
-                    legend: {
-                      position: 'top',
-                      labels: {
-                        usePointStyle: true,
-                        padding: 15,
-                        font: {
-                          size: 12
-                        }
-                      }
-                    },
-                    tooltip: {
-                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                      titleColor: '#1f2937',
-                      bodyColor: '#374151',
-                      borderColor: '#e5e7eb',
-                      borderWidth: 1,
-                      padding: 12,
-                      callbacks: {
-                        label: function(context) {
-                          return `${context.dataset.label}: ${context.raw}%`;
-                        }
-                      }
-                    }
-                  }
-                }} 
-              />
-            ) : (
-              <div className="flex items-center justify-center h-full text-gray-500">
-                <div className="text-center">
-                  <Target className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                  <p>No school performance data available</p>
-                  <p className="text-sm mt-1">Data will appear once students and applications are available</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

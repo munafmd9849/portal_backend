@@ -145,6 +145,16 @@ export default function AdminJobApplicationDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
+  const [statusUpdating, setStatusUpdating] = useState(false);
+  const [offerCtc, setOfferCtc] = useState('');
+  const [offerLetterUrl, setOfferLetterUrl] = useState('');
+  const [offerDeadlineAt, setOfferDeadlineAt] = useState('');
+
+  const loadDetail = async () => {
+    if (!jobId || !applicationId) return;
+    const res = await api.get(`/admin/jobs/${jobId}/applications/${applicationId}`, { noCache: true });
+    setData(res.data);
+  };
 
   useEffect(() => {
     async function load() {
@@ -152,8 +162,7 @@ export default function AdminJobApplicationDetail() {
       try {
         setLoading(true);
         setError('');
-        const res = await api.get(`/admin/jobs/${jobId}/applications/${applicationId}`, { noCache: true });
-        setData(res.data);
+        await loadDetail();
       } catch (err) {
         setError(err.response?.data?.error || err.message || 'Failed to load application details');
       } finally {
@@ -163,12 +172,35 @@ export default function AdminJobApplicationDetail() {
     load();
   }, [jobId, applicationId]);
 
+  const updatePlacementStatus = async (status) => {
+    if (!applicationId || statusUpdating) return;
+    try {
+      setStatusUpdating(true);
+      const extras = status === 'OFFERED'
+        ? {
+            offerCtc: offerCtc.trim() || undefined,
+            offerLetterUrl: offerLetterUrl.trim() || undefined,
+            offerDeadlineAt: offerDeadlineAt || undefined,
+          }
+        : {};
+      await api.updateApplicationStatus(applicationId, status, extras);
+      await loadDetail();
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || 'Failed to update status');
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
   const job = data?.job || {};
   const application = data?.application || {};
   const student = data?.student || {};
   const interviewRounds = data?.interviewRounds || [];
   const session = data?.session;
   const pipeline = application.screeningPipeline || {};
+  const customAnswers = application.customAnswers || {};
+  const customAnswerEntries = Object.entries(customAnswers).filter(([, value]) => String(value || '').trim());
+  const appStatus = String(application.status || '').toUpperCase();
 
   if (loading) {
     return (
@@ -281,6 +313,88 @@ export default function AdminJobApplicationDetail() {
                   <p className="text-sm text-slate-700 mt-1 whitespace-pre-wrap">{application.notes}</p>
                 </div>
               )}
+              {customAnswerEntries.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Apply questions &amp; answers</p>
+                  <div className="space-y-2">
+                    {customAnswerEntries.map(([question, answer]) => (
+                      <div key={question} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                        <p className="text-xs font-semibold text-slate-700">{question}</p>
+                        <p className="text-sm text-slate-600 mt-1 whitespace-pre-wrap">{answer}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="bg-white rounded-[24px] border border-slate-200 p-5 shadow-sm">
+            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-4">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+              Placement actions
+            </h2>
+            <p className="text-xs text-slate-500 mb-4">
+              Move this candidate through offer and joining after interviews are complete.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+              <div>
+                <label className="text-[10px] font-bold uppercase text-slate-400">Offer CTC</label>
+                <input
+                  type="text"
+                  value={offerCtc}
+                  onChange={(e) => setOfferCtc(e.target.value)}
+                  placeholder="e.g. 12 LPA"
+                  className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase text-slate-400">Offer letter URL</label>
+                <input
+                  type="url"
+                  value={offerLetterUrl}
+                  onChange={(e) => setOfferLetterUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase text-slate-400">Acceptance deadline</label>
+                <input
+                  type="datetime-local"
+                  value={offerDeadlineAt}
+                  onChange={(e) => setOfferDeadlineAt(e.target.value)}
+                  className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+            {(application.offerCtc || application.offerLetterUrl || application.offerDeadlineAt) && (
+              <div className="mb-4 text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-lg p-3 space-y-1">
+                {application.offerCtc && <p><span className="font-semibold">CTC:</span> {application.offerCtc}</p>}
+                {application.offerLetterUrl && (
+                  <p><span className="font-semibold">Letter:</span> <a href={application.offerLetterUrl} className="text-indigo-600 underline" target="_blank" rel="noreferrer">View</a></p>
+                )}
+                {application.offerDeadlineAt && (
+                  <p><span className="font-semibold">Deadline:</span> {new Date(application.offerDeadlineAt).toLocaleString()}</p>
+                )}
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {['SELECTED', 'OFFERED', 'JOINED'].map((status) => (
+                <button
+                  key={status}
+                  type="button"
+                  disabled={statusUpdating || appStatus === status}
+                  onClick={() => updatePlacementStatus(status)}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wide border transition-colors ${
+                    appStatus === status
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-white text-slate-700 border-slate-200 hover:border-indigo-300'
+                  } disabled:opacity-50`}
+                >
+                  {status === 'JOINED' ? 'Mark Joined' : status === 'OFFERED' ? 'Extend Offer' : 'Mark Selected'}
+                </button>
+              ))}
             </div>
           </section>
         </div>

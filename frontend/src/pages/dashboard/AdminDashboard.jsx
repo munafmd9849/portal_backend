@@ -25,13 +25,14 @@ import AdminAssessments from '../admin/AdminAssessments';
 import AdminAssessmentResults from '../admin/AdminAssessmentResults';
 import MockInterviewManagement from '../admin/MockInterviewManagement';
 import MockInterviewSlots from '../admin/MockInterviewSlots';
-import ConnectGoogleCalendar from '../ConnectGoogleCalendar';
-import { Home, FilePlus2, Briefcase, GripVertical, LogOut, Users, Bell, Settings, User, Calendar, Megaphone, X, Loader2, UserPlus, History, BarChart3, LayoutDashboard, ShieldCheck, Sparkles, Video } from 'lucide-react';
+import PlacementCalendar from '../../components/dashboard/admin/PlacementCalendar';
+import { Home, FilePlus2, Briefcase, GripVertical, LogOut, Users, Bell, Settings, User, Calendar, Megaphone, X, Loader2, UserPlus, History, BarChart3, LayoutDashboard, ShieldCheck, Sparkles, Video, ClipboardList } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import showLogoutConfirm from '../../utils/logoutConfirm';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import RequireRole from '../../components/RequireRole';
 import ErrorBoundary from '../../components/common/ErrorBoundary';
+import api from '../../services/api';
 
 export default function AdminDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -41,6 +42,7 @@ export default function AdminDashboard() {
   const [isDragging, setIsDragging] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobileView, setIsMobileView] = useState(typeof window !== 'undefined' && window.innerWidth < 768);
+  const [inReviewJobCount, setInReviewJobCount] = useState(0);
   const dragRef = useRef(null);
   const { logout, user, role, loading } = useAuth();
   const navigate = useNavigate();
@@ -57,6 +59,22 @@ export default function AdminDashboard() {
       document.body.style.overflow = '';
     };
   }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    if (loading) return undefined;
+    const userRoleUpper = (role || user?.role || '').toUpperCase();
+    if (userRoleUpper !== 'ADMIN' && userRoleUpper !== 'SUPER_ADMIN') return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.getJobs({ limit: 1, page: 1, status: 'IN_REVIEW' });
+        if (!cancelled) setInReviewJobCount(res?.pagination?.total ?? 0);
+      } catch {
+        if (!cancelled) setInReviewJobCount(0);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [loading, role, user?.role]);
 
   useEffect(() => {
     const mql = window.matchMedia('(max-width: 767px)');
@@ -195,8 +213,8 @@ export default function AdminDashboard() {
     { id: 'jobApplications', label: 'Applicants', icon: Users, roles: ['ADMIN', 'RECRUITER', 'SUPER_ADMIN'] }, // ADMIN and RECRUITER only
     // { id: 'scheduleInterview', label: 'Schedule Interview', icon: Calendar }, // Commented out - replaced by InterviewScheduling
     { id: 'interviewScheduling', label: 'Interview Scheduling', icon: Calendar, roles: ['ADMIN', 'RECRUITER', 'SUPER_ADMIN'] },
-    { id: 'calendar', label: 'Calendar', icon: Calendar, roles: ['ADMIN', 'RECRUITER', 'SUPER_ADMIN'] },
-    // { id: 'jobPostingsManager', label: 'Job Moderation', icon: ClipboardList }, // Removed from sidebar - page still exists
+    { id: 'calendar', label: 'Placement Calendar', icon: Calendar, roles: ['ADMIN', 'RECRUITER', 'SUPER_ADMIN'] },
+    { id: 'jobPostingsManager', label: 'Job Moderation', icon: ClipboardList, roles: ['ADMIN', 'SUPER_ADMIN'] },
     { id: 'studentDirectory', label: 'Student Directory', icon: Users, roles: ['ADMIN', 'SUPER_ADMIN'] }, // ADMIN only
     { id: 'recruiterDirectory', label: 'Recruiter Directory', icon: Briefcase, roles: ['ADMIN', 'SUPER_ADMIN'] }, // ADMIN only
     { id: 'announcements', label: 'Announcements', icon: Megaphone, roles: ['ADMIN', 'SUPER_ADMIN'] }, // ADMIN only
@@ -333,7 +351,7 @@ export default function AdminDashboard() {
         if (!canCreateJobs) {
           return <div className="text-red-600 font-semibold">Access denied: Only ADMIN or RECRUITER users can access calendar.</div>;
         }
-        return <ConnectGoogleCalendar />;
+        return <PlacementCalendar />;
       case 'jobPostingsManager':
         if (!isAdminOnly) {
           return <div className="text-red-600 font-semibold">Access denied: Only ADMIN users can access job moderation.</div>;
@@ -453,7 +471,16 @@ export default function AdminDashboard() {
                           title={sidebarWidth < 9 ? tab.label : ''}
                         >
                           <Icon className={`h-4 w-4 ${sidebarWidth >= 9 ? 'mr-2' : ''}`} />
-                          {sidebarWidth >= 9 && tab.label}
+                          {sidebarWidth >= 9 && (
+                            <span className="flex-1 text-left">{tab.label}</span>
+                          )}
+                          {tab.id === 'jobPostingsManager' && inReviewJobCount > 0 && (
+                            <span className={`ml-auto min-w-[1.25rem] h-5 px-1.5 rounded-full text-[10px] font-bold flex items-center justify-center ${
+                              sidebarActiveTab === tab.id ? 'bg-white/20 text-white' : 'bg-amber-500 text-white'
+                            }`}>
+                              {inReviewJobCount > 99 ? '99+' : inReviewJobCount}
+                            </span>
+                          )}
                         </button>
                       </div>
                     );
@@ -520,7 +547,14 @@ export default function AdminDashboard() {
                           }`}
                       >
                         <Icon className="h-4 w-4 mr-2" />
-                        {tab.label}
+                        <span className="flex-1 text-left">{tab.label}</span>
+                        {tab.id === 'jobPostingsManager' && inReviewJobCount > 0 && (
+                          <span className={`ml-2 min-w-[1.25rem] h-5 px-1.5 rounded-full text-[10px] font-bold flex items-center justify-center ${
+                            sidebarActiveTab === tab.id ? 'bg-white/20 text-white' : 'bg-amber-500 text-white'
+                          }`}>
+                            {inReviewJobCount > 99 ? '99+' : inReviewJobCount}
+                          </span>
+                        )}
                       </button>
                     </div>
                   );

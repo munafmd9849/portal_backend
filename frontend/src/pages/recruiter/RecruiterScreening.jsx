@@ -675,6 +675,14 @@ const RecruiterScreening = () => {
                               <span className="font-medium">Remarks:</span> {app.screeningRemarks}
                             </div>
                           )}
+                          {app.customAnswers && Object.keys(app.customAnswers).length > 0 && (
+                            <div className="mt-2 text-xs text-gray-600 bg-indigo-50 rounded-lg px-3 py-2 border border-indigo-100 space-y-1">
+                              <p className="font-semibold text-indigo-800">Apply questions</p>
+                              {Object.entries(app.customAnswers).map(([q, a]) => (
+                                <p key={q}><span className="font-medium">{q}:</span> {a}</p>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>

@@ -11,6 +11,7 @@ import StudentDirectory from '../../components/dashboard/admin/StudentDirectory'
 import RecruiterDirectory from '../../components/dashboard/admin/RecruiterDirectory';
 import AdminPanel from '../../components/dashboard/admin/AdminPanel';
 import Notifications from '../../components/dashboard/admin/Notifications';
+import AdminAnnouncements from '../../components/dashboard/admin/AdminAnnouncements';
 import AdminProfile from '../../components/dashboard/admin/AdminProfile';
 import AdminJobDetail from '../../components/dashboard/admin/AdminJobDetail';
 import AdminJobApplications from '../../components/dashboard/admin/AdminJobApplications';
@@ -18,11 +19,15 @@ import AdminApplicantsHub from '../../components/dashboard/admin/AdminApplicants
 import CreateDisableAdmins from '../../components/dashboard/admin/CreateDisableAdmins';
 import SuperAdminStats from '../../components/dashboard/admin/SuperAdminStats';
 import AuditLogs from '../../components/dashboard/admin/AuditLogs';
-import ConnectGoogleCalendar from '../ConnectGoogleCalendar';
-import { Home, FilePlus2, Briefcase, GripVertical, LogOut, Users, Bell, Settings, User, Calendar, UserPlus, BarChart3, X, History } from 'lucide-react';
+import AcademicStructureManager from '../../components/dashboard/admin/AcademicStructureManager';
+import AdminAssessments from '../admin/AdminAssessments';
+import MockInterviewManagement from '../admin/MockInterviewManagement';
+import PlacementCalendar from '../../components/dashboard/admin/PlacementCalendar';
+import { Home, FilePlus2, Briefcase, GripVertical, LogOut, Users, Bell, Settings, User, Calendar, UserPlus, BarChart3, X, History, Megaphone, ShieldCheck, Sparkles, Video, ClipboardList } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import showLogoutConfirm from '../../utils/logoutConfirm';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import api from '../../services/api';
 
 const BASE = '/super-admin';
 
@@ -34,6 +39,7 @@ export default function SuperAdminDashboard() {
   const [isDragging, setIsDragging] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobileView, setIsMobileView] = useState(typeof window !== 'undefined' && window.innerWidth < 768);
+  const [inReviewJobCount, setInReviewJobCount] = useState(0);
   const dragRef = useRef(null);
   const { logout, user, role, loading } = useAuth();
   const navigate = useNavigate();
@@ -89,6 +95,22 @@ export default function SuperAdminDashboard() {
     return () => window.removeEventListener('editProfileClicked', handleEditProfileClick);
   }, [navigate]);
 
+  useEffect(() => {
+    if (loading) return undefined;
+    const userRole = (role || user?.role || '').toUpperCase();
+    if (userRole !== 'SUPER_ADMIN') return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.getJobs({ limit: 1, page: 1, status: 'IN_REVIEW' });
+        if (!cancelled) setInReviewJobCount(res?.pagination?.total ?? 0);
+      } catch {
+        if (!cancelled) setInReviewJobCount(0);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [loading, role, user?.role]);
+
   const userRole = (role || user?.role || '').toUpperCase();
   if (loading || !user || userRole !== 'SUPER_ADMIN') return null;
 
@@ -98,13 +120,19 @@ export default function SuperAdminDashboard() {
     { id: 'manageJobs', label: 'Manage Jobs', icon: Briefcase },
     { id: 'jobApplications', label: 'Applicants', icon: Users },
     { id: 'interviewScheduling', label: 'Interview Scheduling', icon: Calendar },
-    { id: 'calendar', label: 'Calendar', icon: Calendar },
+    { id: 'calendar', label: 'Placement Calendar', icon: Calendar },
+    { id: 'jobPostingsManager', label: 'Job Moderation', icon: ClipboardList },
     { id: 'studentDirectory', label: 'Student Directory', icon: Users },
     { id: 'recruiterDirectory', label: 'Recruiter Directory', icon: Briefcase },
+    { id: 'announcements', label: 'Announcements', icon: Megaphone },
+    { id: 'mockInterviews', label: 'Live Mock Interviews', icon: Video },
+    { id: 'aiInterviews', label: 'AI Interviews', icon: Sparkles },
+    { id: 'assessments', label: 'Assessments', icon: ShieldCheck },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'createDisableAdmins', label: 'Create / Disable Admins', icon: UserPlus },
     { id: 'auditLogs', label: 'Audit Logs', icon: History },
     { id: 'adminPanel', label: 'Admin Panel', icon: Settings },
+    { id: 'academicStructure', label: 'Academic Structure', icon: GripVertical },
     { id: 'superAdminStats', label: 'Statistics', icon: BarChart3 },
     { id: 'profile', label: 'Profile', icon: User },
   ];
@@ -158,14 +186,19 @@ export default function SuperAdminDashboard() {
       case 'manageJobs': return <ManageJobs />;
       case 'jobApplications': return <AdminApplicantsHub />;
       case 'interviewScheduling': return <InterviewScheduling />;
-      case 'calendar': return <ConnectGoogleCalendar />;
+      case 'calendar': return <PlacementCalendar />;
       case 'jobPostingsManager': return <JobPostingsManager />;
       case 'studentDirectory': return <StudentDirectory />;
       case 'recruiterDirectory': return <RecruiterDirectory />;
+      case 'announcements': return <AdminAnnouncements />;
+      case 'mockInterviews': return <MockInterviewManagement forcedMode="live" dashboardTab="mockInterviews" />;
+      case 'aiInterviews': return <MockInterviewManagement forcedMode="ai" dashboardTab="aiInterviews" />;
+      case 'assessments': return <AdminAssessments />;
       case 'notifications': return <Notifications />;
       case 'createDisableAdmins': return <CreateDisableAdmins />;
       case 'auditLogs': return <AuditLogs />;
       case 'adminPanel': return <AdminPanel />;
+      case 'academicStructure': return <AcademicStructureManager />;
       case 'superAdminStats': return <SuperAdminStats />;
       case 'profile': return <AdminProfile />;
       default: return <AdminHome />;
@@ -201,7 +234,16 @@ export default function SuperAdminDashboard() {
                           title={sidebarWidth < 9 ? tab.label : ''}
                         >
                           <Icon className={`h-4 w-4 ${sidebarWidth >= 9 ? 'mr-2' : ''}`} />
-                          {sidebarWidth >= 9 && tab.label}
+                          {sidebarWidth >= 9 && (
+                            <span className="flex-1 text-left">{tab.label}</span>
+                          )}
+                          {tab.id === 'jobPostingsManager' && inReviewJobCount > 0 && (
+                            <span className={`ml-auto min-w-[1.25rem] h-5 px-1.5 rounded-full text-[10px] font-bold flex items-center justify-center ${
+                              sidebarActiveTab === tab.id ? 'bg-white/20 text-white' : 'bg-amber-500 text-white'
+                            }`}>
+                              {inReviewJobCount > 99 ? '99+' : inReviewJobCount}
+                            </span>
+                          )}
                         </button>
                       </div>
                     );
@@ -251,6 +293,13 @@ export default function SuperAdminDashboard() {
                       >
                         <Icon className="h-4 w-4 mr-2" />
                         {tab.label}
+                        {tab.id === 'jobPostingsManager' && inReviewJobCount > 0 && (
+                          <span className={`ml-2 min-w-[1.25rem] h-5 px-1.5 rounded-full text-[10px] font-bold flex items-center justify-center ${
+                            sidebarActiveTab === tab.id ? 'bg-white/20 text-white' : 'bg-amber-500 text-white'
+                          }`}>
+                            {inReviewJobCount > 99 ? '99+' : inReviewJobCount}
+                          </span>
+                        )}
                       </button>
                     </div>
                   );

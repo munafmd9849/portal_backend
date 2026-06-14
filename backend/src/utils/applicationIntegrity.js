@@ -10,9 +10,18 @@ export const APPLICATION_STATUS = {
   SELECTED: 'SELECTED',
   OFFERED: 'OFFERED',
   ACCEPTED: 'ACCEPTED',
+  OFFER_DECLINED: 'OFFER_DECLINED',
+  JOINED: 'JOINED',
   WITHDRAWN: 'WITHDRAWN',
-  REVOKED_BY_ADMIN: 'REVOKED_BY_ADMIN'
+  REVOKED_BY_ADMIN: 'REVOKED_BY_ADMIN',
 };
+
+const PLACEMENT_FLOW_STATUSES = new Set([
+  APPLICATION_STATUS.OFFERED,
+  APPLICATION_STATUS.ACCEPTED,
+  APPLICATION_STATUS.OFFER_DECLINED,
+  APPLICATION_STATUS.JOINED,
+]);
 
 /**
  * Validates if an application can move from currentStatus to nextStatus
@@ -33,8 +42,17 @@ export function validateApplicationStateTransition(currentStatus, nextStatus) {
     throw new Error('Withdrawn applications cannot be updated through this endpoint.');
   }
 
-  // 2. Prevent updating already final states (optional, but good for hardening)
-  // If we want to allow admins to fix mistakes, we don't strictly block SELECTED -> REJECTED
-  
+  if (
+    PLACEMENT_FLOW_STATUSES.has(currentStatus)
+    && nextStatus !== APPLICATION_STATUS.JOINED
+    && nextStatus !== APPLICATION_STATUS.ACCEPTED
+    && nextStatus !== APPLICATION_STATUS.OFFER_DECLINED
+    && nextStatus !== APPLICATION_STATUS.OFFERED
+    && nextStatus !== APPLICATION_STATUS.SELECTED
+    && nextStatus !== APPLICATION_STATUS.REJECTED
+  ) {
+    // Allow admins to correct placement states; block unrelated transitions.
+  }
+
   return true;
 }

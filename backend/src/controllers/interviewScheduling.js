@@ -11,6 +11,10 @@ import logger from '../config/logger.js';
 import { sendSuccess, sendError, sendValidationError, sendNotFound, sendUnauthorized, sendForbidden, sendServerError } from '../utils/response.js';
 import { syncApplicationPipeline } from '../services/jobOpportunitiesPipeline.js';
 import { notifyStudentApplicationUpdate } from './applications.js';
+import { buildInterviewEligibleApplicationWhere } from '../utils/applicationTrackerState.js';
+import { isJobResultsLocked, backfillNoGateInterviewEligibility } from '../services/applicationStateService.js';
+import { logAction, logSystemAction } from '../utils/auditLogger.js';
+import { createNotification } from './notifications.js';
 
 /**
  * Generate secure token for interviewer invite
@@ -126,10 +130,15 @@ async function autoCorrectSessionStatus(session, job) {
  */
 async function updateApplicationsForIncompleteSession(jobId) {
   try {
+    const job = await prisma.job.findUnique({
+      where: { id: jobId },
+      select: { id: true, requiresScreening: true, requiresTest: true },
+    });
+    if (!job) return;
+
     const applications = await prisma.application.findMany({
       where: {
-        jobId,
-        screeningStatus: { in: ['INTERVIEW_ELIGIBLE', 'TEST_SELECTED'] },
+        ...buildInterviewEligibleApplicationWhere(jobId, job),
         interviewStatus: {
           not: 'SELECTED',
         },
@@ -193,6 +202,8 @@ export const getOrCreateSession = async (req, res) => {
         companyId: true,
         recruiterId: true,
         driveDate: true, // CRITICAL: Get driveDate for validation
+        requiresScreening: true,
+        requiresTest: true,
         description: true,
         interviewRounds: true, // Rounds defined at job creation — used for session/rounds
         company: {
@@ -337,14 +348,9 @@ export const getOrCreateSession = async (req, res) => {
       session.interviewerInvites = [];
     }
 
-    // Get application count (only INTERVIEW_ELIGIBLE or TEST_SELECTED candidates are eligible for interviews)
+    // Get application count (eligible for interview based on job pre-interview gates)
     const eligibleApplicationCount = await prisma.application.count({
-      where: {
-        jobId,
-        screeningStatus: {
-          in: ['INTERVIEW_ELIGIBLE', 'TEST_SELECTED'] // Accept both for backward compatibility
-        }
-      },
+      where: buildInterviewEligibleApplicationWhere(jobId, job),
     });
 
     const totalApplicationCount = await prisma.application.count({
@@ -426,6 +432,11 @@ export const getOrCreateSession = async (req, res) => {
     driveDateCheck.setHours(23, 59, 59, 999);
     const isDriveDateReached = now >= driveDateCheck;
 
+    await backfillNoGateInterviewEligibility(jobId);
+    const refreshedEligibleCount = await prisma.application.count({
+      where: buildInterviewEligibleApplicationWhere(jobId, job),
+    });
+
     res.json({
       session: {
         id: session.id,
@@ -434,6 +445,8 @@ export const getOrCreateSession = async (req, res) => {
         createdAt: session.createdAt,
         startedAt: session.startedAt,
         completedAt: session.completedAt,
+        resultsDeclaredAt: session.resultsDeclaredAt,
+        resultsLocked: session.resultsLocked,
         job: {
           id: job.id,
           jobTitle: job.jobTitle,
@@ -443,7 +456,7 @@ export const getOrCreateSession = async (req, res) => {
         },
         isDriveDateReached: isDriveDateReached, // Helper for frontend
         totalApplications: totalApplicationCount,
-        eligibleApplications: eligibleApplicationCount, // Only TEST_SELECTED candidates
+        eligibleApplications: refreshedEligibleCount,
         rounds: (Array.isArray(session.rounds) ? session.rounds : []).map(r => ({
           id: r.id,
           roundNumber: r.roundNumber,
@@ -1055,16 +1068,9 @@ export const getRoundCandidates = async (req, res) => {
       return res.status(409).json({ error: `Round is ${round.status}. Only ACTIVE rounds can be accessed.` });
     }
 
-    // Get all applications for this job
-    // CRITICAL: Only include candidates who passed screening (INTERVIEW_ELIGIBLE or TEST_SELECTED for backward compatibility)
-    // INTERVIEW_ELIGIBLE is the final status after screening is finalized
+    // Get all applications for this job (eligibility depends on pre-interview gates)
     let applications = await prisma.application.findMany({
-      where: {
-        jobId: round.session.jobId,
-        screeningStatus: {
-          in: ['INTERVIEW_ELIGIBLE', 'TEST_SELECTED'] // Accept both for backward compatibility
-        }
-      },
+      where: buildInterviewEligibleApplicationWhere(round.session.jobId, round.session.job),
       include: {
         student: {
           include: {
@@ -1085,7 +1091,7 @@ export const getRoundCandidates = async (req, res) => {
 
     // If no eligible candidates found, return empty list with warning
     if (applications.length === 0) {
-      console.warn(`No INTERVIEW_ELIGIBLE or TEST_SELECTED candidates found for job ${round.session.jobId}. Interview session can only include candidates who passed screening.`);
+      console.warn(`No interview-eligible candidates found for job ${round.session.jobId}.`);
     } else {
       console.log(`✅ [getRoundCandidates] Found ${applications.length} eligible candidates for round ${round.name} (Round ${round.roundNumber})`);
     }
@@ -1259,6 +1265,13 @@ export const evaluateCandidate = async (req, res) => {
       });
     }
 
+    if (round.session?.jobId && await isJobResultsLocked(round.session.jobId)) {
+      return res.status(409).json({
+        error: 'Results declared',
+        message: 'Results have been declared for this drive. Evaluations are locked.',
+      });
+    }
+
     // Validate token
     const invite = await prisma.interviewerInvite.findFirst({
       where: {
@@ -1310,6 +1323,21 @@ export const evaluateCandidate = async (req, res) => {
         status,
         remarks: remarks ? remarks.trim() : null,
       },
+    });
+
+    await syncApplicationPipeline(applicationId);
+
+    await logSystemAction({
+      actionType: 'Round Evaluation',
+      targetType: 'RoundEvaluation',
+      targetId: evaluation.id,
+      details: JSON.stringify({
+        roundId,
+        applicationId,
+        status,
+        interviewerEmail: decoded.email,
+        roundName: round.name,
+      }),
     });
 
     sendSuccess(res, { evaluation }, 'Evaluation saved successfully');
@@ -1650,14 +1678,8 @@ export const endRound = async (req, res) => {
     let candidateApplicationIds;
 
     if (round.roundNumber === 1) {
-      // Round 1: Only include candidates who passed screening
       const eligibleApplications = await prisma.application.findMany({
-        where: {
-          jobId: round.session.jobId,
-          screeningStatus: {
-            in: ['INTERVIEW_ELIGIBLE', 'TEST_SELECTED'] // Accept both for backward compatibility
-          }
-        },
+        where: buildInterviewEligibleApplicationWhere(round.session.jobId, round.session.job),
         select: { id: true },
       });
       candidateApplicationIds = eligibleApplications.map(a => a.id);
@@ -1751,6 +1773,7 @@ export const endRound = async (req, res) => {
             where: { id: evaluation.applicationId },
             data: {
               interviewStatus: newStatus,
+              ...(newStatus === 'SELECTED' ? { status: 'SELECTED' } : {}),
               lastRoundReached: round.roundNumber,
             },
           });
@@ -2114,6 +2137,103 @@ export const endSession = async (req, res) => {
   } catch (error) {
     console.error('Error ending interview session:', error);
     res.status(500).json({ error: 'Failed to end interview session', details: error.message });
+  }
+};
+
+/**
+ * Declare interview results — locks drive edits and notifies students.
+ * POST /api/admin/interview-scheduling/session/:sessionId/declare-results
+ */
+export const declareResults = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const userId = req.userId || req.user?.id;
+
+    const session = await prisma.interviewSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        job: { select: { id: true, jobTitle: true, companyName: true } },
+      },
+    });
+
+    if (!session) {
+      return res.status(404).json({ error: 'Interview session not found' });
+    }
+
+    if (!['COMPLETED', 'INCOMPLETE'].includes(session.status)) {
+      return res.status(409).json({
+        error: 'Session not finished',
+        message: 'Complete or end the interview session before declaring results.',
+      });
+    }
+
+    if (session.resultsDeclaredAt || session.resultsLocked) {
+      return res.status(409).json({ error: 'Results already declared' });
+    }
+
+    const now = new Date();
+    await prisma.$transaction([
+      prisma.interviewSession.update({
+        where: { id: sessionId },
+        data: { resultsDeclaredAt: now, resultsLocked: true },
+      }),
+      prisma.job.update({
+        where: { id: session.jobId },
+        data: { resultsDeclaredAt: now, resultsLocked: true },
+      }),
+    ]);
+
+    const applications = await prisma.application.findMany({
+      where: { jobId: session.jobId },
+      include: {
+        student: { include: { user: { select: { id: true } } } },
+      },
+    });
+
+    for (const app of applications) {
+      await syncApplicationPipeline(app.id);
+      await notifyStudentApplicationUpdate(app.id);
+
+      const userAccountId = app.student?.user?.id;
+      if (!userAccountId) continue;
+
+      const final = String(app.interviewStatus || app.status || '').toUpperCase();
+      const selected = final === 'SELECTED' || ['OFFERED', 'ACCEPTED', 'JOINED'].includes(String(app.status || '').toUpperCase());
+      const rejected = final.startsWith('REJECTED') || ['REJECTED', 'TEST_REJECTED', 'RESUME_REJECTED'].includes(String(app.screeningStatus || '').toUpperCase());
+
+      if (selected || rejected) {
+        await createNotification({
+          userId: userAccountId,
+          title: selected ? 'Placement results declared' : 'Drive results declared',
+          body: selected
+            ? `Results are out for ${session.job.jobTitle}. Check your application tracker.`
+            : `Results are out for ${session.job.jobTitle}. Thank you for participating.`,
+          data: {
+            type: 'results_declared',
+            jobId: session.jobId,
+            applicationId: app.id,
+            outcome: selected ? 'selected' : 'not_selected',
+          },
+        });
+      }
+    }
+
+    await logAction(req, {
+      actionType: 'Declare Interview Results',
+      targetType: 'InterviewSession',
+      targetId: sessionId,
+      details: `Declared results for ${session.job.jobTitle}`,
+    });
+
+    res.json({
+      message: 'Results declared successfully. Drive is now locked for edits.',
+      sessionId,
+      resultsDeclaredAt: now,
+      notifiedApplications: applications.length,
+    });
+  } catch (error) {
+    console.error('declareResults error:', error);
+    res.status(500).json({ error: 'Failed to declare results', details: error.message });
   }
 };
 

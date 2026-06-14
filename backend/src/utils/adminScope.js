@@ -177,6 +177,31 @@ export function getAdminScopeFilter(admin, userRole) {
   return filter;
 }
 
+/**
+ * Merge scoped-admin constraints into an existing Prisma student where clause.
+ */
+export function mergeScopeIntoStudentWhere(where = {}, adminScope = {}) {
+  if (adminScope?.id === 'BLOCK_ALL') {
+    return { id: '__BLOCKED__' };
+  }
+
+  const next = { ...where };
+  for (const dim of ['school', 'center', 'batch']) {
+    if (!adminScope?.[dim]?.in?.length) continue;
+    const allowed = adminScope[dim].in;
+    if (next[dim]?.in) {
+      next[dim] = {
+        in: next[dim].in.filter((value) =>
+          allowed.some((allowedValue) => String(allowedValue).toLowerCase() === String(value).toLowerCase()),
+        ),
+      };
+    } else {
+      next[dim] = { in: allowed };
+    }
+  }
+  return next;
+}
+
 export function hasPermission(admin, userRole, permission) {
   if (userRole === 'SUPER_ADMIN') return true;
   if (!admin) return false;

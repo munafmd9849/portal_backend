@@ -15,7 +15,11 @@ import { logAction } from '../utils/auditLogger.js';
 import { getAdminScopeFilter } from '../utils/adminScope.js';
 import { validateApplicationStateTransition } from '../utils/applicationIntegrity.js';
 import { isAdminViewer } from '../utils/adminAccess.js';
-import { buildApplicationTrackerState } from '../utils/applicationTrackerState.js';
+import { buildApplicationTrackerState, getInitialScreeningStatusForJob } from '../utils/applicationTrackerState.js';
+import { validateStudentEligibilityForApply } from '../utils/jobEligibility.js';
+import { validatePlacementPolicyForApply, validatePlacementPolicyForOffer } from '../services/placementPolicyService.js';
+import { ensureAssessmentAssignmentForJob } from '../services/jobAssessmentBridge.js';
+import { assertApplicationEditable, patchApplication } from '../services/applicationStateService.js';
 import { canStudentWithdrawApplication } from '../utils/applicationWithdraw.js';
 
 
@@ -159,6 +163,46 @@ function computeApplicationTrackingFields({
   };
 }
 
+function parseJobCustomQuestions(job) {
+  if (!job?.customQuestions) return [];
+  try {
+    const parsed = typeof job.customQuestions === 'string'
+      ? JSON.parse(job.customQuestions)
+      : job.customQuestions;
+    return Array.isArray(parsed)
+      ? parsed.map((question) => String(question).trim()).filter(Boolean)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseStoredCustomAnswers(raw) {
+  if (!raw || raw === '{}') return {};
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function normalizeCustomAnswersForApply(questions, customAnswers) {
+  if (!questions.length) return '{}';
+  if (!customAnswers || typeof customAnswers !== 'object' || Array.isArray(customAnswers)) {
+    return null;
+  }
+  const normalized = {};
+  for (const question of questions) {
+    const answer = customAnswers[question];
+    if (answer == null || String(answer).trim() === '') {
+      return null;
+    }
+    normalized[question] = String(answer).trim();
+  }
+  return JSON.stringify(normalized);
+}
+
 function buildTrackerForApplication(app, session, evaluations) {
   return buildApplicationTrackerState({
     status: app.status,
@@ -170,7 +214,7 @@ function buildTrackerForApplication(app, session, evaluations) {
     interviewDate: app.interviewDate,
     screeningRemarks: app.screeningRemarks,
     screeningCompletedAt: app.screeningCompletedAt,
-    requiresScreening: app.job?.requiresScreening !== false,
+    requiresScreening: Boolean(app.job?.requiresScreening),
     requiresTest: Boolean(app.job?.requiresTest),
     session,
     evaluations: evaluations || [],
@@ -1730,6 +1774,7 @@ export async function getAdminJobApplicationDetail(req, res) {
         rejectedIn: tracking.rejectedIn,
         lastRoundReached: tracking.lastRoundReached,
         notes: application.notes,
+        customAnswers: parseStoredCustomAnswers(application.customAnswers),
       },
       student: {
         id: application.student?.id,
@@ -1767,7 +1812,7 @@ export async function applyToJob(req, res) {
   try {
     const { jobId } = req.params;
     const userId = req.userId;
-    const { resumeId } = req.body; // Get resumeId from request body
+    const { resumeId, customAnswers } = req.body; // Get resumeId and custom answers from request body
 
     console.log('📝 [applyToJob] Application request:', {
       jobId,
@@ -1878,7 +1923,9 @@ export async function applyToJob(req, res) {
         email: true,
         cgpa: true,
         backlogs: true,
-        batch: true, // e.g. "23-27"
+        batch: true,
+        school: true,
+        center: true,
       },
     });
 
@@ -1886,141 +1933,39 @@ export async function applyToJob(req, res) {
       return res.status(404).json({ error: 'Student profile not found' });
     }
 
-    // Year of Passing (YOP) eligibility check
-    // Validation is optional. To enable server-side YOP enforcement set ENFORCE_YOP=true in the env.
-    if (process.env.ENFORCE_YOP === 'true' && job.yop) {
-      const jobYopStr = String(job.yop).trim();
-      const jobYopInt = parseInt(jobYopStr, 10);
-
-      if (!Number.isNaN(jobYopInt)) {
-        // Derive student's year of passing from batch (e.g. "23-27" → 2027)
-        const batch = studentProfile?.batch || null;
-        let studentYop = null;
-
-        if (batch) {
-          const parts = batch.split('-').map((p) => p.trim()).filter(Boolean);
-          const endPart = parts.length > 1 ? parts[1] : parts[0];
-          const endNum = endPart ? parseInt(endPart, 10) : NaN;
-
-          if (!Number.isNaN(endNum)) {
-            // If stored as 2‑digit year (e.g. 27), assume 2000s
-            studentYop = endNum < 100 ? 2000 + endNum : endNum;
-          }
-        }
-
-        if (studentYop !== null && studentYop > jobYopInt) {
-          return res.status(400).json({
-            error: 'YOP requirement not met',
-            message: `This job is open for students passing out in ${jobYopInt} or earlier.`,
-            requirement: jobYopInt,
-            yourYearOfPassing: studentYop,
-          });
-        }
-      }
+    const eligibilityError = validateStudentEligibilityForApply(studentProfile, job);
+    if (eligibilityError) {
+      return res.status(eligibilityError.status).json(eligibilityError.body);
     }
 
-    // Validate CGPA requirement
-    if (job.minCgpa) {
-      const jobMinCgpa = job.minCgpa;
-      const studentCgpa = studentProfile.cgpa ? parseFloat(String(studentProfile.cgpa)) : null;
-
-      if (studentCgpa === null || isNaN(studentCgpa)) {
-        return res.status(400).json({
-          error: 'CGPA requirement check failed',
-          message: 'Your CGPA is not set in your profile. Please update your profile with your current CGPA to apply for this job.',
-          requirement: `This job requires a minimum CGPA of ${jobMinCgpa}`,
-        });
-      }
-
-      // Parse job requirement - could be CGPA (0-10) or percentage (0-100)
-      const requirementStr = String(jobMinCgpa).trim();
-      let requiredCgpa = null;
-
-      // Check if it's a percentage (ends with %)
-      if (requirementStr.endsWith('%')) {
-        const percentage = parseFloat(requirementStr.slice(0, -1));
-        if (!isNaN(percentage)) {
-          // Convert percentage to CGPA (assuming 10-point scale: 70% = 7.0)
-          requiredCgpa = percentage / 10;
-        }
-      } else {
-        // Try to parse as CGPA directly
-        requiredCgpa = parseFloat(requirementStr);
-      }
-
-      if (!isNaN(requiredCgpa) && studentCgpa < requiredCgpa) {
-        const requirementDisplay = requirementStr.endsWith('%')
-          ? `${requirementStr} (${requiredCgpa.toFixed(2)} CGPA)`
-          : `${requiredCgpa.toFixed(2)}`;
-
-        return res.status(400).json({
-          error: 'CGPA requirement not met',
-          message: `Your current CGPA (${studentCgpa.toFixed(2)}) does not meet the minimum requirement for this job.`,
-          requirement: `This job requires a minimum CGPA of ${requirementDisplay}`,
-          yourCgpa: studentCgpa.toFixed(2),
-          requiredCgpa: requirementDisplay,
-        });
-      }
-    }
-
-    // Validate backlogs requirement
-    if (job.backlogs) {
-      const jobBacklogsRequirement = job.backlogs.trim().toLowerCase();
-      const studentBacklogs = studentProfile.backlogs ? String(studentProfile.backlogs).trim() : null;
-
-      if (studentBacklogs === null || studentBacklogs === '') {
-        return res.status(400).json({
-          error: 'Backlogs requirement check failed',
-          message: 'Your backlogs count is not set in your profile. Please update your profile with your current backlogs count to apply for this job.',
-          requirement: `This job allows: ${jobBacklogsRequirement}`,
-        });
-      }
-
-      // Parse job requirement - could be "0", "1-2", "No", "1", etc.
-      const requirementStr = jobBacklogsRequirement;
-      let isAllowed = false;
-
-      // Handle different requirement formats
-      if (requirementStr === 'no' || requirementStr === '0' || requirementStr === 'none') {
-        // Job allows no backlogs
-        const studentBacklogsNum = parseInt(studentBacklogs) || 0;
-        isAllowed = studentBacklogsNum === 0;
-      } else if (requirementStr.includes('-')) {
-        // Range format: "1-2", "0-1", etc.
-        const [minStr, maxStr] = requirementStr.split('-').map(s => s.trim());
-        const minBacklogs = parseInt(minStr) || 0;
-        const maxBacklogs = parseInt(maxStr) || 0;
-        const studentBacklogsNum = parseInt(studentBacklogs) || 0;
-        isAllowed = studentBacklogsNum >= minBacklogs && studentBacklogsNum <= maxBacklogs;
-      } else {
-        // Single number: "1", "2", etc.
-        const maxAllowed = parseInt(requirementStr) || 0;
-        const studentBacklogsNum = parseInt(studentBacklogs) || 0;
-        isAllowed = studentBacklogsNum <= maxAllowed;
-      }
-
-      if (!isAllowed) {
-        return res.status(400).json({
-          error: 'Backlogs requirement not met',
-          message: `Your current backlogs count (${studentBacklogs}) does not meet the requirement for this job.`,
-          requirement: `This job allows: ${jobBacklogsRequirement}`,
-          yourBacklogs: studentBacklogs,
-          allowedBacklogs: jobBacklogsRequirement,
-        });
-      }
+    const policyError = await validatePlacementPolicyForApply(student.id, userId, job);
+    if (policyError) {
+      return res.status(policyError.status).json(policyError.body);
     }
 
     // Create application with resumeId (store in notes field for now, or extend schema later)
     // Note: To properly store resumeId, we'd need to add a resumeId field to Application model
     // For now, we'll store it in the notes field as JSON
+    const jobQuestions = parseJobCustomQuestions(job);
+    const serializedCustomAnswers = normalizeCustomAnswersForApply(jobQuestions, customAnswers);
+    if (jobQuestions.length > 0 && serializedCustomAnswers == null) {
+      return res.status(400).json({
+        error: 'Custom answers required',
+        message: 'Please answer all job-specific questions before applying.',
+      });
+    }
+
+    const initialScreeningStatus = getInitialScreeningStatusForJob(job);
     const applicationData = {
       studentId: student.id,
       jobId,
       companyId: job.companyId || null, // Ensure it's null if undefined
       status: 'APPLIED',
-      screeningStatus: 'APPLIED', // Initialize screening status for recruiter screening flow
+      screeningStatus: initialScreeningStatus,
+      screeningCompletedAt: initialScreeningStatus === 'INTERVIEW_ELIGIBLE' ? new Date() : null,
       appliedDate: new Date(),
       notes: resumeId ? JSON.stringify({ resumeId }) : null, // Store resumeId in notes for now
+      customAnswers: serializedCustomAnswers || '{}',
     };
 
     console.log('📝 [applyToJob] Creating application with data:', {
@@ -2041,6 +1986,7 @@ export async function applyToJob(req, res) {
           lastRoundReached: 0,
           screeningRemarks: null,
           screeningCompletedAt: null,
+          customAnswers: serializedCustomAnswers || '{}',
           pipelineStatus: null,
           pipelineSubStatus: null,
         },
@@ -2067,6 +2013,12 @@ export async function applyToJob(req, res) {
       applicationId: application.id,
       resumeId,
     });
+
+    try {
+      await ensureAssessmentAssignmentForJob(student.id, job);
+    } catch (assignmentError) {
+      console.warn('⚠️ [applyToJob] Assessment assignment skipped:', assignmentError.message);
+    }
 
     // Audit log
     await logAction(req, {
@@ -2253,7 +2205,7 @@ export async function applyToJob(req, res) {
 export async function updateApplicationStatus(req, res) {
   try {
     const { applicationId } = req.params;
-    const { status, interviewDate } = req.body;
+    const { status, interviewDate, offerCtc, offerLetterUrl, offerDeadlineAt } = req.body;
 
     // Get application
     const application = await prisma.application.findUnique({
@@ -2276,29 +2228,40 @@ export async function updateApplicationStatus(req, res) {
     // HARDENING: Prevent updating revoked applications
     try {
       validateApplicationStateTransition(oldStatus, status);
+      await assertApplicationEditable(applicationId);
     } catch (err) {
       return res.status(400).json({ error: 'Integrity Violation', message: err.message });
     }
 
-    // Update application
-    const updated = await prisma.application.update({
-      where: { id: applicationId },
-      data: {
-        status,
-        interviewDate: interviewDate ? new Date(interviewDate) : undefined,
-      },
+    const normalizedStatus = String(status || '').toUpperCase();
+    const syncInterviewStatus = ['SELECTED', 'OFFERED', 'ACCEPTED', 'OFFER_DECLINED', 'JOINED'].includes(normalizedStatus);
+
+    if (normalizedStatus === 'OFFERED') {
+      const offerPolicyError = await validatePlacementPolicyForOffer(
+        application.studentId,
+        application.jobId,
+        applicationId,
+      );
+      if (offerPolicyError) {
+        return res.status(offerPolicyError.status).json(offerPolicyError.body);
+      }
+    }
+
+    const patchData = {
+      status: normalizedStatus,
+      ...(interviewDate ? { interviewDate: new Date(interviewDate) } : {}),
+      ...(syncInterviewStatus ? { interviewStatus: normalizedStatus } : {}),
+      ...(offerCtc != null ? { offerCtc: String(offerCtc).trim() || null } : {}),
+      ...(offerLetterUrl != null ? { offerLetterUrl: String(offerLetterUrl).trim() || null } : {}),
+      ...(offerDeadlineAt != null ? { offerDeadlineAt: offerDeadlineAt ? new Date(offerDeadlineAt) : null } : {}),
+    };
+
+    const updated = await patchApplication(applicationId, patchData, {
       include: {
         job: true,
         student: { select: { school: true } },
       },
     });
-
-    try {
-      const { syncApplicationPipeline } = await import('../services/jobOpportunitiesPipeline.js');
-      await syncApplicationPipeline(applicationId);
-    } catch (syncErr) {
-      console.warn('Pipeline sync skipped:', syncErr.message);
-    }
 
     // Update student stats
     if (oldStatus !== status) {
@@ -2312,7 +2275,7 @@ export async function updateApplicationStatus(req, res) {
       // Increment new status
       if (status === 'SHORTLISTED') statsUpdates.statsShortlisted = { increment: 1 };
       else if (status === 'INTERVIEWED') statsUpdates.statsInterviewed = { increment: 1 };
-      else if (status === 'OFFERED') statsUpdates.statsOffers = { increment: 1 };
+      else if (normalizedStatus === 'OFFERED') statsUpdates.statsOffers = { increment: 1 };
 
       if (Object.keys(statsUpdates).length > 0) {
         await prisma.student.update({
@@ -2361,6 +2324,91 @@ export async function updateApplicationStatus(req, res) {
   } catch (error) {
     console.error('Update application status error:', error);
     res.status(500).json({ error: 'Failed to update application status' });
+  }
+}
+
+/**
+ * Student accepts or declines an offer.
+ * POST /api/applications/:applicationId/offer-response
+ */
+export async function respondToOffer(req, res) {
+  try {
+    const { applicationId } = req.params;
+    const { action } = req.body;
+    const userId = req.userId;
+
+    if (!['accept', 'decline'].includes(action)) {
+      return res.status(400).json({ error: 'action must be accept or decline' });
+    }
+
+    const student = await prisma.student.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!student) {
+      return res.status(404).json({ error: 'Student profile not found' });
+    }
+
+    const application = await prisma.application.findUnique({
+      where: { id: applicationId },
+      include: {
+        job: true,
+        student: { include: { user: { select: { id: true } } } },
+      },
+    });
+
+    if (!application || application.studentId !== student.id) {
+      return res.status(404).json({ error: 'Application not found' });
+    }
+
+    const current = String(application.status || '').toUpperCase();
+    const interviewCurrent = String(application.interviewStatus || '').toUpperCase();
+    if (current !== 'OFFERED' && interviewCurrent !== 'OFFERED') {
+      return res.status(400).json({
+        error: 'No pending offer',
+        message: 'This application does not have an active offer to respond to.',
+      });
+    }
+
+    try {
+      await assertApplicationEditable(applicationId);
+    } catch (lockErr) {
+      return res.status(409).json({ error: lockErr.message });
+    }
+
+    const nextStatus = action === 'accept' ? 'ACCEPTED' : 'OFFER_DECLINED';
+    const updated = await patchApplication(applicationId, {
+      status: nextStatus,
+      interviewStatus: nextStatus,
+    }, { include: { job: true } });
+
+    await createNotification({
+      userId: application.student.user.id,
+      title: action === 'accept' ? 'Offer accepted' : 'Offer declined',
+      body: action === 'accept'
+        ? `You accepted the offer for ${updated.job.jobTitle}.`
+        : `You declined the offer for ${updated.job.jobTitle}.`,
+      data: {
+        type: 'offer_response',
+        applicationId,
+        jobId: updated.jobId,
+        status: nextStatus,
+      },
+    });
+
+    await notifyStudentApplicationUpdate(applicationId);
+
+    await logAction(req, {
+      actionType: action === 'accept' ? 'Accept Offer' : 'Decline Offer',
+      targetType: 'Application',
+      targetId: applicationId,
+      details: `${nextStatus} for ${updated.job.jobTitle}`,
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('respondToOffer error:', error);
+    res.status(500).json({ error: 'Failed to record offer response' });
   }
 }
 

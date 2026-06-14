@@ -8,6 +8,7 @@ import { FaBriefcase, FaLaptop, FaMapMarkerAlt, FaClock, FaExclamationTriangle, 
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { saveJobDraft, addAnotherPositionDraft, postJob, submitJobForReview, getJob, updateJob } from '../../../services/jobs';
+import api from '../../../services/api';
 import ExcelUploader from './ExcelUploader'; // Import Excel component
 import JDFormatGuide from './JDFormatGuide'; // Import JD Format Guide
 import { showSuccess, showError, showWarning, showLoading, replaceLoadingToast, dismissToast } from '../../../utils/toast';
@@ -248,6 +249,8 @@ export default function CreateJob({ onCreated }) {
           instructions: jobData.instructions || '',
           requiresScreening: jobData.requiresScreening || false,
           requiresTest: jobData.requiresTest || false,
+          linkedAssessmentId: jobData.linkedAssessmentId || '',
+          assessmentPassPercent: jobData.assessmentPassPercent ?? 60,
           customQuestions: (() => {
             try {
               const raw = jobData.customQuestions;
@@ -381,6 +384,8 @@ export default function CreateJob({ onCreated }) {
         instructions: draft.instructions || '',
         requiresScreening: draft.requiresScreening || false,
         requiresTest: draft.requiresTest || false,
+        linkedAssessmentId: draft.linkedAssessmentId || '',
+        assessmentPassPercent: draft.assessmentPassPercent ?? 60,
       };
 
       // Update drive draft
@@ -490,8 +495,35 @@ export default function CreateJob({ onCreated }) {
     // Pre-Interview Requirements
     requiresScreening: false,
     requiresTest: false,
+    linkedAssessmentId: '',
+    assessmentPassPercent: 60,
+    companyTier: 'REGULAR',
     customQuestions: [''],
   });
+
+  const [publishedAssessments, setPublishedAssessments] = useState([]);
+  const [loadingAssessments, setLoadingAssessments] = useState(false);
+
+  useEffect(() => {
+    if (!form.requiresTest) {
+      setPublishedAssessments([]);
+      return undefined;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoadingAssessments(true);
+        const data = await api.getAssessments();
+        const list = Array.isArray(data) ? data : (data?.assessments || []);
+        if (!cancelled) setPublishedAssessments(list);
+      } catch {
+        if (!cancelled) setPublishedAssessments([]);
+      } finally {
+        if (!cancelled) setLoadingAssessments(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [form.requiresTest]);
 
   // Local draft for About Drive section
   const [driveDraft, setDriveDraft] = useState({
@@ -1139,6 +1171,8 @@ export default function CreateJob({ onCreated }) {
       instructions: '',
       requiresScreening: false,
       requiresTest: false,
+      linkedAssessmentId: '',
+      assessmentPassPercent: 60,
       customQuestions: [''],
     }));
 
@@ -1229,6 +1263,11 @@ export default function CreateJob({ onCreated }) {
       // Pre-Interview Requirements
       requiresScreening: form.requiresScreening || false,
       requiresTest: form.requiresTest || false,
+      linkedAssessmentId: form.requiresTest ? (form.linkedAssessmentId || null) : null,
+      assessmentPassPercent: form.requiresTest
+        ? Math.min(100, Math.max(0, Number(form.assessmentPassPercent) || 60))
+        : null,
+      companyTier: form.companyTier || 'REGULAR',
       targetSchoolIds: [],
       targetCenterIds: [],
       targetBatchIds: [],
@@ -1379,6 +1418,11 @@ export default function CreateJob({ onCreated }) {
     }
 
     console.log('✅ Role check passed, proceeding with submission');
+
+    if (form.requiresTest && !form.linkedAssessmentId) {
+      showWarning('Please select a linked assessment when QA / Test is required.');
+      return;
+    }
 
     console.log('🚀 Submit button clicked');
     console.log('📋 Form validation state:', {
@@ -2987,6 +3031,49 @@ export default function CreateJob({ onCreated }) {
                     </div>
                   </div>
 
+                  {form.requiresTest && (
+                    <div className="p-4 border border-indigo-200 rounded-lg bg-indigo-50/50 space-y-3">
+                      <div>
+                        <label htmlFor="linkedAssessmentId" className="block text-sm font-medium text-gray-900 mb-1">
+                          Linked assessment
+                        </label>
+                        <select
+                          id="linkedAssessmentId"
+                          value={form.linkedAssessmentId || ''}
+                          onChange={(e) => update({ linkedAssessmentId: e.target.value })}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          disabled={loadingAssessments}
+                        >
+                          <option value="">
+                            {loadingAssessments ? 'Loading assessments…' : 'Select an assessment'}
+                          </option>
+                          {publishedAssessments.map((a) => (
+                            <option key={a.id} value={a.id}>
+                              {a.title || a.name || `Assessment ${a.id.slice(0, 8)}`}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Candidates who apply will be assigned this assessment automatically.
+                        </p>
+                      </div>
+                      <div>
+                        <label htmlFor="assessmentPassPercent" className="block text-sm font-medium text-gray-900 mb-1">
+                          Pass threshold (%)
+                        </label>
+                        <input
+                          id="assessmentPassPercent"
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={form.assessmentPassPercent ?? 60}
+                          onChange={(e) => update({ assessmentPassPercent: e.target.value })}
+                          className="w-32 border border-gray-300 rounded-md px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   {!form.requiresScreening && !form.requiresTest && (
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                       <p className="text-sm text-yellow-800">
@@ -2994,6 +3081,25 @@ export default function CreateJob({ onCreated }) {
                       </p>
                     </div>
                   )}
+
+                  <div className="p-4 border border-slate-200 rounded-lg bg-white">
+                    <label htmlFor="companyTier" className="block text-sm font-medium text-gray-900 mb-1">
+                      Company tier (placement policy)
+                    </label>
+                    <select
+                      id="companyTier"
+                      value={form.companyTier || 'REGULAR'}
+                      onChange={(e) => update({ companyTier: e.target.value })}
+                      className="w-full max-w-xs border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
+                    >
+                      <option value="REGULAR">Regular</option>
+                      <option value="DREAM">Dream company</option>
+                      <option value="SUPER_DREAM">Super-dream company</option>
+                    </select>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Used for dual-placement and super-dream CGPA policy rules.
+                    </p>
+                  </div>
                 </div>
               </>
             )}

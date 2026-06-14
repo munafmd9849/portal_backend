@@ -909,13 +909,22 @@ export const api = {
     method: 'POST',
     body: JSON.stringify(applicationData),
   }),
-  updateApplicationStatus: (applicationId, status, interviewDate) => apiRequest(`/applications/${applicationId}/status`, {
+  updateApplicationStatus: (applicationId, status, extras = {}) => apiRequest(`/applications/${applicationId}/status`, {
     method: 'PATCH',
-    body: JSON.stringify({ status, interviewDate }),
+    body: JSON.stringify({
+      status,
+      ...(typeof extras === 'string' || extras instanceof Date
+        ? { interviewDate: extras }
+        : extras),
+    }),
   }),
   getApplicationResumeViewUrl: (applicationId) => apiRequest(`/applications/${applicationId}/resume-view-url`),
   withdrawApplication: (applicationId) => apiRequest(`/applications/${applicationId}/withdraw`, {
     method: 'POST',
+  }),
+  respondToOffer: (applicationId, action) => apiRequest(`/applications/${applicationId}/offer-response`, {
+    method: 'POST',
+    body: JSON.stringify({ action }),
   }),
   revokeApplication: (applicationId, reason) => apiRequest(`/applications/${applicationId}/revoke`, {
     method: 'POST',
@@ -1143,6 +1152,20 @@ export const api = {
   getStatsSummary: () => apiRequest('/super-admin/stats/summary'),
   freezeInterviewSession: (sessionId) => apiRequest(`/admin/interview-scheduling/session/${sessionId}/freeze`, { method: 'PATCH' }),
   unfreezeInterviewSession: (sessionId) => apiRequest(`/admin/interview-scheduling/session/${sessionId}/unfreeze`, { method: 'PATCH' }),
+  declareInterviewResults: (sessionId) => apiRequest(`/admin/interview-scheduling/session/${sessionId}/declare-results`, { method: 'POST' }),
+  getPlacementCalendarEvents: (params = {}) => {
+    const query = toQueryString(params);
+    return apiRequest(`/admin/placement-calendar/events${query ? `?${query}` : ''}`, { noCache: true });
+  },
+  getInterviewSessionSlots: (sessionId) => apiRequest(`/admin/interview-scheduling/session/${sessionId}/slots`, { noCache: true }),
+  assignInterviewSlot: (sessionId, data) => apiRequest(`/admin/interview-scheduling/session/${sessionId}/slots`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  updateInterviewSlotAttendance: (slotId, data) => apiRequest(`/admin/interview-scheduling/slots/${slotId}/attendance`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  }),
 
   // Analytics (Control Tower)
   getAnalyticsOverview: (params) => {

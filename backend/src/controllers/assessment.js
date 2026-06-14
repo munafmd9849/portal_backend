@@ -1,4 +1,5 @@
 import prisma from '../config/database.js';
+import { syncJobApplicationsFromAssessment } from '../services/jobAssessmentBridge.js';
 import { sendBulkAssessmentNotifications } from '../services/emailService.js';
 import { mcqAnswersMatch } from '../utils/mcqGrading.js';
 import {
@@ -904,7 +905,20 @@ export async function completeAssessment(req, res) {
           maxPoints,
         }),
       },
+      include: { student: { select: { id: true } } },
     });
+
+    if (!hasDescriptive && updatedSession.student?.id) {
+      try {
+        await syncJobApplicationsFromAssessment(
+          updatedSession.student.id,
+          session.assessmentId,
+          scorePercent,
+        );
+      } catch (bridgeError) {
+        console.error('Job assessment bridge sync failed:', bridgeError);
+      }
+    }
 
     res.json(
       withNormalizedScore({

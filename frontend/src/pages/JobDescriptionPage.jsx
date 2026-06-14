@@ -72,6 +72,7 @@ const JobDescriptionPage = () => {
   const [isQuestionsModalOpen, setIsQuestionsModalOpen] = useState(false);
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [pendingJob, setPendingJob] = useState(null);
+  const [pendingCustomAnswers, setPendingCustomAnswers] = useState(null);
   const [resumes, setResumes] = useState([]);
   const [loadingResumes, setLoadingResumes] = useState(false);
   const [applying, setApplying] = useState(false);
@@ -229,10 +230,15 @@ const JobDescriptionPage = () => {
 
     try {
       const companyId = pendingJob.companyId || pendingJob.company?.id || null;
-      await applyToJob(user.id, pendingJob.id, { companyId, resumeId });
+      await applyToJob(user.id, pendingJob.id, {
+        companyId,
+        resumeId,
+        customAnswers: pendingCustomAnswers || {},
+      });
       setHasApplied(true);
       showSuccess(formatApplicationSuccessMessage(pendingJob));
       setPendingJob(null);
+      setPendingCustomAnswers(null);
       navigate('/student?tab=applications', { replace: true });
     } catch (err) {
       const errData = err.response?.data || {};
@@ -437,13 +443,15 @@ const JobDescriptionPage = () => {
       {isQuestionsModalOpen && pendingJob && (
         <JobApplyQuestionsModal
           job={pendingJob}
-          onContinue={async () => {
+          onContinue={async (answers) => {
             setIsQuestionsModalOpen(false);
+            setPendingCustomAnswers(answers);
             await proceedToResumeSelection(pendingJob);
           }}
           onCancel={() => {
             setIsQuestionsModalOpen(false);
             setPendingJob(null);
+            setPendingCustomAnswers(null);
           }}
         />
       )}

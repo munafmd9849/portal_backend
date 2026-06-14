@@ -9,6 +9,7 @@ import {
 import { getStudentPanelExtras } from '../services/studentDirectoryPanelService.js';
 import prisma from '../config/database.js';
 import jwt from 'jsonwebtoken';
+import { getAdminScopeFilter, mergeScopeIntoStudentWhere } from '../utils/adminScope.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 import { getGoogleSheetsSpreadsheetId } from '../services/googleSheetsConfig.js';
@@ -24,7 +25,8 @@ import {
 
 export async function getDirectory(req, res) {
   try {
-    const data = await getStudentDirectory(req.query);
+    const adminScope = getAdminScopeFilter(req.user.admin, req.user.role);
+    const data = await getStudentDirectory(req.query, adminScope);
     res.json(data);
   } catch (error) {
     console.error('getDirectory error:', error);
@@ -34,7 +36,8 @@ export async function getDirectory(req, res) {
 
 export async function exportDirectory(req, res) {
   try {
-    const data = await getStudentDirectoryExport(req.query);
+    const adminScope = getAdminScopeFilter(req.user.admin, req.user.role);
+    const data = await getStudentDirectoryExport(req.query, adminScope);
     res.json(data);
   } catch (error) {
     console.error('exportDirectory error:', error);
@@ -59,7 +62,7 @@ export async function exportDirectoryToGoogleSheets(req, res) {
       });
     }
 
-    const data = await getStudentDirectoryExport(req.query);
+    const data = await getStudentDirectoryExport(req.query, getAdminScopeFilter(req.user.admin, req.user.role));
     const students = data.students || [];
     if (students.length === 0) {
       return res.status(400).json({ error: 'No students match the current filters' });
@@ -92,6 +95,21 @@ export async function getStudentPanelData(req, res) {
     if (!studentId) {
       return res.status(400).json({ error: 'studentId is required' });
     }
+
+    const adminScope = getAdminScopeFilter(req.user.admin, req.user.role);
+    const scopedWhere = mergeScopeIntoStudentWhere({ id: studentId }, adminScope);
+    if (scopedWhere.id === '__BLOCKED__') {
+      return res.status(403).json({ error: 'Not authorized to view this student' });
+    }
+
+    const allowed = await prisma.student.findFirst({
+      where: scopedWhere,
+      select: { id: true },
+    });
+    if (!allowed) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
     const data = await getStudentPanelExtras(studentId);
     if (!data) {
       return res.status(404).json({ error: 'Student not found' });
@@ -116,11 +134,21 @@ export async function getStudentResumeViewUrl(req, res) {
 
     const student = await prisma.student.findUnique({
       where: { id: studentId },
-      select: { userId: true, resumeUrl: true, resumeFileName: true },
+      select: { userId: true, resumeUrl: true, resumeFileName: true, school: true, center: true, batch: true },
     });
 
     if (!student) {
       return res.status(404).json({ error: 'Student not found' });
+    }
+
+    const adminScope = getAdminScopeFilter(req.user.admin, req.user.role);
+    const scopedWhere = mergeScopeIntoStudentWhere({ id: studentId }, adminScope);
+    if (scopedWhere.id === '__BLOCKED__') {
+      return res.status(403).json({ error: 'Not authorized to view this student resume' });
+    }
+    const allowed = await prisma.student.findFirst({ where: scopedWhere, select: { id: true } });
+    if (!allowed) {
+      return res.status(403).json({ error: 'Not authorized to view this student resume' });
     }
 
     if (resumeId === 'legacy') {

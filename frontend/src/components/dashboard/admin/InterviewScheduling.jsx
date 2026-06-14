@@ -48,6 +48,9 @@ export default function InterviewScheduling() {
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [freezeLoading, setFreezeLoading] = useState(false);
+  const [declareResultsLoading, setDeclareResultsLoading] = useState(false);
+  const [interviewSlots, setInterviewSlots] = useState([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
 
   // Check if drive date has been reached
   const isDriveDateReached = (job) => {
@@ -70,6 +73,37 @@ export default function InterviewScheduling() {
     window.addEventListener('jobsRefresh', handleJobsRefresh);
     return () => window.removeEventListener('jobsRefresh', handleJobsRefresh);
   }, []);
+
+  useEffect(() => {
+    if (!session?.id) {
+      setInterviewSlots([]);
+      return undefined;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        setSlotsLoading(true);
+        const data = await api.getInterviewSessionSlots(session.id);
+        if (!cancelled) setInterviewSlots(data?.slots || []);
+      } catch {
+        if (!cancelled) setInterviewSlots([]);
+      } finally {
+        if (!cancelled) setSlotsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [session?.id]);
+
+  const handleMarkSlotAttendance = async (slotId, status) => {
+    try {
+      await api.updateInterviewSlotAttendance(slotId, { status });
+      toast.success(`Marked as ${status.replace(/_/g, ' ').toLowerCase()}`);
+      const data = await api.getInterviewSessionSlots(session.id);
+      setInterviewSlots(data?.slots || []);
+    } catch (e) {
+      toast.error(e?.message || 'Failed to update attendance');
+    }
+  };
 
   const loadJobs = async (forceRefresh = false) => {
     try {
@@ -256,6 +290,33 @@ export default function InterviewScheduling() {
     }
   };
 
+  const handleDeclareResults = async () => {
+    if (!session?.id || declareResultsLoading) return;
+    if (!['COMPLETED', 'INCOMPLETE'].includes(session.status)) {
+      toast.error('Complete or end the session before declaring results');
+      return;
+    }
+    if (session.resultsDeclaredAt || session.resultsLocked) {
+      toast.error('Results already declared');
+      return;
+    }
+    const confirmed = window.confirm(
+      'Declare results for this drive? This locks application edits and notifies all candidates.'
+    );
+    if (!confirmed) return;
+
+    try {
+      setDeclareResultsLoading(true);
+      await api.declareInterviewResults(session.id);
+      toast.success('Results declared — candidates notified');
+      if (selectedJob) await handleSelectJob(selectedJob);
+    } catch (e) {
+      toast.error(e?.message || 'Failed to declare results');
+    } finally {
+      setDeclareResultsLoading(false);
+    }
+  };
+
   const getInitials = (name) => name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
 
   if (loading) {
@@ -318,6 +379,11 @@ export default function InterviewScheduling() {
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center flex-wrap gap-1.5 mb-0.5">
+                            {job.drivePhaseLabel && (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-medium border bg-violet-50 text-violet-700 border-violet-200">
+                                {job.drivePhaseLabel}
+                              </span>
+                            )}
                             {statusBadges.map((badge) => (
                               <span
                                 key={badge.key}
@@ -481,7 +547,23 @@ export default function InterviewScheduling() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-wrap justify-center md:justify-end">
+                      {['COMPLETED', 'INCOMPLETE'].includes(session.status) && !session.resultsDeclaredAt && !session.resultsLocked && (
+                        <button
+                          type="button"
+                          onClick={handleDeclareResults}
+                          disabled={declareResultsLoading}
+                          className="px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-2 disabled:opacity-60"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          {declareResultsLoading ? 'Declaring…' : 'Declare results'}
+                        </button>
+                      )}
+                      {(session.resultsDeclaredAt || session.resultsLocked) && (
+                        <span className="px-4 py-2 bg-slate-100 text-slate-600 border border-slate-200 rounded-2xl text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
+                          <Lock className="w-3.5 h-3.5" /> Results declared
+                        </span>
+                      )}
                       {isSuperAdmin && session.status !== 'FROZEN' && (
                         <button onClick={handleFreeze} className="px-6 py-3 bg-amber-50 text-amber-600 border border-amber-200 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-amber-600 hover:text-white transition-all flex items-center gap-2">
                           <Lock className="w-3.5 h-3.5" /> Freeze
@@ -612,6 +694,42 @@ export default function InterviewScheduling() {
                               }`}>
                                 {invite.used ? 'Accessed' : 'Pending'}
                               </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm">
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center shadow-sm">
+                          <Clock className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="text-lg font-black text-slate-900 tracking-tight">Interview slots</h4>
+                          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Attendance &amp; no-show tracking</p>
+                        </div>
+                      </div>
+                      {slotsLoading ? (
+                        <p className="text-sm text-slate-500">Loading slots…</p>
+                      ) : interviewSlots.length === 0 ? (
+                        <p className="text-sm text-slate-500">No slots booked yet.</p>
+                      ) : (
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                          {interviewSlots.map((slot) => (
+                            <div key={slot.id} className="flex items-center justify-between gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs">
+                              <div className="min-w-0">
+                                <p className="font-bold text-slate-800 truncate">
+                                  {slot.application?.student?.fullName || slot.applicationId}
+                                </p>
+                                <p className="text-slate-500">{slot.status}{slot.room ? ` · ${slot.room}` : ''}</p>
+                              </div>
+                              {slot.status === 'SCHEDULED' && (
+                                <div className="flex gap-1 shrink-0">
+                                  <button type="button" onClick={() => handleMarkSlotAttendance(slot.id, 'ATTENDED')} className="px-2 py-1 rounded bg-emerald-100 text-emerald-800 font-bold">Present</button>
+                                  <button type="button" onClick={() => handleMarkSlotAttendance(slot.id, 'NO_SHOW')} className="px-2 py-1 rounded bg-red-100 text-red-800 font-bold">No-show</button>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>

@@ -352,6 +352,11 @@ model Job {
   customQuestions             String                     @default("[]")
   requiresScreening           Boolean                    @default(false)
   requiresTest                Boolean                    @default(false)
+  linkedAssessmentId          String?
+  assessmentPassPercent       Float?                     @default(60)
+  companyTier                 String                     @default("REGULAR")
+  resultsDeclaredAt           DateTime?
+  resultsLocked               Boolean                    @default(false)
   targetSchools               String
   targetCenters               String
   targetBatches               String
@@ -386,7 +391,9 @@ model Job {
   assignedTo                  String?
   updatedBy                   String?
   updater                     User?                      @relation("JobUpdatedBy", fields: [updatedBy], references: [id])
+  linkedAssessment            Assessment?                @relation("JobLinkedAssessment", fields: [linkedAssessmentId], references: [id])
 
+  @@index([linkedAssessmentId])
   @@index([status, createdAt])
   @@index([isActive, createdAt])
   @@index([recruiterId, createdAt])
@@ -461,11 +468,17 @@ model Application {
   pipelineStatus       String?
   pipelineSubStatus    String?
   segment              String?
+  customAnswers        String                     @default("{}")
+  offerCtc             String?
+  offerLetterUrl       String?
+  offerDeadlineAt      DateTime?
+  attendanceStatus   String?
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
   job                  Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
   student              Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
   roundEvaluations     RoundEvaluation[]
+  interviewSlots       InterviewSlot[]
 
   @@unique([studentId, jobId])
   @@index([studentId, appliedDate])
@@ -1030,7 +1043,10 @@ model InterviewSession {
   updatedAt          DateTime            @updatedAt
   startedAt          DateTime?
   completedAt        DateTime?
+  resultsDeclaredAt  DateTime?
+  resultsLocked      Boolean             @default(false)
   rounds             InterviewRound[]
+  slots              InterviewSlot[]
   job                Job                 @relation(fields: [jobId], references: [id], onDelete: Cascade)
   interviewerInvites InterviewerInvite[]
 
@@ -1052,12 +1068,37 @@ model InterviewRound {
   updatedAt   DateTime          @updatedAt
   session     InterviewSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   evaluations RoundEvaluation[]
+  slots       InterviewSlot[]
 
   @@unique([sessionId, roundNumber])
   @@unique([sessionId, name])
   @@index([sessionId, roundNumber])
   @@index([status])
   @@map("interview_rounds")
+}
+
+model InterviewSlot {
+  id            String           @id @default(uuid())
+  sessionId     String
+  applicationId String
+  roundId       String?
+  scheduledAt   DateTime?
+  room          String?
+  panelEmails   String           @default("[]")
+  status        String           @default("SCHEDULED")
+  notes         String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  session       InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  application   Application      @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  round         InterviewRound?  @relation(fields: [roundId], references: [id], onDelete: SetNull)
+
+  @@index([sessionId])
+  @@index([applicationId])
+  @@index([roundId])
+  @@index([scheduledAt])
+  @@index([status])
+  @@map("interview_slots")
 }
 
 model InterviewerInvite {
@@ -1201,6 +1242,7 @@ model Assessment {
   questions    AssessmentQuestion[]
   sessions     AssessmentSession[]
   assignments  AssessmentAssignment[]
+  linkedJobs   Job[]                  @relation("JobLinkedAssessment")
 
   @@map("assessments")
 }
