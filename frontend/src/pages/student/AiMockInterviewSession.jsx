@@ -242,9 +242,13 @@ export default function AiMockInterviewSession() {
       rec.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
-      rec.start(250);
+      rec.onerror = (e) => {
+        console.error('MediaRecorder error:', e);
+      };
+      rec.start();
       return true;
-    } catch {
+    } catch (err) {
+      console.error('Failed to start MediaRecorder:', err);
       return false;
     }
   };
@@ -268,11 +272,11 @@ export default function AiMockInterviewSession() {
         }, 250);
       };
       try {
-        if (rec.state === 'recording') rec.requestData();
-      } catch {
-        // ignore — not supported everywhere
+        rec.stop();
+      } catch (err) {
+        console.error('Error stopping MediaRecorder:', err);
+        resolve(null);
       }
-      rec.stop();
     });
 
   const runQuestionFlow = useCallback(async () => {

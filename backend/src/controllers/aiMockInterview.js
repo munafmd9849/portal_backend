@@ -699,6 +699,8 @@ export async function submitAiInterviewAnswer(req, res) {
     videoUpload.single('recording')(req, res, async (uploadErr) => {
       if (uploadErr) return res.status(400).json({ error: uploadErr.message });
       if (!req.file?.buffer) return res.status(400).json({ error: 'Recording required' });
+      
+      console.log(`[submitAiInterviewAnswer] Received recording file size: ${req.file.buffer.length} bytes, mimetype: ${req.file.mimetype}`);
 
       const { questionId, durationSeconds } = req.body || {};
       if (!questionId) return res.status(400).json({ error: 'Question is required' });

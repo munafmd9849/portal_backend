@@ -60,6 +60,7 @@ export default function AuthRedirect() {
         || currentPath.startsWith('/student/live-mock-interviews')
         || currentPath.startsWith('/student/guided-ai-interviews')
         || currentPath.startsWith('/student/interviews/')
+        || currentPath.startsWith('/student/ai-interview/results/')
         || currentPath.startsWith('/assessment/');
 
       // Admin / Super Admin sub-routes that should not redirect
