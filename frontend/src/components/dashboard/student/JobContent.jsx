@@ -289,6 +289,7 @@ const JobContent = React.memo(({
       gapYears: job.gapYears,
       backlogs: job.backlogs,
       workMode: job.workMode ?? job.work_mode ?? null,
+      interviewMode: job.interviewMode || 'OFFLINE',
       // Additional fields
       reportingTime: job.reportingTime,
       documentsRequired: job.documentsRequired,
@@ -743,6 +744,18 @@ const OverviewTab = React.memo(({ displayJob, countdown, responsibilities, forma
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
       <JdStatCard label="Job Type" value={displayJob.jobType} icon={FaBriefcase} tone="blue" />
       <JdStatCard label="Work Mode" value={displayJob.workMode || displayJob.work_mode} icon={FaBuilding} tone="green" />
+      <JdStatCard
+        label="Interview"
+        value={
+          displayJob.interviewMode === 'ONLINE'
+            ? 'Online'
+            : displayJob.interviewMode === 'HYBRID'
+              ? 'Hybrid'
+              : 'On-campus'
+        }
+        icon={FaBuilding}
+        tone="violet"
+      />
       <JdStatCard
         label="Location"
         value={displayJob.companyLocation || displayJob.company?.location || displayJob.location}

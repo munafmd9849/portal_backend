@@ -26,7 +26,9 @@ import AdminAssessmentResults from '../admin/AdminAssessmentResults';
 import MockInterviewManagement from '../admin/MockInterviewManagement';
 import MockInterviewSlots from '../admin/MockInterviewSlots';
 import PlacementCalendar from '../../components/dashboard/admin/PlacementCalendar';
-import { Home, FilePlus2, Briefcase, GripVertical, LogOut, Users, Bell, Settings, User, Calendar, Megaphone, X, Loader2, UserPlus, History, BarChart3, LayoutDashboard, ShieldCheck, Sparkles, Video, ClipboardList } from 'lucide-react';
+import ControlTowerDashboard from '../../components/dashboard/admin/control-tower/ControlTowerDashboard';
+import ResumeAtsDashboard from '../../components/dashboard/admin/ResumeAtsDashboard';
+import { Home, FilePlus2, Briefcase, GripVertical, LogOut, Users, Bell, Settings, User, Calendar, Megaphone, X, Loader2, UserPlus, History, BarChart3, LayoutDashboard, ShieldCheck, Sparkles, Video, ClipboardList, FileText } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import showLogoutConfirm from '../../utils/logoutConfirm';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
@@ -208,6 +210,8 @@ export default function AdminDashboard() {
   // Base tabs available to all authorized users
   const allTabs = [
     { id: 'dashboard', label: 'Dashboard', icon: Home, roles: ['ADMIN', 'RECRUITER', 'STUDENT', 'SUPER_ADMIN'] },
+    { id: 'controlTower', label: 'Control Tower', icon: LayoutDashboard, roles: ['ADMIN', 'SUPER_ADMIN'] },
+    { id: 'resumeAts', label: 'Resume ATS', icon: FileText, roles: ['ADMIN', 'SUPER_ADMIN'] },
     { id: 'createJob', label: 'Create Job', icon: FilePlus2, roles: ['ADMIN', 'RECRUITER', 'SUPER_ADMIN'] }, // ADMIN and RECRUITER only
     { id: 'manageJobs', label: 'Manage Jobs', icon: Briefcase, roles: ['ADMIN', 'RECRUITER', 'SUPER_ADMIN'] }, // ADMIN and RECRUITER only
     { id: 'jobApplications', label: 'Applicants', icon: Users, roles: ['ADMIN', 'RECRUITER', 'SUPER_ADMIN'] }, // ADMIN and RECRUITER only
@@ -322,6 +326,10 @@ export default function AdminDashboard() {
     switch (currentTab) {
       case 'dashboard':
         return <AdminHome />;
+      case 'controlTower':
+        return <ControlTowerDashboard />;
+      case 'resumeAts':
+        return <ResumeAtsDashboard />;
       case 'createJob':
         // Additional role check before rendering CreateJob component
         if (!canCreateJobs) {

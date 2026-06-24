@@ -118,6 +118,48 @@ Scoring guide: 90-100 excellent, 75-89 good, 60-74 mediocre, 40-59 weak, 0-39 wi
   };
 }
 
+/**
+ * Generic ATS score (no job description) — used when Google AI is unavailable.
+ */
+export async function scoreATSGeneric({ resumeText }) {
+  const system = `You are an ATS (Applicant Tracking System) expert. Return a single valid JSON object — no prose, no markdown fences.`;
+
+  const user = `Score this resume for general ATS compatibility (no specific job description).
+
+RESUME TEXT:
+${(resumeText || '').substring(0, 6000)}
+
+Return JSON with EXACTLY this schema:
+{
+  "atsScore": <integer 0-100>,
+  "strengths": [<up to 6 strings>],
+  "improvementSuggestions": [<5-8 concrete fixes, each under 25 words>],
+  "missingKeywords": [<up to 10 common industry keywords missing from resume>],
+  "missingSkills": [<up to 8 skills that would strengthen the resume>],
+  "grammarIssues": [<up to 5 issues or empty array>],
+  "formattingIssues": [<up to 5 issues or empty array>],
+  "clarityIssues": [<up to 5 issues or empty array>],
+  "overallFeedback": "<2-3 sentences>"
+}
+
+Scoring guide: 90-100 excellent, 75-89 good, 60-74 mediocre, 40-59 weak, 0-39 poor. Be strict.`;
+
+  const json = await callMistralJSON(system, user, 0.2);
+  return {
+    atsScore: clampInt(json.atsScore, 0, 100),
+    strengths: arr(json.strengths).map(String),
+    improvementSuggestions: arr(json.improvementSuggestions).map(String),
+    missingKeywords: arr(json.missingKeywords).map(String),
+    missingSkills: arr(json.missingSkills).map(String),
+    grammarIssues: arr(json.grammarIssues).map(String),
+    formattingIssues: arr(json.formattingIssues).map(String),
+    clarityIssues: arr(json.clarityIssues).map(String),
+    overallFeedback: str(json.overallFeedback) || 'Mistral ATS analysis completed.',
+    isAI: true,
+    provider: 'mistral',
+  };
+}
+
 /* ─────────────────────────────────────────────
    2. AI RESUME OPTIMIZER
 ───────────────────────────────────────────── */

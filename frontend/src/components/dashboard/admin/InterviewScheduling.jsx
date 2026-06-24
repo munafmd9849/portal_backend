@@ -5,7 +5,7 @@
 
 import React, { useEffect, useState } from 'react';
 import api from '../../../services/api';
-import { Loader, Building2, Briefcase, Users, User, Plus, X, Mail, Save, CheckCircle, AlertCircle, Lock, LockOpen, PlayCircle, Calendar, GraduationCap, MapPin, Settings, View, Clock, ChevronRight, Info } from 'lucide-react';
+import { Loader, Building2, Briefcase, Users, User, Plus, X, Mail, Save, CheckCircle, AlertCircle, Lock, LockOpen, PlayCircle, Calendar, GraduationCap, MapPin, Settings, View, Clock, ChevronRight, Info, Video, Link2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { useToast } from '../../ui/Toast';
@@ -51,6 +51,25 @@ export default function InterviewScheduling() {
   const [declareResultsLoading, setDeclareResultsLoading] = useState(false);
   const [interviewSlots, setInterviewSlots] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
+  const [eligibleApps, setEligibleApps] = useState([]);
+  const [assigningSlot, setAssigningSlot] = useState(false);
+  const [slotForm, setSlotForm] = useState({
+    applicationId: '',
+    roundId: '',
+    scheduledAt: '',
+    room: '',
+    slotDeliveryMode: 'OFFLINE',
+    meetingLink: '',
+    autoGenerateMeet: true,
+    joinInstructions: '',
+    panelEmails: '',
+    notes: '',
+  });
+
+  const jobInterviewMode = session?.job?.interviewMode || selectedJob?.interviewMode || 'OFFLINE';
+  const isHybridDrive = jobInterviewMode === 'HYBRID';
+  const isOnlineDrive = jobInterviewMode === 'ONLINE';
+  const slotIsOnline = isOnlineDrive || (isHybridDrive && slotForm.slotDeliveryMode === 'ONLINE');
 
   // Check if drive date has been reached
   const isDriveDateReached = (job) => {
@@ -93,6 +112,77 @@ export default function InterviewScheduling() {
     })();
     return () => { cancelled = true; };
   }, [session?.id]);
+
+  useEffect(() => {
+    if (!session?.id) {
+      setEligibleApps([]);
+      return undefined;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await api.getEligibleInterviewApplications(session.id);
+        if (!cancelled) setEligibleApps(data?.applications || []);
+      } catch {
+        if (!cancelled) setEligibleApps([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [session?.id]);
+
+  const resetSlotForm = () => {
+    setSlotForm({
+      applicationId: '',
+      roundId: '',
+      scheduledAt: '',
+      room: '',
+      slotDeliveryMode: isOnlineDrive ? 'ONLINE' : 'OFFLINE',
+      meetingLink: '',
+      autoGenerateMeet: true,
+      joinInstructions: '',
+      panelEmails: '',
+      notes: '',
+    });
+  };
+
+  const handleAssignSlot = async (e) => {
+    e?.preventDefault();
+    if (!session?.id || !slotForm.applicationId) {
+      toast.error('Select a candidate');
+      return;
+    }
+    try {
+      setAssigningSlot(true);
+      const panelEmails = slotForm.panelEmails
+        ? slotForm.panelEmails.split(/[,;\s]+/).map((s) => s.trim()).filter(Boolean)
+        : safeInterviewerEmails;
+      const payload = {
+        applicationId: slotForm.applicationId,
+        roundId: slotForm.roundId || null,
+        scheduledAt: slotForm.scheduledAt ? new Date(slotForm.scheduledAt).toISOString() : null,
+        room: slotForm.room?.trim() || null,
+        slotDeliveryMode: isHybridDrive ? slotForm.slotDeliveryMode : null,
+        meetingLink: slotIsOnline ? (slotForm.meetingLink?.trim() || null) : null,
+        autoGenerateMeet: slotIsOnline ? Boolean(slotForm.autoGenerateMeet) : false,
+        joinInstructions: slotForm.joinInstructions?.trim() || null,
+        panelEmails,
+        notes: slotForm.notes?.trim() || null,
+      };
+      const result = await api.assignInterviewSlot(session.id, payload);
+      if (result?.calendarWarning) {
+        toast.warning(result.calendarWarning);
+      } else {
+        toast.success('Interview slot saved');
+      }
+      const data = await api.getInterviewSessionSlots(session.id);
+      setInterviewSlots(data?.slots || []);
+      resetSlotForm();
+    } catch (err) {
+      toast.error(err?.message || 'Failed to assign slot');
+    } finally {
+      setAssigningSlot(false);
+    }
+  };
 
   const handleMarkSlotAttendance = async (slotId, status) => {
     try {
@@ -707,22 +797,134 @@ export default function InterviewScheduling() {
                         </div>
                         <div>
                           <h4 className="text-lg font-black text-slate-900 tracking-tight">Interview slots</h4>
-                          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Attendance &amp; no-show tracking</p>
+                          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">
+                            {jobInterviewMode === 'ONLINE' ? 'Online · Meet links' : jobInterviewMode === 'HYBRID' ? 'Hybrid · room or Meet per slot' : 'On-campus · rooms & attendance'}
+                          </p>
                         </div>
                       </div>
+
+                      <form onSubmit={handleAssignSlot} className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Schedule slot</p>
+                        <select
+                          value={slotForm.applicationId}
+                          onChange={(e) => setSlotForm((f) => ({ ...f, applicationId: e.target.value }))}
+                          className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                          required
+                        >
+                          <option value="">Select candidate</option>
+                          {eligibleApps.map((app) => (
+                            <option key={app.id} value={app.id}>
+                              {app.student?.fullName || app.id} {app.student?.enrollmentId ? `(${app.student.enrollmentId})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                        {safeRounds.length > 0 && (
+                          <select
+                            value={slotForm.roundId}
+                            onChange={(e) => setSlotForm((f) => ({ ...f, roundId: e.target.value }))}
+                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                          >
+                            <option value="">Any round</option>
+                            {safeRounds.map((r) => (
+                              <option key={r.id || r.roundNumber} value={r.id || ''}>
+                                Round {r.roundNumber}: {r.name}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                        <input
+                          type="datetime-local"
+                          value={slotForm.scheduledAt}
+                          onChange={(e) => setSlotForm((f) => ({ ...f, scheduledAt: e.target.value }))}
+                          className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                        />
+                        {isHybridDrive && (
+                          <select
+                            value={slotForm.slotDeliveryMode}
+                            onChange={(e) => setSlotForm((f) => ({ ...f, slotDeliveryMode: e.target.value }))}
+                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                          >
+                            <option value="OFFLINE">On-campus</option>
+                            <option value="ONLINE">Online</option>
+                          </select>
+                        )}
+                        {!slotIsOnline && (
+                          <input
+                            type="text"
+                            placeholder="Room / venue"
+                            value={slotForm.room}
+                            onChange={(e) => setSlotForm((f) => ({ ...f, room: e.target.value }))}
+                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                          />
+                        )}
+                        {slotIsOnline && (
+                          <>
+                            <label className="flex items-center gap-2 text-xs text-slate-600">
+                              <input
+                                type="checkbox"
+                                checked={slotForm.autoGenerateMeet}
+                                onChange={(e) => setSlotForm((f) => ({ ...f, autoGenerateMeet: e.target.checked }))}
+                              />
+                              Auto-generate Google Meet (requires connected Calendar)
+                            </label>
+                            {!slotForm.autoGenerateMeet && (
+                              <input
+                                type="url"
+                                placeholder="Paste Meet / Zoom / Teams link"
+                                value={slotForm.meetingLink}
+                                onChange={(e) => setSlotForm((f) => ({ ...f, meetingLink: e.target.value }))}
+                                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                              />
+                            )}
+                            <input
+                              type="text"
+                              placeholder="Join instructions (optional)"
+                              value={slotForm.joinInstructions}
+                              onChange={(e) => setSlotForm((f) => ({ ...f, joinInstructions: e.target.value }))}
+                              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                            />
+                          </>
+                        )}
+                        <input
+                          type="text"
+                          placeholder="Panel emails (comma-separated, optional)"
+                          value={slotForm.panelEmails}
+                          onChange={(e) => setSlotForm((f) => ({ ...f, panelEmails: e.target.value }))}
+                          className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                        />
+                        <button
+                          type="submit"
+                          disabled={assigningSlot}
+                          className="w-full py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-60 flex items-center justify-center gap-2"
+                        >
+                          {assigningSlot ? <Loader className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                          Save slot
+                        </button>
+                      </form>
+
                       {slotsLoading ? (
                         <p className="text-sm text-slate-500">Loading slots…</p>
                       ) : interviewSlots.length === 0 ? (
                         <p className="text-sm text-slate-500">No slots booked yet.</p>
                       ) : (
-                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
                           {interviewSlots.map((slot) => (
                             <div key={slot.id} className="flex items-center justify-between gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs">
                               <div className="min-w-0">
                                 <p className="font-bold text-slate-800 truncate">
                                   {slot.application?.student?.fullName || slot.applicationId}
                                 </p>
-                                <p className="text-slate-500">{slot.status}{slot.room ? ` · ${slot.room}` : ''}</p>
+                                <p className="text-slate-500">
+                                  {slot.status}
+                                  {slot.scheduledAt ? ` · ${new Date(slot.scheduledAt).toLocaleString()}` : ''}
+                                  {slot.room ? ` · ${slot.room}` : ''}
+                                  {slot.meetingLink ? ' · Online' : ''}
+                                </p>
+                                {slot.meetingLink && (
+                                  <a href={slot.meetingLink} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline inline-flex items-center gap-1 mt-1">
+                                    <Link2 className="w-3 h-3" /> Join link
+                                  </a>
+                                )}
                               </div>
                               {slot.status === 'SCHEDULED' && (
                                 <div className="flex gap-1 shrink-0">

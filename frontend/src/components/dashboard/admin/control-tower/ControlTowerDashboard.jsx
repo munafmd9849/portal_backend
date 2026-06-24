@@ -1,0 +1,110 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import { Loader2, LayoutDashboard } from 'lucide-react';
+import { fetchControlTowerAll } from '../../../../services/controlTower';
+import ControlTowerFilters from './ControlTowerFilters';
+import JobOpportunitiesTab from './tabs/JobOpportunitiesTab';
+import StudentsTab from './tabs/StudentsTab';
+import CareerServicesTab from './tabs/CareerServicesTab';
+
+const TABS = [
+  { id: 'jobOpportunities', label: 'Job Opportunities' },
+  { id: 'students', label: 'Students' },
+  { id: 'careerServices', label: 'Career Services' },
+];
+
+export default function ControlTowerDashboard() {
+  const [activeTab, setActiveTab] = useState('jobOpportunities');
+  const [filters, setFilters] = useState({});
+  const [appliedFilters, setAppliedFilters] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [payload, setPayload] = useState(null);
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await fetchControlTowerAll(appliedFilters);
+      setPayload(data);
+    } catch (e) {
+      console.error('Control Tower load failed', e);
+      setError(e?.message || 'Failed to load Control Tower');
+      setPayload(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [appliedFilters]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  return (
+    <div className="min-h-full bg-[#f0f2f5] p-4 md:p-6">
+      <div className="max-w-[1680px] mx-auto space-y-5">
+        <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <LayoutDashboard className="w-6 h-6 text-indigo-600" />
+              Control Tower
+            </h1>
+            <p className="text-sm text-gray-500 mt-0.5">
+              Institute analytics — Job Opportunities, Students &amp; Career Services
+            </p>
+          </div>
+        </header>
+
+        <ControlTowerFilters
+          filterOptions={payload?.filters}
+          filters={filters}
+          onChange={setFilters}
+          onApply={() => setAppliedFilters({ ...filters })}
+        />
+
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+          <div className="flex border-b border-gray-200">
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${
+                  activeTab === tab.id
+                    ? 'bg-white text-indigo-700 border-b-2 border-indigo-600'
+                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="p-4 md:p-5">
+            {loading ? (
+              <div className="flex justify-center py-20">
+                <Loader2 className="w-9 h-9 animate-spin text-indigo-600" />
+              </div>
+            ) : error ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                {error}
+                <button type="button" onClick={load} className="ml-3 underline font-medium">Retry</button>
+              </div>
+            ) : (
+              <>
+                {activeTab === 'jobOpportunities' && (
+                  <JobOpportunitiesTab data={payload?.jobOpportunities} />
+                )}
+                {activeTab === 'students' && (
+                  <StudentsTab data={payload?.students} />
+                )}
+                {activeTab === 'careerServices' && (
+                  <CareerServicesTab data={payload?.careerServices} />
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

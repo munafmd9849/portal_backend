@@ -23,7 +23,9 @@ import AcademicStructureManager from '../../components/dashboard/admin/AcademicS
 import AdminAssessments from '../admin/AdminAssessments';
 import MockInterviewManagement from '../admin/MockInterviewManagement';
 import PlacementCalendar from '../../components/dashboard/admin/PlacementCalendar';
-import { Home, FilePlus2, Briefcase, GripVertical, LogOut, Users, Bell, Settings, User, Calendar, UserPlus, BarChart3, X, History, Megaphone, ShieldCheck, Sparkles, Video, ClipboardList } from 'lucide-react';
+import ControlTowerDashboard from '../../components/dashboard/admin/control-tower/ControlTowerDashboard';
+import ResumeAtsDashboard from '../../components/dashboard/admin/ResumeAtsDashboard';
+import { Home, FilePlus2, Briefcase, GripVertical, LogOut, Users, Bell, Settings, User, Calendar, UserPlus, BarChart3, X, History, Megaphone, ShieldCheck, Sparkles, Video, ClipboardList, LayoutDashboard, FileText } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import showLogoutConfirm from '../../utils/logoutConfirm';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
@@ -116,6 +118,8 @@ export default function SuperAdminDashboard() {
 
   const allTabs = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
+    { id: 'controlTower', label: 'Control Tower', icon: LayoutDashboard },
+    { id: 'resumeAts', label: 'Resume ATS', icon: FileText },
     { id: 'createJob', label: 'Create Job', icon: FilePlus2 },
     { id: 'manageJobs', label: 'Manage Jobs', icon: Briefcase },
     { id: 'jobApplications', label: 'Applicants', icon: Users },
@@ -182,6 +186,8 @@ export default function SuperAdminDashboard() {
     if (isJobApplicationsPage) return <AdminJobApplications />;
     switch (activeTab) {
       case 'dashboard': return <AdminHome />;
+      case 'controlTower': return <ControlTowerDashboard />;
+      case 'resumeAts': return <ResumeAtsDashboard />;
       case 'createJob': return <CreateJob onCreated={() => setActiveTab('manageJobs')} />;
       case 'manageJobs': return <ManageJobs />;
       case 'jobApplications': return <AdminApplicantsHub />;

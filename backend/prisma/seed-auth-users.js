@@ -35,11 +35,17 @@ async function upsertUser({ email, password, role, status = 'ACTIVE', displayNam
 }
 
 async function main() {
-  if (!process.env.DATABASE_URL) {
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) {
     throw new Error('DATABASE_URL is missing. Ensure backend/.env is present.');
   }
-  if (!process.env.DATABASE_URL.startsWith('postgresql://') && !process.env.DATABASE_URL.startsWith('postgres://')) {
-    throw new Error(`DATABASE_URL is not PostgreSQL: ${process.env.DATABASE_URL}`);
+  const lowered = dbUrl.toLowerCase();
+  if (
+    !lowered.startsWith('postgresql://')
+    && !lowered.startsWith('postgres://')
+    && !lowered.startsWith('file:')
+  ) {
+    throw new Error(`Unsupported DATABASE_URL: ${dbUrl}`);
   }
 
   const required = (name) => {

@@ -251,6 +251,9 @@ export default function CreateJob({ onCreated }) {
           requiresTest: jobData.requiresTest || false,
           linkedAssessmentId: jobData.linkedAssessmentId || '',
           assessmentPassPercent: jobData.assessmentPassPercent ?? 60,
+          companyTier: jobData.companyTier || 'REGULAR',
+          interviewMode: jobData.interviewMode || 'OFFLINE',
+          defaultMeetingProvider: jobData.defaultMeetingProvider || 'GOOGLE_MEET',
           customQuestions: (() => {
             try {
               const raw = jobData.customQuestions;
@@ -498,6 +501,8 @@ export default function CreateJob({ onCreated }) {
     linkedAssessmentId: '',
     assessmentPassPercent: 60,
     companyTier: 'REGULAR',
+    interviewMode: 'OFFLINE',
+    defaultMeetingProvider: 'GOOGLE_MEET',
     customQuestions: [''],
   });
 
@@ -820,10 +825,11 @@ export default function CreateJob({ onCreated }) {
     const hasDriveDate = !!(form.driveDateISO || driveDraft.driveDateISO || toISOFromDDMMYYYY(form.driveDateText) || toISOFromDDMMYYYY(driveDraft.driveDateText));
     const hasApplicationDeadline = !!(form.applicationDeadlineISO || driveDraft.applicationDeadlineISO || toISOFromDDMMYYYY(form.applicationDeadlineText) || toISOFromDDMMYYYY(driveDraft.applicationDeadlineText));
     const hasVenues = (form.driveVenues?.length > 0) || (driveDraft.driveVenues?.length > 0);
-    // Drive date is either "not decided" (TBD) or a specific date
+    const interviewMode = form.interviewMode || 'OFFLINE';
+    const venueOk = interviewMode === 'ONLINE' || hasVenues;
     const driveDateOk = form.driveDateNotDecided || hasDriveDate;
-    return driveDateOk && hasApplicationDeadline && hasVenues;
-  }, [form.driveDateISO, form.driveDateText, form.driveDateNotDecided, form.applicationDeadlineISO, form.applicationDeadlineText, form.driveVenues, driveDraft.driveDateISO, driveDraft.driveDateText, driveDraft.applicationDeadlineISO, driveDraft.applicationDeadlineText, driveDraft.driveVenues]);
+    return driveDateOk && hasApplicationDeadline && venueOk;
+  }, [form.driveDateISO, form.driveDateText, form.driveDateNotDecided, form.applicationDeadlineISO, form.applicationDeadlineText, form.driveVenues, form.interviewMode, driveDraft.driveDateISO, driveDraft.driveDateText, driveDraft.applicationDeadlineISO, driveDraft.applicationDeadlineText, driveDraft.driveVenues]);
 
   const isSkillsEligibilityComplete = useMemo(() => {
     const hasAtLeastOneSkill =
@@ -1268,6 +1274,8 @@ export default function CreateJob({ onCreated }) {
         ? Math.min(100, Math.max(0, Number(form.assessmentPassPercent) || 60))
         : null,
       companyTier: form.companyTier || 'REGULAR',
+      interviewMode: form.interviewMode || 'OFFLINE',
+      defaultMeetingProvider: form.defaultMeetingProvider || 'GOOGLE_MEET',
       targetSchoolIds: [],
       targetCenterIds: [],
       targetBatchIds: [],
@@ -1500,7 +1508,7 @@ export default function CreateJob({ onCreated }) {
         const hasVenues = (form.driveVenues?.length > 0) || (driveDraft.driveVenues?.length > 0);
         if (!form.driveDateNotDecided && !hasDriveDate) details.push('• Drive Date (or check "Drive date not decided")');
         if (!hasApplicationDeadline) details.push('• Application Deadline');
-        if (!hasVenues) details.push('• Drive Venue (at least one)');
+        if (form.interviewMode !== 'ONLINE' && !hasVenues) details.push('• Drive Venue (at least one)');
       }
 
       if (!isSkillsEligibilityComplete) {
@@ -2451,13 +2459,53 @@ export default function CreateJob({ onCreated }) {
                   </div>
                 </div>
 
+                {/* Interview format (on-campus / online / hybrid) */}
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <CustomDropdown
+                    label="Interview format"
+                    icon={FaLaptop}
+                    iconColor="text-violet-600"
+                    options={[
+                      { value: 'OFFLINE', label: 'On-campus (offline)' },
+                      { value: 'ONLINE', label: 'Online (Google Meet)' },
+                      { value: 'HYBRID', label: 'Hybrid (per slot)' },
+                    ]}
+                    value={form.interviewMode || 'OFFLINE'}
+                    onChange={(value) => update({ interviewMode: value })}
+                    placeholder="Select interview format"
+                  />
+                  {(form.interviewMode === 'ONLINE' || form.interviewMode === 'HYBRID') && (
+                    <CustomDropdown
+                      label="Default meeting provider"
+                      icon={FaLaptop}
+                      iconColor="text-blue-600"
+                      options={[
+                        { value: 'GOOGLE_MEET', label: 'Google Meet (auto via Calendar)' },
+                        { value: 'ZOOM', label: 'Zoom (paste link per slot)' },
+                        { value: 'TEAMS', label: 'Microsoft Teams (paste link)' },
+                        { value: 'CUSTOM', label: 'Custom link' },
+                      ]}
+                      value={form.defaultMeetingProvider || 'GOOGLE_MEET'}
+                      onChange={(value) => update({ defaultMeetingProvider: value })}
+                      placeholder="Meeting provider"
+                    />
+                  )}
+                </div>
+                {(form.interviewMode === 'ONLINE' || form.interviewMode === 'HYBRID') && (
+                  <p className="mt-2 text-xs text-violet-700 bg-violet-50 border border-violet-100 rounded-lg px-3 py-2">
+                    Connect Google Calendar in admin settings to auto-generate Meet links when scheduling slots.
+                    {form.interviewMode === 'HYBRID' ? ' Hybrid drives can mix campus rooms and online links per candidate slot.' : ''}
+                  </p>
+                )}
+
                 {/* Drive Venue & Reporting Time - side by side */}
                 <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Drive Venue Multi-Select Dropdown */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                       <MapPin size={16} className="text-green-600" />
-                      Drive Venue <span className="text-red-500">*</span>
+                      Drive Venue {form.interviewMode !== 'ONLINE' && <span className="text-red-500">*</span>}
+                      {form.interviewMode === 'ONLINE' && <span className="text-slate-400 font-normal">(optional for online)</span>}
                     </label>
                     <div ref={venueDropdownRef} className="relative">
                       <button

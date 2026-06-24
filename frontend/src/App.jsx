@@ -122,8 +122,6 @@ function LandingPage() {
         <Preloader onComplete={() => setIsLoading(false)} />
       ) : (
         <main className='w-full min-h-screen'>
-          <NotificationModal />
-
           {/* Global login modal mounted on landing page */}
           <LoginModal
             isOpen={isLoginOpen}
@@ -217,6 +215,7 @@ function AppContent() {
   return (
     <>
       <AuthRedirect />
+      <NotificationModal />
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<LandingPage />} />

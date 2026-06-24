@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Calendar, Loader2, MapPin, Clock, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import api from '../../services/api';
+import api from '../../../services/api';
 
 const TYPE_STYLES = {
   APPLICATION_DEADLINE: 'bg-amber-50 text-amber-800 border-amber-200',
   INTERVIEW_DRIVE: 'bg-indigo-50 text-indigo-800 border-indigo-200',
+  INTERVIEW_SLOT: 'bg-violet-50 text-violet-800 border-violet-200',
   SESSION_START: 'bg-emerald-50 text-emerald-800 border-emerald-200',
   SESSION_END: 'bg-slate-50 text-slate-700 border-slate-200',
   RESULTS_DECLARED: 'bg-violet-50 text-violet-800 border-violet-200',
@@ -97,6 +98,7 @@ export default function PlacementCalendar() {
           <option value="all">All events</option>
           <option value="APPLICATION_DEADLINE">Application deadlines</option>
           <option value="INTERVIEW_DRIVE">Interview drives</option>
+          <option value="INTERVIEW_SLOT">Scheduled slots</option>
           <option value="RESULTS_DECLARED">Results declared</option>
           <option value="SCREENING_FINALIZED">Screening finalized</option>
         </select>
@@ -126,17 +128,37 @@ export default function PlacementCalendar() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-slate-900 group-hover:text-indigo-700 truncate">{event.title}</p>
-                        <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
+                        <p className="text-xs text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
                           <Clock className="w-3.5 h-3.5" />
                           {formatEventDate(event.start)}
-                          {event.phaseLabel && (
+                          {event.meta?.isOnline && (
+                            <span className="text-violet-600 font-semibold">· Online</span>
+                          )}
+                          {event.meta?.room && !event.meta?.isOnline && (
                             <>
                               <span className="text-slate-300">·</span>
                               <MapPin className="w-3.5 h-3.5" />
+                              {event.meta.room}
+                            </>
+                          )}
+                          {event.phaseLabel && (
+                            <>
+                              <span className="text-slate-300">·</span>
                               {event.phaseLabel}
                             </>
                           )}
                         </p>
+                        {event.meta?.meetingLink && (
+                          <a
+                            href={event.meta.meetingLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-xs text-indigo-600 hover:underline mt-1 inline-block"
+                          >
+                            Open meeting link
+                          </a>
+                        )}
                       </div>
                       <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-indigo-500 shrink-0 mt-1" />
                     </button>

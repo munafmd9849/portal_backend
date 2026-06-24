@@ -57,6 +57,7 @@ export async function getPlacementCalendarEvents(filters = {}) {
       isPosted: true,
       applicationDeadline: true,
       driveDate: true,
+      interviewMode: true,
       requiresScreening: true,
       requiresTest: true,
       resultsDeclaredAt: true,
@@ -151,6 +152,50 @@ export async function getPlacementCalendarEvents(filters = {}) {
         start: job.screeningSession.finalizedAt,
         type: 'SCREENING_FINALIZED',
         jobId: job.id,
+      }));
+    }
+  }
+
+  const jobIdList = jobs.map((j) => j.id);
+  if (jobIdList.length > 0) {
+    const scheduledSlots = await prisma.interviewSlot.findMany({
+      where: {
+        scheduledAt: { not: null },
+        session: { jobId: { in: jobIdList } },
+      },
+      include: {
+        session: { select: { jobId: true } },
+        application: {
+          select: {
+            student: { select: { fullName: true } },
+          },
+        },
+      },
+      orderBy: { scheduledAt: 'asc' },
+      take: filters.limit || 500,
+    });
+
+    for (const slot of scheduledSlots) {
+      const job = jobs.find((j) => j.id === slot.session.jobId);
+      if (!job) continue;
+      const label = job.companyName || 'Drive';
+      const candidate = slot.application?.student?.fullName || 'Candidate';
+      const isOnline = Boolean(slot.meetingLink);
+      const end = new Date(new Date(slot.scheduledAt).getTime() + 45 * 60 * 1000);
+      events.push(toEvent({
+        id: `slot-${slot.id}`,
+        title: `${label} — ${candidate} · ${isOnline ? 'Online interview' : 'Interview slot'}`,
+        start: slot.scheduledAt,
+        end,
+        type: 'INTERVIEW_SLOT',
+        jobId: job.id,
+        meta: {
+          meetingLink: slot.meetingLink,
+          room: slot.room,
+          isOnline,
+          interviewMode: job.interviewMode || 'OFFLINE',
+          slotDeliveryMode: slot.slotDeliveryMode,
+        },
       }));
     }
   }

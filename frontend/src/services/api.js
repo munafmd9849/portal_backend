@@ -1158,6 +1158,7 @@ export const api = {
     return apiRequest(`/admin/placement-calendar/events${query ? `?${query}` : ''}`, { noCache: true });
   },
   getInterviewSessionSlots: (sessionId) => apiRequest(`/admin/interview-scheduling/session/${sessionId}/slots`, { noCache: true }),
+  getEligibleInterviewApplications: (sessionId) => apiRequest(`/admin/interview-scheduling/session/${sessionId}/eligible-applications`, { noCache: true }),
   assignInterviewSlot: (sessionId, data) => apiRequest(`/admin/interview-scheduling/session/${sessionId}/slots`, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1165,6 +1166,9 @@ export const api = {
   updateInterviewSlotAttendance: (slotId, data) => apiRequest(`/admin/interview-scheduling/slots/${slotId}/attendance`, {
     method: 'PATCH',
     body: JSON.stringify(data),
+  }),
+  recordInterviewSlotJoin: (slotId) => apiRequest(`/admin/interview-scheduling/slots/${slotId}/join`, {
+    method: 'POST',
   }),
 
   // Analytics (Control Tower)

@@ -1162,17 +1162,12 @@ export default function StudentDashboard() {
     navigate('/student?tab=resume', { replace: true });
   };
 
-  const hasApplied = (jobId) => {
-    if (!jobId || !applications || applications.length === 0) {
-      return false;
-    }
-    const applied = applications.some(app => {
-      // Check both jobId and job.id for compatibility
-      const matches = app.jobId === jobId || app.job?.id === jobId;
-      return matches;
-    });
-    return applied;
-  };
+  const getApplicationForJob = useCallback((jobId) => {
+    if (!jobId || !applications?.length) return null;
+    return applications.find((app) => app.jobId === jobId || app.job?.id === jobId) || null;
+  }, [applications]);
+
+  const hasApplied = (jobId) => Boolean(getApplicationForJob(jobId));
 
   // Check if application deadline has passed
   const isDeadlinePassed = useCallback((job) => {
@@ -2503,7 +2498,9 @@ export default function StudentDashboard() {
                         <div className="grid grid-cols-1 md:grid-cols-1 gap-3 sm:gap-4">
                           {paginatedJobs.map((job) => {
                             const companyName = job.company?.name || job.company || 'Company';
-                            const isApplied = hasApplied(job.id);
+                            const jobApplication = getApplicationForJob(job.id);
+                            const isApplied = Boolean(jobApplication);
+                            const canWithdraw = isApplied && canStudentWithdrawApplication(jobApplication).allowed;
                             const isApplying = applying[job.id];
                             const deadlinePassed = isDeadlinePassed(job);
                             const yopNotEligible = !meetsYopRequirement(job);
@@ -2640,6 +2637,25 @@ export default function StudentDashboard() {
                                         </>
                                       )}
                                     </button>
+                                    {canWithdraw && (
+                                      <button
+                                        type="button"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          handleWithdrawApplication(jobApplication);
+                                        }}
+                                        disabled={withdrawingApplicationId === jobApplication.id}
+                                        className={`shrink-0 ${EXPLORE_JOBS_BUTTON_SIZE} rounded-md sm:rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-1.5 border-2 border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-60`}
+                                        title="Withdraw application"
+                                      >
+                                        {withdrawingApplicationId === jobApplication.id ? (
+                                          <Loader className="h-3.5 w-3.5 animate-spin" />
+                                        ) : (
+                                          <XCircle className="h-3.5 w-3.5" />
+                                        )}
+                                        <span className="truncate">Withdraw</span>
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
 
@@ -2683,7 +2699,7 @@ export default function StudentDashboard() {
                                     </div>
                                   </div>
 
-                                  <div className="flex items-center justify-stretch min-w-0">
+                                  <div className="flex flex-col gap-1.5 items-stretch justify-center min-w-0">
                                     <button
                                       onClick={(event) => {
                                         event.stopPropagation();
@@ -2727,6 +2743,25 @@ export default function StudentDashboard() {
                                         </>
                                       )}
                                     </button>
+                                    {canWithdraw && (
+                                      <button
+                                        type="button"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          handleWithdrawApplication(jobApplication);
+                                        }}
+                                        disabled={withdrawingApplicationId === jobApplication.id}
+                                        className={`${EXPLORE_JOBS_DESKTOP_STATUS_BTN} rounded-lg transition-all flex items-center justify-center gap-1.5 border-2 border-red-200 bg-red-50 text-red-700 hover:bg-red-100 text-xs font-semibold disabled:opacity-60`}
+                                        title="Withdraw application"
+                                      >
+                                        {withdrawingApplicationId === jobApplication.id ? (
+                                          <Loader className="h-3.5 w-3.5 animate-spin" />
+                                        ) : (
+                                          <XCircle className="h-3.5 w-3.5" />
+                                        )}
+                                        <span>Withdraw</span>
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
                               </div>

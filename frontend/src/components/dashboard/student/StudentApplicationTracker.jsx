@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle2, Circle, Clock, XCircle, ClipboardList } from 'lucide-react';
+import { CheckCircle2, Circle, Clock, XCircle, ClipboardList, Video, MapPin, ExternalLink } from 'lucide-react';
+import api from '../../../services/api';
 import {
   getApplicationPrimaryStatus,
   getApplicationTimeline,
@@ -50,6 +51,26 @@ export default function StudentApplicationTracker({ application, onApplicationUp
     !isFinal
     && Boolean(application?.job?.requiresTest)
     && details.qaTest === 'Pending';
+
+  const interviewSlots = Array.isArray(application?.interviewSlots) ? application.interviewSlots : [];
+  const upcomingSlots = interviewSlots.filter((s) => s.status === 'SCHEDULED' || s.status === 'RESCHEDULED');
+
+  const handleJoinInterview = async (slot) => {
+    if (!slot?.meetingLink) return;
+    try {
+      await api.recordInterviewSlotJoin(slot.id);
+    } catch {
+      // non-blocking
+    }
+    window.open(slot.meetingLink, '_blank', 'noopener,noreferrer');
+  };
+
+  const canJoinSlot = (slot) => {
+    if (!slot?.meetingLink || !slot.scheduledAt) return Boolean(slot?.meetingLink);
+    const start = new Date(slot.scheduledAt).getTime();
+    const now = Date.now();
+    return now >= start - 60 * 60 * 1000;
+  };
 
   const handleOfferResponse = async (action) => {
     if (!application?.id || offerLoading) return;
@@ -142,6 +163,58 @@ export default function StudentApplicationTracker({ application, onApplicationUp
           </div>
         )}
       </div>
+
+      {upcomingSlots.length > 0 && (
+        <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-4 sm:p-5 space-y-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-violet-600 flex items-center gap-2">
+            <Video className="w-4 h-4" />
+            Interview schedule
+          </p>
+          {upcomingSlots.map((slot) => (
+            <div key={slot.id} className="rounded-lg border border-violet-100 bg-white p-3 text-sm">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="font-semibold text-slate-800">
+                    {slot.round?.name ? `${slot.round.name}` : 'Interview slot'}
+                    {slot.deliveryMode === 'ONLINE' ? ' · Online' : slot.room ? ` · ${slot.room}` : ''}
+                  </p>
+                  {slot.scheduledAt && (
+                    <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      {formatDate(slot.scheduledAt)}
+                    </p>
+                  )}
+                  {slot.room && slot.deliveryMode !== 'ONLINE' && (
+                    <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5" />
+                      {slot.room}
+                    </p>
+                  )}
+                  {slot.joinInstructions && (
+                    <p className="text-xs text-slate-600 mt-2">{slot.joinInstructions}</p>
+                  )}
+                </div>
+                {slot.meetingLink && (
+                  canJoinSlot(slot) ? (
+                    <button
+                      type="button"
+                      onClick={() => handleJoinInterview(slot)}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-600 text-white text-xs font-bold hover:bg-violet-700 shrink-0"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      Join interview
+                    </button>
+                  ) : (
+                    <span className="text-[11px] text-violet-700 bg-violet-100 px-2 py-1 rounded-md shrink-0">
+                      Link opens 1h before
+                    </span>
+                  )
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
         {detailFields.map((field) => (

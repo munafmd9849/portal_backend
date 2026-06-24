@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard — Metrics Guide</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 via-slate-100 to-indigo-50/30 min-h-screen text-slate-800 antialiased">
+
+  <div class="bg-slate-900 text-white text-center py-2 px-4 text-xs font-bold uppercase tracking-widest">
+    Admin Dashboard · Live app metrics · <code class="text-indigo-300">AdminHome.jsx</code> + <code class="text-indigo-300">GET /api/admin/dashboard</code>
+  </div>
+
+  <div class="max-w-[900px] mx-auto p-6 sm:p-10 space-y-8">
+
+    <header>
+      <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Admin Dashboard metrics explained</h1>
+      <p class="text-sm text-slate-500 mt-2 leading-relaxed">
+        What each number on the real <strong>Admin Dashboard</strong> tab means — the page rendered by
+        <code class="bg-slate-100 px-1 rounded text-xs">frontend/src/components/dashboard/admin/AdminHome.jsx</code>.
+        Data is fetched live from the backend (polled every 30s).
+      </p>
+      <p class="text-xs text-slate-400 mt-3">
+        Primary API: <code class="bg-slate-100 px-1 rounded">GET /api/admin/dashboard</code> ·
+        Job Opportunities block: <code class="bg-slate-100 px-1 rounded">/api/job-opportunities/*</code>
+      </p>
+    </header>
+
+    <!-- Scope -->
+    <section class="bg-indigo-50 rounded-2xl border border-indigo-100 p-6 space-y-3">
+      <h2 class="text-lg font-black text-slate-900">Scope &amp; filters</h2>
+      <p class="text-sm text-slate-600 leading-relaxed">
+        <strong>Regular admins</strong> see a banner: “Viewing your data — assigned center/school only.”
+        Their data is filtered server-side via <code class="bg-white px-1 rounded text-xs">getAdminScopeFilter()</code>
+        using <code class="bg-white px-1 rounded text-xs">allowedSchools</code>,
+        <code class="bg-white px-1 rounded text-xs">allowedCenters</code>, and
+        <code class="bg-white px-1 rounded text-xs">allowedBatches</code> on the admin profile.
+      </p>
+      <p class="text-sm text-slate-600 leading-relaxed">
+        <strong>Super admins</strong> get an extra filter bar (Campus, School, Batch, Admin) that passes
+        <code class="bg-white px-1 rounded text-xs">center</code>, <code class="bg-white px-1 rounded text-xs">school</code>,
+        <code class="bg-white px-1 rounded text-xs">batch</code> query params to the API.
+      </p>
+      <p class="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+        <strong>Important:</strong> <em>Job Postings</em> and <em>Companies Onboarded</em> are counted
+        <strong>institution-wide</strong> (not scoped to the admin's students). Student/application metrics
+        <em>are</em> scoped.
+      </p>
+    </section>
+
+    <!-- Top 4 stat cards -->
+    <section class="space-y-4">
+      <h2 class="text-lg font-black text-slate-900">Top row — 4 stat cards</h2>
+      <p class="text-sm text-slate-500">From <code class="bg-slate-100 px-1 rounded text-xs">response.stats</code> in <code class="bg-slate-100 px-1 rounded text-xs">adminDashboard.js</code>. Each card has a mini pie chart.</p>
+
+      <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-3">
+        <div class="flex items-center gap-3">
+          <span class="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 text-xs font-black uppercase border border-blue-100">Card</span>
+          <h3 class="text-base font-black text-slate-900">Job Postings</h3>
+        </div>
+        <p class="text-sm text-slate-600"><code class="text-xs bg-slate-100 px-1 rounded">stats.totalJobsPosted</code></p>
+        <p class="text-xs text-slate-500"><strong>Formula:</strong> count of jobs where <code>isPosted = true</code> OR <code>status = POSTED</code></p>
+        <p class="text-xs text-slate-400 border-t border-slate-100 pt-2">Global count — not filtered by admin scope or dashboard filters.</p>
+      </article>
+
+      <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-3">
+        <div class="flex items-center gap-3">
+          <span class="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-black uppercase border border-emerald-100">Card</span>
+          <h3 class="text-base font-black text-slate-900">Active Students</h3>
+        </div>
+        <p class="text-sm text-slate-600"><code class="text-xs bg-slate-100 px-1 rounded">stats.activeStudents</code> vs <code class="text-xs bg-slate-100 px-1 rounded">stats.totalStudents</code> (pie denominator)</p>
+        <p class="text-xs text-slate-500"><strong>Active:</strong> students in scope where linked user <code>status = ACTIVE</code></p>
+        <p class="text-xs text-slate-500"><strong>Total:</strong> all students matching scope + filters</p>
+        <p class="text-xs text-slate-400 border-t border-slate-100 pt-2">Scoped to admin's students.</p>
+      </article>
+
+      <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-3">
+        <div class="flex items-center gap-3">
+          <span class="px-2.5 py-1 rounded-lg bg-violet-50 text-violet-700 text-xs font-black uppercase border border-violet-100">Card</span>
+          <h3 class="text-base font-black text-slate-900">Pending Queries</h3>
+        </div>
+        <p class="text-sm text-slate-600"><code class="text-xs bg-slate-100 px-1 rounded">stats.pendingQueries</code></p>
+        <p class="text-xs text-slate-500"><strong>Formula:</strong> count of <code>studentQuery</code> records with <code>status IN (OPEN, PENDING, UNRESOLVED)</code>, filtered to scoped students when a student filter is active.</p>
+        <p class="text-xs text-slate-400 border-t border-slate-100 pt-2">Student support tickets awaiting admin response.</p>
+      </article>
+
+      <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-3">
+        <div class="flex items-center gap-3">
+          <span class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 text-xs font-black uppercase border border-rose-100">Card</span>
+          <h3 class="text-base font-black text-slate-900">Applications</h3>
+        </div>
+        <p class="text-sm text-slate-600"><code class="text-xs bg-slate-100 px-1 rounded">stats.totalApplications</code> — pie splits Placed vs Applied</p>
+        <p class="text-xs text-slate-500"><strong>Total applications:</strong> all applications where <code>student</code> matches scope</p>
+        <p class="text-xs text-slate-500"><strong>Placed slice:</strong> <code>stats.placedStudents</code> — unique students with at least one application where <code>status</code> OR <code>interviewStatus</code> is <code>SELECTED</code>, <code>ACCEPTED</code>, or <code>OFFERED</code></p>
+        <p class="text-xs text-slate-500"><strong>Applied slice:</strong> <code>totalApplications − placedStudents</code> (remaining application count, not unique students)</p>
+        <p class="text-xs text-slate-400 border-t border-slate-100 pt-2">Note: pie mixes unique students (placed) with total application rows (applied remainder).</p>
+      </article>
+    </section>
+
+    <!-- Key Insights -->
+    <section class="space-y-4">
+      <h2 class="text-lg font-black text-slate-900">Key Insights &amp; Metrics — 4 insight tiles</h2>
+      <p class="text-sm text-slate-500">Computed in <code class="bg-slate-100 px-1 rounded text-xs">AdminHome.jsx</code> from the same <code class="bg-slate-100 px-1 rounded text-xs">stats</code> object. Color tone (green/amber/red) is UI-only.</p>
+
+      <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-3">
+        <h3 class="text-base font-black text-slate-900">Companies Onboarded</h3>
+        <p class="text-sm text-slate-600"><code class="text-xs bg-slate-100 px-1 rounded">stats.activeRecruiters</code></p>
+        <p class="text-xs text-slate-500"><strong>Formula:</strong> count of companies that have at least one posted job (<code>isPosted</code> or <code>status = POSTED</code>). Falls back to recruiter count if company table unavailable.</p>
+        <p class="text-xs text-slate-400 border-t border-slate-100 pt-2">Global — not scoped to admin's students. Subtitle: “With active job postings.”</p>
+      </article>
+
+      <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-3">
+        <h3 class="text-base font-black text-slate-900">Placement Rate</h3>
+        <p class="text-sm text-slate-600">UI formula: <code class="text-xs bg-slate-100 px-1 rounded">round(placedStudents / totalApplications × 100)</code></p>
+        <p class="text-xs text-slate-500">Subtitle shows: “<em>X</em> placed of <em>Y</em> applications”</p>
+        <p class="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mt-2">
+          This is <strong>not</strong> the same as the School Performance “Placement Rate” on the radar chart (which divides by total students, not applications).
+        </p>
+        <p class="text-xs text-slate-400 border-t border-slate-100 pt-2">Tone thresholds: ≥40% good · ≥15% warn · else bad.</p>
+      </article>
+
+      <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-3">
+        <h3 class="text-base font-black text-slate-900">Support Queue</h3>
+        <p class="text-sm text-slate-600">Same value as <strong>Pending Queries</strong> card: <code class="text-xs bg-slate-100 px-1 rounded">stats.pendingQueries</code></p>
+        <p class="text-xs text-slate-400 border-t border-slate-100 pt-2">0 = good (green). Any pending = bad (red).</p>
+      </article>
+
+      <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-3">
+        <h3 class="text-base font-black text-slate-900">Avg Applications</h3>
+        <p class="text-sm text-slate-600">UI formula: <code class="text-xs bg-slate-100 px-1 rounded">round(totalApplications / activeStudents, 1)</code></p>
+        <p class="text-xs text-slate-500">Subtitle: “Per active student (<em>N</em> active)”</p>
+        <p class="text-xs text-slate-400 border-t border-slate-100 pt-2">Tone: ≥2 good · ≥1 warn · else bad.</p>
+      </article>
+    </section>
+
+    <!-- Job Opportunities -->
+    <section class="space-y-4">
+      <h2 class="text-lg font-black text-slate-900">Job Opportunities section</h2>
+      <p class="text-sm text-slate-500">
+        Embedded below Key Insights via <code class="bg-slate-100 px-1 rounded text-xs">JobOpportunitiesSection</code>.
+        Separate API from <code class="bg-slate-100 px-1 rounded text-xs">jobOpportunitiesPipeline.js</code>.
+      </p>
+
+      <article class="bg-white rounded-2xl border border-[#b0c9db] shadow-sm p-6 space-y-4">
+        <h3 class="text-base font-black text-slate-900">Overview — row 1</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100">
+                <th class="py-2 pr-4">Metric</th>
+                <th class="py-2">How it's calculated</th>
+              </tr>
+            </thead>
+            <tbody class="text-slate-600 divide-y divide-slate-50">
+              <tr>
+                <td class="py-2.5 pr-4 font-semibold text-slate-800">Total CS Pool</td>
+                <td class="py-2.5">All students matching filters. Hover shows Active vs Inactive CS Pool breakdown.</td>
+              </tr>
+              <tr>
+                <td class="py-2.5 pr-4 font-semibold text-slate-800">Companies Onboarded</td>
+                <td class="py-2.5">Companies (or recruiters) with at least one job in filter scope.</td>
+              </tr>
+              <tr>
+                <td class="py-2.5 pr-4 font-semibold text-slate-800">Transitions</td>
+                <td class="py-2.5">Applications with <code>status IN (SHORTLISTED, INTERVIEWED, OFFERED, SELECTED)</code>. Hover shows Active / Hold / In Process / Yet to Start job counts.</td>
+              </tr>
+              <tr>
+                <td class="py-2.5 pr-4 font-semibold text-slate-800">Applications Shared</td>
+                <td class="py-2.5">Total applications in filter scope. Hover: Shortlisted / Rejected / Pending.</td>
+              </tr>
+              <tr>
+                <td class="py-2.5 pr-4 font-semibold text-slate-800">JDs Announced</td>
+                <td class="py-2.5">Jobs where <code>isPosted = true</code> OR <code>status = POSTED</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="text-xs text-slate-400">Also computed but not shown in overview UI: <code>activeCsPool</code>, <code>inactiveCsPool</code>, <code>openPositions</code> (active posted jobs).</p>
+      </article>
+
+      <article class="bg-white rounded-2xl border border-[#b0c9db] shadow-sm p-6 space-y-4">
+        <h3 class="text-base font-black text-slate-900">Overview — row 2 (drive &amp; learner status)</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100">
+                <th class="py-2 pr-4">Metric</th>
+                <th class="py-2">How it's calculated</th>
+              </tr>
+            </thead>
+            <tbody class="text-slate-600 divide-y divide-slate-50">
+              <tr><td class="py-2.5 pr-4 font-semibold">Hold</td><td class="py-2.5">Jobs with <code>status = IN_REVIEW</code></td></tr>
+              <tr><td class="py-2.5 pr-4 font-semibold">In Process</td><td class="py-2.5">Posted jobs that have at least one application</td></tr>
+              <tr><td class="py-2.5 pr-4 font-semibold">Yet to Start</td><td class="py-2.5">Jobs with <code>status = DRAFT</code></td></tr>
+              <tr><td class="py-2.5 pr-4 font-semibold">Closed Drives</td><td class="py-2.5">Applications with derived <code>pipelineStatus = CLOSED</code> (selection, rejection, no-show, screen reject). Hover shows sub-breakdown.</td></tr>
+              <tr><td class="py-2.5 pr-4 font-semibold">Learner Not Applied</td><td class="py-2.5">Active students with <code>statsApplied = 0</code></td></tr>
+              <tr><td class="py-2.5 pr-4 font-semibold">Not Deliverable</td><td class="py-2.5">Jobs with <code>status = REJECTED</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="text-xs text-slate-400">Pipeline status is derived from <code>derivePipelineFromApplication()</code> using <code>status</code>, <code>screeningStatus</code>, <code>interviewStatus</code>, or stored <code>pipelineStatus</code> fields.</p>
+      </article>
+
+      <article class="bg-white rounded-2xl border border-[#b0c9db] shadow-sm p-6 space-y-3">
+        <h3 class="text-base font-black text-slate-900">CR Managers Overview</h3>
+        <p class="text-sm text-slate-600"><strong>JDs Punched</strong> — total jobs grouped by job creator / recruiter.</p>
+        <p class="text-sm text-slate-600">Per-manager cards show job count; hover/popover breakdown includes: Admin Status, Companies Onboarded, Applications Shared, Students Placed, Interviews Scheduled, Transitions, In Process, Closed Drives, Hold, Yet to Start.</p>
+      </article>
+
+      <article class="bg-white rounded-2xl border border-[#b0c9db] shadow-sm p-6 space-y-3">
+        <h3 class="text-base font-black text-slate-900">CR Manager wise MoM table</h3>
+        <p class="text-sm text-slate-600">One row per CR Manager × Segment. Filterable by segment, quarter, month, search.</p>
+        <div class="overflow-x-auto mt-2">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100">
+                <th class="py-2 pr-3">Column</th>
+                <th class="py-2">Meaning</th>
+              </tr>
+            </thead>
+            <tbody class="text-slate-600 divide-y divide-slate-50 text-xs">
+              <tr><td class="py-2 pr-3 font-semibold">CR Manager</td><td class="py-2">Recruiter display name / company</td></tr>
+              <tr><td class="py-2 pr-3 font-semibold">Segment</td><td class="py-2">From application segment, job specialization, or student school</td></tr>
+              <tr><td class="py-2 pr-3 font-semibold">Goal</td><td class="py-2"><code>max(closedDrives + 5)</code> per row (derived target)</td></tr>
+              <tr><td class="py-2 pr-3 font-semibold">Closed Drives</td><td class="py-2">Applications with CLOSED pipeline status</td></tr>
+              <tr><td class="py-2 pr-3 font-semibold">Achieved Goal %</td><td class="py-2"><code>round(closedDrives / goal × 100)</code></td></tr>
+              <tr><td class="py-2 pr-3 font-semibold">Companies / Jobs</td><td class="py-2">Distinct company and job counts in that segment</td></tr>
+              <tr><td class="py-2 pr-3 font-semibold">Transitions</td><td class="py-2">Shortlisted+ application statuses</td></tr>
+              <tr><td class="py-2 pr-3 font-semibold">Yet To Start / Hold / In Process</td><td class="py-2">Derived from job drive status + application pipeline</td></tr>
+              <tr><td class="py-2 pr-3 font-semibold">Not Applied / Not Deliverable</td><td class="py-2">Active-applied pipeline / rejected jobs</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <!-- School Performance -->
+    <article class="bg-white rounded-2xl border-2 border-indigo-100 shadow-sm p-6 space-y-4">
+      <div class="flex items-center gap-3">
+        <span class="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-black uppercase border border-indigo-100">Chart</span>
+        <h2 class="text-lg font-black text-slate-900">School Performance &amp; Applications (radar)</h2>
+      </div>
+      <p class="text-sm text-slate-600">From <code class="bg-slate-100 px-1 rounded text-xs">chartData.schoolPerformance</code> — one dataset per school in admin scope. School tabs switch the chart.</p>
+
+      <div class="grid sm:grid-cols-2 gap-4 text-sm">
+        <div class="rounded-xl bg-blue-50/50 border border-blue-100 p-4">
+          <p class="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-2">Performance metrics (%)</p>
+          <ul class="text-slate-600 space-y-1.5">
+            <li><strong>Placement Rate</strong> — placed applications ÷ total students in school × 100</li>
+            <li><strong>Application Rate</strong> — total applications ÷ total students × 100</li>
+            <li><strong>Conversion Rate</strong> — placed applications ÷ total applications × 100</li>
+            <li><strong>Interview Rate</strong> — interview-eligible applications ÷ total applications × 100</li>
+          </ul>
+        </div>
+        <div class="rounded-xl bg-emerald-50/50 border border-emerald-100 p-4">
+          <p class="text-[10px] font-black uppercase tracking-widest text-emerald-600 mb-2">Application counts (normalized to % for radar)</p>
+          <ul class="text-slate-600 space-y-1.5">
+            <li><strong>Total Students</strong> — student count in school</li>
+            <li><strong>Applied</strong> — application count for school</li>
+            <li><strong>Interview Eligible</strong> — applications with <code>screeningStatus = TEST_SELECTED</code></li>
+            <li><strong>Placed</strong> — applications matching placement status filter</li>
+          </ul>
+        </div>
+      </div>
+      <p class="text-xs text-slate-400 border-t border-slate-100 pt-3">
+        <strong>Placed</strong> uses: <code>status OR interviewStatus IN (SELECTED, ACCEPTED, OFFERED)</code>.
+        UI scales application counts to 0–100 using fixed max values (4000 / 1000 / 600 / 100) for radar display.
+      </p>
+    </article>
+
+    <!-- API only -->
+    <section class="bg-slate-50 rounded-2xl border border-slate-200 p-6 space-y-3">
+      <h2 class="text-lg font-black text-slate-900">Returned by API but not shown on dashboard UI</h2>
+      <p class="text-sm text-slate-600">These exist in <code class="bg-white px-1 rounded text-xs">GET /api/admin/dashboard</code> response but are not rendered in <code class="bg-white px-1 rounded text-xs">AdminHome.jsx</code> today:</p>
+      <ul class="text-sm text-slate-600 space-y-1.5 list-disc pl-5">
+        <li><code>stats.blockedStudents</code>, <code>pendingStudents</code>, <code>rejectedStudents</code> — user status breakdown</li>
+        <li><code>chartData.placementTrend</code> — monthly placement count (last 6 months)</li>
+        <li><code>chartData.recruiterActivity</code> — top 10 recruiters by jobs posted</li>
+        <li><code>chartData.queryVolume</code> — student queries grouped by type</li>
+      </ul>
+    </section>
+
+    <!-- Quick reference -->
+    <section class="bg-white rounded-2xl border border-indigo-100 shadow-sm p-6 overflow-x-auto">
+      <h2 class="text-lg font-black text-slate-900 mb-4">Quick reference</h2>
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100">
+            <th class="py-2 pr-3">UI label</th>
+            <th class="py-2 pr-3">API field</th>
+            <th class="py-2">Scoped?</th>
+          </tr>
+        </thead>
+        <tbody class="text-slate-600 divide-y divide-slate-50 text-xs">
+          <tr><td class="py-2 pr-3 font-semibold">Job Postings</td><td class="py-2 pr-3"><code>totalJobsPosted</code></td><td class="py-2">No (global)</td></tr>
+          <tr><td class="py-2 pr-3 font-semibold">Active Students</td><td class="py-2 pr-3"><code>activeStudents</code></td><td class="py-2">Yes</td></tr>
+          <tr><td class="py-2 pr-3 font-semibold">Pending Queries / Support Queue</td><td class="py-2 pr-3"><code>pendingQueries</code></td><td class="py-2">Yes</td></tr>
+          <tr><td class="py-2 pr-3 font-semibold">Applications</td><td class="py-2 pr-3"><code>totalApplications</code></td><td class="py-2">Yes</td></tr>
+          <tr><td class="py-2 pr-3 font-semibold">Companies Onboarded</td><td class="py-2 pr-3"><code>activeRecruiters</code></td><td class="py-2">No (global)</td></tr>
+          <tr><td class="py-2 pr-3 font-semibold">Placement Rate (insights)</td><td class="py-2 pr-3">UI: <code>placedStudents/totalApplications</code></td><td class="py-2">Yes</td></tr>
+          <tr><td class="py-2 pr-3 font-semibold">Avg Applications</td><td class="py-2 pr-3">UI: <code>totalApplications/activeStudents</code></td><td class="py-2">Yes</td></tr>
+          <tr><td class="py-2 pr-3 font-semibold">School radar rates</td><td class="py-2 pr-3"><code>chartData.schoolPerformance</code></td><td class="py-2">Yes (per school)</td></tr>
+          <tr><td class="py-2 pr-3 font-semibold">Job Opportunities cards</td><td class="py-2 pr-3"><code>/api/job-opportunities/overview</code></td><td class="py-2">Filter-dependent</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <p class="text-center text-[10px] font-bold uppercase tracking-widest text-slate-400 pb-8">
+      admin_placement_dashboard_metrics_guide.html · real app reference · not the HTML mockup
+    </p>
+  </div>
+
+  <script>lucide.createIcons();</script>
+</body>
+</html>

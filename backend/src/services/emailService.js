@@ -513,10 +513,6 @@ This link will expire in ${expiryDays} days.
   }
 }
 
-/**
- * Send interviewer invitation email with magic link
- * @param {Object} params - Email parameters
- */
 export async function sendInterviewerInviteEmail({ interviewerEmail, interviewerName, jobTitle, companyName, magicLink, expiryDays = 7 }) {
   try {
     const subject = `Invitation: Interview session for ${jobTitle} at ${companyName}`;
@@ -541,6 +537,59 @@ This link will expire in ${expiryDays} days.
     return { success: true, ...result };
   } catch (error) {
     logger.error(`Failed to send interviewer invite email to ${interviewerEmail}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Notify student when an interview slot is scheduled (online or on-campus).
+ */
+export async function sendInterviewSlotScheduledEmail({
+  studentEmail,
+  studentName,
+  jobTitle,
+  companyName,
+  scheduledAt,
+  room,
+  meetingLink,
+  joinInstructions,
+  deliveryMode = 'OFFLINE',
+}) {
+  try {
+    const when = scheduledAt
+      ? new Date(scheduledAt).toLocaleString()
+      : 'See placement portal';
+    const isOnline = String(deliveryMode).toUpperCase() === 'ONLINE';
+    const subject = isOnline
+      ? `Online interview scheduled — ${jobTitle}`
+      : `Interview scheduled — ${jobTitle}`;
+    const locationLine = isOnline
+      ? (meetingLink ? `Join link: ${meetingLink}` : 'Meeting link will appear in your portal shortly.')
+      : (room ? `Venue / room: ${room}` : 'Venue details are in your portal.');
+    const text = [
+      `Hello ${studentName || 'Student'},`,
+      '',
+      `Your interview for ${jobTitle}${companyName ? ` at ${companyName}` : ''} is scheduled.`,
+      `Date & time: ${when}`,
+      locationLine,
+      joinInstructions ? `Instructions: ${joinInstructions}` : null,
+      '',
+      `View details: ${process.env.FRONTEND_URL}/student?tab=applications`,
+    ].filter(Boolean).join('\n');
+
+    const html = `
+      <p>Hello ${studentName || 'Student'},</p>
+      <p>Your interview for <strong>${jobTitle}</strong>${companyName ? ` at <strong>${companyName}</strong>` : ''} is scheduled.</p>
+      <p><strong>When:</strong> ${when}</p>
+      <p><strong>${isOnline ? 'Online' : 'Location'}:</strong> ${locationLine.replace(/\n/g, '<br>')}</p>
+      ${joinInstructions ? `<p><strong>Instructions:</strong> ${joinInstructions}</p>` : ''}
+      ${isOnline && meetingLink ? `<p><a href="${meetingLink}">Join interview</a></p>` : ''}
+      <p><a href="${process.env.FRONTEND_URL}/student?tab=applications">Open application tracker</a></p>
+    `;
+
+    return await sendEmail({ to: studentEmail, subject, html, text });
+  } catch (error) {
+    logger.error(`Failed to send interview slot email to ${studentEmail}:`, error);
     throw error;
   }
 }

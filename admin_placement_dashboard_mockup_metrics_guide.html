@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Operations Dashboard (Mockup) — Metrics Guide</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 via-slate-100 to-indigo-50/30 min-h-screen text-slate-800 antialiased">
+
+  <div class="bg-slate-900 text-white text-center py-2 px-4 text-xs font-bold uppercase tracking-widest">
+    Admin Operations Dashboard · Mockup metrics · Pairs with admin_placement_dashboard_mockup.html
+  </div>
+
+  <div class="max-w-[900px] mx-auto p-6 sm:p-10 space-y-8">
+
+    <header>
+      <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Operations dashboard metrics explained</h1>
+      <p class="text-sm text-slate-500 mt-2 leading-relaxed">
+        What each section and number on the <strong>Admin Operations Dashboard mockup</strong> means, how it should be calculated when wired to the live app, and what a placement officer should do with it.
+      </p>
+      <p class="text-xs text-slate-400 mt-3">
+        UI spec: <code class="bg-slate-100 px-1 rounded">admin_placement_dashboard_mockup.html</code> ·
+        Audience: <strong>Placement Officers</strong> (not Super Admin) · All student/application data scoped to admin assignments
+      </p>
+    </header>
+
+    <!-- Design intent -->
+    <section class="bg-indigo-50 rounded-2xl border border-indigo-100 p-6 space-y-3">
+      <h2 class="text-lg font-black text-slate-900">Why this dashboard (vs old Admin Home)</h2>
+      <p class="text-sm text-slate-600 leading-relaxed">
+        The mockup is <strong>operations-first</strong>: who needs help today, what drives are live, what interviews are coming up.
+        Analytics (school radar, MoM tables, placement-rate trends) belong on <strong>Super Admin</strong>, not here.
+      </p>
+      <p class="text-sm text-slate-600 leading-relaxed">
+        <strong>Section order:</strong> Scope → Pool overview → Today's snapshot → Funnel → Attention → Drives → Interviews → Activity → Pending recruiter.
+      </p>
+    </section>
+
+    <!-- Scope -->
+    <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-3">
+      <div class="flex items-center gap-3">
+        <span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 text-xs font-black uppercase border border-slate-200">Scope</span>
+        <h2 class="text-lg font-black text-slate-900">Dashboard scoped to your assignments</h2>
+      </div>
+      <p class="text-sm text-slate-600">Three-column strip listing every <strong>School</strong>, <strong>Center</strong>, and <strong>Batch</strong> the admin is assigned to. Supports multiple values per dimension (not a single school/center/batch chip).</p>
+      <p class="text-xs text-slate-500"><strong>Live source:</strong> <code class="bg-slate-100 px-1 rounded">getAdminScopeFilter()</code> — <code>allowedSchools</code>, <code>allowedCenters</code>, <code>allowedBatches</code> on the admin profile.</p>
+      <p class="text-xs text-slate-400 border-t border-slate-100 pt-2">Every metric below must respect this scope (except Job Postings — see Pool overview).</p>
+    </article>
+
+    <!-- Pool overview -->
+    <section class="space-y-4">
+      <h2 class="text-lg font-black text-slate-900">Pool overview — 4 cards (row 1)</h2>
+      <p class="text-sm text-slate-500">Context numbers. Shown <em>before</em> Today's snapshot in the mockup. White cards with left accent border.</p>
+
+      <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-2">
+        <h3 class="text-base font-black text-slate-900">Job Postings</h3>
+        <p class="text-sm text-slate-600">Count of posted jobs institution-wide.</p>
+        <p class="text-xs text-slate-500"><strong>Formula:</strong> jobs where <code>isPosted = true</code> OR <code>status = POSTED</code></p>
+        <p class="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded px-2 py-1 inline-block">Not scoped to admin's students — global count</p>
+      </article>
+
+      <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-2">
+        <h3 class="text-base font-black text-slate-900">Active Students</h3>
+        <p class="text-sm text-slate-600">Students in admin scope with account <code>status = ACTIVE</code>.</p>
+        <p class="text-xs text-slate-400">Subtitle: “In your scope · account active”</p>
+      </article>
+
+      <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-2">
+        <h3 class="text-base font-black text-slate-900">Pending Queries</h3>
+        <p class="text-sm text-slate-600">Student support tickets awaiting response.</p>
+        <p class="text-xs text-slate-500"><strong>Formula:</strong> <code>studentQuery</code> with <code>status IN (OPEN, PENDING, UNRESOLVED)</code>, filtered to scoped students.</p>
+      </article>
+
+      <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-2">
+        <h3 class="text-base font-black text-slate-900">Applications</h3>
+        <p class="text-sm text-slate-600">Total application rows from students in admin scope.</p>
+        <p class="text-xs text-slate-500"><strong>Formula:</strong> <code>application.count({ student: scope })</code></p>
+      </article>
+    </section>
+
+    <!-- Today's snapshot -->
+    <section class="space-y-4">
+      <h2 class="text-lg font-black text-slate-900">Today's snapshot — 3 gradient KPIs (row 2)</h2>
+      <p class="text-sm text-slate-500">Primary daily-action metrics. These matter more than Pool overview for “what do I do right now?”</p>
+
+      <article class="bg-white rounded-2xl border border-rose-100 shadow-sm p-6 space-y-2">
+        <h3 class="text-base font-black text-rose-700">Unplaced Students</h3>
+        <p class="text-sm text-slate-600">How many students still need a placement.</p>
+        <p class="text-xs text-slate-500"><strong>Formula:</strong> eligible active students in scope − students with JOINED (or SELECTED/OFFERED/ACCEPTED) placement</p>
+        <p class="text-xs text-slate-400">Subtitle: “Eligible minus joined”</p>
+      </article>
+
+      <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-2">
+        <h3 class="text-base font-black text-slate-900">Active Drives</h3>
+        <p class="text-sm text-slate-600">Job postings live right now in scope.</p>
+        <p class="text-xs text-slate-500"><strong>Formula:</strong> posted + active jobs relevant to scoped students/batches</p>
+        <p class="text-xs text-slate-400">Subtitle: “Open or interviewing now”</p>
+      </article>
+
+      <article class="bg-white rounded-2xl border border-violet-100 shadow-sm p-6 space-y-2">
+        <h3 class="text-base font-black text-violet-700">Interviews This Week</h3>
+        <p class="text-sm text-slate-600">Scheduled interviews for scoped students in the current Mon–Sun week.</p>
+        <p class="text-xs text-slate-500"><strong>Formula:</strong> count of applications with <code>interviewDate</code> in current week; should match Interview schedule table row count.</p>
+      </article>
+    </section>
+
+    <!-- Funnel -->
+    <article class="bg-white rounded-2xl border-2 border-indigo-100 shadow-sm p-6 space-y-4">
+      <div class="flex items-center gap-3">
+        <span class="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-black uppercase border border-indigo-100">Chart</span>
+        <h2 class="text-lg font-black text-slate-900">Placement funnel</h2>
+      </div>
+      <p class="text-sm text-slate-600">Pipeline drop-off within scope. Badge shows <strong>X eligible</strong> (top stage count). Each bar shows count + <strong>% of eligible</strong> for stages after Eligible.</p>
+      <div class="text-sm text-slate-600 space-y-1.5">
+        <p><strong>Eligible</strong> — active students in scope</p>
+        <p><strong>Applied</strong> — unique students with ≥1 application</p>
+        <p><strong>Shortlisted</strong> — applications past screening / shortlisted</p>
+        <p><strong>Interviewed</strong> — applications with interview status set</p>
+        <p><strong>Offered</strong> — OFFERED / SELECTED / ACCEPTED</p>
+        <p><strong>Joined</strong> — students with JOINED status</p>
+      </div>
+      <p class="text-xs text-slate-400 border-t border-slate-100 pt-2"><strong>Admin action:</strong> Find the largest drop between consecutive stages — intervene there.</p>
+    </article>
+
+    <!-- Attention table -->
+    <article class="bg-white rounded-2xl border border-rose-200 shadow-sm p-6 space-y-4">
+      <div class="flex items-center gap-3">
+        <span class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 text-xs font-black uppercase border border-rose-100">Table</span>
+        <h2 class="text-lg font-black text-slate-900">Students requiring immediate attention</h2>
+      </div>
+      <p class="text-sm text-slate-600">Eligible, not placed, low application count. Sorted by fewest applications first.</p>
+      <table class="w-full text-sm mt-2">
+        <thead>
+          <tr class="text-left text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100">
+            <th class="py-2 pr-4">Column</th>
+            <th class="py-2">Meaning</th>
+          </tr>
+        </thead>
+        <tbody class="text-slate-600 divide-y divide-slate-50">
+          <tr><td class="py-2 pr-4 font-semibold">Student</td><td class="py-2">Full name</td></tr>
+          <tr><td class="py-2 pr-4 font-semibold">Applications</td><td class="py-2">Total apps submitted — low = at risk (right-aligned in UI)</td></tr>
+          <tr><td class="py-2 pr-4 font-semibold">Last Activity</td><td class="py-2">Time since last profile or application update</td></tr>
+          <tr><td class="py-2 pr-4 font-semibold">Risk Level</td><td class="py-2">
+            <span class="text-rose-600 font-bold">High</span> ≤1 app ·
+            <span class="text-amber-600 font-bold">Medium</span> 2–3 ·
+            <span class="text-slate-500 font-bold">Low</span> 4+
+          </td></tr>
+        </tbody>
+      </table>
+    </article>
+
+    <!-- Drives table -->
+    <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+      <div class="flex items-center gap-3">
+        <span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 text-xs font-black uppercase border border-slate-200">Table</span>
+        <h2 class="text-lg font-black text-slate-900">Currently active drives</h2>
+      </div>
+      <p class="text-sm text-slate-600">Per-drive ops within scope. Subtitle: “Daily drive management within your scope”.</p>
+      <table class="w-full text-sm mt-2">
+        <thead>
+          <tr class="text-left text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100">
+            <th class="py-2 pr-3">Column</th>
+            <th class="py-2">Meaning</th>
+          </tr>
+        </thead>
+        <tbody class="text-slate-600 divide-y divide-slate-50 text-sm">
+          <tr><td class="py-2 pr-3 font-semibold">Company</td><td class="py-2">Recruiter / company name</td></tr>
+          <tr><td class="py-2 pr-3 font-semibold">Role</td><td class="py-2">Job title</td></tr>
+          <tr><td class="py-2 pr-3 font-semibold">Applications</td><td class="py-2">Students who applied (numeric, right-aligned)</td></tr>
+          <tr><td class="py-2 pr-3 font-semibold">Shortlisted</td><td class="py-2">Applications past screening</td></tr>
+          <tr><td class="py-2 pr-3 font-semibold">Interview Date</td><td class="py-2">Drive or next interview date</td></tr>
+          <tr><td class="py-2 pr-3 font-semibold">Status</td><td class="py-2">Open · Interviewing · Closed</td></tr>
+        </tbody>
+      </table>
+    </article>
+
+    <!-- Interviews table -->
+    <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+      <div class="flex items-center gap-3">
+        <span class="px-2.5 py-1 rounded-lg bg-violet-50 text-violet-700 text-xs font-black uppercase border border-violet-100">Table</span>
+        <h2 class="text-lg font-black text-slate-900">Interview schedule</h2>
+      </div>
+      <p class="text-sm text-slate-600">Upcoming interviews this week for scoped students. Empty state: “No scheduled interviews this week.”</p>
+      <table class="w-full text-sm mt-2">
+        <thead>
+          <tr class="text-left text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100">
+            <th class="py-2 pr-3">Column</th>
+            <th class="py-2">Meaning</th>
+          </tr>
+        </thead>
+        <tbody class="text-slate-600 divide-y divide-slate-50 text-sm">
+          <tr><td class="py-2 pr-3 font-semibold">Student</td><td class="py-2">Student name</td></tr>
+          <tr><td class="py-2 pr-3 font-semibold">Company</td><td class="py-2">Interview company</td></tr>
+          <tr><td class="py-2 pr-3 font-semibold">Interview Type</td><td class="py-2">Technical · HR · Technical + HR, etc.</td></tr>
+          <tr><td class="py-2 pr-3 font-semibold">Date</td><td class="py-2">Scheduled date</td></tr>
+          <tr><td class="py-2 pr-3 font-semibold">Time</td><td class="py-2">Scheduled time (right-aligned in UI)</td></tr>
+        </tbody>
+      </table>
+      <p class="text-xs text-slate-400 border-t border-slate-100 pt-2"><strong>Sync rule:</strong> row count should equal <strong>Interviews This Week</strong> KPI when filtered to current week.</p>
+    </article>
+
+    <!-- Activity + Pending -->
+    <section class="grid sm:grid-cols-2 gap-4">
+      <article class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-3">
+        <h3 class="text-base font-black text-slate-900">Placement timeline (recent activity)</h3>
+        <p class="text-sm text-slate-600">Latest placement movements in scope — applications, interview advances, etc. Newest first.</p>
+        <p class="text-xs text-slate-400">Each card: event text + relative time.</p>
+      </article>
+      <article class="bg-white rounded-2xl border border-amber-200 shadow-sm p-6 space-y-3">
+        <h3 class="text-base font-black text-slate-900">Pending recruiter responses</h3>
+        <p class="text-sm text-slate-600">Drives blocked waiting on recruiter (JD, slot confirmation).</p>
+        <p class="text-xs text-slate-500"><strong>Formula:</strong> jobs with <code>status = IN_REVIEW</code> (or equivalent pending state)</p>
+        <p class="text-xs text-slate-400">Footer: “Follow up with recruiters to unblock drives”</p>
+      </article>
+    </section>
+
+    <!-- Not on mockup -->
+    <section class="bg-slate-50 rounded-2xl border border-slate-200 p-6 space-y-3">
+      <h2 class="text-lg font-black text-slate-900">Intentionally not on this dashboard</h2>
+      <ul class="text-sm text-slate-600 space-y-1.5 list-disc pl-5">
+        <li>School performance radar / placement-rate charts</li>
+        <li>Job Opportunities MoM / CR Manager analytics</li>
+        <li>Companies onboarded insight tile (Super Admin territory)</li>
+        <li>Eligible Students duplicate KPI (covered by funnel badge)</li>
+        <li>Application status donut chart</li>
+      </ul>
+      <p class="text-xs text-slate-400 pt-1">These stay on Super Admin or separate tabs — not the placement officer home screen.</p>
+    </section>
+
+    <!-- Quick reference -->
+    <section class="bg-white rounded-2xl border border-indigo-100 shadow-sm p-6 overflow-x-auto">
+      <h2 class="text-lg font-black text-slate-900 mb-4">Quick reference (mockup layout order)</h2>
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100">
+            <th class="py-2 pr-3">#</th>
+            <th class="py-2 pr-3">Section</th>
+            <th class="py-2 pr-3">Type</th>
+            <th class="py-2">Scoped?</th>
+          </tr>
+        </thead>
+        <tbody class="text-slate-600 divide-y divide-slate-50 text-xs">
+          <tr><td class="py-2 pr-3">1</td><td class="py-2 pr-3 font-semibold">Assignment scope strip</td><td class="py-2 pr-3">Filter context</td><td class="py-2">Defines scope</td></tr>
+          <tr><td class="py-2 pr-3">2</td><td class="py-2 pr-3 font-semibold">Job Postings</td><td class="py-2 pr-3">Pool KPI</td><td class="py-2">No (global)</td></tr>
+          <tr><td class="py-2 pr-3">2</td><td class="py-2 pr-3 font-semibold">Active Students</td><td class="py-2 pr-3">Pool KPI</td><td class="py-2">Yes</td></tr>
+          <tr><td class="py-2 pr-3">2</td><td class="py-2 pr-3 font-semibold">Pending Queries</td><td class="py-2 pr-3">Pool KPI</td><td class="py-2">Yes</td></tr>
+          <tr><td class="py-2 pr-3">2</td><td class="py-2 pr-3 font-semibold">Applications</td><td class="py-2 pr-3">Pool KPI</td><td class="py-2">Yes</td></tr>
+          <tr><td class="py-2 pr-3">3</td><td class="py-2 pr-3 font-semibold">Unplaced Students</td><td class="py-2 pr-3">Snapshot KPI</td><td class="py-2">Yes</td></tr>
+          <tr><td class="py-2 pr-3">3</td><td class="py-2 pr-3 font-semibold">Active Drives</td><td class="py-2 pr-3">Snapshot KPI</td><td class="py-2">Yes</td></tr>
+          <tr><td class="py-2 pr-3">3</td><td class="py-2 pr-3 font-semibold">Interviews This Week</td><td class="py-2 pr-3">Snapshot KPI</td><td class="py-2">Yes</td></tr>
+          <tr><td class="py-2 pr-3">4</td><td class="py-2 pr-3 font-semibold">Placement funnel</td><td class="py-2 pr-3">Chart</td><td class="py-2">Yes</td></tr>
+          <tr><td class="py-2 pr-3">5</td><td class="py-2 pr-3 font-semibold">Attention table</td><td class="py-2 pr-3">Table</td><td class="py-2">Yes</td></tr>
+          <tr><td class="py-2 pr-3">6</td><td class="py-2 pr-3 font-semibold">Active drives table</td><td class="py-2 pr-3">Table</td><td class="py-2">Yes</td></tr>
+          <tr><td class="py-2 pr-3">7</td><td class="py-2 pr-3 font-semibold">Interview schedule</td><td class="py-2 pr-3">Table</td><td class="py-2">Yes</td></tr>
+          <tr><td class="py-2 pr-3">8</td><td class="py-2 pr-3 font-semibold">Placement timeline</td><td class="py-2 pr-3">Feed</td><td class="py-2">Yes</td></tr>
+          <tr><td class="py-2 pr-3">8</td><td class="py-2 pr-3 font-semibold">Pending recruiter responses</td><td class="py-2 pr-3">KPI</td><td class="py-2">Yes</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <p class="text-center text-[10px] font-bold uppercase tracking-widest text-slate-400 pb-8">
+      admin_placement_dashboard_mockup_metrics_guide.html · matches current mockup UI
+    </p>
+  </div>
+
+  <script>lucide.createIcons();</script>
+</body>
+</html>

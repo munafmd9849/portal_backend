@@ -453,6 +453,8 @@ export const getOrCreateSession = async (req, res) => {
           company: job.company ? { name: job.company.name } : null,
           description: job.description, // Include for round extraction
           driveDate: job.driveDate, // Include for frontend validation
+          interviewMode: job.interviewMode || 'OFFLINE',
+          defaultMeetingProvider: job.defaultMeetingProvider || 'GOOGLE_MEET',
         },
         isDriveDateReached: isDriveDateReached, // Helper for frontend
         totalApplications: totalApplicationCount,

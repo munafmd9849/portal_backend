@@ -185,6 +185,7 @@ export async function getTargetedJobsForStudent(studentId, options = {}) {
             (typeof job.targetCenters === 'string' ? JSON.parse(job.targetCenters || '[]') : []),
           targetBatches: Array.isArray(job.targetBatches) ? job.targetBatches :
             (typeof job.targetBatches === 'string' ? JSON.parse(job.targetBatches || '[]') : []),
+          customQuestions: job.customQuestions ?? '[]',
         };
       });
 

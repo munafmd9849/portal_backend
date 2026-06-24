@@ -118,6 +118,39 @@ function generateBulletsFallback(title, description, techStack) {
   return bullets.slice(0, 4); // Max 4 bullets
 }
 
+function isAiErrorResponse(text) {
+  if (!text || typeof text !== 'string') return true;
+  const trimmed = text.trim();
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) return false;
+  const lower = trimmed.toLowerCase();
+  return lower.startsWith('ai service')
+    || lower.includes('please contact support')
+    || lower.includes('authentication failed')
+    || lower.includes('not configured')
+    || lower.includes('temporarily unavailable');
+}
+
+function parseAiJsonResponse(aiResponse) {
+  let jsonText = (aiResponse || '').trim();
+  if (jsonText.startsWith('```')) {
+    jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  }
+  return JSON.parse(jsonText);
+}
+
+async function tryMistralATS(resumeText) {
+  if (!process.env.MISTRAL_API_KEY) return null;
+  try {
+    const { scoreATSGeneric } = await import('./mistralService.js');
+    const result = await scoreATSGeneric({ resumeText });
+    console.info('[ATS] Using Mistral fallback for resume scoring');
+    return result;
+  } catch (err) {
+    console.warn('[ATS] Mistral fallback failed:', err.message);
+    return null;
+  }
+}
+
 /**
  * Analyze resume for ATS (Applicant Tracking System) compatibility
  * @param {string} resumeText - Extracted text from resume PDF
@@ -171,20 +204,21 @@ Focus on:
 
     const aiResponse = await generateAIContent(prompt);
 
-    // Check if AI returned an error message
-    if (aiResponse.includes('unavailable') || 
-        aiResponse.includes('not configured') || 
-        aiResponse.includes('disabled')) {
+    if (isAiErrorResponse(aiResponse)) {
+      const mistral = await tryMistralATS(resumeText);
+      if (mistral) return mistral;
       return generateATSFallback(resumeText);
     }
 
-    // Parse JSON from response (handle markdown code blocks if present)
-    let jsonText = aiResponse.trim();
-    if (jsonText.startsWith('```')) {
-      jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    let parsed;
+    try {
+      parsed = parseAiJsonResponse(aiResponse);
+    } catch (parseErr) {
+      console.warn('ATS: Google response was not valid JSON, trying Mistral:', parseErr.message);
+      const mistral = await tryMistralATS(resumeText);
+      if (mistral) return mistral;
+      return generateATSFallback(resumeText);
     }
-
-    const parsed = JSON.parse(jsonText);
 
     // Validate and format response
     return {
@@ -200,8 +234,9 @@ Focus on:
       isAI: true,
     };
   } catch (error) {
-    console.error('ATS analysis error:', error);
-    // Return fallback on any error - never crash the UI
+    console.error('ATS analysis error:', error.message);
+    const mistral = await tryMistralATS(resumeText);
+    if (mistral) return mistral;
     return generateATSFallback(resumeText);
   }
 }

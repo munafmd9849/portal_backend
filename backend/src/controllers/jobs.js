@@ -28,23 +28,7 @@ const creatorInclude = {
   },
 };
 
-function normalizeCustomQuestions(value) {
-  if (!value) return '[]';
-  const list = Array.isArray(value)
-    ? value
-    : typeof value === 'string'
-      ? (() => {
-          try {
-            const parsed = JSON.parse(value);
-            return Array.isArray(parsed) ? parsed : [value];
-          } catch {
-            return value.trim() ? [value] : [];
-          }
-        })()
-      : [];
-  const cleaned = list.map((q) => String(q).trim()).filter(Boolean);
-  return JSON.stringify(cleaned);
-}
+import { normalizeCustomQuestions } from '../utils/customQuestions.js';
 
 const isSqliteDb = () => (process.env.DATABASE_URL || '').toLowerCase().startsWith('file:');
 
@@ -344,6 +328,8 @@ export async function getTargetedJobs(req, res) {
         where: { userId: req.userId },
         select: {
           id: true,
+          fullName: true,
+          email: true,
           school: true,
           center: true,
           batch: true,
@@ -372,6 +358,8 @@ export async function getTargetedJobs(req, res) {
         where: { id: studentId },
         select: {
           id: true,
+          fullName: true,
+          email: true,
           school: true,
           center: true,
           batch: true,
@@ -944,6 +932,8 @@ export async function createJob(req, res) {
         ? parseFloat(mappedData.assessmentPassPercent)
         : (jobData.assessmentPassPercent != null ? parseFloat(jobData.assessmentPassPercent) : 60),
       companyTier: mappedData.companyTier || jobData.companyTier || 'REGULAR',
+      interviewMode: (mappedData.interviewMode || jobData.interviewMode || 'OFFLINE').toUpperCase(),
+      defaultMeetingProvider: mappedData.defaultMeetingProvider || jobData.defaultMeetingProvider || null,
       // Status fields - ALL jobs (admin and recruiter) must go through review
       // Enforce: status = IN_REVIEW, isPosted = false, visibleToStudents = false (via isPosted)
       status: 'IN_REVIEW',
@@ -1208,6 +1198,7 @@ export async function updateJob(req, res) {
       'spocs', 'status', 'isActive', 'isPosted', 'applicationDeadlineMailSent',
       'requiresScreening', 'requiresTest', 'customQuestions', 'interviewRounds',
       'linkedAssessmentId', 'assessmentPassPercent', 'companyTier',
+      'interviewMode', 'defaultMeetingProvider',
       'targetSchools', 'targetCenters', 'targetBatches',
       'targetSchoolIds', 'targetCenterIds', 'targetBatchIds',
       'submittedAt', 'postedAt', 'postedBy', 'approvedAt', 'approvedBy',
@@ -1318,6 +1309,9 @@ export async function updateJob(req, res) {
     }
     if (updateData.spocs && Array.isArray(updateData.spocs)) {
       finalUpdateData.spocs = JSON.stringify(updateData.spocs);
+    }
+    if (updateData.interviewMode) {
+      finalUpdateData.interviewMode = String(updateData.interviewMode).toUpperCase();
     }
 
     // Handle interviewRounds - convert to requirements text (interviewRounds is not a DB field)

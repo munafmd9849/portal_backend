@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -107,6 +107,12 @@ model Student {
   resumeUrl                  String?
   resumeFileName             String?
   resumeUploadedAt           DateTime?
+  gender                     String?
+  resumeVerifiedAt           DateTime?
+  invitedAt                  DateTime?
+  primaryResumeAtsScore      Int?
+  primaryResumeAtsScoredAt   DateTime?
+  primaryResumeAtsAnalysis   String?
   statsApplied               Int                    @default(0)
   statsShortlisted           Int                    @default(0)
   statsInterviewed           Int                    @default(0)
@@ -355,6 +361,8 @@ model Job {
   linkedAssessmentId          String?
   assessmentPassPercent       Float?                     @default(60)
   companyTier                 String                     @default("REGULAR")
+  interviewMode               String                     @default("OFFLINE")
+  defaultMeetingProvider      String?
   resultsDeclaredAt           DateTime?
   resultsLocked               Boolean                    @default(false)
   targetSchools               String
@@ -472,6 +480,9 @@ model Application {
   offerCtc             String?
   offerLetterUrl       String?
   offerDeadlineAt      DateTime?
+  placementType        String?
+  internshipStatus     String?
+  applicationSource    String?           @default("PORTAL")
   attendanceStatus   String?
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
@@ -521,6 +532,9 @@ model StudentResumeFile {
   title      String?
   isDefault  Boolean  @default(false)
   uploadedAt DateTime @default(now())
+  atsScore         Int?
+  atsScoredAt      DateTime?
+  atsAnalysisJson  String?
   student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([studentId, uploadedAt])
@@ -670,7 +684,7 @@ model MockInterviewSlot {
   status        String   @default("AVAILABLE") // AVAILABLE, SCHEDULED, WAITING, LIVE, COMPLETED, MISSED, NO_SHOW, CANCELLED
   meetingRoomId String?  @unique
   joinLink      String?
-  liveCode           String?  @db.Text
+  liveCode           String?
   liveCodeLanguage   String?  @default("javascript")
   activeQuestionId   String?
   extraQuestions     String?  // JSON — questions added live in the room
@@ -730,8 +744,8 @@ model AiMockInterview {
   description      String?
   sessionMode      String   @default("GUIDED") // GUIDED, CONVERSATIONAL
   interviewType    String // HR, TECHNICAL, BEHAVIORAL, MIXED, PLACEMENT_READINESS, CUSTOM
-  instructions     String?  @db.Text
-  conversationalTopic    String?  @db.Text
+  instructions     String?
+  conversationalTopic    String?
   conversationalMaxTurns   Int      @default(8)
   startDate        DateTime
   endDate          DateTime
@@ -754,8 +768,8 @@ model AiMockInterviewQuestion {
   id                String   @id @default(uuid())
   interviewId       String
   orderIndex        Int
-  questionText      String   @db.Text
-  notes             String?  @db.Text
+  questionText      String
+  notes             String?
   prepTimeSeconds   Int      @default(30)
   answerTimeSeconds Int      @default(120)
   mandatory         Boolean  @default(true)
@@ -807,10 +821,10 @@ model AiMockInterviewAnswer {
   audioUrl           String?
   audioPublicId      String?
   durationSeconds    Int?
-  transcriptText      String?  @db.Text
+  transcriptText      String?
   transcriptStatus    String?  // PENDING, COMPLETED, FAILED, SKIPPED
-  acknowledgementText String?  @db.Text
-  transitionText     String?  @db.Text
+  acknowledgementText String?
+  transitionText     String?
   submittedAt        DateTime?
   createdAt          DateTime  @default(now())
 
@@ -825,8 +839,8 @@ model AiMockInterviewViolation {
   id           String   @id @default(uuid())
   enrollmentId String
   type         String
-  details      String?  @db.Text
-  meta         String?  @db.Text
+  details      String?
+  meta         String?
   timestamp    DateTime @default(now())
 
   enrollment AiMockInterviewEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
@@ -856,10 +870,10 @@ model AiMockInterviewReview {
   id              String   @id @default(uuid())
   enrollmentId    String   @unique
   overallRating   Int? // 1-10
-  comments        String?  @db.Text
-  strengths       String?  @db.Text
-  improvements    String?  @db.Text
-  questionNotes   String?  @db.Text // JSON: { questionId: { rating, comment } }
+  comments        String?
+  strengths       String?
+  improvements    String?
+  questionNotes   String? // JSON: { questionId: { rating, comment } }
   reviewedBy      String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -880,12 +894,12 @@ model AiMockInterviewAiInsight {
   professionalismScore    Int?
   behavioralScore         Int?
   overallPerformance      Int?
-  strengths               String?  @db.Text
-  improvements            String?  @db.Text
-  recommendedFocus        String?  @db.Text
-  interviewSummary        String?  @db.Text
-  improvementPlan         String?  @db.Text
-  rawJson                 String?  @db.Text
+  strengths               String?
+  improvements            String?
+  recommendedFocus        String?
+  interviewSummary        String?
+  improvementPlan         String?
+  rawJson                 String?
   status                  String   @default("PENDING") // PENDING, COMPLETED, FAILED
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
@@ -1082,11 +1096,18 @@ model InterviewSlot {
   sessionId     String
   applicationId String
   roundId       String?
-  scheduledAt   DateTime?
-  room          String?
-  panelEmails   String           @default("[]")
-  status        String           @default("SCHEDULED")
-  notes         String?
+  scheduledAt      DateTime?
+  room             String?
+  slotDeliveryMode String?
+  meetingLink      String?
+  meetingProvider  String?
+  calendarEventId  String?
+  joinInstructions String?
+  autoGenerateMeet Boolean          @default(false)
+  studentJoinedAt  DateTime?
+  panelEmails      String           @default("[]")
+  status           String           @default("SCHEDULED")
+  notes            String?
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
   session       InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
@@ -1259,7 +1280,7 @@ model AssessmentQuestion {
   order         Int        @default(0)
   difficulty    String     @default("MEDIUM")
   starterCode   String? // For coding questions
-  constraints   String?    @db.Text // Coding: limits (time, memory, input bounds)
+  constraints   String?   // Coding: limits (time, memory, input bounds)
   examples      String? // JSON: [{ input, output, explanation }] — shown to students
   testCases     String? // JSON: [{ input, expectedOutput, hidden }] — judge cases
   assessment    Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)

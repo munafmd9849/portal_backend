@@ -21,7 +21,7 @@ import {
   freezeInterviewSession,
   unfreezeInterviewSession,
 } from '../controllers/interviewScheduling.js';
-import { getSessionSlots, assignSlot, updateSlotAttendance } from '../controllers/interviewSlots.js';
+import { getSessionSlots, assignSlot, updateSlotAttendance, getEligibleApplications, studentJoinSlot } from '../controllers/interviewSlots.js';
 
 const router = express.Router();
 
@@ -34,8 +34,10 @@ router.post('/session/:sessionId/invite-interviewers', authenticate, requireRole
 router.post('/session/:sessionId/declare-results', authenticate, requireRole(['ADMIN', 'SUPER_ADMIN']), declareResults);
 
 router.get('/session/:sessionId/slots', authenticate, requireRole(adminOrSuperAdminOrRecruiter), getSessionSlots);
+router.get('/session/:sessionId/eligible-applications', authenticate, requireRole(adminOrSuperAdminOrRecruiter), getEligibleApplications);
 router.post('/session/:sessionId/slots', authenticate, requireRole(adminOrSuperAdminOrRecruiter), assignSlot);
 router.patch('/slots/:slotId/attendance', authenticate, requireRole(adminOrSuperAdminOrRecruiter), updateSlotAttendance);
+router.post('/slots/:slotId/join', authenticate, requireRole(['STUDENT']), studentJoinSlot);
 
 // Super Admin only: freeze/unfreeze interview session
 router.patch('/session/:sessionId/freeze', authenticate, requireRole('SUPER_ADMIN'), freezeInterviewSession);

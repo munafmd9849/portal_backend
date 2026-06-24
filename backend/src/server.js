@@ -51,6 +51,8 @@ import adminJobsRoutes from './routes/adminJobs.js';
 import adminDashboardRoutes from './routes/adminDashboard.js'; // NEW: Serve-side aggregation
 import adminReadinessRoutes from './routes/adminReadiness.js';
 import jobOpportunitiesRoutes from './routes/jobOpportunities.js';
+import controlTowerRoutes from './routes/controlTower.js';
+import adminResumeAtsRoutes from './routes/adminResumeAts.js';
 import adminStudentDirectoryRoutes from './routes/adminStudentDirectory.js';
 import announcementsRoutes from './routes/announcements.js';
 import superAdminRoutes from './routes/superAdmin.js';
@@ -282,6 +284,8 @@ app.use('/api/admin', adminJobsRoutes); // Admin job applicants tracking routes
 app.use('/api/admin/dashboard', adminDashboardRoutes); // NEW: Server-side dashboard stats
 app.use('/api/admin/readiness', adminReadinessRoutes); // Placement readiness & probability (activity-derived)
 app.use('/api/admin/job-opportunities', jobOpportunitiesRoutes); // Job Opportunities dashboard (pipeline SSoT)
+app.use('/api/admin/control-tower', controlTowerRoutes); // Control Tower analytics (separate from AdminHome)
+app.use('/api/admin/resume-ats', adminResumeAtsRoutes); // Bulk ATS scores for primary resumes
 app.use('/api/admin/student-directory', adminStudentDirectoryRoutes); // Student Directory (computed metrics)
 app.use('/api/announcements', announcementsRoutes);
 app.use('/api/super-admin', superAdminRoutes); // Super Admin: create/disable admins, stats

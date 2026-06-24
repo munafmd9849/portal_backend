@@ -163,19 +163,7 @@ function computeApplicationTrackingFields({
   };
 }
 
-function parseJobCustomQuestions(job) {
-  if (!job?.customQuestions) return [];
-  try {
-    const parsed = typeof job.customQuestions === 'string'
-      ? JSON.parse(job.customQuestions)
-      : job.customQuestions;
-    return Array.isArray(parsed)
-      ? parsed.map((question) => String(question).trim()).filter(Boolean)
-      : [];
-  } catch {
-    return [];
-  }
-}
+import { parseJobCustomQuestions } from '../utils/customQuestions.js';
 
 function parseStoredCustomAnswers(raw) {
   if (!raw || raw === '{}') return {};
@@ -619,7 +607,7 @@ export async function getStudentApplications(req, res) {
     const applicationIds = applications.map(app => app.id);
 
     // Run both queries in parallel instead of sequentially
-    const [interviewSessions, allEvaluations] = await Promise.all([
+    const [interviewSessions, allEvaluations, allInterviewSlots] = await Promise.all([
       jobIds.length > 0 ? prisma.interviewSession.findMany({
         where: { jobId: { in: jobIds } },
         include: {
@@ -637,6 +625,13 @@ export async function getStudentApplications(req, res) {
         },
         orderBy: { round: { roundNumber: 'asc' } },
       }) : Promise.resolve([]),
+      applicationIds.length > 0 ? prisma.interviewSlot.findMany({
+        where: { applicationId: { in: applicationIds } },
+        include: {
+          round: { select: { roundNumber: true, name: true } },
+        },
+        orderBy: { scheduledAt: 'asc' },
+      }) : Promise.resolve([]),
     ]);
 
     const sessionMap = new Map(interviewSessions.map(s => [s.jobId, s]));
@@ -647,6 +642,29 @@ export async function getStudentApplications(req, res) {
         evaluationsByApp.set(evaluation.applicationId, []);
       }
       evaluationsByApp.get(evaluation.applicationId).push(evaluation);
+    });
+
+    const slotsByApp = new Map();
+    allInterviewSlots.forEach((slot) => {
+      if (!slotsByApp.has(slot.applicationId)) {
+        slotsByApp.set(slot.applicationId, []);
+      }
+      const jobMode = applications.find((a) => a.id === slot.applicationId)?.job?.interviewMode || 'OFFLINE';
+      const deliveryMode = jobMode === 'HYBRID'
+        ? String(slot.slotDeliveryMode || 'OFFLINE').toUpperCase()
+        : String(jobMode).toUpperCase();
+      slotsByApp.get(slot.applicationId).push({
+        id: slot.id,
+        scheduledAt: slot.scheduledAt,
+        room: slot.room,
+        meetingLink: deliveryMode === 'ONLINE' ? slot.meetingLink : null,
+        meetingProvider: slot.meetingProvider,
+        joinInstructions: slot.joinInstructions,
+        deliveryMode,
+        status: slot.status,
+        round: slot.round,
+        studentJoinedAt: slot.studentJoinedAt,
+      });
     });
 
     // Format for frontend compatibility
@@ -706,6 +724,7 @@ export async function getStudentApplications(req, res) {
           lastRoundStatus: null,
           lastRoundReached: tracking.lastRoundReached,
         },
+        interviewSlots: slotsByApp.get(app.id) || [],
       };
     });
 

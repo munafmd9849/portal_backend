@@ -1,18 +1,33 @@
+function customQuestionText(entry) {
+  if (entry == null) return '';
+  if (typeof entry === 'string') return entry.trim();
+  if (typeof entry === 'object') {
+    return String(entry.question || entry.label || entry.text || '').trim();
+  }
+  const text = String(entry).trim();
+  return text === '[object Object]' ? '' : text;
+}
+
 /** Parse custom apply questions stored as JSON array on jobs. */
 export function parseJobCustomQuestions(job) {
-  if (!job?.customQuestions) return [];
-  if (Array.isArray(job.customQuestions)) {
-    return job.customQuestions.map((q) => String(q).trim()).filter(Boolean);
-  }
-  if (typeof job.customQuestions === 'string') {
+  const raw = job?.customQuestions;
+  if (!raw) return [];
+
+  let list = [];
+  if (Array.isArray(raw)) {
+    list = raw;
+  } else if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (!trimmed) return [];
     try {
-      const parsed = JSON.parse(job.customQuestions);
-      return Array.isArray(parsed) ? parsed.map((q) => String(q).trim()).filter(Boolean) : [];
+      const parsed = JSON.parse(trimmed);
+      list = Array.isArray(parsed) ? parsed : [trimmed];
     } catch {
-      return job.customQuestions.trim() ? [job.customQuestions.trim()] : [];
+      list = [trimmed];
     }
   }
-  return [];
+
+  return list.map(customQuestionText).filter(Boolean);
 }
 
 /** Human-readable job creator label for admin/student views. */
