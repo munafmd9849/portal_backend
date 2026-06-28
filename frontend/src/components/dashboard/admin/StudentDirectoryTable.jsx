@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Download, Edit3, Eye, FileSpreadsheet, Loader, Search, ShieldAlert, ShieldOff } from 'lucide-react';
+import { Download, Edit3, Eye, FileSpreadsheet, Loader, Search, ShieldAlert, ShieldOff, Sparkles } from 'lucide-react';
 
 const ACTIONS_WIDTH = 144;
 
@@ -46,6 +46,10 @@ const MOCK_INTERVIEW_COLUMN = [
   { key: 'mockInterviews', label: 'Mock Interviews', minW: 120 },
 ];
 
+const ATS_COLUMN = [
+  { key: 'atsScore', label: 'Resume ATS', minW: 120, ats: true },
+];
+
 const STATS_COLUMNS = [
   { key: 'placementStatus', label: 'Placement Status', minW: 120, badge: 'placementStatus' },
   { key: 'jobsAssigned', label: 'Jobs Assigned', minW: 108, metric: 'default' },
@@ -78,7 +82,14 @@ function displayMock(val) {
   return val;
 }
 
-function cellContent(row, col) {
+function atsScoreColor(score) {
+  if (score == null) return 'bg-slate-100 text-slate-600';
+  if (score >= 80) return 'bg-emerald-100 text-emerald-800';
+  if (score >= 60) return 'bg-amber-100 text-amber-800';
+  return 'bg-red-100 text-red-800';
+}
+
+function cellContent(row, col, { onViewAtsDetails, onScoreAts, scoringStudentId, batchAtsRunning }) {
   if (col.badge === 'csStatus') {
     return <StatusBadge label={row.csStatus?.label} variant={row.csStatus?.variant} />;
   }
@@ -93,6 +104,41 @@ function cellContent(row, col) {
       <span className="text-sm font-semibold text-slate-600 tabular-nums">
         {displayMock(row.mockInterviews)}
       </span>
+    );
+  }
+  if (col.ats) {
+    return (
+      <div className="flex flex-col items-start gap-1.5">
+        <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold tabular-nums ${atsScoreColor(row.atsScore)}`}>
+          {row.atsScore != null ? `${row.atsScore}%` : row.hasResume ? 'Unscored' : '—'}
+        </span>
+        {row.hasResume && (
+          <div className="flex items-center gap-2">
+            {row.atsAnalysis && (
+              <button
+                type="button"
+                onClick={() => onViewAtsDetails?.(row)}
+                className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+              >
+                Details
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => onScoreAts?.(row)}
+              disabled={scoringStudentId === row.id || batchAtsRunning}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-50"
+            >
+              {scoringStudentId === row.id ? (
+                <Loader className="w-3 h-3 animate-spin" />
+              ) : (
+                <Sparkles className="w-3 h-3" />
+              )}
+              {row.atsScore != null ? 'Re-score' : 'Score'}
+            </button>
+          </div>
+        )}
+      </div>
     );
   }
   if (col.metric) {
@@ -194,11 +240,17 @@ export default function StudentDirectoryTable({
   onView,
   onEdit,
   onBlock,
+  onScoreAts,
+  onBatchScoreAts,
+  onViewAtsDetails,
+  scoringStudentId = null,
+  batchAtsRunning = false,
 }) {
   const allScrollColumns = useMemo(
     () => [
       ...BASIC_COLUMNS,
       ...MOCK_INTERVIEW_COLUMN,
+      ...ATS_COLUMN,
       ...STATS_COLUMNS,
     ],
     [],
@@ -245,6 +297,20 @@ export default function StudentDirectoryTable({
           </div>
           <button
             type="button"
+            onClick={onBatchScoreAts}
+            disabled={batchAtsRunning || operationLoading}
+            className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold border border-indigo-200 rounded-xl text-indigo-700 hover:bg-indigo-50 active:scale-95 transition-all bg-white disabled:opacity-50"
+            title="Score up to 15 unscored primary resumes"
+          >
+            {batchAtsRunning ? (
+              <Loader className="w-4 h-4 animate-spin" />
+            ) : (
+              <Sparkles className="w-4 h-4" />
+            )}
+            Score unscored
+          </button>
+          <button
+            type="button"
             onClick={onExportToSheets}
             disabled={sheetsExporting}
             className="p-2 border border-slate-200 rounded-xl text-emerald-700 hover:bg-emerald-50 hover:border-emerald-200 active:scale-95 transition-all bg-white disabled:opacity-50"
@@ -278,7 +344,7 @@ export default function StudentDirectoryTable({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-left" style={{ minWidth: 1520 }}>
+        <table className="w-full border-collapse text-left" style={{ minWidth: 1640 }}>
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50">
               <th
@@ -351,7 +417,7 @@ export default function StudentDirectoryTable({
                     className={scrollBodyCell}
                     style={{ minWidth: col.minW }}
                   >
-                    {cellContent(row, col)}
+                    {cellContent(row, col, { onViewAtsDetails, onScoreAts, scoringStudentId, batchAtsRunning })}
                   </td>
                 ))}
                 <td

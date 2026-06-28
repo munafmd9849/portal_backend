@@ -20,6 +20,16 @@ import {
   computeResumeQualityScore,
 } from './placementReadinessService.js';
 import { mergeScopeIntoStudentWhere } from '../utils/adminScope.js';
+import { resolvePrimaryResume } from './resumeTextExtractor.js';
+
+function parseAtsAnalysis(json) {
+  if (!json) return null;
+  try {
+    return typeof json === 'string' ? JSON.parse(json) : json;
+  } catch {
+    return null;
+  }
+}
 
 const MS_DAY = 24 * 60 * 60 * 1000;
 
@@ -54,7 +64,10 @@ const studentIncludeForDirectory = {
   },
   skills: true,
   education: { orderBy: { endYear: 'desc' }, take: 1 },
-  resumeFiles: { take: 5 },
+  resumeFiles: {
+    orderBy: [{ isDefault: 'desc' }, { uploadedAt: 'desc' }],
+    take: 5,
+  },
   applications: {
     select: {
       id: true,
@@ -384,6 +397,7 @@ export function mapStudentToDirectoryRow(
   const topEducation = student.education?.[0];
   const program = topEducation?.degree || student.school || '—';
   const userStatus = (user.status || 'ACTIVE').toUpperCase();
+  const primaryResume = resolvePrimaryResume(student);
 
   return {
     id: student.id,
@@ -421,6 +435,12 @@ export function mapStudentToDirectoryRow(
     blockInfo: user.blockInfo,
     profileCompleted: student.profileCompleted,
     emailVerified: Boolean(user?.emailVerified || user?.lastLoginAt),
+    hasResume: Boolean(primaryResume),
+    primaryResumeFileName: primaryResume?.fileName ?? null,
+    primaryResumeUrl: primaryResume?.fileUrl ?? null,
+    atsScore: primaryResume?.atsScore ?? null,
+    atsScoredAt: primaryResume?.atsScoredAt ?? null,
+    atsAnalysis: parseAtsAnalysis(primaryResume?.atsAnalysisJson),
   };
 }
 
@@ -513,6 +533,16 @@ export async function getStudentDirectory(query = {}, adminScope = {}) {
   if (query.tier) {
     const t = String(query.tier).toLowerCase();
     filtered = filtered.filter((r) => r.placementReadiness?.tier === t);
+  }
+  if (query.atsFilter) {
+    const ats = String(query.atsFilter).toLowerCase();
+    if (ats === 'scored') {
+      filtered = filtered.filter((r) => r.atsScore != null);
+    } else if (ats === 'unscored') {
+      filtered = filtered.filter((r) => r.hasResume && r.atsScore == null);
+    } else if (ats === 'no_resume') {
+      filtered = filtered.filter((r) => !r.hasResume);
+    }
   }
 
   const summary = {

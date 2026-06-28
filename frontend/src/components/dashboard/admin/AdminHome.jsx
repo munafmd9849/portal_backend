@@ -16,7 +16,7 @@ import {
   getDashboardWelcomeSubtitle,
 } from '../../../utils/adminScopeDisplay';
 
-export default function AdminHome() {
+export default function AdminHome({ embedded = false }) {
   const { user, role } = useAuth();
   const userRole = (role || user?.role || '').toUpperCase();
   const isSuperAdmin = userRole === 'SUPER_ADMIN';
@@ -270,7 +270,7 @@ export default function AdminHome() {
   );
 
   return (
-    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 bg-gradient-to-br from-gray-50 to-blue-50/30 min-h-screen overflow-x-hidden">
+    <div className={`space-y-4 sm:space-y-6 p-4 sm:p-6 bg-gradient-to-br from-gray-50 to-blue-50/30 overflow-x-hidden ${embedded ? 'pb-0' : 'min-h-screen'}`}>
       {/* Header */}
       <div className="mb-1">
         <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">

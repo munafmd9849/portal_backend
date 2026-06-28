@@ -5,11 +5,13 @@ import { useAuth } from '../hooks/useAuth';
 import { listNotificationsForUser, markNotificationRead } from '../services/notifications';
 
 const DASHBOARD_ROUTE_PATTERN = /^\/(student|admin|super-admin|recruiter)(\/|$)/;
+const ADMIN_DASHBOARD_PATTERN = /^\/(admin|super-admin)(\/|$)/;
 
 const NotificationModal = () => {
   const { user } = useAuth();
   const location = useLocation();
   const isDashboard = DASHBOARD_ROUTE_PATTERN.test(location.pathname);
+  const isAdminDashboard = ADMIN_DASHBOARD_PATTERN.test(location.pathname);
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -84,6 +86,9 @@ const NotificationModal = () => {
   };
 
   if (!user?.id) return null;
+
+  // Admin dashboards use the sidebar Notifications page — no floating bell
+  if (isAdminDashboard) return null;
 
   const bellPositionClass = isDashboard
     ? 'fixed top-3 right-16 md:top-5 md:right-8 z-[60]'

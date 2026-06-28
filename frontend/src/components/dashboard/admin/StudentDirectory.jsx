@@ -8,6 +8,7 @@ import PWIOILOGO from '../../../assets/images/brand_logo.webp';
 import { getAllStudents, updateStudentProfile } from '../../../services/students';
 import { fetchStudentsWithScores } from '../../../services/adminReadiness';
 import { fetchStudentDirectory, exportStudentDirectory, fetchStudentPanelExtras, fetchStudentResumeViewUrl } from '../../../services/studentDirectory';
+import { scoreStudentResumeAts, batchScoreResumeAts } from '../../../services/adminResumeAts';
 import StudentDirectoryTable from './StudentDirectoryTable';
 import DirectoryLoadingPanel from './DirectoryLoading';
 import { useAuth } from '../../../hooks/useAuth';
@@ -30,6 +31,13 @@ const READINESS_TIER_OPTIONS = [
   { id: 'ready', name: 'Ready (≥75%)' },
   { id: 'developing', name: 'Developing' },
   { id: 'at_risk', name: 'At risk' },
+];
+
+const ATS_FILTER_OPTIONS = [
+  { id: '', name: 'All resume ATS' },
+  { id: 'scored', name: 'ATS scored' },
+  { id: 'unscored', name: 'Unscored (has resume)' },
+  { id: 'no_resume', name: 'No resume' },
 ];
 
 const READINESS_TIER_LABELS = { ready: 'Ready', developing: 'Developing', at_risk: 'At risk' };
@@ -87,6 +95,51 @@ function PlacementScoreCell({ score, tier, components, label }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function AtsAnalysisModal({ student, onClose }) {
+  if (!student?.atsAnalysis) return null;
+  const analysis = student.atsAnalysis;
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+      <div
+        className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-y-auto p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">{student.fullName}</h2>
+            <p className="text-sm text-gray-500">
+              ATS score: {student.atsScore != null ? `${student.atsScore}%` : '—'}
+            </p>
+          </div>
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        {analysis.overallFeedback && (
+          <p className="text-sm text-gray-700 mb-4">{analysis.overallFeedback}</p>
+        )}
+        {analysis.strengths?.length > 0 && (
+          <div className="mb-3">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase mb-1">Strengths</h3>
+            <ul className="list-disc list-inside text-sm text-gray-700 space-y-0.5">
+              {analysis.strengths.map((item, index) => <li key={index}>{item}</li>)}
+            </ul>
+          </div>
+        )}
+        {analysis.improvementSuggestions?.length > 0 && (
+          <div>
+            <h3 className="text-xs font-semibold text-gray-500 uppercase mb-1">Suggestions</h3>
+            <ul className="list-disc list-inside text-sm text-gray-700 space-y-0.5">
+              {analysis.improvementSuggestions.map((item, index) => <li key={index}>{item}</li>)}
+            </ul>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -544,8 +597,13 @@ export default function StudentDirectory() {
     maxCgpa: '',
     tier: '',
     minReadiness: '',
+    atsFilter: '',
   });
   const [sortByScores, setSortByScores] = useState('readiness');
+  const [scoringStudentId, setScoringStudentId] = useState(null);
+  const [batchAtsRunning, setBatchAtsRunning] = useState(false);
+  const [atsDetailsStudent, setAtsDetailsStudent] = useState(null);
+  const [atsError, setAtsError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [blockModalOpen, setBlockModalOpen] = useState(false);
@@ -639,6 +697,7 @@ export default function StudentDirectory() {
       };
       if (filters.tier) queryParams.tier = filters.tier;
       if (filters.minReadiness) queryParams.minReadiness = filters.minReadiness;
+      if (filters.atsFilter) queryParams.atsFilter = filters.atsFilter;
 
       const studentsData = await fetchStudentDirectory(queryParams).catch(async () => {
         return fetchStudentsWithScores(queryParams).catch(async () => {
@@ -972,7 +1031,46 @@ export default function StudentDirectory() {
       maxCgpa: '',
       tier: '',
       minReadiness: '',
+      atsFilter: '',
     });
+  };
+
+  const handleScoreAts = async (student) => {
+    if (!student?.id) return;
+    setScoringStudentId(student.id);
+    setAtsError(null);
+    try {
+      const result = await scoreStudentResumeAts(student.id);
+      await loadStudents(false);
+      if (showProfile && selectedStudent?.id === student.id) {
+        setSelectedStudent((prev) => ({
+          ...prev,
+          atsScore: result?.atsScore ?? prev?.atsScore,
+          atsScoredAt: result?.atsScoredAt ?? prev?.atsScoredAt,
+          atsAnalysis: result?.analysis ?? prev?.atsAnalysis,
+        }));
+      }
+    } catch (err) {
+      setAtsError(err.message || 'Failed to score resume');
+    } finally {
+      setScoringStudentId(null);
+    }
+  };
+
+  const handleBatchScoreAts = async () => {
+    setBatchAtsRunning(true);
+    setAtsError(null);
+    try {
+      const result = await batchScoreResumeAts({ limit: 15 });
+      if (result.failed > 0) {
+        setAtsError(`Batch complete: ${result.succeeded} scored, ${result.failed} failed.`);
+      }
+      await loadStudents(false);
+    } catch (err) {
+      setAtsError(err.message || 'Batch scoring failed');
+    } finally {
+      setBatchAtsRunning(false);
+    }
   };
 
   // Get status styling - matching job moderation style
@@ -1370,6 +1468,15 @@ export default function StudentDirectory() {
             onChange={(value) => handleFilterDropdownChange('tier', value)}
             placeholder="All readiness"
           />
+
+          <CustomDropdown
+            label="Resume ATS"
+            compact
+            options={ATS_FILTER_OPTIONS.map(opt => ({ value: opt.id, label: opt.name }))}
+            value={filters.atsFilter}
+            onChange={(value) => handleFilterDropdownChange('atsFilter', value)}
+            placeholder="All resume ATS"
+          />
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               Min CGPA
@@ -1447,6 +1554,11 @@ export default function StudentDirectory() {
           </div>
         ) : (
           <>
+            {atsError && (
+              <div className="mb-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3">
+                {atsError}
+              </div>
+            )}
             <StudentDirectoryTable
               rows={students}
               showingCount={students.length}
@@ -1460,6 +1572,11 @@ export default function StudentDirectory() {
               onView={handleViewProfile}
               onEdit={handleEditStudent}
               onBlock={handleBlockClick}
+              onScoreAts={handleScoreAts}
+              onBatchScoreAts={handleBatchScoreAts}
+              onViewAtsDetails={setAtsDetailsStudent}
+              scoringStudentId={scoringStudentId}
+              batchAtsRunning={batchAtsRunning}
             />
 
             {/* Pagination */}
@@ -1539,8 +1656,16 @@ export default function StudentDirectory() {
           }}
           student={selectedStudent}
           dashboardData={dashboardData}
+          onScoreAts={handleScoreAts}
+          scoringStudentId={scoringStudentId}
+          onViewAtsDetails={setAtsDetailsStudent}
         />
       )}
+
+      <AtsAnalysisModal
+        student={atsDetailsStudent}
+        onClose={() => setAtsDetailsStudent(null)}
+      />
 
     </div>
   );
@@ -1588,7 +1713,15 @@ function formatResumeFileSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function StudentPanelResumesTab({ studentId, resumes = [], onViewResume }) {
+function StudentPanelResumesTab({
+  studentId,
+  student,
+  resumes = [],
+  onViewResume,
+  onScoreAts,
+  scoringStudentId,
+  onViewAtsDetails,
+}) {
   const openResume = async (resume) => {
     if (!studentId || !resume?.id) return;
     try {
@@ -1602,11 +1735,39 @@ function StudentPanelResumesTab({ studentId, resumes = [], onViewResume }) {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
           <FileText className="w-4.5 h-4.5 text-indigo-500" /> Resumes
         </h3>
-        <span className="text-xs text-slate-400">Total: {resumes.length}</span>
+        <div className="flex items-center gap-2">
+          {student?.hasResume !== false && (
+            <>
+              {student?.atsScore != null && (
+                <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                  ATS {student.atsScore}%
+                </span>
+              )}
+              {student?.atsAnalysis && (
+                <button
+                  type="button"
+                  onClick={() => onViewAtsDetails?.(student)}
+                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                >
+                  ATS details
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => onScoreAts?.(student)}
+                disabled={scoringStudentId === student?.id}
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg border border-indigo-200 text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+              >
+                {scoringStudentId === student?.id ? 'Scoring…' : student?.atsScore != null ? 'Re-score default' : 'Score default'}
+              </button>
+            </>
+          )}
+          <span className="text-xs text-slate-400">Total: {resumes.length}</span>
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -1656,7 +1817,7 @@ function StudentPanelResumesTab({ studentId, resumes = [], onViewResume }) {
 }
 
 // Student Dashboard Panel Component - Similar to Assessment.jsx
-const StudentDashboardPanel = ({ isOpen, onClose, student, dashboardData }) => {
+const StudentDashboardPanel = ({ isOpen, onClose, student, dashboardData, onScoreAts, scoringStudentId, onViewAtsDetails }) => {
   const [currentStudent, setCurrentStudent] = useState(student);
   const [activeTab, setActiveTab] = useState('overview');
 
@@ -2180,8 +2341,12 @@ const StudentDashboardPanel = ({ isOpen, onClose, student, dashboardData }) => {
               {activeTab === 'resumes' && (
                 <StudentPanelResumesTab
                   studentId={currentStudent?.id || student?.id}
+                  student={currentStudent || student}
                   resumes={dashboardData.resumes || []}
                   onViewResume={fetchStudentResumeViewUrl}
+                  onScoreAts={onScoreAts}
+                  scoringStudentId={scoringStudentId}
+                  onViewAtsDetails={onViewAtsDetails}
                 />
               )}
 

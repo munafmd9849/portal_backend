@@ -69,11 +69,7 @@ function aiIsPast(iv) {
   return new Date(iv.endDate) < new Date();
 }
 
-export default function MockInterviewManagement({
-  autoOpenCreate = false,
-  forcedMode = null,
-  dashboardTab = 'mockInterviews',
-}) {
+export default function MockInterviewManagement({ autoOpenCreate = false }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -81,12 +77,7 @@ export default function MockInterviewManagement({
 
   const adminBase = location.pathname.startsWith('/super-admin') ? '/super-admin' : '/admin';
 
-  const initialMode =
-    forcedMode === 'ai' || forcedMode === 'live'
-      ? forcedMode
-      : searchParams.get('mode') === 'ai'
-        ? 'ai'
-        : 'live';
+  const initialMode = searchParams.get('mode') === 'ai' ? 'ai' : 'live';
 
   const [loading, setLoading] = useState(true);
   const [drives, setDrives] = useState([]);
@@ -101,14 +92,13 @@ export default function MockInterviewManagement({
   const syncUrl = useCallback(
     (mode) => {
       const next = new URLSearchParams(searchParams);
-      const tab = mode === 'ai' ? 'aiInterviews' : 'mockInterviews';
-      next.set('tab', forcedMode ? dashboardTab : tab);
-      if (!forcedMode && mode === 'ai') next.set('mode', 'ai');
+      next.set('tab', 'mockInterviews');
+      if (mode === 'ai') next.set('mode', 'ai');
       else next.delete('mode');
       next.delete('aiFilter');
       setSearchParams(next, { replace: true });
     },
-    [searchParams, setSearchParams, forcedMode, dashboardTab]
+    [searchParams, setSearchParams]
   );
 
   const setMode = (mode) => {
@@ -125,10 +115,9 @@ export default function MockInterviewManagement({
   }, [autoOpenCreate]);
 
   useEffect(() => {
-    if (forcedMode === 'ai' || forcedMode === 'live') {
-      setMainMode(forcedMode);
-    }
-  }, [forcedMode]);
+    const modeFromUrl = searchParams.get('mode') === 'ai' ? 'ai' : 'live';
+    setMainMode((prev) => (prev === modeFromUrl ? prev : modeFromUrl));
+  }, [searchParams]);
 
   const loadDrives = useCallback(async () => {
     try {
@@ -285,48 +274,36 @@ export default function MockInterviewManagement({
   return (
     <>
       <div className="space-y-5 p-4 sm:p-6 max-w-[1600px] mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          {forcedMode ? (
-            <div>
-              <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">
-                {mainMode === 'live' ? 'Live Mock Interviews' : 'AI Guided Interviews'}
-              </h1>
-              <p className="text-sm text-gray-500 mt-1">
-                {mainMode === 'live'
-                  ? 'Schedule live 1:1 drives and manage interviewer slots'
-                  : 'Publish guided AI video interviews and review candidate submissions'}
-              </p>
-            </div>
-          ) : (
-            <div className="flex justify-center sm:justify-start">
-              <div className="bg-white rounded-md p-1 border border-gray-200 inline-flex flex-wrap justify-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setMode('live')}
-                  className={`px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2 ${
-                    mainMode === 'live'
-                      ? 'bg-blue-800 text-white'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <Video className="w-4 h-4" />
-                  Live 1:1 ({totalDrives})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMode('ai')}
-                  className={`px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2 ${
-                    mainMode === 'ai'
-                      ? 'bg-blue-800 text-white'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <Sparkles className="w-4 h-4" />
-                  AI video ({aiInterviews.length})
-                </button>
-              </div>
-            </div>
-          )}
+        <div className="flex justify-center mb-2">
+          <div className="bg-white rounded-lg p-1 shadow-sm border border-slate-200 inline-flex flex-wrap justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setMode('live')}
+              className={`px-4 sm:px-6 py-2 rounded-md font-medium transition-all duration-200 touch-manipulation flex items-center gap-2 ${
+                mainMode === 'live'
+                  ? 'bg-indigo-500 text-white shadow-md'
+                  : 'text-slate-600 hover:text-slate-800'
+              }`}
+            >
+              <Video className="w-4 h-4" />
+              Live 1:1 ({totalDrives})
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('ai')}
+              className={`px-4 sm:px-6 py-2 rounded-md font-medium transition-all duration-200 touch-manipulation flex items-center gap-2 ${
+                mainMode === 'ai'
+                  ? 'bg-violet-500 text-white shadow-md'
+                  : 'text-slate-600 hover:text-slate-800'
+              }`}
+            >
+              <Sparkles className="w-4 h-4" />
+              AI Interviews ({aiInterviews.length})
+            </button>
+          </div>
+        </div>
+
+        <div className="flex justify-end">
           {mainMode === 'live' ? (
             <button
               type="button"

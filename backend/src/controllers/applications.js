@@ -2224,7 +2224,7 @@ export async function applyToJob(req, res) {
 export async function updateApplicationStatus(req, res) {
   try {
     const { applicationId } = req.params;
-    const { status, interviewDate, offerCtc, offerLetterUrl, offerDeadlineAt } = req.body;
+    const { status, interviewDate, offerCtc, offerStipend, offerLetterUrl, offerDeadlineAt, placementType } = req.body;
 
     // Get application
     const application = await prisma.application.findUnique({
@@ -2271,8 +2271,11 @@ export async function updateApplicationStatus(req, res) {
       ...(interviewDate ? { interviewDate: new Date(interviewDate) } : {}),
       ...(syncInterviewStatus ? { interviewStatus: normalizedStatus } : {}),
       ...(offerCtc != null ? { offerCtc: String(offerCtc).trim() || null } : {}),
+      ...(offerStipend != null ? { offerStipend: String(offerStipend).trim() || null } : {}),
       ...(offerLetterUrl != null ? { offerLetterUrl: String(offerLetterUrl).trim() || null } : {}),
       ...(offerDeadlineAt != null ? { offerDeadlineAt: offerDeadlineAt ? new Date(offerDeadlineAt) : null } : {}),
+      ...(placementType != null ? { placementType: String(placementType).trim().toUpperCase() || null } : {}),
+      ...(normalizedStatus === 'JOINED' && oldStatus !== 'JOINED' ? { joinedAt: new Date() } : {}),
     };
 
     const updated = await patchApplication(applicationId, patchData, {

@@ -269,7 +269,7 @@ export default function ManageJobs() {
   }, [editingDatesJobId, selectorModal.isOpen]);
 
 
-  // Listen for custom events to trigger refresh (from JobPostingsManager)
+  // Listen for jobsRefresh events from other admin views
   useEffect(() => {
     const handleJobsRefresh = (event) => {
       const { action, jobId, jobTitle } = event.detail || {};

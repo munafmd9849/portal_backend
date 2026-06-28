@@ -8,6 +8,19 @@ import { createNotification } from './notifications.js';
 import { getIO } from '../config/socket.js';
 
 /**
+ * Parse user.blockInfo stored as JSON string (SQLite) or object.
+ */
+function parseBlockInfo(blockInfo) {
+  if (blockInfo == null || blockInfo === '') return null;
+  if (typeof blockInfo === 'object') return blockInfo;
+  try {
+    return JSON.parse(blockInfo);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Get recruiter directory (admin)
  * Replaces: subscribeRecruiterDirectory()
  */
@@ -15,14 +28,6 @@ export async function getRecruiterDirectory(req, res) {
   try {
     const recruiters = await prisma.recruiter.findMany({
       include: {
-        user: {
-          select: {
-            email: true,
-            status: true,
-            blockInfo: true,
-            createdAt: true,
-          },
-        },
         company: true,
         jobs: {
           orderBy: { createdAt: 'desc' },
@@ -32,29 +37,55 @@ export async function getRecruiterDirectory(req, res) {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Format for frontend compatibility
-    const formatted = recruiters.map(recruiter => {
-      const jobs = recruiter.jobs || [];
-      const lastJob = jobs[0];
+    const userIds = [...new Set(recruiters.map((r) => r.userId).filter(Boolean))];
+    const users = userIds.length
+      ? await prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: {
+          id: true,
+          email: true,
+          displayName: true,
+          status: true,
+          blockInfo: true,
+          createdAt: true,
+        },
+      })
+      : [];
+    const userById = new Map(users.map((u) => [u.id, u]));
 
-      return {
-        id: recruiter.id,
-        companyName: recruiter.company?.name || recruiter.companyName || 'Unknown',
-        recruiterName: recruiter.user?.displayName || recruiter.user?.email || 'Unknown',
-        email: recruiter.user?.email || '',
-        location: recruiter.location || lastJob?.companyLocation || 'Not specified',
-        lastJobPostedAt: lastJob?.createdAt || recruiter.createdAt,
-        totalJobPostings: jobs.length,
-        status: recruiter.user?.status || 'ACTIVE',
-        blockInfo: recruiter.user?.blockInfo,
-        activityHistory: jobs.map(job => ({
-          type: job.jobTitle || 'Job Posted',
-          date: job.createdAt,
-          location: job.companyLocation || 'Not specified',
-          status: job.status,
-        })),
-      };
-    });
+    const orphanCount = recruiters.filter((r) => !userById.has(r.userId)).length;
+    if (orphanCount > 0) {
+      console.warn(
+        `Recruiter directory: skipping ${orphanCount} recruiter profile(s) with missing user records`,
+      );
+    }
+
+    // Format for frontend compatibility — skip orphaned recruiter rows (broken userId FK)
+    const formatted = recruiters
+      .filter((recruiter) => userById.has(recruiter.userId))
+      .map((recruiter) => {
+        const user = userById.get(recruiter.userId);
+        const jobs = recruiter.jobs || [];
+        const lastJob = jobs[0];
+
+        return {
+          id: recruiter.id,
+          companyName: recruiter.company?.name || recruiter.companyName || 'Unknown',
+          recruiterName: user?.displayName || user?.email || 'Unknown',
+          email: user?.email || '',
+          location: recruiter.location || lastJob?.companyLocation || 'Not specified',
+          lastJobPostedAt: lastJob?.createdAt || recruiter.createdAt,
+          totalJobPostings: jobs.length,
+          status: user?.status || 'ACTIVE',
+          blockInfo: parseBlockInfo(user?.blockInfo),
+          activityHistory: jobs.map((job) => ({
+            type: job.jobTitle || 'Job Posted',
+            date: job.createdAt,
+            location: job.companyLocation || 'Not specified',
+            status: job.status,
+          })),
+        };
+      });
 
     res.json(formatted);
   } catch (error) {

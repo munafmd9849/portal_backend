@@ -95,7 +95,7 @@ export default function AiMockInterviewCreate() {
         publish,
       });
       toast.success(publish ? 'Published' : 'Draft saved');
-      navigate(`${adminBase}?tab=aiInterviews`);
+      navigate(`${adminBase}?tab=mockInterviews&mode=ai`);
     } catch (err) {
       toast.error(err.message || 'Failed to save');
     } finally {
@@ -197,7 +197,7 @@ export default function AiMockInterviewCreate() {
           </div>
           <button
             type="button"
-            onClick={() => navigate(`${adminBase}?tab=aiInterviews`)}
+            onClick={() => navigate(`${adminBase}?tab=mockInterviews&mode=ai`)}
             className="w-10 h-10 bg-slate-100 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded-xl flex items-center justify-center"
           >
             <X className="w-5 h-5" />

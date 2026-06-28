@@ -478,8 +478,10 @@ model Application {
   segment              String?
   customAnswers        String                     @default("{}")
   offerCtc             String?
+  offerStipend         String?
   offerLetterUrl       String?
   offerDeadlineAt      DateTime?
+  joinedAt             DateTime?
   placementType        String?
   internshipStatus     String?
   applicationSource    String?           @default("PORTAL")

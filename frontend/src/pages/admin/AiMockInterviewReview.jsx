@@ -379,7 +379,7 @@ function AiMockInterviewReviewComponent() {
           <div className="flex items-center gap-4">
             <button
               type="button"
-              onClick={() => navigate(`${adminBase}?tab=aiInterviews`)}
+              onClick={() => navigate(`${adminBase}?tab=mockInterviews&mode=ai`)}
               className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-slate-900 bg-slate-50 rounded-lg border border-slate-200"
             >
               <ChevronLeft className="w-5 h-5" />

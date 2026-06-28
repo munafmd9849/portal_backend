@@ -12,7 +12,7 @@ const TABS = [
   { id: 'careerServices', label: 'Career Services' },
 ];
 
-export default function ControlTowerDashboard() {
+export default function ControlTowerDashboard({ embedded = false }) {
   const [activeTab, setActiveTab] = useState('jobOpportunities');
   const [filters, setFilters] = useState({});
   const [appliedFilters, setAppliedFilters] = useState({});
@@ -40,14 +40,14 @@ export default function ControlTowerDashboard() {
   }, [load]);
 
   return (
-    <div className="min-h-full bg-[#f0f2f5] p-4 md:p-6">
+    <div className={embedded ? 'bg-[#f0f2f5] p-4 md:p-6' : 'min-h-full bg-[#f0f2f5] p-4 md:p-6'}>
       <div className="max-w-[1680px] mx-auto space-y-5">
         <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <LayoutDashboard className="w-6 h-6 text-indigo-600" />
+            <h2 className={`font-bold text-gray-900 flex items-center gap-2 ${embedded ? 'text-lg sm:text-xl' : 'text-xl md:text-2xl'}`}>
+              <LayoutDashboard className={`text-indigo-600 ${embedded ? 'w-5 h-5' : 'w-6 h-6'}`} />
               Control Tower
-            </h1>
+            </h2>
             <p className="text-sm text-gray-500 mt-0.5">
               Institute analytics — Job Opportunities, Students &amp; Career Services
             </p>

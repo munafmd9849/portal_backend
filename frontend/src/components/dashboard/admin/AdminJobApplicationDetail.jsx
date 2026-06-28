@@ -147,6 +147,8 @@ export default function AdminJobApplicationDetail() {
   const [data, setData] = useState(null);
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [offerCtc, setOfferCtc] = useState('');
+  const [offerStipend, setOfferStipend] = useState('');
+  const [placementType, setPlacementType] = useState('');
   const [offerLetterUrl, setOfferLetterUrl] = useState('');
   const [offerDeadlineAt, setOfferDeadlineAt] = useState('');
 
@@ -172,15 +174,38 @@ export default function AdminJobApplicationDetail() {
     load();
   }, [jobId, applicationId]);
 
+  useEffect(() => {
+    const app = data?.application;
+    if (!app) return;
+    setOfferCtc(app.offerCtc || '');
+    setOfferStipend(app.offerStipend || '');
+    setPlacementType(app.placementType || '');
+    setOfferLetterUrl(app.offerLetterUrl || '');
+    if (app.offerDeadlineAt) {
+      try {
+        const d = new Date(app.offerDeadlineAt);
+        setOfferDeadlineAt(d.toISOString().slice(0, 16));
+      } catch {
+        setOfferDeadlineAt('');
+      }
+    }
+  }, [data]);
+
   const updatePlacementStatus = async (status) => {
     if (!applicationId || statusUpdating) return;
     try {
       setStatusUpdating(true);
-      const extras = status === 'OFFERED'
+      const extras = ['OFFERED', 'JOINED', 'SELECTED'].includes(status)
         ? {
             offerCtc: offerCtc.trim() || undefined,
-            offerLetterUrl: offerLetterUrl.trim() || undefined,
-            offerDeadlineAt: offerDeadlineAt || undefined,
+            offerStipend: offerStipend.trim() || undefined,
+            placementType: placementType || undefined,
+            ...(status === 'OFFERED'
+              ? {
+                  offerLetterUrl: offerLetterUrl.trim() || undefined,
+                  offerDeadlineAt: offerDeadlineAt || undefined,
+                }
+              : {}),
           }
         : {};
       await api.updateApplicationStatus(applicationId, status, extras);
@@ -337,7 +362,19 @@ export default function AdminJobApplicationDetail() {
             <p className="text-xs text-slate-500 mb-4">
               Move this candidate through offer and joining after interviews are complete.
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+              <div>
+                <label className="text-[10px] font-bold uppercase text-slate-400">Placement type</label>
+                <select
+                  value={placementType}
+                  onChange={(e) => setPlacementType(e.target.value)}
+                  className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="">Not set</option>
+                  <option value="FULL_TIME">Full-time</option>
+                  <option value="INTERNSHIP">Internship</option>
+                </select>
+              </div>
               <div>
                 <label className="text-[10px] font-bold uppercase text-slate-400">Offer CTC</label>
                 <input
@@ -345,6 +382,16 @@ export default function AdminJobApplicationDetail() {
                   value={offerCtc}
                   onChange={(e) => setOfferCtc(e.target.value)}
                   placeholder="e.g. 12 LPA"
+                  className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase text-slate-400">Stipend</label>
+                <input
+                  type="text"
+                  value={offerStipend}
+                  onChange={(e) => setOfferStipend(e.target.value)}
+                  placeholder="e.g. ₹25,000/month"
                   className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
                 />
               </div>
@@ -358,7 +405,7 @@ export default function AdminJobApplicationDetail() {
                   className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
                 />
               </div>
-              <div>
+              <div className="sm:col-span-2 lg:col-span-1">
                 <label className="text-[10px] font-bold uppercase text-slate-400">Acceptance deadline</label>
                 <input
                   type="datetime-local"
@@ -368,9 +415,11 @@ export default function AdminJobApplicationDetail() {
                 />
               </div>
             </div>
-            {(application.offerCtc || application.offerLetterUrl || application.offerDeadlineAt) && (
+            {(application.offerCtc || application.offerStipend || application.placementType || application.offerLetterUrl || application.offerDeadlineAt) && (
               <div className="mb-4 text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-lg p-3 space-y-1">
+                {application.placementType && <p><span className="font-semibold">Type:</span> {application.placementType}</p>}
                 {application.offerCtc && <p><span className="font-semibold">CTC:</span> {application.offerCtc}</p>}
+                {application.offerStipend && <p><span className="font-semibold">Stipend:</span> {application.offerStipend}</p>}
                 {application.offerLetterUrl && (
                   <p><span className="font-semibold">Letter:</span> <a href={application.offerLetterUrl} className="text-indigo-600 underline" target="_blank" rel="noreferrer">View</a></p>
                 )}
