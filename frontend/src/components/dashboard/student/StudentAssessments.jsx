@@ -8,17 +8,18 @@ import {
 import { useNavigate } from 'react-router-dom';
 import api from '../../../services/api';
 import { getAssessmentEntryStatus, formatAssessmentWindow } from '../../../utils/assessmentEntryWindow';
+import { au } from '../../assessment/assessmentUi';
 import { useToast } from '../../ui/Toast';
 
 const STAT_ICON_BOX = {
-  blue: 'bg-blue-50 border-blue-100',
+  blue: 'bg-indigo-50 border-indigo-100',
   emerald: 'bg-emerald-50 border-emerald-100',
   amber: 'bg-amber-50 border-amber-100',
   slate: 'bg-gray-50 border-gray-200',
 };
 
 const STAT_ICON_COLOR = {
-  blue: 'text-blue-600',
+  blue: 'text-indigo-600',
   emerald: 'text-emerald-600',
   amber: 'text-amber-600',
   slate: 'text-gray-600',
@@ -53,7 +54,7 @@ export default function StudentAssessments() {
       case 'IN_PROGRESS':
         return { color: 'text-amber-700 bg-amber-50 border-amber-100', label: 'In Progress' };
       default:
-        return { color: 'text-blue-700 bg-blue-50 border-blue-100', label: 'Not Started' };
+        return { color: 'text-indigo-700 bg-indigo-50 border-indigo-100', label: 'Not Started' };
     }
   };
 
@@ -77,14 +78,14 @@ export default function StudentAssessments() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-24 space-y-3">
-        <div className="w-10 h-10 border-4 border-gray-100 border-t-blue-600 rounded-full animate-spin" />
+        <div className={au.spinner} />
         <p className="text-sm text-gray-500">Loading assessments...</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-[1400px] mx-auto space-y-6 p-4 sm:p-6">
+    <div className="max-w-[1400px] mx-auto space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: 'Pending', val: pendingCount, color: 'blue' },
@@ -94,11 +95,11 @@ export default function StudentAssessments() {
         ].map((stat, i) => (
           <div
             key={i}
-            className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center justify-between"
+            className={`${au.statCard} flex items-center justify-between`}
           >
             <div>
-              <p className="text-xs font-medium text-gray-500">{stat.label}</p>
-              <p className="text-xl font-bold text-gray-900 mt-0.5 tabular-nums">{stat.val}</p>
+              <p className={au.statLabel}>{stat.label}</p>
+              <p className={`text-xl ${au.statValue}`}>{stat.val}</p>
             </div>
             <div
               className={`w-8 h-8 rounded-lg border flex items-center justify-center ${STAT_ICON_BOX[stat.color]}`}
@@ -129,7 +130,7 @@ export default function StudentAssessments() {
           return (
             <div
               key={item.id}
-              className="bg-white rounded-lg border border-gray-200 p-5 hover:shadow-md transition-shadow flex flex-col h-full"
+              className={`${au.panel} p-5 hover:shadow-md transition-shadow flex flex-col h-full`}
             >
               <div className="flex justify-between items-start mb-4">
                 <div className={`p-2.5 rounded-lg border ${status.color}`}>
@@ -154,7 +155,7 @@ export default function StudentAssessments() {
                     <span>{item.duration} min</span>
                   </div>
                   {(item.startTime || scheduledAt) && (
-                    <div className="flex items-center gap-1.5 text-blue-700 bg-blue-50 px-2 py-1 rounded-md border border-blue-100">
+                    <div className="flex items-center gap-1.5 text-indigo-700 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100">
                       <Calendar className="w-3.5 h-3.5" />
                       <span className="text-xs font-medium">
                         {item.startTime

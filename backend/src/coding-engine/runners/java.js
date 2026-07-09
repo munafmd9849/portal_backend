@@ -87,7 +87,7 @@ function runnerMainBlock(rawInputLiteral) {
   }`;
 }
 
-function buildJavaSource(code, rawInputLiteral) {
+export function buildJavaSource(code, rawInputLiteral) {
   const { imports, body } = splitImportsAndBody(code);
   const importBlock = imports.length ? `${imports.join('\n')}\n\n` : '';
   const mainBlock = runnerMainBlock(rawInputLiteral);

@@ -12,7 +12,7 @@ import * as XLSX from 'xlsx';
 import api from '../../services/api';
 import { mcqAnswersMatch, resolveMcqOptionLabel } from '../../utils/mcqAnswers';
 import { useToast } from '../../components/ui/Toast';
-import { ErrorBoundary } from '../../components/ui/ErrorBoundary';
+import { au } from '../../components/assessment/assessmentUi';
 
 function formatSessionTime(ts) {
   if (!ts) return '—';
@@ -249,14 +249,14 @@ function AdminAssessmentResultsComponent() {
         </div>
         <p className="text-sm font-medium text-gray-900 mb-1">Unable to load results</p>
         <p className="text-gray-500 text-sm mb-6 text-center max-w-md">The assessment results could not be loaded. This may be due to a network error or missing data.</p>
-        <button type="button" onClick={() => window.location.reload()} className="px-5 py-2 bg-blue-800 hover:bg-blue-900 text-white rounded-md text-sm font-medium transition-colors">Try again</button>
+        <button type="button" onClick={() => window.location.reload()} className={au.btnPrimary}>Try again</button>
       </div>
     );
   }
 
   if (loading) return (
     <div className="h-screen bg-white flex flex-col items-center justify-center gap-3">
-      <div className="w-10 h-10 border-4 border-gray-100 border-t-blue-800 rounded-full animate-spin" />
+      <div className={au.spinner} />
       <p className="text-gray-500 text-sm">Loading results...</p>
     </div>
   );
@@ -296,16 +296,16 @@ function AdminAssessmentResultsComponent() {
           { label: 'Average score', val: stats.avgScore },
           { label: 'Violations rate', val: stats.violationsRate },
         ].map((stat, i) => (
-          <div key={i} className="bg-white p-4 rounded-lg border border-gray-200">
-             <p className="text-xs text-gray-500">{stat.label}</p>
-             <p className="text-lg font-semibold text-gray-900 tabular-nums mt-0.5">{stat.val}</p>
+          <div key={i} className={au.statCard}>
+             <p className={au.statLabel}>{stat.label}</p>
+             <p className={au.statValue}>{stat.val}</p>
           </div>
         ))}
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden flex flex-col">
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
-           <p className="text-sm font-medium text-gray-700">Candidate performance</p>
+      <div className={`${au.panel} flex flex-col`}>
+        <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+           <p className={au.sectionLabel}>Candidate performance</p>
            <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-md">
               <Search className="w-3.5 h-3.5 text-gray-400" />
               <input placeholder="Search candidate" className="bg-transparent border-none outline-none text-sm w-36" />
@@ -340,7 +340,7 @@ function AdminAssessmentResultsComponent() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className="text-sm font-semibold text-blue-800 tabular-nums">{session.score || 0}%</span>
+                    <span className={`text-sm ${au.accentText}`}>{session.score || 0}%</span>
                     <p className="text-[10px] text-gray-400 mt-0.5">P{sessionPercentiles.get(session.id) ?? 0}</p>
                   </td>
                   <td className="px-4 py-3 text-center">
@@ -357,7 +357,7 @@ function AdminAssessmentResultsComponent() {
                     <button 
                       type="button"
                       onClick={() => setSelectedSession(session)}
-                      className="px-3 py-2 bg-blue-800 hover:bg-blue-900 text-white text-xs font-medium rounded-md transition-colors"
+                      className={`px-3 py-2 ${au.btnPrimary} text-xs`}
                     >
                       View report
                     </button>
@@ -381,22 +381,22 @@ function AdminAssessmentResultsComponent() {
 
       {/* Deep Dive Panel - Clean Right Side Panel */}
       {selectedSession && createPortal(
-        <div className="fixed inset-0 bg-slate-900/50 z-[99999]">
-          <div className="w-full h-full bg-white shadow-xl flex flex-col border-l border-gray-200">
-             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-slate-800 text-white">
+        <div className={au.backdropPanel}>
+          <div className={au.modalFull}>
+             <div className={au.modalHeader}>
                 <div className="flex items-center gap-3 min-w-0">
-                   <div className="w-9 h-9 rounded-md bg-slate-700 text-white flex items-center justify-center font-medium text-sm shrink-0">
+                   <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100 flex items-center justify-center font-medium text-sm shrink-0">
                       {selectedSession.student?.fullName?.charAt(0) || '?'}
                    </div>
                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{selectedSession.student?.fullName}</p>
-                      <p className="text-xs text-slate-300">Session #{selectedSession.id.slice(-6)}</p>
+                      <p className={`${au.modalTitle} truncate`}>{selectedSession.student?.fullName}</p>
+                      <p className={au.modalSubtitle}>Session #{selectedSession.id.slice(-6)}</p>
                    </div>
                 </div>
                 <button 
                   type="button"
                   onClick={() => setSelectedSession(null)}
-                  className="p-1.5 hover:bg-slate-700 rounded-md transition-colors"
+                  className={au.closeBtn}
                   aria-label="Close"
                 >
                    <X className="w-5 h-5" />
@@ -404,14 +404,14 @@ function AdminAssessmentResultsComponent() {
              </div>
 
              <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-white">
-                <div className="bg-slate-800 rounded-lg p-5 text-white">
+                <div className={au.scoreHero}>
                    <div className="grid grid-cols-2 gap-6 items-center">
                       <div>
-                         <p className="text-xs text-slate-400">Final score</p>
+                         <p className="text-xs text-slate-500">Final score</p>
                          <div className="flex items-baseline gap-2 mt-0.5">
-                            <span className="text-3xl font-semibold tabular-nums">{selectedSession.score || 0}%</span>
+                            <span className="text-3xl font-semibold text-slate-900 tabular-nums">{selectedSession.score || 0}%</span>
                          </div>
-                         <p className="flex items-center gap-1.5 mt-2 text-xs text-slate-400">
+                         <p className="flex items-center gap-1.5 mt-2 text-xs text-slate-500">
                              <Clock className="w-3.5 h-3.5" /> 
                              Time spent: {
                                selectedSession.startTime && selectedSession.endTime 
@@ -421,7 +421,7 @@ function AdminAssessmentResultsComponent() {
                           </p>
                       </div>
                       <div className="text-right">
-                         <p className="text-xs text-slate-400 mb-1">Status</p>
+                         <p className="text-xs text-slate-500 mb-1">Status</p>
                          <span className={`inline-block px-2.5 py-1 rounded text-xs font-medium border ${getStatusBadge(selectedSession.status)}`}>
                             {formatSessionStatus(selectedSession.status)}
                          </span>

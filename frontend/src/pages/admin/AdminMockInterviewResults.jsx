@@ -85,7 +85,7 @@ function AdminMockInterviewResultsComponent() {
   if (loading) {
     return (
       <div className="h-screen bg-slate-50 flex flex-col items-center justify-center gap-4">
-        <div className="w-12 h-12 border-4 border-gray-100 border-t-blue-800 rounded-full animate-spin" />
+        <div className="w-12 h-12 border-4 border-gray-100 border-t-indigo-600 rounded-full animate-spin" />
         <p className="text-gray-500 text-sm">Loading results…</p>
       </div>
     );
@@ -109,7 +109,7 @@ function AdminMockInterviewResultsComponent() {
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <h1 className="text-sm font-semibold text-gray-900 truncate">
-                Results: <span className="text-blue-800">{selectedSession.student?.fullName}</span>
+                Results: <span className="text-indigo-700">{selectedSession.student?.fullName}</span>
               </h1>
             </div>
             <p className="hidden sm:block text-xs text-slate-400 font-medium shrink-0 ml-4">
@@ -145,33 +145,33 @@ function AdminMockInterviewResultsComponent() {
               <ChevronLeft className="w-5 h-5" />
             </button>
             <h1 className="text-sm font-semibold text-gray-900">
-              Results: <span className="text-blue-800">{drive?.title}</span>
+              Results: <span className="text-indigo-700">{drive?.title}</span>
             </h1>
           </div>
         </div>
       </div>
 
       <div className={`${CONTENT_WIDTH} mt-8 space-y-8`}>
-        <div className="bg-slate-800 rounded-lg p-6 sm:p-8 text-white border border-slate-700">
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 sm:p-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
             <div className="space-y-4">
               <div>
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-500">
                   {drive?.category || 'Mock'} · Drive results
                 </span>
-                <h2 className="text-2xl font-semibold mt-2">{avgScore}% average</h2>
-                <p className="text-slate-400 text-sm mt-2">
+                <h2 className="text-2xl font-semibold text-slate-900 mt-2 tabular-nums">{avgScore}% average</h2>
+                <p className="text-slate-600 text-sm mt-2">
                   {stats.totalAttempts} completed session{stats.totalAttempts === 1 ? '' : 's'} with feedback
                 </p>
               </div>
-              <div className="flex flex-wrap gap-6 pt-3 border-t border-slate-700 text-sm">
+              <div className="flex flex-wrap gap-6 pt-3 border-t border-slate-200 text-sm">
                 <div>
-                  <p className="text-slate-400 text-xs">Candidates</p>
-                  <span className="font-semibold tabular-nums">{stats.totalAttempts}</span>
+                  <p className="text-slate-500 text-xs">Candidates</p>
+                  <span className="font-semibold text-slate-900 tabular-nums">{stats.totalAttempts}</span>
                 </div>
                 <div>
-                  <p className="text-slate-400 text-xs">Drive date</p>
-                  <span className="font-semibold">
+                  <p className="text-slate-500 text-xs">Drive date</p>
+                  <span className="font-semibold text-slate-900">
                     {drive?.date ? new Date(drive.date).toLocaleDateString() : '—'}
                   </span>
                 </div>
@@ -185,7 +185,7 @@ function AdminMockInterviewResultsComponent() {
                     cy="50%"
                     r="45%"
                     fill="transparent"
-                    stroke="rgba(255,255,255,0.05)"
+                    stroke="#e2e8f0"
                     strokeWidth="12"
                   />
                   <circle
@@ -193,7 +193,7 @@ function AdminMockInterviewResultsComponent() {
                     cy="50%"
                     r="45%"
                     fill="transparent"
-                    stroke="white"
+                    stroke="#6366f1"
                     strokeWidth="12"
                     strokeDasharray="283"
                     strokeDashoffset={283 - (283 * avgScore) / 100}
@@ -241,7 +241,7 @@ function AdminMockInterviewResultsComponent() {
                       <p className="text-xs text-gray-500 mt-0.5">{session.student?.enrollmentId}</p>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span className="text-sm font-semibold text-blue-800 tabular-nums">
+                      <span className="text-sm font-semibold text-indigo-700 tabular-nums">
                         {session.scorePercent ?? 0}%
                       </span>
                     </td>
@@ -255,7 +255,7 @@ function AdminMockInterviewResultsComponent() {
                       <button
                         type="button"
                         onClick={() => openReport(session)}
-                        className="px-3 py-2 bg-blue-800 hover:bg-blue-900 text-white text-xs font-medium rounded-md transition-colors"
+                        className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-md transition-colors"
                       >
                         View report
                       </button>

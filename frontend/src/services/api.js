@@ -891,6 +891,9 @@ export const api = {
     body: JSON.stringify({ status, interviewDate }),
   }),
   getApplicationResumeViewUrl: (applicationId) => apiRequest(`/applications/${applicationId}/resume-view-url`),
+  withdrawApplication: (applicationId) => apiRequest(`/applications/${applicationId}/withdraw`, {
+    method: 'POST',
+  }),
   revokeApplication: (applicationId, reason) => apiRequest(`/applications/${applicationId}/revoke`, {
     method: 'POST',
     body: JSON.stringify({ reason }),

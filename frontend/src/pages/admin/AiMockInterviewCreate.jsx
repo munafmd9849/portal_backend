@@ -6,6 +6,13 @@ import {
 } from 'lucide-react';
 import api from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
+import { au } from '../../components/assessment/assessmentUi';
+import {
+  WizardProgress,
+  WizardField,
+  WizardFooter,
+  WizardModalHeader,
+} from '../../components/assessment/WizardPrimitives';
 import { combineDateAndTime } from '../../utils/datetimeWindow';
 
 const emptyQuestion = (orderIndex) => ({
@@ -179,37 +186,16 @@ export default function AiMockInterviewCreate() {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-md z-[9999] flex items-center justify-center p-4 sm:p-8 animate-in fade-in duration-300">
-      <div className="bg-white w-full max-w-5xl h-[85vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-500">
-        <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-600/20">
-              <Video className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">AI Video Mock Interview</h2>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                Configuration Wizard · Step {step} of 3
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate('/admin?tab=mockInterviews&mode=ai')}
-            className="w-10 h-10 bg-slate-100 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded-xl flex items-center justify-center"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="h-1.5 w-full bg-slate-100 relative shrink-0">
-          <div
-            className="absolute inset-0 bg-indigo-600 transition-all duration-500 shadow-[0_0_10px_rgba(79,70,229,0.5)]"
-            style={{ width: `${(step / 3) * 100}%` }}
-          />
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-8 sm:p-10 bg-white">
+    <div className={au.backdropLg}>
+      <div className={`${au.modalLg} h-[85vh]`}>
+        <WizardModalHeader
+          title="AI video mock interview"
+          subtitle={`Step ${step} of 3`}
+          onClose={() => navigate('/admin?tab=mockInterviews&mode=ai')}
+          icon={Video}
+        />
+        <WizardProgress step={step} total={3} />
+        <div className="flex-1 overflow-y-auto p-5 sm:p-6 bg-white">
           {step === 1 && (
             <div className="max-w-3xl mx-auto space-y-8">
               <div className="space-y-2.5">
@@ -318,7 +304,7 @@ export default function AiMockInterviewCreate() {
                   if (!validateWindow()) return;
                   setStep(2);
                 }}
-                className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold text-sm"
+                className={`w-full ${au.btnPrimary} py-2.5`}
               >
                 Next: Question builder
               </button>
@@ -397,7 +383,7 @@ export default function AiMockInterviewCreate() {
               >
                 <Plus className="w-4 h-4" /> Add question
               </button>
-              <button type="button" onClick={() => setStep(3)} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold text-sm">
+              <button type="button" onClick={() => setStep(3)} className={`w-full ${au.btnPrimary} py-2.5`}>
                 Next: Assign students
               </button>
             </div>

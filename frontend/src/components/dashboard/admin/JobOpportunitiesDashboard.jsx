@@ -13,8 +13,8 @@ import {
 
 function SectionBar({ title }) {
   return (
-    <div className="bg-[#c5d9e8] px-4 py-2 rounded-t-md border border-[#b0c9db] border-b-0">
-      <h2 className="text-sm font-semibold text-gray-800">{title}</h2>
+    <div className="px-4 py-3 border-b border-slate-200 bg-white">
+      <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
     </div>
   );
 }
@@ -185,10 +185,9 @@ export function JobOpportunitiesSection({ embedded = false, showAdminOverview = 
         )}
 
         {embedded && (
-          <div className="relative">
-            <h2 className="text-lg sm:text-xl font-bold text-gray-800">Job Opportunities</h2>
-            <p className="text-sm text-gray-500 mt-0.5">Track your institute&apos;s activity &amp; performance at a glance</p>
-            <div className="absolute -bottom-1 left-0 w-32 h-0.5 bg-gradient-to-r from-blue-500 to-transparent" />
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">Job Opportunities</h2>
+            <p className="text-sm text-slate-600 mt-0.5">Track your institute&apos;s activity &amp; performance at a glance</p>
           </div>
         )}
 
@@ -206,12 +205,12 @@ export function JobOpportunitiesSection({ embedded = false, showAdminOverview = 
         )}
 
         {/* Overview */}
-        <section className="bg-white rounded-md border border-[#b0c9db] shadow-sm overflow-visible">
+        <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-visible">
           <SectionBar title="Overview" />
-          <div className="relative space-y-2.5 min-h-[200px] p-3 bg-[#eef4fa] border border-[#b0c9db] border-t-0 rounded-b-md">
+          <div className="relative space-y-2.5 min-h-[200px] p-4 bg-slate-50">
             {loadingOverview && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-b-md bg-[#eef4fa]/80">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-b-xl bg-slate-50/80">
+                <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
               </div>
             )}
             <div className="flex flex-wrap gap-2.5">
@@ -271,11 +270,11 @@ export function JobOpportunitiesSection({ embedded = false, showAdminOverview = 
 
         {/* Admins overview */}
         {showAdminOverview && (
-        <section className="bg-white rounded-md border border-[#b0c9db] shadow-sm overflow-visible">
+        <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-visible">
           <SectionBar title="Admins Overview" />
-          <div className="p-3 bg-[#eef4fa] border border-[#b0c9db] border-t-0 rounded-b-md">
+          <div className="p-4 bg-slate-50">
             {loadingOverview ? (
-              <Loader2 className="w-6 h-6 animate-spin mx-auto my-6 text-blue-600" />
+              <Loader2 className="w-6 h-6 animate-spin mx-auto my-6 text-indigo-600" />
             ) : (
               <div className="flex flex-wrap gap-2.5">
                 <CrManagerCard
@@ -300,9 +299,9 @@ export function JobOpportunitiesSection({ embedded = false, showAdminOverview = 
         )}
 
         {/* MoM Table */}
-        <section className="bg-white rounded-md border border-[#b0c9db] shadow-sm overflow-hidden">
+        <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
           <SectionBar title="Admin wise MoM Detailed Analysis" />
-          <div className="space-y-3 p-3 border border-[#b0c9db] border-t-0 bg-white rounded-b-md">
+          <div className="space-y-3 p-4">
             <div className="flex flex-wrap gap-2 items-end">
               <div className="w-40">
                 <CustomDropdown
@@ -367,18 +366,18 @@ export function JobOpportunitiesSection({ embedded = false, showAdminOverview = 
 
             {loadingTable ? (
               <div className="flex justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-700" />
+                <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
               </div>
             ) : (
-              <div className="overflow-x-auto rounded-lg border border-[#b0c9db]">
+              <div className="overflow-x-auto rounded-lg border border-slate-200">
                 <table className="min-w-full text-xs sm:text-sm border-collapse">
                   <thead>
-                    <tr className="bg-[#c5d9e8] text-gray-900">
+                    <tr className="bg-slate-50 text-slate-900">
                       {[
                         'Admin', 'Segment', 'Goal', 'Closed Drives', 'Achieved Goal %',
                         'Companies', 'Jobs', 'Transitions', 'Yet To Start', 'Hold', 'In Process', 'Not Applied', 'Not Deliverable',
                       ].map((h) => (
-                        <th key={h} className="px-2 py-2 text-left font-semibold border border-[#b0c9db] whitespace-nowrap">
+                        <th key={h} className="px-2 py-2 text-left font-semibold border border-slate-200 whitespace-nowrap">
                           {h}
                         </th>
                       ))}

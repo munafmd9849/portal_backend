@@ -46,6 +46,10 @@ function getOptimizedDatabaseUrl() {
     if (!urlObj.searchParams.has('connect_timeout')) {
       urlObj.searchParams.set('connect_timeout', '10');
     }
+    // Render and other hosted Postgres require SSL for external connections
+    if (!urlObj.searchParams.has('sslmode') && urlObj.hostname.includes('render.com')) {
+      urlObj.searchParams.set('sslmode', 'require');
+    }
     return urlObj.toString();
   } catch (error) {
     console.warn('Failed to parse DATABASE_URL for optimization:', error.message);
