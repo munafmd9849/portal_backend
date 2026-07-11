@@ -464,36 +464,22 @@ export default function AdminDashboard() {
             className="hidden md:flex md:flex-col fixed top-[4.5rem] left-0 bottom-0 bg-white border-r border-slate-200 z-40"
             style={{ width: SIDEBAR_WIDTH }}
           >
-            <div className="p-3 pb-4">
-              <div className="mb-6">
-                {sidebarWidth >= 9 && (
-                  <h2 className="text-base font-bold text-gray-900 mb-3">Navigation</h2>
-                )}
-                <nav className="space-y-1">
-                  {tabs.map((tab) => {
-                    const Icon = tab.icon;
-                    return (
-                      <div key={tab.id} className="mb-1">
-                        <button
-                          onClick={() => {
-                            handleTabClick(tab.id);
-                          }}
-                          className={`w-full flex items-center rounded-lg text-xs font-medium transition-all duration-200 ${sidebarActiveTab === tab.id
-                            ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white'
-                            : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
-                            } ${sidebarWidth < 9 ? 'justify-center px-2 py-2' : 'px-2 py-3'}`}
-                          title={sidebarWidth < 9 ? tab.label : ''}
-                        >
-                          <Icon className={`h-4 w-4 ${sidebarWidth >= 9 ? 'mr-2' : ''}`} />
-                          {sidebarWidth >= 9 && (
-                            <span className="flex-1 text-left">{tab.label}</span>
-                          )}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </nav>
-              </div>
+            <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide p-3 pt-4">
+              {renderGroupedNav({
+                groups: navGroups,
+                sidebarActiveTab,
+                onTabClick: handleTabClick,
+              })}
+            </div>
+            <div className="shrink-0 p-3 border-t border-slate-200 bg-white">
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="w-full flex items-center rounded-lg text-sm font-medium text-rose-600 hover:bg-rose-50 hover:text-rose-700 px-3 py-2.5 transition-colors"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
+              </button>
             </div>
           </aside>
 
@@ -513,37 +499,16 @@ export default function AdminDashboard() {
             aria-modal="true"
             aria-label="Navigation menu"
           >
-            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide p-3">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-bold text-gray-900">Navigation</h2>
-                <button
-                  type="button"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 touch-manipulation"
-                  aria-label="Close menu"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              <nav className="space-y-1">
-                {tabs.map((tab) => {
-                  const Icon = tab.icon;
-                  return (
-                    <div key={tab.id} className="mb-1">
-                      <button
-                        onClick={() => handleTabClick(tab.id)}
-                        className={`w-full flex items-center rounded-lg text-base font-medium transition-all px-4 py-3 touch-manipulation ${sidebarActiveTab === tab.id
-                          ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white'
-                          : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
-                          }`}
-                      >
-                        <Icon className="h-4 w-4 mr-2" />
-                        <span className="flex-1 text-left">{tab.label}</span>
-                      </button>
-                    </div>
-                  );
-                })}
-              </nav>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 shrink-0">
+              <h2 className="text-sm font-semibold text-slate-900">Menu</h2>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 touch-manipulation"
+                aria-label="Close menu"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide p-4">
               {renderGroupedNav({
