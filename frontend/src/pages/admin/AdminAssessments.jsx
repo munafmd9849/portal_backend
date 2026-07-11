@@ -15,6 +15,16 @@ import { fromDatetimeLocalValue } from '../../utils/assessmentEntryWindow';
 import StudentSelectorModal from '../../components/dashboard/admin/StudentSelectorModal';
 import DirectoryLoadingPanel from '../../components/dashboard/admin/DirectoryLoading';
 import CodingQuestionEditor from '../../components/admin/CodingQuestionEditor';
+import AssessmentQuestionExcelUpload from '../../components/admin/AssessmentQuestionExcelUpload';
+import { au } from '../../components/assessment/assessmentUi';
+import {
+  WizardProgress,
+  WizardSection,
+  WizardField,
+  ToggleList,
+  ToggleRow,
+  WizardFooter,
+} from '../../components/assessment/WizardPrimitives';
 import AllowedCodingLanguagesPicker from '../../components/admin/AllowedCodingLanguagesPicker';
 import {
   createEmptyStarterCodesByLang,
@@ -298,6 +308,18 @@ export default function AdminAssessments() {
     });
   };
 
+  const handleExcelQuestionsImport = (imported, { warnings = [] } = {}) => {
+    if (!imported?.length) return;
+    setFormData((prev) => ({
+      ...prev,
+      questions: [...(prev.questions || []), ...imported],
+    }));
+    toast?.success(`Imported ${imported.length} question${imported.length === 1 ? '' : 's'} from Excel`);
+    if (warnings.length) {
+      toast?.warning(warnings[0]);
+    }
+  };
+
   const updateQuestion = (index, field, value) => {
     const newQuestions = [...formData.questions];
     newQuestions[index][field] = value;
@@ -357,7 +379,7 @@ export default function AdminAssessments() {
               setStep(1);
               setShowCreateModal(true);
             }}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-800 text-white rounded-md text-sm font-medium hover:bg-blue-900 transition-colors"
+            className={`flex items-center justify-center gap-2 ${au.btnPrimary}`}
           >
             <Plus className="w-4 h-4" /> New assessment
           </button>
@@ -372,17 +394,17 @@ export default function AdminAssessments() {
           ].map((stat, i) => (
             <div
               key={i}
-              className="bg-white p-4 rounded-lg border border-gray-200 flex flex-col gap-1"
+              className={`${au.statCard} flex flex-col gap-1`}
             >
-              <p className="text-xs text-gray-500">{stat.label}</p>
-              <p className="text-xl font-semibold text-gray-900 tabular-nums">{stat.val}</p>
+              <p className={au.statLabel}>{stat.label}</p>
+              <p className={`text-xl ${au.statValue}`}>{stat.val}</p>
             </div>
           ))}
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden flex flex-col">
-          <div className="p-4 border-b border-gray-200 bg-gray-50 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="grid w-full grid-cols-4 gap-1 rounded-md bg-gray-100 p-1 lg:max-w-3xl lg:flex-1">
+        <div className={`${au.panel} flex flex-col`}>
+          <div className="p-4 border-b border-slate-200 bg-slate-50 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className={`grid w-full grid-cols-4 gap-1 rounded-lg ${au.tabBar} lg:max-w-3xl lg:flex-1`}>
               {[
                 { id: 'all', label: 'All', shortLabel: 'All', count: totalAssessments },
                 { id: 'active', label: 'Active', shortLabel: 'Active', count: activeAssessmentsCount },
@@ -393,17 +415,15 @@ export default function AdminAssessments() {
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center justify-center gap-1.5 rounded px-2 py-2 text-xs font-medium transition-colors sm:gap-2 sm:px-3 ${
-                    activeTab === tab.id
-                      ? 'bg-white text-blue-800 shadow-sm'
-                      : 'text-gray-500 hover:bg-white/60 hover:text-gray-700'
+                  className={`flex items-center justify-center gap-1.5 rounded-md px-2 py-2 text-xs font-medium transition-colors sm:gap-2 sm:px-3 ${
+                    activeTab === tab.id ? au.tabActive : au.tabIdle
                   }`}
                 >
                   <span className="hidden sm:inline whitespace-nowrap">{tab.label}</span>
                   <span className="sm:hidden whitespace-nowrap">{tab.shortLabel}</span>
                   <span
                     className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] tabular-nums ${
-                      activeTab === tab.id ? 'bg-blue-50 text-blue-800' : 'bg-gray-200 text-gray-600'
+                      activeTab === tab.id ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-200 text-gray-600'
                     }`}
                   >
                     {tab.count}
@@ -419,7 +439,7 @@ export default function AdminAssessments() {
                 placeholder="Search assessments…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white border border-gray-300 rounded-md pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-800 focus:border-blue-800"
+                className="w-full bg-white border border-gray-300 rounded-md pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-indigo-500/20 focus:border-indigo-500"
               />
             </div>
           </div>
@@ -440,7 +460,7 @@ export default function AdminAssessments() {
                       setStep(1);
                       setShowCreateModal(true);
                     }}
-                    className="px-4 py-2 bg-blue-800 text-white rounded-md text-sm font-medium hover:bg-blue-900"
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700"
                   >
                     Create assessment
                   </button>
@@ -477,7 +497,7 @@ export default function AdminAssessments() {
                   <button
                     type="button"
                     onClick={() => handlePublishExisting(item.id)}
-                    className="w-full py-2 bg-blue-800 hover:bg-blue-900 text-white text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-2"
+                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-2"
                   >
                     <CheckCircle className="w-3.5 h-3.5" /> Publish
                   </button>
@@ -486,7 +506,7 @@ export default function AdminAssessments() {
                     <button
                       type="button"
                       onClick={() => navigate(`${basePath}/assessments/${item.id}/live-monitor`)}
-                      className="w-full py-2 bg-blue-800 hover:bg-blue-900 text-white text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-2"
+                      className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-2"
                     >
                       <Video className="w-3.5 h-3.5" /> Live monitor
                     </button>
@@ -520,29 +540,24 @@ export default function AdminAssessments() {
       {/* Creation Wizard - Clean Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-slate-900/50 z-[9999] flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-5xl h-[85vh] rounded-lg shadow-xl flex flex-col overflow-hidden border border-gray-200">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-slate-800 text-white">
+          <div className={`${au.modalLg} h-[85vh]`}>
+            <div className={au.modalHeader}>
                <div>
-                  <p className="text-sm font-medium">New assessment</p>
-                  <p className="text-xs text-slate-300 mt-0.5">Step {step} of 3</p>
+                  <p className={au.modalTitle}>New assessment</p>
+                  <p className={au.modalSubtitle}>Step {step} of 3</p>
                </div>
                <button 
                  type="button"
                  onClick={() => setShowCreateModal(false)}
-                 className="p-1.5 hover:bg-slate-700 rounded-md transition-colors"
+                 className={au.closeBtn}
                >
                  <X className="w-5 h-5" />
                </button>
             </div>
 
-            <div className="h-1 w-full bg-gray-100 relative">
-               <div 
-                 className="absolute inset-y-0 left-0 bg-blue-800 transition-all duration-300" 
-                 style={{ width: `${(step / 3) * 100}%` }} 
-               />
-            </div>
+            <WizardProgress step={step} total={3} />
 
-            <div className="flex-1 overflow-y-auto p-6 sm:p-8 custom-scrollbar bg-white">
+            <div className="flex-1 overflow-y-auto p-5 sm:p-6 custom-scrollbar bg-white">
                {step === 1 && (
                  <div className="max-w-3xl mx-auto space-y-10 animate-in fade-in slide-in-from-right-4 duration-500">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -664,13 +679,19 @@ export default function AdminAssessments() {
                )}
 
                {step === 2 && (
-                 <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border border-gray-200 bg-gray-50">
-                       <p className="text-sm text-gray-600">Add questions and grading criteria.</p>
+                 <div className="max-w-4xl mx-auto space-y-5">
+                    <AssessmentQuestionExcelUpload onImport={handleExcelQuestionsImport} />
+
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border border-slate-200 bg-slate-50">
+                       <p className="text-sm text-slate-600">
+                         {formData.questions.length
+                           ? `${formData.questions.length} question${formData.questions.length === 1 ? '' : 's'} in this assessment`
+                           : 'Add questions manually or upload from Excel.'}
+                       </p>
                        <button 
                          type="button"
                          onClick={addQuestion}
-                         className="px-4 py-2 bg-blue-800 hover:bg-blue-900 text-white rounded-md text-xs font-medium transition-colors flex items-center gap-2 shrink-0"
+                         className={`${au.btnPrimary} text-xs shrink-0`}
                        >
                          <Plus className="w-4 h-4" /> Add question
                        </button>
@@ -678,7 +699,7 @@ export default function AdminAssessments() {
 
                     <div className="space-y-4">
                        {formData.questions.map((q, idx) => (
-                         <div key={idx} className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-6 relative group border-l-4 border-l-indigo-600 animate-in slide-in-from-bottom-2 duration-300">
+                         <div key={idx} className="p-6 bg-white border border-slate-200 rounded-xl shadow-sm space-y-6 relative group">
                             <button 
                               onClick={() => {
                                 const newQs = [...formData.questions];
@@ -806,43 +827,40 @@ export default function AdminAssessments() {
                )}
 
                {step === 3 && (
-                 <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                    <div className="bg-slate-900 rounded-3xl p-8 text-white relative overflow-hidden shadow-2xl shadow-indigo-900/20">
-                       <Shield className="absolute top-0 right-0 w-48 h-48 text-indigo-500/10 -mr-10 -mt-10" />
-                       <div className="relative z-10">
-                          <h4 className="text-xl font-bold mb-1">Sentinel Configuration</h4>
-                          <p className="text-slate-400 text-xs font-medium">Define AI proctoring rules and session security.</p>
-                          
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
-                             {[
-                               { key: 'webcam', label: 'Webcam Monitoring', icon: Camera, desc: 'Capture regular candidate snapshots' },
-                               { key: 'mic', label: 'Audio Sentinel', icon: Mic, desc: 'Detect speech or high background noise' },
-                               { key: 'tabSwitch', label: 'Anti-Switch', icon: Layers, desc: 'Detect and log browser tab switching' },
-                               { key: 'fullscreen', label: 'Force Fullscreen', icon: Maximize2, desc: 'Assessment must remain in fullscreen' }
-                             ].map(feature => (
-                               <button
-                                 key={feature.key}
-                                 onClick={() => setFormData({
-                                   ...formData,
-                                   config: {
-                                     ...formData.config,
-                                     proctoring: { ...formData.config.proctoring, [feature.key]: !formData.config.proctoring[feature.key] }
-                                   }
-                                 })}
-                                 className={`p-5 rounded-2xl border text-left transition-all flex items-start gap-4 ${formData.config.proctoring[feature.key] ? 'border-indigo-500/50 bg-indigo-500/10' : 'border-white/5 bg-white/5 hover:bg-white/10'}`}
-                               >
-                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${formData.config.proctoring[feature.key] ? 'bg-indigo-500 text-white' : 'bg-white/10 text-slate-500'}`}>
-                                    <feature.icon className="w-5 h-5" />
-                                 </div>
-                                 <div>
-                                   <p className="text-sm font-bold text-white">{feature.label}</p>
-                                   <p className="text-[10px] font-medium text-slate-400 mt-0.5 leading-relaxed">{feature.desc}</p>
-                                 </div>
-                               </button>
-                             ))}
-                          </div>
-                       </div>
-                    </div>
+                 <div className="max-w-3xl mx-auto space-y-6">
+                    <WizardSection
+                      title="Proctoring & security"
+                      description="Choose what to monitor while students take this assessment."
+                    >
+                      <ToggleList>
+                        {[
+                          { key: 'webcam', label: 'Webcam snapshots', icon: Camera, desc: 'Capture periodic images during the session' },
+                          { key: 'mic', label: 'Microphone monitoring', icon: Mic, desc: 'Flag speech or sustained background noise' },
+                          { key: 'tabSwitch', label: 'Tab switching', icon: Layers, desc: 'Log when the candidate leaves the assessment tab' },
+                          { key: 'fullscreen', label: 'Require fullscreen', icon: Maximize2, desc: 'Keep the assessment in fullscreen mode' },
+                        ].map((feature) => (
+                          <ToggleRow
+                            key={feature.key}
+                            icon={feature.icon}
+                            label={feature.label}
+                            description={feature.desc}
+                            enabled={Boolean(formData.config.proctoring[feature.key])}
+                            onToggle={() =>
+                              setFormData({
+                                ...formData,
+                                config: {
+                                  ...formData.config,
+                                  proctoring: {
+                                    ...formData.config.proctoring,
+                                    [feature.key]: !formData.config.proctoring[feature.key],
+                                  },
+                                },
+                              })
+                            }
+                          />
+                        ))}
+                      </ToggleList>
+                    </WizardSection>
 
                     {hasCodingQuestions && (
                       <AllowedCodingLanguagesPicker
@@ -858,95 +876,81 @@ export default function AdminAssessments() {
                       />
                     )}
 
-                    <div className="bg-white border border-slate-200 rounded-3xl p-8 space-y-6">
-                       <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
-                             <Users className="w-5 h-5 text-indigo-600" />
-                          </div>
-                          <div>
-                             <h4 className="text-sm font-bold text-slate-900">Target Audience</h4>
-                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Assign Batches or specific Candidates</p>
-                          </div>
-                       </div>
-
-                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-56 overflow-y-auto p-1 custom-scrollbar">
+                    <WizardSection
+                      title="Target audience"
+                      description="Assign batches or pick individual students."
+                    >
+                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto">
                           {batches.map(batch => (
                             <button 
                               key={batch.id}
+                              type="button"
                               onClick={() => {
                                 const ids = formData.targetBatchIds.includes(batch.id)
                                   ? formData.targetBatchIds.filter(id => id !== batch.id)
                                   : [...formData.targetBatchIds, batch.id];
                                 setFormData({...formData, targetBatchIds: ids});
                               }}
-                              className={`p-4 rounded-xl border-2 text-left transition-all ${
+                              className={`p-3 rounded-lg border text-left transition-colors ${
                                 formData.targetBatchIds.includes(batch.id)
                                 ? 'border-indigo-600 bg-indigo-50'
-                                : 'border-slate-100 bg-slate-50 hover:border-slate-200'
+                                : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                               }`}
                             >
-                              <div className="text-xs font-bold text-slate-900">{batch.label || batch.year}</div>
-                              <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tight mt-0.5">{batch.school?.name || 'General Batch'}</div>
+                              <div className="text-sm font-medium text-slate-900">{batch.label || batch.year}</div>
+                              <div className="text-xs text-slate-500 mt-0.5">{batch.school?.name || 'General batch'}</div>
                             </button>
                           ))}
                        </div>
                        
-                       <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                             <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                             <span className="text-[10px] font-bold text-slate-500">Selected {formData.targetBatchIds.length} Batches</span>
-                          </div>
+                       <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+                          <span className="text-xs text-slate-500">
+                            {formData.targetBatchIds.length} batch{formData.targetBatchIds.length === 1 ? '' : 'es'} selected
+                          </span>
                           <button 
+                             type="button"
                              onClick={() => setShowStudentSelector(true)}
-                             className="text-[10px] font-bold text-indigo-600 hover:underline uppercase tracking-wider"
+                             className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
                            >
-                             Advanced Selection
+                             Select students
                            </button>
                        </div>
-                    </div>
+                    </WizardSection>
                  </div>
                )}
             </div>
 
-            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
-               <button 
-                 type="button"
-                 disabled={step === 1}
-                 onClick={() => setStep(step - 1)}
-                 className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 disabled:opacity-0 transition-colors"
-               >
-                 Back
-               </button>
-               
-               <div className="flex gap-2">
-                 {step < 3 ? (
-                   <button 
+            <WizardFooter
+              onBack={() => setStep(step - 1)}
+              backDisabled={step === 1}
+            >
+               {step < 3 ? (
+                 <button 
+                   type="button"
+                   onClick={() => setStep(step + 1)}
+                   className={`${au.btnPrimary}`}
+                 >
+                   Continue <ChevronRight className="w-4 h-4" />
+                 </button>
+               ) : (
+                 <>
+                   <button
                      type="button"
-                     onClick={() => setStep(step + 1)}
-                     className="px-5 py-2 bg-blue-800 hover:bg-blue-900 text-white rounded-md text-sm font-medium transition-colors flex items-center gap-2"
+                     onClick={handleSaveDraft}
+                     className={au.btnSecondary}
                    >
-                     Continue <ChevronRight className="w-4 h-4" />
+                     Save draft
                    </button>
-                 ) : (
-                   <>
-                     <button
-                       type="button"
-                       onClick={handleSaveDraft}
-                       className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-white"
-                     >
-                       Save draft
-                     </button>
-                     <button
-                       type="button"
-                       onClick={handlePublish}
-                       className="px-5 py-2 bg-blue-800 hover:bg-blue-900 text-white rounded-md text-sm font-medium transition-colors"
-                     >
-                       Publish
-                     </button>
-                   </>
-                 )}
-               </div>
-            </div>
+                   <button
+                     type="button"
+                     onClick={handlePublish}
+                     className={au.btnPrimary}
+                   >
+                     Publish
+                   </button>
+                 </>
+               )}
+            </WizardFooter>
           </div>
         </div>
       )}

@@ -3,6 +3,7 @@ import { runJavaScript } from './runners/javascript.js';
 import { runPython } from './runners/python.js';
 import { runJava } from './runners/java.js';
 import { runCpp } from './runners/cpp.js';
+import { isJudge0Enabled, runViaJudge0 } from '../services/judge0.js';
 import {
   parseTestCasesRaw,
   outputsMatch,
@@ -34,6 +35,11 @@ export async function runCode({ language, code, input = '' }, options = {}) {
   }
   const safeCode = sanitizeCode(code);
   const timeoutMs = options.timeoutMs || DEFAULT_TIMEOUT_MS;
+
+  if (isJudge0Enabled()) {
+    return runViaJudge0({ language: lang, code: safeCode, input }, options);
+  }
+
   const runner = RUNNERS[lang];
   return runner(safeCode, input, timeoutMs);
 }

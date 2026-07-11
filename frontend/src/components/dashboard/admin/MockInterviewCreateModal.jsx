@@ -18,6 +18,15 @@ import {
 } from 'lucide-react';
 import api from '../../../services/api';
 import { useToast } from '../../ui/Toast';
+import { au } from '../../assessment/assessmentUi';
+import {
+  WizardProgress,
+  WizardField,
+  WizardFooter,
+  WizardModalHeader,
+  StatHighlight,
+  ToggleRow,
+} from '../../assessment/WizardPrimitives';
 import { createCodingQuestion } from '../../../utils/mockInterviewQuestions';
 
 const INITIAL_FORM = {
@@ -198,55 +207,30 @@ export default function MockInterviewCreateModal({ isOpen, onClose, onSuccess })
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-md z-[9999] flex items-center justify-center p-4 sm:p-8 animate-in fade-in duration-300">
-      <div className="bg-white w-full max-w-5xl h-[85vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-8 duration-500">
-        <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-600/20">
-              <Video className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">New Mock Interview Drive</h2>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                Configuration Wizard • Step {step} of 3
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-10 h-10 bg-slate-100 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded-xl flex items-center justify-center transition-all"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <div className={au.backdropLg}>
+      <div className={`${au.modalLg} h-[85vh]`}>
+        <WizardModalHeader
+          title="New mock interview drive"
+          subtitle={`Step ${step} of 3`}
+          onClose={onClose}
+          icon={Video}
+        />
 
-        <div className="h-1.5 w-full bg-slate-100 relative">
-          <div
-            className="absolute inset-0 bg-indigo-600 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(79,70,229,0.5)]"
-            style={{ width: `${(step / 3) * 100}%` }}
-          />
-        </div>
+        <WizardProgress step={step} total={3} />
 
-        <div className="flex-1 overflow-y-auto p-8 sm:p-10 custom-scrollbar bg-white">
+        <div className="flex-1 overflow-y-auto p-5 sm:p-6 custom-scrollbar bg-white">
           {step === 1 && (
-            <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-              <div className="space-y-2.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                  Drive Title
-                </label>
+            <div className="max-w-3xl mx-auto space-y-5">
+              <WizardField label="Drive title">
                 <input
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 ring-indigo-500/10 outline-none font-bold text-slate-900 transition-all"
-                  placeholder="e.g. Q2 Mock Technical Round — Frontend"
+                  className={au.wizardInput}
+                  placeholder="e.g. Q2 technical round — frontend"
                 />
-              </div>
+              </WizardField>
 
-              <div className="space-y-2.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                  Interview Category
-                </label>
+              <WizardField label="Interview category">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {CATEGORIES.map((cat) => (
                     <button
@@ -259,181 +243,132 @@ export default function MockInterviewCreateModal({ isOpen, onClose, onSuccess })
                           enableCodeConsole: cat.id === 'TECHNICAL',
                         })
                       }
-                      className={`p-3 rounded-xl border-2 transition-all flex items-center gap-3 ${
+                      className={`p-3 rounded-lg border transition-colors flex items-center gap-2.5 text-left ${
                         formData.category === cat.id
-                          ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-md shadow-indigo-500/5'
-                          : 'border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200'
+                          ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
                       }`}
                     >
-                      <cat.icon className="w-4 h-4 flex-shrink-0" />
-                      <span className="text-[10px] font-bold uppercase truncate">{cat.label}</span>
+                      <cat.icon className="w-4 h-4 shrink-0" />
+                      <span className="text-sm font-medium truncate">{cat.label}</span>
                     </button>
                   ))}
                 </div>
+              </WizardField>
+
+              <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+                <ToggleRow
+                  icon={Terminal}
+                  label="Code console (tech board)"
+                  description="Shared coding panel for technical rounds. Turn off for HR or video-only sessions."
+                  enabled={formData.enableCodeConsole}
+                  onToggle={() =>
+                    setFormData({ ...formData, enableCodeConsole: !formData.enableCodeConsole })
+                  }
+                />
               </div>
 
-              <div className="rounded-2xl border-2 border-slate-200 p-5 bg-slate-50/50">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-4">
-                    <div
-                      className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-                        formData.enableCodeConsole
-                          ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
-                          : 'bg-slate-200 text-slate-500'
-                      }`}
-                    >
-                      <Terminal className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-900">Code console (Tech Board)</p>
-                      <p className="text-xs text-slate-500 font-medium mt-1 max-w-md">
-                        When enabled, the live interview room includes a shared coding panel for
-                        technical rounds. Turn off for HR, behavioral, or video-only sessions.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={formData.enableCodeConsole}
-                    onClick={() =>
-                      setFormData({ ...formData, enableCodeConsole: !formData.enableCodeConsole })
-                    }
-                    className={`relative w-12 h-7 rounded-full transition-colors shrink-0 ${
-                      formData.enableCodeConsole ? 'bg-indigo-600' : 'bg-slate-300'
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                        formData.enableCodeConsole ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                  Description & Objectives
-                </label>
+              <WizardField label="Description">
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 ring-indigo-500/10 outline-none font-medium text-slate-700 h-28 resize-none transition-all"
+                  className={au.wizardTextarea}
                   placeholder="What is this mock interview for? Who should attend?"
                 />
-              </div>
+              </WizardField>
 
-              <div className="space-y-2.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                  Instructions for Students
-                </label>
+              <WizardField label="Instructions for students">
                 <textarea
                   value={formData.instructions}
                   onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
-                  className="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 ring-indigo-500/10 outline-none font-medium text-slate-700 h-24 resize-none transition-all"
+                  className={au.wizardTextarea}
+                  rows={3}
                   placeholder="Preparation tips, prerequisites..."
                 />
-              </div>
+              </WizardField>
             </div>
           )}
 
           {step === 2 && (
-            <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                    Interview Date
-                  </label>
+            <div className="max-w-3xl mx-auto space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <WizardField label="Interview date">
                   <div className="relative">
-                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                     <input
                       type="date"
                       value={formData.date}
                       onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                      className="w-full p-4 pl-11 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 ring-indigo-500/10 outline-none font-bold text-slate-900 text-xs"
+                      className={`${au.wizardInput} pl-10`}
                     />
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                      Start Time
-                    </label>
+                </WizardField>
+                <div className="grid grid-cols-2 gap-3">
+                  <WizardField label="Start time">
                     <input
                       type="time"
                       value={formData.startTime}
                       onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                      className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 ring-indigo-500/10 outline-none font-bold text-slate-900 text-xs"
+                      className={au.wizardInput}
                     />
-                  </div>
-                  <div className="space-y-2.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                      End Time
-                    </label>
+                  </WizardField>
+                  <WizardField label="End time">
                     <input
                       type="time"
                       value={formData.endTime}
                       onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                      className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 ring-indigo-500/10 outline-none font-bold text-slate-900 text-xs"
+                      className={au.wizardInput}
                     />
-                  </div>
+                  </WizardField>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {[
-                  { key: 'slotDuration', label: 'Slot Duration (min)' },
-                  { key: 'bufferTime', label: 'Buffer (min)' },
+                  { key: 'slotDuration', label: 'Slot duration (minutes)' },
+                  { key: 'bufferTime', label: 'Buffer between slots (minutes)' },
                 ].map((field) => (
-                  <div key={field.key} className="space-y-2.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                      {field.label}
-                    </label>
+                  <WizardField key={field.key} label={field.label}>
                     <input
                       type="number"
                       min={0}
                       value={formData[field.key]}
                       onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
-                      className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 ring-indigo-500/10 outline-none font-bold text-slate-900 text-xs"
+                      className={au.wizardInput}
                     />
-                  </div>
+                  </WizardField>
                 ))}
               </div>
 
               {formData.enableCodeConsole && (
-                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/30 p-6 space-y-4">
-                  <div className="flex items-center justify-between">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-sm font-bold text-slate-900">Coding questions (optional)</p>
+                      <p className="text-sm font-medium text-slate-900">Coding questions (optional)</p>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        Pre-load problems for the live room. You can add more during the interview.
+                        Pre-load problems for the live room, or add them during the interview.
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => setCodingQuestions((prev) => [...prev, createCodingQuestion()])}
-                      className="px-4 py-2 bg-indigo-600 text-white text-[10px] font-bold uppercase rounded-lg flex items-center gap-2"
+                      className={`${au.btnPrimary} text-xs`}
                     >
-                      <Plus className="w-3.5 h-3.5" /> Add question
+                      <Plus className="w-3.5 h-3.5" /> Add
                     </button>
                   </div>
                   {codingQuestions.length === 0 ? (
-                    <p className="text-xs text-slate-500">No questions yet — add in the room if you prefer.</p>
+                    <p className="text-xs text-slate-500">No questions added yet.</p>
                   ) : (
-                    <div className="space-y-4 max-h-64 overflow-y-auto custom-scrollbar">
+                    <div className="space-y-3 max-h-64 overflow-y-auto">
                       {codingQuestions.map((q, idx) => (
-                        <div key={q.id} className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase">
-                              Question {idx + 1}
-                            </span>
+                        <div key={q.id} className="bg-white rounded-lg border border-slate-200 p-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-slate-600">Question {idx + 1}</span>
                             <button
                               type="button"
-                              onClick={() =>
-                                setCodingQuestions((prev) => prev.filter((x) => x.id !== q.id))
-                              }
-                              className="text-[10px] font-bold text-rose-600 hover:underline"
+                              onClick={() => setCodingQuestions((prev) => prev.filter((x) => x.id !== q.id))}
+                              className="text-xs text-rose-600 hover:text-rose-700"
                             >
                               Remove
                             </button>
@@ -442,39 +377,33 @@ export default function MockInterviewCreateModal({ isOpen, onClose, onSuccess })
                             value={q.title}
                             onChange={(e) =>
                               setCodingQuestions((prev) =>
-                                prev.map((x) =>
-                                  x.id === q.id ? { ...x, title: e.target.value } : x
-                                )
+                                prev.map((x) => (x.id === q.id ? { ...x, title: e.target.value } : x))
                               )
                             }
-                            placeholder="Title e.g. Two Sum"
-                            className="w-full p-3 text-sm font-bold border border-slate-200 rounded-xl"
+                            placeholder="Title"
+                            className={au.wizardInput}
                           />
                           <textarea
                             value={q.description}
                             onChange={(e) =>
                               setCodingQuestions((prev) =>
-                                prev.map((x) =>
-                                  x.id === q.id ? { ...x, description: e.target.value } : x
-                                )
+                                prev.map((x) => (x.id === q.id ? { ...x, description: e.target.value } : x))
                               )
                             }
-                            placeholder="Problem statement..."
+                            placeholder="Problem statement"
                             rows={2}
-                            className="w-full p-3 text-xs border border-slate-200 rounded-xl resize-none"
+                            className={au.wizardTextarea}
                           />
                           <textarea
                             value={q.starterCode || ''}
                             onChange={(e) =>
                               setCodingQuestions((prev) =>
-                                prev.map((x) =>
-                                  x.id === q.id ? { ...x, starterCode: e.target.value } : x
-                                )
+                                prev.map((x) => (x.id === q.id ? { ...x, starterCode: e.target.value } : x))
                               )
                             }
-                            placeholder="Starter code (function solution...)"
+                            placeholder="Starter code"
                             rows={4}
-                            className="w-full p-3 text-xs font-mono border border-slate-200 rounded-xl resize-none bg-slate-900 text-emerald-400"
+                            className="w-full px-3 py-2 text-xs font-mono border border-slate-200 rounded-lg resize-none bg-slate-800 text-slate-100"
                           />
                         </div>
                       ))}
@@ -483,145 +412,96 @@ export default function MockInterviewCreateModal({ isOpen, onClose, onSuccess })
                 </div>
               )}
 
-              <div className="bg-slate-900 rounded-2xl p-6 text-white flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <Clock className="w-5 h-5 text-indigo-400" />
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                      Estimated slots
-                    </p>
-                    <p className="text-2xl font-black text-indigo-400 tabular-nums">{estSlots}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2 max-w-md">
-                  <AlertCircle className="w-4 h-4 text-indigo-400 flex-shrink-0 mt-0.5" />
-                  <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
-                    Slots are generated when you publish. Selected students are auto-assigned in order.
-                  </p>
-                </div>
-              </div>
+              <StatHighlight
+                icon={Clock}
+                label="Estimated slots"
+                value={estSlots}
+                hint="Generated on publish. Selected students are assigned in order."
+              />
             </div>
           )}
 
           {step === 3 && (
-            <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50 p-6 rounded-2xl border border-slate-200">
+            <div className="max-w-3xl mx-auto space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-1">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">Assign Candidates</h3>
-                  <p className="text-xs text-slate-500 font-medium">
-                    Optional — cherry-pick students for automatic slot assignment.
+                  <h3 className="text-base font-semibold text-slate-900">Assign candidates</h3>
+                  <p className="text-sm text-slate-600 mt-0.5">
+                    Optional — limit who receives automatic slot assignment.
                   </p>
                 </div>
-                <div className="flex items-center gap-6 bg-white px-6 py-3 rounded-xl border border-slate-200">
-                  <div className="text-center">
-                    <span className="text-xl font-black text-indigo-600 block tabular-nums">
-                      {selectedStudents.length}
-                    </span>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase">Selected</span>
-                  </div>
-                  <div className="text-center border-l border-slate-100 pl-6">
-                    <span className="text-xl font-black text-slate-900 block tabular-nums">
-                      {students.length}
-                    </span>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase">Available</span>
-                  </div>
-                </div>
+                <p className="text-sm text-slate-600 tabular-nums">
+                  <span className="font-semibold text-slate-900">{selectedStudents.length}</span> selected
+                  <span className="text-slate-400 mx-1">·</span>
+                  {students.length} available
+                </p>
               </div>
 
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Search by name or email..."
+                  placeholder="Search by name or email"
                   value={studentSearch}
                   onChange={(e) => setStudentSearch(e.target.value)}
-                  className="w-full p-4 pl-11 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 ring-indigo-500/10 outline-none font-bold text-slate-900 text-xs"
+                  className={au.searchInput}
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[340px] overflow-y-auto p-1 custom-scrollbar">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[340px] overflow-y-auto">
                 {filteredStudents.length > 0 ? (
                   filteredStudents.map((student) => (
                     <button
                       key={student.id}
                       type="button"
                       onClick={() => toggleStudent(student.id)}
-                      className={`p-4 flex items-center justify-between rounded-xl border-2 transition-all text-left ${
+                      className={`p-3 flex items-center justify-between rounded-lg border transition-colors text-left ${
                         selectedStudents.includes(student.id)
                           ? 'border-indigo-600 bg-indigo-50'
-                          : 'border-slate-100 bg-slate-50 hover:border-slate-200'
+                          : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 ${
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-medium shrink-0 ${
                             selectedStudents.includes(student.id)
                               ? 'bg-indigo-600 text-white'
-                              : 'bg-slate-200 text-slate-500'
+                              : 'bg-slate-100 text-slate-600'
                           }`}
                         >
                           {student.fullName?.[0] || '?'}
                         </div>
                         <div className="min-w-0">
-                          <div className="text-xs font-bold text-slate-900 truncate">
-                            {student.fullName}
-                          </div>
-                          <div className="text-[9px] font-bold text-slate-400 uppercase truncate">
-                            {student.batch || student.email}
-                          </div>
+                          <div className="text-sm font-medium text-slate-900 truncate">{student.fullName}</div>
+                          <div className="text-xs text-slate-500 truncate">{student.batch || student.email}</div>
                         </div>
                       </div>
                       {selectedStudents.includes(student.id) ? (
-                        <CheckCircle2 className="w-5 h-5 text-indigo-600 shrink-0" />
+                        <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" />
                       ) : (
-                        <Plus className="w-5 h-5 text-slate-300 shrink-0" />
+                        <Plus className="w-4 h-4 text-slate-300 shrink-0" />
                       )}
                     </button>
                   ))
                 ) : (
-                  <div className="col-span-full py-12 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">
-                    No candidates found
-                  </div>
+                  <div className={`col-span-full ${au.emptyState}`}>No candidates match your search</div>
                 )}
               </div>
             </div>
           )}
         </div>
 
-        <div className="px-8 py-6 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center">
-          <button
-            type="button"
-            disabled={step === 1}
-            onClick={() => setStep((s) => s - 1)}
-            className="px-6 py-3 text-xs font-bold text-slate-400 hover:text-slate-900 disabled:opacity-0 transition-all uppercase tracking-widest"
-          >
-            Back
-          </button>
-          <div className="flex gap-3">
+        <WizardFooter onBack={() => setStep((s) => s - 1)} backDisabled={step === 1}>
             {step < 3 ? (
-              <button
-                type="button"
-                onClick={goNext}
-                className="px-8 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-lg active:scale-95 flex items-center gap-2"
-              >
-                Next Step <ChevronRight className="w-4 h-4" />
+              <button type="button" onClick={goNext} className={au.btnPrimary}>
+                Continue <ChevronRight className="w-4 h-4" />
               </button>
             ) : (
               <>
-                <button
-                  type="button"
-                  onClick={handleSaveDraft}
-                  disabled={submitting}
-                  className="px-6 py-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-white disabled:opacity-50 flex items-center gap-2"
-                >
+                <button type="button" onClick={handleSaveDraft} disabled={submitting} className={au.btnSecondary}>
                   Save draft
                 </button>
-                <button
-                  type="button"
-                  onClick={handlePublish}
-                  disabled={submitting}
-                  className="px-10 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xl shadow-indigo-500/20 active:scale-95 disabled:opacity-50 flex items-center gap-2"
-                >
+                <button type="button" onClick={handlePublish} disabled={submitting} className={au.btnPrimary}>
                   {submitting ? (
                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : null}
@@ -629,8 +509,7 @@ export default function MockInterviewCreateModal({ isOpen, onClose, onSuccess })
                 </button>
               </>
             )}
-          </div>
-        </div>
+        </WizardFooter>
       </div>
     </div>
   );
