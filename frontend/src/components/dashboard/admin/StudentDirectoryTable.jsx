@@ -47,7 +47,7 @@ const MOCK_INTERVIEW_COLUMN = [
 ];
 
 const ATS_COLUMN = [
-  { key: 'atsScore', label: 'Resume ATS', minW: 120, ats: true },
+  { key: 'atsScore', label: 'Resume ATS', minW: 220, ats: true },
 ];
 
 const STATS_COLUMNS = [
@@ -108,17 +108,17 @@ function cellContent(row, col, { onViewAtsDetails, onScoreAts, scoringStudentId,
   }
   if (col.ats) {
     return (
-      <div className="flex flex-col items-start gap-1.5">
-        <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold tabular-nums ${atsScoreColor(row.atsScore)}`}>
+      <div className="flex items-center justify-center gap-2.5 min-w-[200px] whitespace-nowrap">
+        <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold tabular-nums shrink-0 ${atsScoreColor(row.atsScore)}`}>
           {row.atsScore != null ? `${row.atsScore}%` : row.hasResume ? 'Unscored' : '—'}
         </span>
         {row.hasResume && (
-          <div className="flex items-center gap-2">
+          <>
             {row.atsAnalysis && (
               <button
                 type="button"
                 onClick={() => onViewAtsDetails?.(row)}
-                className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 shrink-0"
               >
                 Details
               </button>
@@ -127,16 +127,16 @@ function cellContent(row, col, { onViewAtsDetails, onScoreAts, scoringStudentId,
               type="button"
               onClick={() => onScoreAts?.(row)}
               disabled={scoringStudentId === row.id || batchAtsRunning}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-50"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-50 shrink-0"
             >
               {scoringStudentId === row.id ? (
-                <Loader className="w-3 h-3 animate-spin" />
+                <Loader className="w-3 h-3 animate-spin shrink-0" />
               ) : (
-                <Sparkles className="w-3 h-3" />
+                <Sparkles className="w-3 h-3 shrink-0" />
               )}
-              {row.atsScore != null ? 'Re-score' : 'Score'}
+              <span>{row.atsScore != null ? 'Re-score' : 'Score'}</span>
             </button>
-          </div>
+          </>
         )}
       </div>
     );
@@ -344,7 +344,7 @@ export default function StudentDirectoryTable({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-left" style={{ minWidth: 1640 }}>
+        <table className="w-full border-collapse text-left" style={{ minWidth: 1740 }}>
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50">
               <th
@@ -362,7 +362,7 @@ export default function StudentDirectoryTable({
               {allScrollColumns.map((col) => (
                 <th
                   key={col.key}
-                  className={`${scrollHeaderCell} font-outfit ${headerClass(col)}`}
+                  className={`${scrollHeaderCell} font-outfit ${headerClass(col)} ${col.ats ? 'text-center' : ''}`}
                   style={{ minWidth: col.minW }}
                 >
                   {col.label}
@@ -414,7 +414,7 @@ export default function StudentDirectoryTable({
                 {allScrollColumns.map((col) => (
                   <td
                     key={col.key}
-                    className={scrollBodyCell}
+                    className={`${scrollBodyCell} ${col.ats ? 'text-center' : ''}`}
                     style={{ minWidth: col.minW }}
                   >
                     {cellContent(row, col, { onViewAtsDetails, onScoreAts, scoringStudentId, batchAtsRunning })}
