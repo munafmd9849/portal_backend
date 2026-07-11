@@ -3,6 +3,7 @@ import {
   ProctoringViolationType,
   ScreenshotCaptureType,
   EVENT_SCREENSHOT_VIOLATIONS,
+  getViolationSeverity,
 } from './constants';
 import {
   createMediaPipeFaceDetector,
@@ -102,6 +103,32 @@ export class ProctoringEngine {
     const video = this.getVideoEl?.();
     const trackLive = this._stream?.getVideoTracks?.().some((t) => t.readyState === 'live');
     return Boolean(trackLive || (video?.srcObject && video.videoWidth > 0));
+  }
+
+  isMicActive() {
+    return Boolean(this._stream?.getAudioTracks?.().some((t) => t.readyState === 'live' && t.enabled));
+  }
+
+  getSecureStatus() {
+    const screenCount =
+      typeof window.screen?.isExtended === 'boolean'
+        ? window.screen.isExtended
+          ? 2
+          : 1
+        : typeof window.screen?.availWidth === 'number' && window.screen.width !== window.innerWidth
+          ? null
+          : 1;
+    return {
+      secureMode: this._monitoring,
+      fullscreen: this.isFullscreen,
+      camera: this.isCameraActive(),
+      microphone: this.isMicActive(),
+      online: typeof navigator.onLine === 'boolean' ? navigator.onLine : true,
+      multiMonitor: screenCount != null ? screenCount > 1 : null,
+      violationCount: this._violationCount,
+      autoSubmitThreshold: this.cfg.autoSubmit?.threshold ?? 10,
+      autoSubmitEnabled: Boolean(this.cfg.autoSubmit?.enabled),
+    };
   }
 
   getStream() {
@@ -315,6 +342,13 @@ export class ProctoringEngine {
       if (document.visibilityState === 'hidden' && this.cfg.tabSwitch) {
         this.bumpViolation(ProctoringViolationType.TAB_SWITCH, 'Tab switched / page hidden');
       }
+      // Heuristic: page hidden with very small outer size often means minimize
+      if (
+        document.visibilityState === 'hidden' &&
+        (window.outerWidth < 160 || window.outerHeight < 160)
+      ) {
+        this.bumpViolation(ProctoringViolationType.WINDOW_MINIMIZE, 'Browser window appears minimized');
+      }
     };
     const onBlur = () => {
       if (!this._running) return;
@@ -329,17 +363,192 @@ export class ProctoringEngine {
       }
     };
 
+    const onCopy = (e) => {
+      if (!this._running || !this.cfg.clipboardGuard) return;
+      e.preventDefault();
+      this.bumpViolation(ProctoringViolationType.COPY_ATTEMPT, 'Copy blocked during secure exam');
+    };
+    const onCut = (e) => {
+      if (!this._running || !this.cfg.clipboardGuard) return;
+      e.preventDefault();
+      this.bumpViolation(ProctoringViolationType.CUT_ATTEMPT, 'Cut blocked during secure exam');
+    };
+    const onPaste = (e) => {
+      if (!this._running || !this.cfg.clipboardGuard) return;
+      e.preventDefault();
+      this.bumpViolation(ProctoringViolationType.PASTE_ATTEMPT, 'Paste blocked during secure exam');
+    };
+    const onContext = (e) => {
+      if (!this._running || !this.cfg.contextMenuGuard) return;
+      e.preventDefault();
+      this.bumpViolation(ProctoringViolationType.RIGHT_CLICK, 'Right-click blocked during secure exam');
+    };
+    const onSelectStart = () => {
+      if (!this._running || !this.cfg.selectionGuard) return;
+      // Soft log — do not always prevent (coding editors need selection)
+      this.bumpViolation(ProctoringViolationType.TEXT_SELECTION, 'Text selection detected');
+    };
+
+    const onKeyDown = (e) => {
+      if (!this._running || !this.cfg.shortcutGuard) return;
+      const key = String(e.key || '').toLowerCase();
+      const ctrl = e.ctrlKey || e.metaKey;
+      const shift = e.shiftKey;
+      const alt = e.altKey;
+
+      if (key === 'printscreen') {
+        e.preventDefault();
+        this.bumpViolation(ProctoringViolationType.PRINT_SCREEN, 'Print Screen key detected');
+        return;
+      }
+      if (ctrl && key === 'p') {
+        e.preventDefault();
+        this.bumpViolation(ProctoringViolationType.PRINT_ATTEMPT, 'Print shortcut blocked');
+        return;
+      }
+      if (ctrl && key === 'c') {
+        e.preventDefault();
+        this.bumpViolation(ProctoringViolationType.COPY_ATTEMPT, 'Ctrl/Cmd+C blocked');
+        return;
+      }
+      if (ctrl && key === 'v') {
+        e.preventDefault();
+        this.bumpViolation(ProctoringViolationType.PASTE_ATTEMPT, 'Ctrl/Cmd+V blocked');
+        return;
+      }
+      if (ctrl && key === 'x') {
+        e.preventDefault();
+        this.bumpViolation(ProctoringViolationType.CUT_ATTEMPT, 'Ctrl/Cmd+X blocked');
+        return;
+      }
+      if (ctrl && key === 'a') {
+        this.bumpViolation(ProctoringViolationType.SELECT_ALL, 'Ctrl/Cmd+A detected');
+        return;
+      }
+      if (ctrl && key === 'u') {
+        e.preventDefault();
+        this.bumpViolation(ProctoringViolationType.VIEW_SOURCE, 'View-source shortcut blocked');
+        return;
+      }
+      if (key === 'f12' || (ctrl && shift && (key === 'i' || key === 'j' || key === 'c'))) {
+        e.preventDefault();
+        this.bumpViolation(ProctoringViolationType.DEVTOOLS_SHORTCUT, 'Developer tools shortcut blocked');
+        return;
+      }
+      if (ctrl && key === 'r') {
+        e.preventDefault();
+        this.bumpViolation(ProctoringViolationType.PAGE_REFRESH, 'Refresh shortcut blocked');
+        return;
+      }
+      if (key === 'f5') {
+        e.preventDefault();
+        this.bumpViolation(ProctoringViolationType.PAGE_REFRESH, 'F5 refresh blocked');
+        return;
+      }
+      // Alt+Tab is not reliably detectable in browsers; log focus loss via blur instead.
+      if (alt && key === 'tab') {
+        this.bumpViolation(ProctoringViolationType.TAB_SWITCH, 'Alt+Tab detected (best-effort)');
+      }
+    };
+
+    let resizeTimer = null;
+    const onResize = () => {
+      if (!this._running || !this.cfg.resizeGuard) return;
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        this.bumpViolation(ProctoringViolationType.SCREEN_RESIZE, 'Viewport resized during exam', {
+          innerWidth: window.innerWidth,
+          innerHeight: window.innerHeight,
+          outerWidth: window.outerWidth,
+          outerHeight: window.outerHeight,
+        });
+      }, 800);
+    };
+
+    const onBeforeUnload = (e) => {
+      if (!this._running || !this.cfg.navigationGuard) return;
+      this.bumpViolation(ProctoringViolationType.NAVIGATION_ATTEMPT, 'Page leave / refresh attempt');
+      e.preventDefault();
+      e.returnValue = '';
+    };
+
+    const onPopState = () => {
+      if (!this._running || !this.cfg.navigationGuard) return;
+      this.bumpViolation(ProctoringViolationType.HISTORY_NAVIGATION, 'Browser back/forward detected');
+      // Push state again to keep student on exam page
+      try {
+        window.history.pushState({ secureExam: true }, '', window.location.href);
+      } catch {
+        // ignore
+      }
+    };
+
+    const onOffline = () => {
+      if (!this._running || !this.cfg.connectivityMonitor) return;
+      this.bumpViolation(ProctoringViolationType.CONNECTIVITY_LOSS, 'Internet connectivity lost');
+      this.onWarning?.({ level: 'error', message: 'Internet connection lost. Reconnect to continue securely.' });
+    };
+
+    const checkMultiMonitor = async () => {
+      if (!this._running || !this.cfg.multiMonitorWarn) return;
+      try {
+        if (typeof window.getScreenDetails === 'function') {
+          const details = await window.getScreenDetails();
+          if (details?.screens?.length > 1) {
+            this.bumpViolation(
+              ProctoringViolationType.MULTI_MONITOR,
+              `Multiple displays detected (${details.screens.length})`,
+              { screenCount: details.screens.length }
+            );
+          }
+        } else if (window.screen?.isExtended) {
+          this.bumpViolation(ProctoringViolationType.MULTI_MONITOR, 'Extended display detected');
+        }
+      } catch {
+        // Permission denied — skip silently
+      }
+    };
+
     document.addEventListener('visibilitychange', onVis);
     window.addEventListener('blur', onBlur);
     document.addEventListener('fullscreenchange', onFs);
+    document.addEventListener('copy', onCopy);
+    document.addEventListener('cut', onCut);
+    document.addEventListener('paste', onPaste);
+    document.addEventListener('contextmenu', onContext);
+    document.addEventListener('selectstart', onSelectStart);
+    document.addEventListener('keydown', onKeyDown, true);
+    window.addEventListener('resize', onResize);
+    window.addEventListener('beforeunload', onBeforeUnload);
+    window.addEventListener('popstate', onPopState);
+    window.addEventListener('offline', onOffline);
+
     this._listeners.push(['visibilitychange', onVis, document]);
     this._listeners.push(['blur', onBlur, window]);
     this._listeners.push(['fullscreenchange', onFs, document]);
+    this._listeners.push(['copy', onCopy, document]);
+    this._listeners.push(['cut', onCut, document]);
+    this._listeners.push(['paste', onPaste, document]);
+    this._listeners.push(['contextmenu', onContext, document]);
+    this._listeners.push(['selectstart', onSelectStart, document]);
+    this._listeners.push(['keydown', onKeyDown, document, true]);
+    this._listeners.push(['resize', onResize, window]);
+    this._listeners.push(['beforeunload', onBeforeUnload, window]);
+    this._listeners.push(['popstate', onPopState, window]);
+    this._listeners.push(['offline', onOffline, window]);
+
+    try {
+      window.history.pushState({ secureExam: true }, '', window.location.href);
+    } catch {
+      // ignore
+    }
+    checkMultiMonitor();
   }
 
   _detachDomListeners() {
-    for (const [evt, fn, target] of this._listeners) {
-      target.removeEventListener(evt, fn);
+    for (const entry of this._listeners) {
+      const [evt, fn, target, useCapture] = entry;
+      target.removeEventListener(evt, fn, useCapture || false);
     }
     this._listeners = [];
   }
@@ -359,27 +568,45 @@ export class ProctoringEngine {
     this._lastViolationAt.set(type, nowMs());
     if (type === ProctoringViolationType.TAB_SWITCH) this._tabSwitchCount += 1;
 
+    const severity = getViolationSeverity(type);
+    const payloadMeta = { ...(meta && typeof meta === 'object' ? meta : {}), severity };
+
+    const threshold = this.cfg.autoSubmit?.threshold ?? 10;
+    const remaining = Math.max(0, threshold - (this._violationCount + 1));
+    if (this.cfg.softWarningBeforeCount) {
+      this.onWarning?.({
+        level: severity === 'CRITICAL' || severity === 'HIGH' ? 'error' : 'warn',
+        message: `${details || type}${remaining > 0 && this.cfg.autoSubmit?.enabled ? ` — ${remaining} warning(s) remaining` : ''}`,
+      });
+    }
+
     try {
-      await this.logViolation?.(type, details, meta);
+      await this.logViolation?.(type, details, payloadMeta);
     } catch (e) {
       this._emitError(e);
     }
 
     this._violationCount += 1;
     try {
-      this.onViolation?.({ type, details, meta, at: new Date().toISOString() });
+      this.onViolation?.({
+        type,
+        details,
+        meta: payloadMeta,
+        severity,
+        count: this._violationCount,
+        at: new Date().toISOString(),
+      });
     } catch {
       // ignore
     }
 
-    const threshold = this.cfg.autoSubmit?.threshold ?? 10;
     if (
       this.cfg.autoSubmit?.enabled &&
       !this._autoSubmitFired &&
       this._violationCount >= threshold
     ) {
       this._autoSubmitFired = true;
-      this.onAutoSubmit?.({ reason: 'Violation threshold exceeded' });
+      this.onAutoSubmit?.({ reason: 'Violation threshold exceeded', count: this._violationCount, threshold });
     }
 
     if (EVENT_SCREENSHOT_VIOLATIONS.has(type)) {

@@ -43,7 +43,10 @@ export async function backfillNoGateInterviewEligibility(jobId) {
   const result = await prisma.application.updateMany({
     where: {
       jobId,
-      screeningStatus: { in: ['APPLIED', null] },
+      OR: [
+        { screeningStatus: 'APPLIED' },
+        { screeningStatus: null },
+      ],
       status: { notIn: ['WITHDRAWN', 'REVOKED_BY_ADMIN', 'REJECTED'] },
     },
     data: { screeningStatus: 'INTERVIEW_ELIGIBLE' },

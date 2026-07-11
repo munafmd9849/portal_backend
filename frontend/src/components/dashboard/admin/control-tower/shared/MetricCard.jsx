@@ -1,10 +1,31 @@
 import React from 'react';
 
+/** Matches Admin Home “My Stats” / FunnelStatCard tones */
 const VARIANTS = {
-  default: 'bg-[#e8dff5] border-[#d4c4eb]',
-  blue: 'bg-[#dceaf7] border-[#b8d4ea]',
-  green: 'bg-[#dff3e4] border-[#b8e0c4]',
-  amber: 'bg-[#fff4e0] border-[#f0d9a8]',
+  default: {
+    card: 'bg-white border-slate-200',
+    label: 'text-sky-700',
+    value: 'text-slate-900',
+    sub: 'text-slate-500',
+  },
+  blue: {
+    card: 'bg-white border-indigo-200',
+    label: 'text-indigo-700',
+    value: 'text-indigo-900',
+    sub: 'text-indigo-600/70',
+  },
+  green: {
+    card: 'bg-white border-emerald-200',
+    label: 'text-emerald-700',
+    value: 'text-emerald-900',
+    sub: 'text-emerald-600/70',
+  },
+  amber: {
+    card: 'bg-white border-amber-200',
+    label: 'text-amber-700',
+    value: 'text-amber-900',
+    sub: 'text-amber-600/70',
+  },
 };
 
 export default function MetricCard({
@@ -21,12 +42,12 @@ export default function MetricCard({
     <Tag
       type={onClick ? 'button' : undefined}
       onClick={onClick}
-      className={`rounded-lg border px-4 py-3 min-h-[88px] flex flex-col justify-center text-left transition-shadow hover:shadow-md ${styles} ${className}`}
+      className={`rounded-lg px-3 py-3 min-h-[88px] border shadow-sm flex flex-col justify-center text-left transition-all duration-200 hover:ring-2 hover:ring-indigo-200 ${styles.card} ${className}`}
     >
-      <p className="text-[11px] sm:text-xs text-gray-600 font-medium leading-tight">{label}</p>
-      <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1 tabular-nums">{value ?? 0}</p>
+      <p className={`text-xs font-medium leading-tight ${styles.label}`}>{label}</p>
+      <p className={`text-2xl font-semibold tabular-nums mt-1 ${styles.value}`}>{value ?? 0}</p>
       {subValue != null && subValue !== '' && (
-        <p className="text-[10px] text-gray-500 mt-0.5 tabular-nums">{subValue}</p>
+        <p className={`text-[10px] mt-0.5 tabular-nums ${styles.sub}`}>{subValue}</p>
       )}
     </Tag>
   );
@@ -34,15 +55,15 @@ export default function MetricCard({
 
 export function SectionHeader({ title }) {
   return (
-    <div className="bg-[#c5d9e8] px-4 py-2 rounded-t-md border border-[#b0c9db] border-b-0">
-      <h2 className="text-sm font-semibold text-gray-800">{title}</h2>
+    <div className="px-4 py-3 border-b border-slate-200 bg-white">
+      <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
     </div>
   );
 }
 
 export function SectionBody({ children, className = '' }) {
   return (
-    <div className={`p-3 sm:p-4 bg-[#eef4fa] border border-[#b0c9db] border-t-0 rounded-b-md ${className}`}>
+    <div className={`p-4 bg-slate-50 ${className}`}>
       {children}
     </div>
   );

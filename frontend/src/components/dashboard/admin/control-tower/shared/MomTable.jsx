@@ -32,34 +32,34 @@ export default function MomTable({ rows = [], columns = [] }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <p className="text-sm font-semibold text-gray-800">CR Manager wise MoM Detailed Analysis</p>
+        <p className="text-sm font-semibold text-slate-900">CR Manager wise MoM Detailed Analysis</p>
         <input
           type="search"
           placeholder="Search manager or segment…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="border border-gray-300 rounded-md px-3 py-1.5 text-sm w-full sm:w-64"
+          className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm w-full sm:w-64 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
         />
       </div>
-      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
         <table className="min-w-full text-xs">
-          <thead className="bg-gray-50 text-gray-600 uppercase tracking-wide">
+          <thead className="bg-slate-50 text-slate-600 uppercase tracking-wide">
             <tr>
               {defaultCols.map((col) => (
                 <th key={col.key} className="px-3 py-2 text-left font-semibold whitespace-nowrap">{col.label}</th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-slate-100">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={defaultCols.length} className="px-3 py-8 text-center text-gray-500">No rows</td>
+                <td colSpan={defaultCols.length} className="px-3 py-8 text-center text-slate-500">No rows</td>
               </tr>
             ) : (
               filtered.map((row, i) => (
-                <tr key={row.id || i} className="hover:bg-gray-50">
+                <tr key={row.id || i} className="hover:bg-slate-50">
                   {defaultCols.map((col) => (
-                    <td key={col.key} className="px-3 py-2 tabular-nums text-gray-800 whitespace-nowrap">
+                    <td key={col.key} className="px-3 py-2 tabular-nums text-slate-800 whitespace-nowrap">
                       {row[col.key] ?? '—'}
                     </td>
                   ))}

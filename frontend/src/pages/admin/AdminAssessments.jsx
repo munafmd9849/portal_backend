@@ -16,6 +16,7 @@ import StudentSelectorModal from '../../components/dashboard/admin/StudentSelect
 import DirectoryLoadingPanel from '../../components/dashboard/admin/DirectoryLoading';
 import CodingQuestionEditor from '../../components/admin/CodingQuestionEditor';
 import AssessmentQuestionExcelUpload from '../../components/admin/AssessmentQuestionExcelUpload';
+import AssessmentBulkImportPanel from '../../components/admin/AssessmentBulkImportPanel';
 import { au } from '../../components/assessment/assessmentUi';
 import {
   WizardProgress,
@@ -681,6 +682,7 @@ export default function AdminAssessments() {
                {step === 2 && (
                  <div className="max-w-4xl mx-auto space-y-5">
                     <AssessmentQuestionExcelUpload onImport={handleExcelQuestionsImport} />
+                    <AssessmentBulkImportPanel assessmentId={formData?.id || undefined} />
 
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border border-slate-200 bg-slate-50">
                        <p className="text-sm text-slate-600">

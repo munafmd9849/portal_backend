@@ -26,7 +26,9 @@ import MockInterviewManagement from '../admin/MockInterviewManagement';
 import MockInterviewSlots from '../admin/MockInterviewSlots';
 import PlacementCalendar from '../../components/dashboard/admin/PlacementCalendar';
 import PlacementsRegistry from '../../components/dashboard/admin/PlacementsRegistry';
-import { Home, FilePlus2, Briefcase, GripVertical, LogOut, Users, Bell, Settings, User, Calendar, Megaphone, X, Loader2, UserPlus, History, BarChart3, ShieldCheck, Video, UserCheck } from 'lucide-react';
+import LandingCmsManager from '../../components/dashboard/admin/LandingCmsManager';
+import SuccessStoriesManager from '../../components/dashboard/admin/SuccessStoriesManager';
+import { Home, FilePlus2, Briefcase, GripVertical, LogOut, Users, Bell, Settings, User, Calendar, Megaphone, X, Loader2, UserPlus, History, BarChart3, ShieldCheck, Video, UserCheck, Layout, Sparkles } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import showLogoutConfirm from '../../utils/logoutConfirm';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
@@ -40,6 +42,7 @@ const NAV_GROUPS = [
   { label: 'Placements', tabIds: ['createJob', 'manageJobs', 'jobApplications', 'interviewScheduling', 'calendar', 'placements'] },
   { label: 'People', tabIds: ['studentDirectory', 'recruiterDirectory'] },
   { label: 'Programs', tabIds: ['announcements', 'mockInterviews', 'assessments'] },
+  { label: 'Content', tabIds: ['landingCms', 'successStories'] },
   { label: 'Account', tabIds: ['notifications', 'profile'] },
   { label: 'System', tabIds: ['createDisableAdmins', 'auditLogs', 'adminPanel', 'academicStructure', 'superAdminStats'], roles: ['SUPER_ADMIN'] },
 ];
@@ -150,6 +153,9 @@ export default function AdminDashboard() {
     if (tab === 'aiInterviews') {
       tab = 'mockInterviews';
     }
+    if (tab === 'globalSearch') {
+      tab = 'dashboard';
+    }
     if (tab === 'controlTower') {
       tab = 'dashboard';
     }
@@ -259,6 +265,8 @@ export default function AdminDashboard() {
   // Base tabs available to all authorized users
   const allTabs = [
     { id: 'dashboard', label: 'Dashboard', icon: Home, roles: ['ADMIN', 'RECRUITER', 'STUDENT', 'SUPER_ADMIN'] },
+    { id: 'landingCms', label: 'Landing Page', icon: Layout, roles: ['SUPER_ADMIN'] },
+    { id: 'successStories', label: 'Success Stories', icon: Sparkles, roles: ['ADMIN', 'SUPER_ADMIN'] },
     { id: 'createJob', label: 'Create Job', icon: FilePlus2, roles: ['ADMIN', 'RECRUITER', 'SUPER_ADMIN'] }, // ADMIN and RECRUITER only
     { id: 'manageJobs', label: 'Manage Jobs', icon: Briefcase, roles: ['ADMIN', 'RECRUITER', 'SUPER_ADMIN'] }, // ADMIN and RECRUITER only
     { id: 'jobApplications', label: 'Applicants', icon: Users, roles: ['ADMIN', 'RECRUITER', 'SUPER_ADMIN'] }, // ADMIN and RECRUITER only
@@ -266,7 +274,7 @@ export default function AdminDashboard() {
     { id: 'interviewScheduling', label: 'Interview Scheduling', icon: Calendar, roles: ['ADMIN', 'RECRUITER', 'SUPER_ADMIN'] },
     { id: 'calendar', label: 'Placement Calendar', icon: Calendar, roles: ['ADMIN', 'RECRUITER', 'SUPER_ADMIN'] },
     { id: 'studentDirectory', label: 'Student Directory', icon: Users, roles: ['ADMIN', 'SUPER_ADMIN'] }, // ADMIN only
-    { id: 'placements', label: 'Placements', icon: UserCheck, roles: ['ADMIN', 'SUPER_ADMIN'] },
+    { id: 'placements', label: 'Placement Records', icon: UserCheck, roles: ['ADMIN', 'SUPER_ADMIN'] },
     { id: 'recruiterDirectory', label: 'Recruiter Directory', icon: Briefcase, roles: ['ADMIN', 'SUPER_ADMIN'] }, // ADMIN only
     { id: 'announcements', label: 'Announcements', icon: Megaphone, roles: ['ADMIN', 'SUPER_ADMIN'] }, // ADMIN only
     { id: 'mockInterviews', label: 'Mock Interviews', icon: Video, roles: ['ADMIN', 'SUPER_ADMIN'] },
@@ -342,6 +350,16 @@ export default function AdminDashboard() {
     switch (currentTab) {
       case 'dashboard':
         return <AdminDashboardHub />;
+      case 'landingCms':
+        if (!isSuperAdmin) {
+          return <div className="text-red-600 font-semibold p-6 bg-red-50 rounded-xl">Access denied: Only SUPER_ADMIN can manage the landing page.</div>;
+        }
+        return <LandingCmsManager />;
+      case 'successStories':
+        if (!isAdmin) {
+          return <div className="text-red-600 font-semibold p-6 bg-red-50 rounded-xl">Access denied: Only admins can manage success stories.</div>;
+        }
+        return <SuccessStoriesManager />;
       case 'createJob':
         // Additional role check before rendering CreateJob component
         if (!canCreateJobs) {

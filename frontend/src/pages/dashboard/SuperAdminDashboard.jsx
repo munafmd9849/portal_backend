@@ -116,7 +116,7 @@ export default function SuperAdminDashboard() {
     { id: 'interviewScheduling', label: 'Interview Scheduling', icon: Calendar },
     { id: 'calendar', label: 'Placement Calendar', icon: Calendar },
     { id: 'studentDirectory', label: 'Student Directory', icon: Users },
-    { id: 'placements', label: 'Placements', icon: UserCheck },
+    { id: 'placements', label: 'Placement Records', icon: UserCheck },
     { id: 'recruiterDirectory', label: 'Recruiter Directory', icon: Briefcase },
     { id: 'announcements', label: 'Announcements', icon: Megaphone },
     { id: 'mockInterviews', label: 'Mock Interviews', icon: Video },

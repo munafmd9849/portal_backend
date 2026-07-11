@@ -67,6 +67,10 @@ import adminPlacementCalendarRoutes from './routes/adminPlacementCalendar.js';
 import mockInterviewRoutes from './routes/mockInterview.js';
 import aiMockInterviewRoutes from './routes/aiMockInterview.js';
 import webrtcRoutes from './routes/webrtc.js';
+import cmsRoutes from './routes/cms.js';
+import successStoriesRoutes from './routes/successStories.js';
+import globalSearchRoutes from './routes/globalSearch.js';
+import assessmentBulkImportRoutes from './routes/assessmentBulkImport.js';
 import { getJudge0Status } from './services/judge0.js';
 
 // ============================================
@@ -307,6 +311,10 @@ app.use('/api/admin/audit-logs', auditLogRoutes); // Audit Logs: SUPER_ADMIN onl
 app.use('/api/mock-interviews', mockInterviewRoutes); // Dedicated Mock Interview System
 app.use('/api/ai-mock-interviews', aiMockInterviewRoutes); // Guided AI video mock interviews
 app.use('/api/webrtc', webrtcRoutes);
+app.use('/api/cms', cmsRoutes);
+app.use('/api/success-stories', successStoriesRoutes);
+app.use('/api/search', globalSearchRoutes);
+app.use('/api/assessment-imports', assessmentBulkImportRoutes);
 
 // Google Calendar OAuth callback for popup flow
 // This route is called by Google with the authorization code

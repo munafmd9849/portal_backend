@@ -3,6 +3,7 @@ import { Loader2, Search, Download } from 'lucide-react';
 import HoverStatCard from './HoverStatCard';
 import CrManagerCard from './CrManagerCard';
 import CustomDropdown from '../../common/CustomDropdown';
+import { useAuth } from '../../../hooks/useAuth';
 import {
   fetchJobOpportunitiesOverview,
   fetchCardBreakdown,
@@ -20,10 +21,10 @@ function SectionBar({ title }) {
 }
 
 const METRIC_TONES = {
-  good: { card: 'bg-emerald-50 border-emerald-200', value: 'text-emerald-800' },
-  bad: { card: 'bg-red-50 border-red-200', value: 'text-red-800' },
-  warn: { card: 'bg-amber-50 border-amber-200', value: 'text-amber-800' },
-  neutral: { card: 'bg-sky-50 border-sky-200', value: 'text-slate-800' },
+  good: { card: 'bg-white border-emerald-200', label: 'text-emerald-700', value: 'text-emerald-900' },
+  bad: { card: 'bg-white border-rose-200', label: 'text-rose-700', value: 'text-rose-900' },
+  warn: { card: 'bg-white border-amber-200', label: 'text-amber-700', value: 'text-amber-900' },
+  neutral: { card: 'bg-white border-slate-200', label: 'text-sky-700', value: 'text-slate-900' },
 };
 
 function toneForMetric(label, value) {
@@ -39,9 +40,9 @@ function StaticStatCard({ label, value, tone }) {
   const resolved = tone || toneForMetric(label, value);
   const styles = METRIC_TONES[resolved] || METRIC_TONES.neutral;
   return (
-    <div className={`rounded-md px-3 py-3 min-h-[88px] min-w-[110px] flex-1 border-2 shadow-sm flex flex-col justify-center ${styles.card}`}>
-      <p className="text-xs text-gray-700 font-medium leading-tight">{label}</p>
-      <p className={`text-2xl sm:text-3xl font-bold tabular-nums mt-1 ${styles.value}`}>{value ?? 0}</p>
+    <div className={`rounded-lg px-3 py-3 min-h-[88px] min-w-[110px] flex-1 border shadow-sm flex flex-col justify-center transition-all duration-200 hover:ring-2 hover:ring-indigo-200 ${styles.card}`}>
+      <p className={`text-xs font-medium leading-tight ${styles.label}`}>{label}</p>
+      <p className={`text-2xl font-semibold tabular-nums mt-1 ${styles.value}`}>{value ?? 0}</p>
     </div>
   );
 }
@@ -58,7 +59,11 @@ const EMPTY_OVERVIEW = {
 };
 
 /** Job Opportunities block — use embedded on Admin Dashboard or standalone page */
-export function JobOpportunitiesSection({ embedded = false, showAdminOverview = true }) {
+export function JobOpportunitiesSection({
+  embedded = false,
+  showAdminOverview = true,
+  showMomAnalysis = true,
+}) {
   const [filterOpts, setFilterOpts] = useState({ segments: [], quarters: [], months: [], crManagers: [] });
   const [filters, setFilters] = useState({
     segment: '',
@@ -98,22 +103,34 @@ export function JobOpportunitiesSection({ embedded = false, showAdminOverview = 
   }, [filterCacheKey]);
 
   useEffect(() => {
+    if (!showMomAnalysis && !showAdminOverview) return undefined;
     fetchJobOpportunitiesFilterOptions().then(setFilterOpts).catch(console.error);
-  }, []);
+  }, [showMomAnalysis, showAdminOverview]);
 
   const loadAll = useCallback(async () => {
     setLoadingOverview(true);
-    setLoadingTable(true);
+    if (showMomAnalysis) setLoadingTable(true);
+    else setLoadingTable(false);
     setLoadError(null);
     try {
-      const [ov, cr, mom] = await Promise.all([
-        fetchJobOpportunitiesOverview(queryParams),
-        fetchCrManagers(queryParams),
-        fetchMomTable(queryParams),
-      ]);
+      const requests = [fetchJobOpportunitiesOverview(queryParams)];
+      if (showAdminOverview) requests.push(fetchCrManagers(queryParams));
+      if (showMomAnalysis) requests.push(fetchMomTable(queryParams));
+
+      const results = await Promise.all(requests);
+      let i = 0;
+      const ov = results[i++];
       setOverview(ov?.row1 ? ov : EMPTY_OVERVIEW);
-      setCrData(cr || { jdsPunched: 0, managers: [] });
-      setMomRows(mom?.rows || []);
+      if (showAdminOverview) {
+        setCrData(results[i++] || { jdsPunched: 0, managers: [] });
+      } else {
+        setCrData({ jdsPunched: 0, managers: [] });
+      }
+      if (showMomAnalysis) {
+        setMomRows(results[i++]?.rows || []);
+      } else {
+        setMomRows([]);
+      }
     } catch (e) {
       console.error('Job opportunities load error:', e);
       setLoadError(
@@ -128,7 +145,7 @@ export function JobOpportunitiesSection({ embedded = false, showAdminOverview = 
       setLoadingOverview(false);
       setLoadingTable(false);
     }
-  }, [queryParams]);
+  }, [queryParams, showAdminOverview, showMomAnalysis]);
 
   useEffect(() => {
     loadAll();
@@ -298,12 +315,13 @@ export function JobOpportunitiesSection({ embedded = false, showAdminOverview = 
         </section>
         )}
 
-        {/* MoM Table */}
+        {/* MoM Table — SUPER_ADMIN only when gated via showMomAnalysis */}
+        {showMomAnalysis && (
         <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
           <SectionBar title="Admin wise MoM Detailed Analysis" />
           <div className="space-y-3 p-4">
-            <div className="flex flex-wrap gap-2 items-end">
-              <div className="w-40">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
+              <div className="min-w-0 w-full">
                 <CustomDropdown
                   label="Select Segments"
                   options={[
@@ -314,7 +332,7 @@ export function JobOpportunitiesSection({ embedded = false, showAdminOverview = 
                   onChange={(v) => setFilters((f) => ({ ...f, segment: v }))}
                 />
               </div>
-              <div className="w-36">
+              <div className="min-w-0 w-full">
                 <CustomDropdown
                   label="Select Quarter"
                   options={[
@@ -328,7 +346,7 @@ export function JobOpportunitiesSection({ embedded = false, showAdminOverview = 
                   onChange={(v) => setFilters((f) => ({ ...f, quarter: v, month: v ? '' : f.month }))}
                 />
               </div>
-              <div className="w-36">
+              <div className="min-w-0 w-full">
                 <CustomDropdown
                   label="Select Month"
                   options={[
@@ -342,26 +360,30 @@ export function JobOpportunitiesSection({ embedded = false, showAdminOverview = 
                   onChange={(v) => setFilters((f) => ({ ...f, month: v, quarter: v ? '' : f.quarter }))}
                 />
               </div>
-              <div className="relative flex-1 min-w-[200px] max-w-sm">
-                <Search className="absolute left-2.5 top-8 w-4 h-4 text-gray-400" />
-                <label className="block text-xs font-medium text-gray-600 mb-1">Search Admin</label>
-                <input
-                  type="text"
-                  value={filters.search}
-                  onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
-                  className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md text-sm"
-                  placeholder="Search..."
-                />
+              <div className="min-w-0 w-full">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-semibold text-gray-700">Search Admin</label>
+                  <button
+                    type="button"
+                    onClick={exportCsv}
+                    disabled={!momRows.length}
+                    className="p-1.5 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-40"
+                    title="Export CSV"
+                  >
+                    <Download className="w-4 h-4 text-gray-600" />
+                  </button>
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={filters.search}
+                    onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
+                    className="w-full pl-9 pr-4 py-3 text-sm border-2 border-gray-300 rounded-lg bg-white outline-none hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                    placeholder="Search..."
+                  />
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={exportCsv}
-                disabled={!momRows.length}
-                className="ml-auto p-2.5 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-40"
-                title="Export CSV"
-              >
-                <Download className="w-5 h-5 text-gray-600" />
-              </button>
             </div>
 
             {loadingTable ? (
@@ -426,6 +448,7 @@ export function JobOpportunitiesSection({ embedded = false, showAdminOverview = 
             )}
           </div>
         </section>
+        )}
     </>
   );
 
@@ -441,5 +464,13 @@ export function JobOpportunitiesSection({ embedded = false, showAdminOverview = 
 }
 
 export default function JobOpportunitiesDashboard() {
-  return <JobOpportunitiesSection embedded={false} />;
+  const { user, role } = useAuth();
+  const isSuperAdmin = (role || user?.role || '').toUpperCase() === 'SUPER_ADMIN';
+  return (
+    <JobOpportunitiesSection
+      embedded={false}
+      showAdminOverview={isSuperAdmin}
+      showMomAnalysis={isSuperAdmin}
+    />
+  );
 }

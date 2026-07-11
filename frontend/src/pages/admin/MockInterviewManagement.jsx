@@ -4,7 +4,7 @@ import {
   Plus, Calendar, Clock, Users,
   Search, MoreHorizontal, CheckCircle2,
   AlertCircle, Trash2, Edit2, Layout,
-  ChevronRight, Sparkles, Video,
+  ChevronRight, Sparkles,
 } from 'lucide-react';
 import api from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
@@ -280,26 +280,24 @@ export default function MockInterviewManagement({ autoOpenCreate = false }) {
             <button
               type="button"
               onClick={() => setMode('live')}
-              className={`px-4 sm:px-6 py-2 rounded-md font-medium transition-all duration-200 touch-manipulation flex items-center gap-2 ${
+              className={`px-4 sm:px-6 py-2 rounded-md font-medium transition-all duration-200 touch-manipulation ${
                 mainMode === 'live'
                   ? 'bg-indigo-500 text-white shadow-md'
                   : 'text-slate-600 hover:text-slate-800'
               }`}
             >
-              <Video className="w-4 h-4" />
-              Live 1:1 ({totalDrives})
+              Live 1:1
             </button>
             <button
               type="button"
               onClick={() => setMode('ai')}
-              className={`px-4 sm:px-6 py-2 rounded-md font-medium transition-all duration-200 touch-manipulation flex items-center gap-2 ${
+              className={`px-4 sm:px-6 py-2 rounded-md font-medium transition-all duration-200 touch-manipulation ${
                 mainMode === 'ai'
                   ? 'bg-violet-500 text-white shadow-md'
                   : 'text-slate-600 hover:text-slate-800'
               }`}
             >
-              <Sparkles className="w-4 h-4" />
-              AI Interviews ({aiInterviews.length})
+              AI Interviews
             </button>
           </div>
         </div>

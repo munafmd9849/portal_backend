@@ -9,15 +9,15 @@ const VALUE_COLORS = {
 };
 
 const STATUS_BADGE = {
-  green: 'bg-emerald-100 text-emerald-800',
-  red: 'bg-red-100 text-red-800',
-  amber: 'bg-amber-100 text-amber-800',
-  gray: 'bg-slate-100 text-slate-700',
-  blue: 'bg-sky-100 text-sky-800',
+  green: 'bg-emerald-50 text-emerald-800 border border-emerald-100',
+  red: 'bg-rose-50 text-rose-800 border border-rose-100',
+  amber: 'bg-amber-50 text-amber-800 border border-amber-100',
+  gray: 'bg-slate-50 text-slate-700 border border-slate-200',
+  blue: 'bg-sky-50 text-sky-800 border border-sky-100',
 };
 
 /**
- * Admin stat card with hover breakdown (reference dashboard style).
+ * Admin / CR manager stat card — matches My Stats / FunnelStatCard look.
  */
 export default function CrManagerCard({
   name,
@@ -28,15 +28,19 @@ export default function CrManagerCard({
   adminStatusLabel,
 }) {
   const [hovered, setHovered] = useState(false);
+  const isJds = variant === 'jds';
+  const expandable = !isJds && breakdown.length > 0;
 
-  const isPurple = variant === 'jds';
-  const cardClass = isPurple
-    ? 'rounded-md px-3 py-3 min-h-[88px] min-w-[120px] flex-1 flex flex-col justify-center border-2 border-[#c4b5dc] bg-[#e8dff5] shadow-sm'
-    : `rounded-md px-3 py-3 min-h-[88px] min-w-[110px] flex-1 flex flex-col justify-center border-2 shadow-sm cursor-pointer transition-all duration-200 ${
-        hovered ? 'border-emerald-400 ring-2 ring-emerald-200/60' : 'border-[#a8d4b4] bg-[#dff3e4]'
-      }`;
+  const cardClass = isJds
+    ? 'rounded-lg px-3 py-3 min-h-[88px] min-w-[120px] flex-1 flex flex-col justify-center border shadow-sm bg-white border-indigo-200'
+    : `rounded-lg px-3 py-3 min-h-[88px] min-w-[110px] flex-1 flex flex-col justify-center border shadow-sm bg-white border-emerald-200 transition-all duration-200 ${
+        expandable ? 'cursor-pointer' : ''
+      } ${hovered && expandable ? 'ring-2 ring-indigo-200' : ''}`;
 
-  const valueClass = isPurple ? 'text-2xl sm:text-3xl font-bold text-gray-900 tabular-nums mt-1' : 'text-2xl sm:text-3xl font-bold text-emerald-900 tabular-nums mt-1';
+  const labelClass = isJds ? 'text-xs font-medium leading-tight text-indigo-700' : 'text-xs font-medium leading-tight text-emerald-700';
+  const valueClass = isJds
+    ? 'text-2xl font-semibold text-indigo-900 tabular-nums mt-1'
+    : 'text-2xl font-semibold text-emerald-900 tabular-nums mt-1';
 
   return (
     <div
@@ -45,38 +49,38 @@ export default function CrManagerCard({
       onMouseLeave={() => setHovered(false)}
     >
       <div className={cardClass}>
-        <p className="text-xs text-gray-700 font-medium leading-tight truncate" title={name}>
+        <p className={`${labelClass} truncate`} title={name}>
           {name}
         </p>
         <p className={valueClass}>{value ?? 0}</p>
-        {!isPurple && adminStatusLabel && (
-          <p className="text-[10px] text-gray-500 mt-0.5 truncate">{adminStatusLabel}</p>
+        {!isJds && adminStatusLabel && (
+          <p className="text-[10px] text-slate-500 mt-0.5 truncate">{adminStatusLabel}</p>
         )}
       </div>
 
-      {!isPurple && hovered && breakdown.length > 0 && (
+      {expandable && hovered && (
         <div
           className={`absolute z-[100] min-w-[260px] max-w-[300px] top-full mt-1
-            bg-white rounded-lg border border-gray-200 shadow-lg py-2 px-3
+            bg-white rounded-lg border border-slate-200 shadow-lg py-2 px-3
             opacity-0 translate-y-1 animate-[crPopoverIn_0.2s_ease-out_forwards]
             ${popoverAlign === 'end' ? 'right-0 left-auto' : 'left-0'}`}
           role="tooltip"
         >
-          <p className="text-xs font-semibold text-gray-800 mb-2 pb-1 border-b border-gray-100 truncate" title={name}>
+          <p className="text-xs font-semibold text-slate-900 mb-2 pb-1 border-b border-slate-100 truncate" title={name}>
             {name}
           </p>
           {breakdown.map((item, idx) => (
             <div
               key={item.label}
-              className={`flex justify-between gap-4 py-1.5 text-sm ${idx < breakdown.length - 1 ? 'border-b border-gray-50' : ''}`}
+              className={`flex justify-between gap-4 py-1.5 text-sm ${idx < breakdown.length - 1 ? 'border-b border-slate-50' : ''}`}
             >
-              <span className="text-gray-600 shrink-0">{item.label}</span>
+              <span className="text-slate-600 shrink-0">{item.label}</span>
               {item.value != null ? (
                 <span className={`font-semibold px-2 py-0.5 rounded text-xs ${STATUS_BADGE[item.color] || STATUS_BADGE.gray}`}>
                   {item.value}
                 </span>
               ) : (
-                <span className={`font-semibold tabular-nums ${VALUE_COLORS[item.color] || 'text-gray-900'}`}>
+                <span className={`font-semibold tabular-nums ${VALUE_COLORS[item.color] || 'text-slate-900'}`}>
                   {item.count ?? 0}
                 </span>
               )}

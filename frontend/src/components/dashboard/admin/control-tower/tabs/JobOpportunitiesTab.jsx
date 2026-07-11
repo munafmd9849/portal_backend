@@ -1,25 +1,5 @@
 import React from 'react';
 import MetricCard, { SectionHeader, SectionBody } from '../shared/MetricCard';
-import MomTable from '../shared/MomTable';
-
-function CrManagerStrip({ crManagers }) {
-  const managers = crManagers?.managers || [];
-  return (
-    <div className="flex flex-wrap gap-2.5">
-      <MetricCard label="JDs Punched" value={crManagers?.jdsPunched ?? 0} variant="green" className="min-w-[120px]" />
-      {managers.map((m) => (
-        <MetricCard
-          key={m.id}
-          label={m.name}
-          value={m.count}
-          subValue={m.adminStatusLabel}
-          variant="blue"
-          className="min-w-[110px]"
-        />
-      ))}
-    </div>
-  );
-}
 
 export default function JobOpportunitiesTab({ data }) {
   if (!data || data.blocked) {
@@ -28,11 +8,10 @@ export default function JobOpportunitiesTab({ data }) {
 
   const r1 = data.overview?.row1 || {};
   const r2 = data.overview?.row2 || {};
-  const momRows = data.momTable?.rows || [];
 
   return (
     <div className="space-y-5">
-      <section className="bg-white rounded-md border border-[#b0c9db] shadow-sm overflow-hidden">
+      <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <SectionHeader title="Overview — Track Your Institute's Activity & Performance at a Glance" />
         <SectionBody className="space-y-2.5">
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
@@ -54,20 +33,6 @@ export default function JobOpportunitiesTab({ data }) {
             <MetricCard label="Learner Not Applied" value={r2.learnerNotApplied} variant="amber" />
             <MetricCard label="Not Deliverable" value={r2.notDeliverable} variant="amber" />
           </div>
-        </SectionBody>
-      </section>
-
-      <section className="bg-white rounded-md border border-[#b0c9db] shadow-sm overflow-hidden">
-        <SectionHeader title="CR Managers Overview" />
-        <SectionBody>
-          <CrManagerStrip crManagers={data.crManagers} />
-        </SectionBody>
-      </section>
-
-      <section className="bg-white rounded-md border border-[#b0c9db] shadow-sm overflow-hidden">
-        <SectionHeader title="CR Manager wise MoM Detailed Analysis" />
-        <SectionBody>
-          <MomTable rows={momRows} />
         </SectionBody>
       </section>
     </div>

@@ -5,7 +5,7 @@ import CrManagerCard from './CrManagerCard';
 import FunnelStatCard from './FunnelStatCard';
 import { fetchCrManagers } from '../../../services/jobOpportunities';
 import { PieChart } from 'react-minimal-pie-chart';
-import { Filter, TrendingUp, Users, Briefcase, MessageSquare, X, Loader2 } from 'lucide-react';
+import { Filter, TrendingUp, Users, Briefcase, MessageSquare, X, Loader2, MapPin, GraduationCap, Shield } from 'lucide-react';
 import { FaMapMarkerAlt, FaGraduationCap, FaUsers, FaUserShield } from 'react-icons/fa';
 import CustomDropdown from '../../common/CustomDropdown';
 import { adminDashboardService } from '../../../services/adminDashboard';
@@ -92,6 +92,10 @@ export default function AdminHome({ embedded = false }) {
   }, []);
 
   useEffect(() => {
+    if (!isSuperAdmin) {
+      setLoadingAdminOverview(false);
+      return undefined;
+    }
     let cancelled = false;
     const loadAdminOverview = async () => {
       setLoadingAdminOverview(true);
@@ -107,7 +111,7 @@ export default function AdminHome({ embedded = false }) {
     };
     loadAdminOverview();
     return () => { cancelled = true; };
-  }, []);
+  }, [isSuperAdmin]);
 
   const mapFiltersForService = (uiFilters) => {
     return {
@@ -435,56 +439,60 @@ export default function AdminHome({ embedded = false }) {
         </div>
       </section>
 
-      {/* Currently active drives */}
+      {/* Currently active drives — compact list */}
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-200">
           <h2 className="text-base font-semibold text-slate-900">Currently Active Drives</h2>
         </div>
-        <div className="overflow-x-auto">
+        <div className="bg-slate-50">
           {isLoading ? (
             <div className="flex justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
             </div>
+          ) : activeDrives.length === 0 ? (
+            <p className="px-4 py-10 text-center text-sm text-slate-500">
+              No active drives in your campus scope
+            </p>
           ) : (
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="bg-slate-50 text-slate-700">
-                  {['Company', 'Role', 'Applications', 'Shortlisted', 'Interview Date', 'Status'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left font-semibold border-b border-slate-200 whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {activeDrives.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-slate-500">No active drives in your campus scope</td>
-                  </tr>
-                ) : (
-                  activeDrives.map((drive) => (
-                    <tr key={drive.id} className="hover:bg-slate-50/80">
-                      <td className="px-4 py-3 border-b border-slate-100 font-medium text-slate-900">{drive.company}</td>
-                      <td className="px-4 py-3 border-b border-slate-100 text-slate-700">{drive.role}</td>
-                      <td className="px-4 py-3 border-b border-slate-100 tabular-nums">{drive.applications}</td>
-                      <td className="px-4 py-3 border-b border-slate-100 tabular-nums">{drive.shortlisted}</td>
-                      <td className="px-4 py-3 border-b border-slate-100 whitespace-nowrap">{formatDriveDate(drive.interviewDate)}</td>
-                      <td className="px-4 py-3 border-b border-slate-100">
-                        <span className="inline-flex px-2 py-0.5 rounded-md text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
-                          {driveStatusLabel(drive.status)}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+            <ul className="divide-y divide-slate-200">
+              {activeDrives.map((drive) => {
+                const interviewLabel = formatDriveDate(drive.interviewDate);
+                return (
+                  <li
+                    key={drive.id}
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 py-3 bg-white hover:bg-slate-50/80 transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-900 truncate">{drive.company}</p>
+                      <p className="text-xs text-slate-500 truncate mt-0.5">{drive.role}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5 sm:justify-end shrink-0">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium tabular-nums bg-white text-slate-600 border border-slate-200">
+                        {drive.applications ?? 0} applications
+                      </span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium tabular-nums bg-white text-slate-600 border border-slate-200">
+                        {drive.shortlisted ?? 0} shortlisted
+                      </span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-white text-slate-600 border border-slate-200">
+                        {interviewLabel === '—' ? 'No interview date' : `Interview date ${interviewLabel}`}
+                      </span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                        {driveStatusLabel(drive.status)}
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </div>
       </div>
 
-      {/* Admins overview */}
+      {/* Admins overview — SUPER_ADMIN only */}
+      {isSuperAdmin && (
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-visible">
         <div className="px-4 py-3 border-b border-slate-200">
-          <h2 className="text-base font-semibold text-slate-900">Admins Overview</h2>
+          <h2 className="text-sm font-semibold text-slate-900">Admins Overview</h2>
         </div>
         <div className="p-4 bg-slate-50">
           {loadingAdminOverview ? (
@@ -506,9 +514,16 @@ export default function AdminHome({ embedded = false }) {
           )}
         </div>
       </div>
+      )}
 
       {/* Job Opportunities */}
-      {isAdminUser && <JobOpportunitiesSection embedded showAdminOverview={false} />}
+      {isAdminUser && (
+        <JobOpportunitiesSection
+          embedded
+          showAdminOverview={false}
+          showMomAnalysis={isSuperAdmin}
+        />
+      )}
     </div>
   );
 }

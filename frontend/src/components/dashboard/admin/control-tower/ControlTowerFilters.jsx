@@ -20,7 +20,7 @@ export default function ControlTowerFilters({ filterOptions, filters, onChange, 
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 items-end">
         <CustomDropdown
           label="Program/Specialization"
           options={programOptions}
@@ -51,32 +51,35 @@ export default function ControlTowerFilters({ filterOptions, filters, onChange, 
           value={filters.crManager || ''}
           onChange={(v) => onChange({ ...filters, crManager: v })}
         />
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Duration</label>
-          <div className="flex gap-1">
+        <div className="sm:col-span-2 xl:col-span-2 min-w-0">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Duration</label>
+          <div className="grid grid-cols-2 gap-3 min-w-0">
             <input
               type="date"
               value={filters.from || ''}
               onChange={(e) => onChange({ ...filters, from: e.target.value })}
-              className="w-full border border-gray-300 rounded-md px-2 py-2 text-xs"
+              className="min-w-0 w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-sm text-gray-900 bg-white hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none"
             />
             <input
               type="date"
               value={filters.to || ''}
               onChange={(e) => onChange({ ...filters, to: e.target.value })}
-              className="w-full border border-gray-300 rounded-md px-2 py-2 text-xs"
+              className="min-w-0 w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-sm text-gray-900 bg-white hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>
         </div>
-      </div>
-      <div className="mt-3 flex justify-end">
-        <button
-          type="button"
-          onClick={onApply}
-          className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700"
-        >
-          Apply filters
-        </button>
+        <div className="min-w-0">
+          <label className="block text-sm font-semibold text-gray-700 mb-2 invisible select-none" aria-hidden>
+            Apply
+          </label>
+          <button
+            type="button"
+            onClick={onApply}
+            className="w-full border-2 border-indigo-600 rounded-lg px-4 py-3 text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 hover:border-indigo-700 focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
+          >
+            Apply filters
+          </button>
+        </div>
       </div>
     </div>
   );

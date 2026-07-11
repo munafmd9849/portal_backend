@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { FaMoneyBillWave, FaCalendarAlt, FaChartLine, FaHandshake, FaUserTie, FaMoneyCheckAlt } from "react-icons/fa";
 import { MdAttachMoney } from "react-icons/md";
 import GlareHover from "./GlareHover";
+import { getPublicLanding } from "../../services/cms";
 
-const stats = [
+const DEFAULT_STATS = [
   {
     label: "Highest CTC Offered",
     value: "₹45 LPA",
@@ -47,6 +48,36 @@ const stats = [
 ];
 
 const PlacementStats = () => {
+  const [stats, setStats] = useState(DEFAULT_STATS);
+  const [heading, setHeading] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const landing = await getPublicLanding('landing');
+        const section = (landing?.sections || []).find((s) => s.sectionKey === 'STATS');
+        if (!section || cancelled) return;
+        if (section.title) setHeading(section.title);
+        const cmsStats = section.meta?.stats;
+        if (Array.isArray(cmsStats) && cmsStats.length > 0) {
+          setStats(
+            cmsStats.map((item, i) => ({
+              label: item.label || `Stat ${i + 1}`,
+              value: item.value || '—',
+              icon: DEFAULT_STATS[i % DEFAULT_STATS.length].icon,
+            })),
+          );
+        }
+      } catch {
+        /* keep defaults */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <section className="relative py-8 sm:py-12 px-4 flex flex-col items-center overflow-hidden">
       {/* Background */}
@@ -56,6 +87,10 @@ const PlacementStats = () => {
       <div className="relative z-10 max-w-6xl w-full">
         {/* Heading with sparkle effect */}
         <h2 className="text-3xl sm:text-4xl font-bold mb-6 sm:mb-8 text-gray-900 text-center">
+          {heading ? (
+            heading
+          ) : (
+            <>
           Heard the WHY —{" "}
           <span
             className="relative px-1 bg-gradient-to-t from-yellow-400 to-yellow-400 bg-no-repeat
@@ -117,6 +152,8 @@ const PlacementStats = () => {
               </svg>
             </span>
           </span>
+            </>
+          )}
         </h2>
 
         {/* Laptop and up: hover cards with separation */}

@@ -13,7 +13,7 @@ export default function StudentsTab({ data }) {
 
   return (
     <div className="space-y-5">
-      <section className="bg-white rounded-md border border-[#b0c9db] shadow-sm overflow-hidden">
+      <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <SectionHeader title="Key Metrics" />
         <SectionBody>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
@@ -30,7 +30,7 @@ export default function StudentsTab({ data }) {
         </SectionBody>
       </section>
 
-      <section className="bg-white rounded-md border border-[#b0c9db] shadow-sm overflow-hidden">
+      <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <SectionHeader title="Profile Readiness Overview" />
         <SectionBody className="space-y-4">
           <MetricCard
@@ -52,7 +52,7 @@ export default function StudentsTab({ data }) {
         </SectionBody>
       </section>
 
-      <section className="bg-white rounded-md border border-[#b0c9db] shadow-sm overflow-hidden">
+      <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <SectionHeader title="Internship & Career Outcomes" />
         <SectionBody>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
@@ -74,7 +74,7 @@ export default function StudentsTab({ data }) {
         </SectionBody>
       </section>
 
-      <section className="bg-white rounded-md border border-[#b0c9db] shadow-sm overflow-hidden">
+      <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <SectionHeader title="Academic Overview" />
         <SectionBody>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">

@@ -7,6 +7,7 @@ import WhyPw from './components/landing/WhyPw'
 import MasonryStats from './components/landing/stats'
 import Preloader from './components/landing/PreLoader'
 import OurPartners from './components/landing/OurPartners'
+import SuccessStoryCarousel from './components/landing/SuccessStoryCarousel'
 import PWIOIFooter from './components/landing/Footer'
 import PlacementTimeline from './components/landing/PlacementTimeline'
 import AdminSlider from './components/landing/CareerService'
@@ -144,6 +145,11 @@ function LandingPage() {
           {/* Stats - comes under WhyPw, before OurPartners */}
           <div className='bg-[#FFEECE]'>
             <MasonryStats />
+          </div>
+
+          {/* Student success stories — from Success Stories admin */}
+          <div id="success-stories" className='bg-[#FFEECE]'>
+            <SuccessStoryCarousel />
           </div>
 
           {/* OurPartners - Odd component #F2F0EA */}

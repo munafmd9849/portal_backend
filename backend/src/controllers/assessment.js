@@ -644,6 +644,10 @@ export async function logViolation(req, res) {
     const { sessionId } = req.params;
     const { type, details, meta } = req.body || {};
 
+    if (!type || typeof type !== 'string') {
+      return res.status(400).json({ error: 'Violation type is required' });
+    }
+
     const session = await prisma.assessmentSession.findUnique({
       where: { id: sessionId },
       include: { student: { select: { userId: true, fullName: true } } },
@@ -653,12 +657,18 @@ export async function logViolation(req, res) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
+    const metaObj = meta
+      ? (typeof meta === 'string' ? (() => { try { return JSON.parse(meta); } catch { return {}; } })() : meta)
+      : {};
+    const severity = metaObj.severity || 'MEDIUM';
+
     await prisma.assessmentViolation.create({
       data: {
         sessionId,
-        type,
-        details: details || null,
-        meta: meta ? (typeof meta === 'string' ? meta : JSON.stringify(meta)) : null,
+        type: String(type).slice(0, 64),
+        severity: String(severity).slice(0, 16),
+        details: details ? String(details).slice(0, 2000) : null,
+        meta: JSON.stringify(metaObj),
       }
     });
 
@@ -666,7 +676,9 @@ export async function logViolation(req, res) {
     const updated = await prisma.assessmentSession.update({
       where: { id: sessionId },
       data: {
-        violationsCount: { increment: 1 }
+        violationsCount: { increment: 1 },
+        warningCount: { increment: 1 },
+        lastWarningAt: new Date(),
       }
     });
 
@@ -679,7 +691,7 @@ export async function logViolation(req, res) {
     const latest = await prisma.assessmentViolation.findFirst({
       where: { sessionId },
       orderBy: { timestamp: 'desc' },
-      select: { id: true, type: true, timestamp: true },
+      select: { id: true, type: true, severity: true, details: true, timestamp: true },
     });
 
     emitProctoringLiveUpdate(session.assessmentId, {
@@ -690,8 +702,14 @@ export async function logViolation(req, res) {
       violationsCount: updated.violationsCount,
     });
 
-    res.json({ success: true, violation: latest });
+    res.json({
+      success: true,
+      violation: latest,
+      violationsCount: updated.violationsCount,
+      riskLevel: computeRiskLevel(updated.violationsCount),
+    });
   } catch (error) {
+    console.error('logViolation error:', error);
     res.status(500).json({ error: 'Failed to log violation' });
   }
 }

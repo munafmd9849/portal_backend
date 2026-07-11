@@ -259,7 +259,7 @@ export default function AdminApplicantsHub() {
 
       {/* Control Bar (Filters) */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
-        <div className="flex flex-col sm:flex-row items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">
           <CompanyFilterDropdown
             companies={allCompanies}
             value={filters.company}
@@ -268,7 +268,7 @@ export default function AdminApplicantsHub() {
           {hasActiveFilters && (
             <button
               onClick={resetFilters}
-              className="p-2.5 bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 rounded-md transition-colors shrink-0"
+              className="p-2.5 bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 rounded-md transition-colors shrink-0 self-end sm:self-auto"
               title="Clear filter"
             >
               <X className="w-5 h-5" />

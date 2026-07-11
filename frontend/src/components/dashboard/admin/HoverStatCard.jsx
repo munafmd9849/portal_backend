@@ -10,10 +10,10 @@ const VALUE_COLORS = {
 };
 
 const TONE_STYLES = {
-  good: { card: 'bg-emerald-50 border-emerald-200', value: 'text-emerald-800' },
-  bad: { card: 'bg-red-50 border-red-200', value: 'text-red-800' },
-  warn: { card: 'bg-amber-50 border-amber-200', value: 'text-amber-800' },
-  neutral: { card: 'bg-sky-50 border-sky-200', value: 'text-slate-800' },
+  good: { card: 'bg-white border-emerald-200', label: 'text-emerald-700', value: 'text-emerald-900' },
+  bad: { card: 'bg-white border-rose-200', label: 'text-rose-700', value: 'text-rose-900' },
+  warn: { card: 'bg-white border-amber-200', label: 'text-amber-700', value: 'text-amber-900' },
+  neutral: { card: 'bg-white border-slate-200', label: 'text-sky-700', value: 'text-slate-900' },
 };
 
 const EMBED_BORDERS = ['border-blue-200', 'border-green-200', 'border-purple-200', 'border-red-200'];
@@ -66,18 +66,20 @@ export default function HoverStatCard({
 
   const overviewCard = overviewStyle || !embedded;
   const cardClass = overviewCard
-    ? `rounded-md px-3 py-3 min-h-[88px] min-w-[110px] flex-1 flex flex-col justify-center transition-all duration-200 border-2 shadow-sm ${
+    ? `rounded-lg px-3 py-3 min-h-[88px] min-w-[110px] flex-1 flex flex-col justify-center transition-all duration-200 border shadow-sm ${
         toneStyle.card
-      } ${hovered && expandable ? 'ring-2 ring-slate-400/50' : ''} ${
+      } ${hovered && expandable ? 'ring-2 ring-indigo-200' : ''} ${
         expandable ? 'cursor-pointer' : ''
       }`
     : `bg-white p-4 rounded-xl shadow-sm border-l-4 ${borderAccent} hover:shadow-md transition-all duration-300 min-h-[88px] flex flex-col justify-center ${
         hovered && expandable ? 'ring-2 ring-blue-500/40' : ''
       } ${expandable ? 'cursor-pointer' : ''}`;
 
-  const labelClass = overviewCard ? 'text-xs text-gray-700 font-medium leading-tight' : 'text-sm text-gray-600';
+  const labelClass = overviewCard
+    ? `text-xs font-medium leading-tight ${toneStyle.label}`
+    : 'text-sm text-gray-600';
   const valueClass = overviewCard
-    ? `text-2xl sm:text-3xl font-bold tabular-nums mt-1 ${toneStyle.value}`
+    ? `text-2xl font-semibold tabular-nums mt-1 ${toneStyle.value}`
     : 'text-2xl font-bold text-gray-800 mt-2 tabular-nums';
 
   return (

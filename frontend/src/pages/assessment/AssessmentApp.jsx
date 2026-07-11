@@ -19,6 +19,8 @@ import {
 } from '../../coding-engine';
 import CodingProblemPanel from '../../components/coding/CodingProblemPanel';
 import ProctoringConsole from '../../components/assessment/ProctoringConsole';
+import SecureExamStatusBar from '../../components/assessment/SecureExamStatusBar';
+import ViolationTimeline from '../../components/assessment/ViolationTimeline';
 import { ProctoringEngine } from '../../proctoring-engine/ProctoringEngine';
 import { defaultProctoringConfig } from '../../proctoring-engine/constants';
 import {
@@ -162,10 +164,20 @@ export default function AssessmentApp() {
   const [isPreCheckDone, setIsPreCheckDone] = useState(false);
   const [violations, setViolations] = useState(0);
   const [lastViolationType, setLastViolationType] = useState(null);
+  const [violationTimeline, setViolationTimeline] = useState([]);
+  const [secureStatus, setSecureStatus] = useState({
+    secureMode: false,
+    fullscreen: false,
+    camera: false,
+    microphone: false,
+    online: true,
+    multiMonitor: null,
+  });
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState(null);
   const submittingRef = useRef(false);
+  const submitAssessmentRef = useRef(null);
   
   // Refs
   const videoRef = useRef(null);
@@ -305,11 +317,19 @@ export default function AssessmentApp() {
       await api.logProctoringViolation(sess.id, { type, details, meta });
       setViolations(v => v + 1);
       setLastViolationType(type.replace(/_/g, ' '));
-      toast?.warning(`Proctoring Alert: ${type.replace(/_/g, ' ')} detected.`);
+      setViolationTimeline((prev) => [
+        ...prev,
+        {
+          type,
+          details,
+          severity: meta?.severity || 'MEDIUM',
+          at: new Date().toISOString(),
+        },
+      ]);
     } catch (e) {
       console.error('Violation log failed', e);
     }
-  }, [isInterviewer, toast]);
+  }, [isInterviewer]);
 
   // 4. Jitsi Integration (Configurable and robust)
   useEffect(() => {
@@ -408,7 +428,18 @@ export default function AssessmentApp() {
         screenshotDebounceMs: 8000,
         liveFrameToAdmin: false,
         faceMonitoring: true,
-        autoSubmit: { enabled: false, threshold: 10 },
+        clipboardGuard: true,
+        contextMenuGuard: true,
+        selectionGuard: false,
+        shortcutGuard: true,
+        resizeGuard: true,
+        navigationGuard: true,
+        multiMonitorWarn: true,
+        connectivityMonitor: true,
+        autoSubmit: {
+          enabled: p.autoSubmit !== false && p.autoSubmitEnabled !== false,
+          threshold: Number(p.violationLimit || p.autoSubmitThreshold || 10) || 10,
+        },
       };
     } catch {
       return { ...defaultProctoringConfig };
@@ -434,18 +465,28 @@ export default function AssessmentApp() {
         if (level === 'error') toast?.error(message);
         else if (level === 'warn') toast?.warning(message);
       },
-      onAutoSubmit: ({ reason }) => {
-        toast?.warning(
+      onViolation: ({ type, details, severity, count, at }) => {
+        setSecureStatus((prev) => ({ ...prev, ...(engine.getSecureStatus?.() || {}) }));
+        setLastViolationType(String(type || '').replace(/_/g, ' '));
+      },
+      onAutoSubmit: async ({ reason, count, threshold }) => {
+        toast?.error(
           reason
-            ? `${reason}. Your attempt was not submitted — finish manually when ready.`
-            : 'Proctoring alert recorded. Finish manually when ready.'
+            ? `${reason} (${count}/${threshold}). Auto-submitting your attempt…`
+            : 'Violation limit reached. Auto-submitting…'
         );
+        try {
+          await submitAssessmentRef.current?.();
+        } catch (err) {
+          console.error('Auto-submit failed', err);
+          toast?.error('Auto-submit failed. Please submit manually.');
+        }
       },
       config: cfg,
     });
     proctorRef.current = engine;
     return engine;
-  }, [getProctoringConfig, logViolation, session, toast, assessmentId]);
+  }, [getProctoringConfig, logViolation, toast, assessmentId]);
 
   const runPrecheckValidation = useCallback(async () => {
     const e = proctorRef.current;
@@ -691,6 +732,20 @@ export default function AssessmentApp() {
       submittingRef.current = false;
     }
   };
+  submitAssessmentRef.current = submitAssessment;
+
+  useEffect(() => {
+    if (!isPreCheckDone || isInterviewer) return undefined;
+    const syncSecureStatus = () => {
+      const engine = proctorRef.current;
+      if (!engine?.getSecureStatus) return;
+      setSecureStatus(engine.getSecureStatus());
+      setCameraLive(engine.isCameraActive());
+    };
+    syncSecureStatus();
+    const id = setInterval(syncSecureStatus, 2000);
+    return () => clearInterval(id);
+  }, [isPreCheckDone, isInterviewer]);
 
   useEffect(() => {
     return () => {
@@ -1086,6 +1141,16 @@ export default function AssessmentApp() {
           </button>
         </div>
         </header>
+        {!isInterviewer && (
+          <div className="mt-3">
+            <SecureExamStatusBar
+              status={secureStatus}
+              violations={violations}
+              threshold={getProctoringConfig()?.autoSubmit?.threshold ?? 10}
+              autoSubmitEnabled={getProctoringConfig()?.autoSubmit?.enabled !== false}
+            />
+          </div>
+        )}
       </div>
 
       <div className="flex-1 flex overflow-hidden min-h-0 relative">
@@ -1344,6 +1409,10 @@ export default function AssessmentApp() {
                 borderless
                 compact
               />
+              <div className="shrink-0 max-h-36 overflow-y-auto border-t border-slate-800 p-2">
+                <p className="mb-1.5 text-[8px] font-black uppercase tracking-widest text-slate-500">Violation Timeline</p>
+                <ViolationTimeline items={violationTimeline} compact emptyLabel="Clean session so far." />
+              </div>
             </div>
 
             {/* Bottom half — questions */}

@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -1275,7 +1275,7 @@ model AssessmentQuestion {
   assessmentId  String
   questionText  String
   description   String?
-  type          String // MCQ, CODING, DESCRIPTIVE
+  type          String // MCQ, CODING, DESCRIPTIVE, SQL, CASE_STUDY, PROGRAMMING_CHALLENGE
   options       String? // JSON for MCQ
   correctAnswer String?
   points        Int        @default(1)
@@ -1285,9 +1285,18 @@ model AssessmentQuestion {
   constraints   String?   // Coding: limits (time, memory, input bounds)
   examples      String? // JSON: [{ input, output, explanation }] — shown to students
   testCases     String? // JSON: [{ input, expectedOutput, hidden }] — judge cases
+  explanation   String?
+  hints         String? // JSON string array
+  tags          String? // JSON string array
+  topic         String?
+  category      String?
+  timeLimitSec  Int?
+  language      String? // Preferred language for coding/SQL
   assessment    Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
 
   @@index([assessmentId])
+  @@index([type])
+  @@index([topic])
   @@map("assessment_questions")
 }
 
@@ -1317,7 +1326,10 @@ model AssessmentSession {
   score           Float?
   responses       String? // JSON string of answers
   violationsCount Int                    @default(0)
+  warningCount    Int                    @default(0)
   riskLevel       String                 @default("LOW") // LOW, MEDIUM, HIGH
+  lastWarningAt   DateTime?
+  secureModeMeta  String? // JSON: last known secure-exam status snapshot
   assessment      Assessment             @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
   student         Student                @relation(fields: [studentId], references: [id], onDelete: Cascade)
   violations      AssessmentViolation[]
@@ -1327,20 +1339,24 @@ model AssessmentSession {
   @@unique([assessmentId, studentId])
   @@index([assessmentId])
   @@index([studentId])
+  @@index([riskLevel])
   @@map("assessment_sessions")
 }
 
 model AssessmentViolation {
-  id        String            @id @default(uuid())
-  sessionId String
-  type      String // TAB_SWITCH, NO_FACE, MULTIPLE_FACES, WINDOW_BLUR, FULLSCREEN_EXIT
-  timestamp DateTime          @default(now())
-  details   String?
+  id           String                 @id @default(uuid())
+  sessionId    String
+  type         String // TAB_SWITCH, WINDOW_BLUR, FULLSCREEN_EXIT, COPY_ATTEMPT, PASTE_ATTEMPT, RIGHT_CLICK, TEXT_SELECTION, DEVTOOLS_SHORTCUT, PRINT_SCREEN, MULTI_MONITOR, RESIZE, NAVIGATION_ATTEMPT, PAGE_REFRESH, NO_FACE_DETECTED, MULTIPLE_FACES, AUDIO_SPIKE, etc.
+  severity     String                 @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  timestamp    DateTime               @default(now())
+  details      String?
   meta         String? // JSON string: device info, face count, etc.
   session      AssessmentSession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   screenshots  AssessmentScreenshot[]
 
   @@index([sessionId])
+  @@index([type])
+  @@index([timestamp])
   @@map("assessment_violations")
 }
 
@@ -1378,5 +1394,125 @@ model AssessmentScreenshot {
   @@index([sessionId])
   @@index([captureType])
   @@map("assessment_screenshots")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Phase 1 – Landing CMS, Success Stories, Bulk Import, Search
+// ─────────────────────────────────────────────────────────────
+
+model CmsSection {
+  id            String    @id @default(uuid())
+  pageSlug      String    @default("landing") // landing | about | etc.
+  sectionKey    String // HERO, STATS, PARTNER_LOGO, FEATURED_COMPANY, TESTIMONIAL, SUCCESS_HIGHLIGHT, EVENT, ANNOUNCEMENT, FAQ, FOOTER, CONTACT, CTA, ALUMNI
+  title         String?
+  subtitle      String?
+  body          String? // rich text / markdown / HTML
+  mediaUrl      String?
+  mediaPublicId String?
+  mediaType     String? // IMAGE | VIDEO
+  ctaLabel      String?
+  ctaUrl        String?
+  meta          String    @default("{}") // JSON: stats value, contact fields, etc.
+  sortOrder     Int       @default(0)
+  status        String    @default("DRAFT") // DRAFT | PUBLISHED | ARCHIVED
+  publishedAt   DateTime?
+  createdById   String?
+  updatedById   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([pageSlug, status])
+  @@index([sectionKey])
+  @@index([sortOrder])
+  @@map("cms_sections")
+}
+
+model CmsVersion {
+  id          String   @id @default(uuid())
+  pageSlug    String   @default("landing")
+  version     Int
+  label       String?
+  snapshot    String // JSON array of sections at publish time
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@unique([pageSlug, version])
+  @@index([pageSlug])
+  @@map("cms_versions")
+}
+
+model SuccessStory {
+  id           String   @id @default(uuid())
+  type         String // STUDENT_SUCCESS | COMPANY_HIRING | ALUMNI | INTERNSHIP | PLACEMENT_ACHIEVEMENT
+  title        String
+  description  String?
+  richContent  String? // rich text HTML/markdown
+  images       String   @default("[]") // JSON array of { url, publicId }
+  videoUrl     String?
+  company      String?
+  studentName  String?
+  studentId    String?
+  branch       String?
+  campus       String?
+  batch        String?
+  packageCtc   String?
+  jobRole      String?
+  tags         String   @default("[]") // JSON string array
+  status       String   @default("DRAFT") // DRAFT | PUBLISHED | ARCHIVED
+  featured     Boolean  @default(false)
+  sortOrder    Int      @default(0)
+  createdById  String?
+  updatedById  String?
+  publishedAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status, featured])
+  @@index([type])
+  @@index([sortOrder])
+  @@map("success_stories")
+}
+
+model AssessmentImportBatch {
+  id             String    @id @default(uuid())
+  assessmentId   String?
+  uploadedById   String
+  fileName       String
+  fileType       String // xlsx | csv
+  status         String    @default("VALIDATING") // VALIDATING | PREVIEW | IMPORTING | COMPLETED | FAILED | PARTIAL | ROLLED_BACK
+  totalRows      Int       @default(0)
+  successCount   Int       @default(0)
+  errorCount     Int       @default(0)
+  duplicateCount Int       @default(0)
+  previewData    String? // JSON validated rows
+  errorReport    String? // JSON row-level errors
+  importedIds    String? // JSON question ids created (for rollback)
+  summary        String? // JSON success summary
+  createdAt      DateTime  @default(now())
+  completedAt    DateTime?
+
+  @@index([assessmentId])
+  @@index([uploadedById])
+  @@index([status])
+  @@index([createdAt])
+  @@map("assessment_import_batches")
+}
+
+model SearchIndexMeta {
+  id          String   @id @default(uuid())
+  entityType  String // STUDENT | JOB | RECRUITER | COMPANY | APPLICATION | ASSESSMENT | INTERVIEW | RESUME | ADMIN | CAMPUS | BRANCH | BATCH
+  entityId    String
+  title       String
+  subtitle    String?
+  keywords    String // space-joined searchable text
+  href        String?
+  meta        String   @default("{}")
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@unique([entityType, entityId])
+  @@index([entityType])
+  @@index([keywords])
+  @@map("search_index_meta")
 }
 
