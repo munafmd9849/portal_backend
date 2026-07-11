@@ -67,6 +67,7 @@ import adminPlacementCalendarRoutes from './routes/adminPlacementCalendar.js';
 import mockInterviewRoutes from './routes/mockInterview.js';
 import aiMockInterviewRoutes from './routes/aiMockInterview.js';
 import webrtcRoutes from './routes/webrtc.js';
+import { getJudge0Status } from './services/judge0.js';
 
 // ============================================
 // STARTUP VALIDATION: Required Environment Variables
@@ -132,6 +133,14 @@ console.log('  - GOOGLE_AI_TEMPERATURE:', process.env.GOOGLE_AI_TEMPERATURE || '
 console.log('  - AI_ENABLED:', process.env.AI_ENABLED !== 'false' ? 'true' : 'false');
 console.log('  - FRONTEND_URL:', process.env.FRONTEND_URL);
 logDatabaseTarget();
+const judge0Status = getJudge0Status();
+if (judge0Status.enabled) {
+  console.log(`⚖️  Judge0: enabled (${judge0Status.provider} → ${judge0Status.baseUrl})`);
+} else if (judge0Status.configured) {
+  console.log('⚖️  Judge0: configured but JUDGE0_ENABLED=false (using local runners)');
+} else {
+  console.log('⚖️  Judge0: not configured (using local python/node/java/cpp runners)');
+}
 
 const app = express();
 
@@ -392,6 +401,7 @@ async function start() {
       // For connection errors (P1001, P1017), retry (database might be sleeping)
       if (errorCode === 'P1001' || errorCode === 'P1017' || errorCode === 'P2024' ||
         errorMessage.includes("Can't reach database") ||
+        errorMessage.includes('Server has closed the connection') ||
         errorMessage.includes('connection pool') ||
         errorMessage.includes('Timed out')) {
         if (attempt < maxRetries) {

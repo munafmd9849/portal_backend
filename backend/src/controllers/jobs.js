@@ -30,6 +30,34 @@ const creatorInclude = {
 
 import { normalizeCustomQuestions } from '../utils/customQuestions.js';
 
+const creatorInclude = {
+  creator: {
+    select: {
+      id: true,
+      email: true,
+      displayName: true,
+    },
+  },
+};
+
+function normalizeCustomQuestions(value) {
+  if (!value) return '[]';
+  const list = Array.isArray(value)
+    ? value
+    : typeof value === 'string'
+      ? (() => {
+          try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : [value];
+          } catch {
+            return value.trim() ? [value] : [];
+          }
+        })()
+      : [];
+  const cleaned = list.map((q) => String(q).trim()).filter(Boolean);
+  return JSON.stringify(cleaned);
+}
+
 const isSqliteDb = () => (process.env.DATABASE_URL || '').toLowerCase().startsWith('file:');
 
 function attachDrivePhase(job, context = {}) {

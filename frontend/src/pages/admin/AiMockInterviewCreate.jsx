@@ -6,6 +6,13 @@ import {
 } from 'lucide-react';
 import api from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
+import { au } from '../../components/assessment/assessmentUi';
+import {
+  WizardProgress,
+  WizardField,
+  WizardFooter,
+  WizardModalHeader,
+} from '../../components/assessment/WizardPrimitives';
 import { combineDateAndTime } from '../../utils/datetimeWindow';
 
 const emptyQuestion = (orderIndex) => ({
@@ -320,7 +327,7 @@ export default function AiMockInterviewCreate() {
                   if (!validateWindow()) return;
                   setStep(2);
                 }}
-                className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold text-sm"
+                className={`w-full ${au.btnPrimary} py-2.5`}
               >
                 Next: Question builder
               </button>
@@ -399,7 +406,7 @@ export default function AiMockInterviewCreate() {
               >
                 <Plus className="w-4 h-4" /> Add question
               </button>
-              <button type="button" onClick={() => setStep(3)} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold text-sm">
+              <button type="button" onClick={() => setStep(3)} className={`w-full ${au.btnPrimary} py-2.5`}>
                 Next: Assign students
               </button>
             </div>

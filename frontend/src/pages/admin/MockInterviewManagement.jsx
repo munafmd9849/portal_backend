@@ -10,6 +10,7 @@ import api from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
 import MockInterviewCreateModal from '../../components/dashboard/admin/MockInterviewCreateModal';
 import MockInterviewEditDriveModal from '../../components/dashboard/admin/MockInterviewEditDriveModal';
+import { au } from '../../components/assessment/assessmentUi';
 import DirectoryLoadingPanel from '../../components/dashboard/admin/DirectoryLoading';
 
 function driveHasLiveSlots(drive) {
@@ -308,7 +309,7 @@ export default function MockInterviewManagement({ autoOpenCreate = false }) {
             <button
               type="button"
               onClick={openCreateModal}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-800 text-white rounded-md text-sm font-medium hover:bg-blue-900 transition-colors shrink-0"
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors shrink-0"
             >
               <Plus className="w-4 h-4" /> New live drive
             </button>
@@ -327,33 +328,31 @@ export default function MockInterviewManagement({ autoOpenCreate = false }) {
           {(mainMode === 'live' ? liveStats : aiStats).map((stat, i) => (
             <div
               key={i}
-              className="bg-white p-4 rounded-lg border border-gray-200 flex flex-col gap-1"
+              className={`${au.statCard} flex flex-col gap-1`}
             >
-              <p className="text-xs text-gray-500">{stat.label}</p>
-              <p className="text-xl font-semibold text-gray-900 tabular-nums">{stat.val}</p>
+              <p className={au.statLabel}>{stat.label}</p>
+              <p className={`text-xl ${au.statValue}`}>{stat.val}</p>
             </div>
           ))}
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 overflow-visible flex flex-col">
-          <div className="p-4 border-b border-gray-200 bg-gray-50 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="grid w-full grid-cols-4 gap-1 rounded-md bg-gray-100 p-1 lg:max-w-3xl lg:flex-1">
+        <div className={`${au.panel} overflow-visible flex flex-col`}>
+          <div className="p-4 border-b border-slate-200 bg-slate-50 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className={`grid w-full grid-cols-4 gap-1 rounded-lg ${au.tabBar} lg:max-w-3xl lg:flex-1`}>
               {filterTabs.map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => setFilterTab(tab.id)}
-                  className={`flex items-center justify-center gap-1.5 rounded px-2 py-2 text-xs font-medium transition-colors sm:gap-2 sm:px-3 ${
-                    filterTab === tab.id
-                      ? 'bg-white text-blue-800 shadow-sm'
-                      : 'text-gray-500 hover:bg-white/60 hover:text-gray-700'
+                  className={`flex items-center justify-center gap-1.5 rounded-md px-2 py-2 text-xs font-medium transition-colors sm:gap-2 sm:px-3 ${
+                    filterTab === tab.id ? au.tabActive : au.tabIdle
                   }`}
                 >
                   <span className="hidden sm:inline whitespace-nowrap">{tab.label}</span>
                   <span className="sm:hidden whitespace-nowrap">{tab.shortLabel}</span>
                   <span
                     className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] tabular-nums ${
-                      filterTab === tab.id ? 'bg-blue-50 text-blue-800' : 'bg-gray-200 text-gray-600'
+                      filterTab === tab.id ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-200 text-slate-600'
                     }`}
                   >
                     {tab.count}
@@ -371,7 +370,7 @@ export default function MockInterviewManagement({ autoOpenCreate = false }) {
                 }
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white border border-gray-300 rounded-md pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-800 focus:border-blue-800"
+                className={au.searchInput}
               />
             </div>
           </div>
@@ -399,7 +398,7 @@ export default function MockInterviewManagement({ autoOpenCreate = false }) {
                     <button
                       type="button"
                       onClick={openCreateModal}
-                      className="px-4 py-2 bg-blue-800 text-white rounded-md text-sm font-medium hover:bg-blue-900"
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700"
                     >
                       Create drive
                     </button>
@@ -425,7 +424,7 @@ export default function MockInterviewManagement({ autoOpenCreate = false }) {
                             <div
                               className={`w-11 h-11 rounded-md flex flex-col items-center justify-center flex-shrink-0 border ${
                                 hasActiveSession
-                                  ? 'bg-blue-800 text-white border-blue-800'
+                                  ? 'bg-indigo-600 text-white border-indigo-600'
                                   : 'bg-gray-50 text-gray-700 border-gray-200'
                               }`}
                             >
@@ -445,7 +444,7 @@ export default function MockInterviewManagement({ autoOpenCreate = false }) {
                                     isDraft
                                       ? 'bg-amber-50 text-amber-800 border-amber-200'
                                       : hasActiveSession
-                                        ? 'bg-blue-50 text-blue-800 border-blue-200'
+                                        ? 'bg-blue-50 text-indigo-700 border-blue-200'
                                         : isPast
                                           ? 'bg-gray-100 text-gray-600 border-gray-200'
                                           : 'bg-gray-50 text-gray-700 border-gray-200'
@@ -464,7 +463,7 @@ export default function MockInterviewManagement({ autoOpenCreate = false }) {
                                 </span>
                               </div>
                               <h3
-                                className="text-sm font-semibold text-gray-900 cursor-pointer hover:text-blue-800 truncate"
+                                className="text-sm font-semibold text-gray-900 cursor-pointer hover:text-indigo-700 truncate"
                                 onClick={() => navigate(`/admin?tab=mockInterviews-slots&id=${drive.id}`)}
                               >
                                 {drive.title}
@@ -498,7 +497,7 @@ export default function MockInterviewManagement({ autoOpenCreate = false }) {
                               <button
                                 type="button"
                                 onClick={() => handlePublishDrive(drive)}
-                                className="px-3 py-2 bg-blue-800 text-white rounded-md text-xs font-medium hover:bg-blue-900"
+                                className="px-3 py-2 bg-indigo-600 text-white rounded-md text-xs font-medium hover:bg-indigo-700"
                               >
                                 Publish
                               </button>
@@ -599,7 +598,7 @@ export default function MockInterviewManagement({ autoOpenCreate = false }) {
                           <div
                             className={`w-11 h-11 rounded-md flex flex-col items-center justify-center flex-shrink-0 border ${
                               isActive
-                                ? 'bg-blue-800 text-white border-blue-800'
+                                ? 'bg-indigo-600 text-white border-indigo-600'
                                 : 'bg-gray-50 text-gray-700 border-gray-200'
                             }`}
                           >
@@ -617,7 +616,7 @@ export default function MockInterviewManagement({ autoOpenCreate = false }) {
                               <span
                                 className={`px-2 py-0.5 text-[10px] font-medium rounded border ${
                                   isActive
-                                    ? 'bg-blue-50 text-blue-800 border-blue-200'
+                                    ? 'bg-blue-50 text-indigo-700 border-blue-200'
                                     : isPast
                                       ? 'bg-gray-100 text-gray-600 border-gray-200'
                                       : isDraft

@@ -47,3 +47,11 @@ export async function fetchStudentResumeViewUrl(studentId, resumeId) {
   );
   return res?.data ?? res;
 }
+
+export async function fetchStudentResumeViewUrl(studentId, resumeId) {
+  const res = await api.get(
+    `/admin/student-directory/${studentId}/resumes/${resumeId}/view-url`,
+    { noCache: true },
+  );
+  return res?.data ?? res;
+}

@@ -8,7 +8,22 @@ import {
 import { useNavigate } from 'react-router-dom';
 import api from '../../../services/api';
 import { getAssessmentEntryStatus, formatAssessmentWindow } from '../../../utils/assessmentEntryWindow';
+import { au } from '../../assessment/assessmentUi';
 import { useToast } from '../../ui/Toast';
+
+const STAT_ICON_BOX = {
+  blue: 'bg-indigo-50 border-indigo-100',
+  emerald: 'bg-emerald-50 border-emerald-100',
+  amber: 'bg-amber-50 border-amber-100',
+  slate: 'bg-gray-50 border-gray-200',
+};
+
+const STAT_ICON_COLOR = {
+  blue: 'text-indigo-600',
+  emerald: 'text-emerald-600',
+  amber: 'text-amber-600',
+  slate: 'text-gray-600',
+};
 
 export default function StudentAssessments() {
   const [assessments, setAssessments] = useState([]);
@@ -54,10 +69,12 @@ export default function StudentAssessments() {
 
   const getStatusConfig = (status) => {
     switch (status) {
-      case 'COMPLETED': return { color: 'text-emerald-600 bg-emerald-50 border-emerald-100', label: 'Completed' };
-      case 'PENDING_REVIEW': return { color: 'text-violet-600 bg-violet-50 border-violet-100', label: 'Awaiting Review' };
-      case 'IN_PROGRESS': return { color: 'text-amber-600 bg-amber-50 border-amber-100', label: 'In Progress' };
-      default: return { color: 'text-indigo-600 bg-indigo-50 border-indigo-100', label: 'Not Started' };
+      case 'COMPLETED':
+        return { color: 'text-emerald-700 bg-emerald-50 border-emerald-100', label: 'Completed' };
+      case 'IN_PROGRESS':
+        return { color: 'text-amber-700 bg-amber-50 border-amber-100', label: 'In Progress' };
+      default:
+        return { color: 'text-indigo-700 bg-indigo-50 border-indigo-100', label: 'Not Started' };
     }
   };
 
@@ -75,33 +92,37 @@ export default function StudentAssessments() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-32 space-y-4">
-        <div className="w-12 h-12 border-4 border-slate-100 border-t-indigo-600 rounded-full animate-spin" />
-        <p className="text-slate-400 font-bold text-xs uppercase tracking-widest animate-pulse">Syncing Assessment Engine...</p>
+      <div className="flex flex-col items-center justify-center py-24 space-y-3">
+        <div className={au.spinner} />
+        <p className="text-sm text-gray-500">Loading assessments...</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-[1400px] mx-auto space-y-8 sm:space-y-12 py-6 sm:py-8 animate-in fade-in duration-500">
-      {/* Statistics Row (Mini-cards) */}
+    <div className="max-w-[1400px] mx-auto space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-         {[
-           { label: 'Pending Tests', val: stats.pending, color: 'indigo' },
-           { label: 'Completed', val: stats.completed, color: 'emerald' },
-           { label: 'Ongoing', val: stats.ongoing, color: 'amber' },
-           { label: 'Avg Score', val: stats.avgScore !== null ? `${stats.avgScore}%` : '—', color: 'purple' }
-         ].map((stat, i) => (
-           <div key={i} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-              <div>
-                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{stat.label}</p>
-                 <p className="text-xl font-bold text-slate-900 mt-0.5 tabular-nums">{stat.val}</p>
-              </div>
-              <div className={`w-8 h-8 rounded-lg bg-${stat.color}-50 border border-${stat.color}-100 flex items-center justify-center`}>
-                 <Activity className={`w-4 h-4 text-${stat.color}-600`} />
-              </div>
-           </div>
-         ))}
+        {[
+          { label: 'Pending', val: pendingCount, color: 'blue' },
+          { label: 'Completed', val: completedCount, color: 'emerald' },
+          { label: 'In Progress', val: ongoingCount, color: 'amber' },
+          { label: 'Total', val: assessments.length, color: 'slate' },
+        ].map((stat, i) => (
+          <div
+            key={i}
+            className={`${au.statCard} flex items-center justify-between`}
+          >
+            <div>
+              <p className={au.statLabel}>{stat.label}</p>
+              <p className={`text-xl ${au.statValue}`}>{stat.val}</p>
+            </div>
+            <div
+              className={`w-8 h-8 rounded-lg border flex items-center justify-center ${STAT_ICON_BOX[stat.color]}`}
+            >
+              <Activity className={`w-4 h-4 ${STAT_ICON_COLOR[stat.color]}`} />
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Main Grid */}
@@ -123,9 +144,9 @@ export default function StudentAssessments() {
           const isLate = entry.status === 'TOO_LATE';
 
           return (
-            <div 
-              key={item.id} 
-              className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300 group flex flex-col h-full relative"
+            <div
+              key={item.id}
+              className={`${au.panel} p-5 hover:shadow-md transition-shadow flex flex-col h-full`}
             >
               <div className="flex justify-between items-start mb-6">
                 <div className={`p-3 rounded-xl ${status.color} border shadow-sm`}>
@@ -152,7 +173,7 @@ export default function StudentAssessments() {
                     <span className="uppercase">{item.duration} Mins</span>
                   </div>
                   {(item.startTime || scheduledAt) && (
-                    <div className="flex items-center gap-2 text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100">
+                    <div className="flex items-center gap-1.5 text-indigo-700 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100">
                       <Calendar className="w-3.5 h-3.5" />
                       <span className="text-[10px] font-bold uppercase">
                         {item.startTime
