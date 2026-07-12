@@ -1767,12 +1767,13 @@ export async function applyToJob(req, res) {
   try {
     const { jobId } = req.params;
     const userId = req.userId;
-    const { resumeId } = req.body; // Get resumeId from request body
+    const { resumeId, customAnswers } = req.body; // resumeId + optional apply-question answers
 
     console.log('📝 [applyToJob] Application request:', {
       jobId,
       userId,
       resumeId,
+      hasCustomAnswers: Array.isArray(customAnswers) && customAnswers.length > 0,
     });
 
     // Get student
@@ -2013,6 +2014,19 @@ export async function applyToJob(req, res) {
     // Create application with resumeId (store in notes field for now, or extend schema later)
     // Note: To properly store resumeId, we'd need to add a resumeId field to Application model
     // For now, we'll store it in the notes field as JSON
+    const notesPayload = {};
+    if (resumeId) notesPayload.resumeId = resumeId;
+    if (Array.isArray(customAnswers) && customAnswers.length > 0) {
+      notesPayload.customAnswers = customAnswers
+        .map((a) => ({
+          questionId: a.questionId || a.id || null,
+          question: String(a.question || a.text || '').trim(),
+          type: a.type || null,
+          answer: a.answer != null ? String(a.answer).trim() : '',
+        }))
+        .filter((a) => a.question && a.answer);
+    }
+
     const applicationData = {
       studentId: student.id,
       jobId,
@@ -2020,7 +2034,7 @@ export async function applyToJob(req, res) {
       status: 'APPLIED',
       screeningStatus: 'APPLIED', // Initialize screening status for recruiter screening flow
       appliedDate: new Date(),
-      notes: resumeId ? JSON.stringify({ resumeId }) : null, // Store resumeId in notes for now
+      notes: Object.keys(notesPayload).length ? JSON.stringify(notesPayload) : null,
     };
 
     console.log('📝 [applyToJob] Creating application with data:', {

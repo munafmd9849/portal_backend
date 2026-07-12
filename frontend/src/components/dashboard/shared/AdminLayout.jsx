@@ -91,7 +91,7 @@ export default function AdminLayout({ children }) {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-200 shadow-sm">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-br from-white via-sky-100 to-blue-200 border-b border-blue-200 shadow-sm">
         <div className="max-w-[100vw] px-3 sm:px-4 md:px-6">
           <div className="flex md:hidden justify-between items-center min-h-[3.75rem] gap-2">
             <div className="flex-shrink-0">
@@ -123,8 +123,8 @@ export default function AdminLayout({ children }) {
             </div>
           </div>
 
-          <div className="hidden md:flex items-center justify-between gap-4 min-h-[4.5rem] py-2">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="hidden md:flex items-center justify-between gap-4 min-h-[5.25rem] py-2 relative">
+            <div className="flex items-center gap-3 min-w-0 flex-1 z-10">
               <div className="h-11 w-11 rounded-full bg-indigo-600 flex items-center justify-center overflow-hidden ring-2 ring-indigo-100 shrink-0">
                 {loading ? (
                   <User className="text-white h-5 w-5" />
@@ -149,16 +149,15 @@ export default function AdminLayout({ children }) {
                     <SquarePen className="h-3.5 w-3.5" />
                   </button>
                 </div>
-                <p className="text-sm text-slate-500">
-                  <span className="font-medium text-slate-700">{roleLabel}</span>
-                  <span className="mx-1.5 text-slate-300">·</span>
-                  {getSchoolHeaderText(normalizeSchool(user?.school || 'SOT'))}
-                </p>
+                <p className="text-sm font-medium text-slate-700">{roleLabel}</p>
               </div>
             </div>
 
-            <div className="flex flex-col items-center shrink-0 px-4">
-              <img src={PWIOILOGO} alt="PWIOI Portal" className="h-10 w-auto object-contain" />
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-0.5 shrink-0 px-4 pointer-events-none">
+              <img src={PWIOILOGO} alt="PWIOI Portal" className="h-9 w-auto object-contain" />
+              <p className="text-nowrap text-xs font-medium tracking-wide text-slate-500">
+                {getSchoolHeaderText(normalizeSchool(user?.school || 'SOT'))}
+              </p>
             </div>
 
             <div className="flex-1" aria-hidden />
@@ -166,7 +165,7 @@ export default function AdminLayout({ children }) {
         </div>
       </nav>
 
-      <main className="min-h-screen pt-[3.75rem] md:pt-[4.5rem] bg-slate-50">
+      <main className="min-h-screen pt-[3.75rem] md:pt-[5.25rem] bg-slate-50">
         {children}
       </main>
     </div>

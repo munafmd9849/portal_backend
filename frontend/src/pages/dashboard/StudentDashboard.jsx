@@ -463,6 +463,7 @@ export default function StudentDashboard() {
   const [isQuestionsModalOpen, setIsQuestionsModalOpen] = useState(false);
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [pendingJob, setPendingJob] = useState(null);
+  const [pendingCustomAnswers, setPendingCustomAnswers] = useState(null);
   const [resumes, setResumes] = useState([]);
   const [loadingResumes, setLoadingResumes] = useState(false);
 
@@ -1063,7 +1064,12 @@ export default function StudentDashboard() {
       // Pass resumeId in applicationData if backend supports it
       let applicationResult;
       try {
-        applicationResult = await applyToJob(user.id, pendingJob.id, { companyId, resumeId });
+        applicationResult = await applyToJob(user.id, pendingJob.id, {
+          companyId,
+          resumeId,
+          customAnswers: pendingCustomAnswers || undefined,
+        });
+        setPendingCustomAnswers(null);
       } catch (applyError) {
         // Re-throw with more context
         console.error('❌ [handleResumeSelection] applyToJob error:', applyError);
@@ -4996,16 +5002,18 @@ export default function StudentDashboard() {
       {/* Old floating alert removed - using toast notifications instead */}
 
 
-      {/* Custom apply questions (read-only) before resume selection */}
+      {/* Application questions before resume selection */}
       {isQuestionsModalOpen && pendingJob && (
         <JobApplyQuestionsModal
           job={pendingJob}
-          onContinue={async () => {
+          onContinue={async (customAnswers) => {
+            setPendingCustomAnswers(customAnswers || null);
             setIsQuestionsModalOpen(false);
             await proceedToResumeSelection(pendingJob);
           }}
           onCancel={() => {
             setIsQuestionsModalOpen(false);
+            setPendingCustomAnswers(null);
             setPendingJob(null);
           }}
         />

@@ -40,7 +40,34 @@ function normalizeCustomQuestions(value) {
           }
         })()
       : [];
-  const cleaned = list.map((q) => String(q).trim()).filter(Boolean);
+
+  const cleaned = list
+    .map((q) => {
+      if (q == null) return null;
+      if (typeof q === 'string') {
+        const text = q.trim();
+        return text ? { text, type: 'descriptive', options: [] } : null;
+      }
+      if (typeof q === 'object') {
+        const text = String(q.text || q.question || '').trim();
+        if (!text) return null;
+        const allowed = ['yes_no', 'mcq', 'descriptive'];
+        const type = allowed.includes(q.type) ? q.type : 'descriptive';
+        const options = Array.isArray(q.options)
+          ? q.options.map((o) => String(o ?? '').trim()).filter(Boolean)
+          : [];
+        if (type === 'mcq' && options.length < 2) return null;
+        return {
+          id: q.id || undefined,
+          text,
+          type,
+          options: type === 'yes_no' ? ['Yes', 'No'] : type === 'mcq' ? options : [],
+        };
+      }
+      return null;
+    })
+    .filter(Boolean);
+
   return JSON.stringify(cleaned);
 }
 

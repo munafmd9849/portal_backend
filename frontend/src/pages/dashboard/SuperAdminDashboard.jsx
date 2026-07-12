@@ -154,7 +154,12 @@ export default function SuperAdminDashboard() {
     if (isJobApplicationsPage) return <AdminJobApplications />;
     switch (activeTab) {
       case 'dashboard': return <AdminHome />;
-      case 'createJob': return <CreateJob onCreated={() => setActiveTab('manageJobs')} />;
+      case 'createJob':
+        return (
+          <CreateJob
+            onCreated={() => navigate(`${BASE}?tab=manageJobs`, { state: { fromCreate: true } })}
+          />
+        );
       case 'manageJobs': return <ManageJobs />;
       case 'jobApplications': return <AdminApplicantsHub />;
       case 'interviewScheduling': return <InterviewScheduling />;

@@ -2,8 +2,9 @@ import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../../services/api';
 import { deleteJob, subscribeJobs, postJob, updateJob } from '../../../services/jobs';
-import { Loader, Trash2, Share2, Building2, Calendar, GraduationCap, View, Users, User, Briefcase, ChevronDown, CheckCircle, Clock, PlayCircle, CheckSquare, XCircle, AlertTriangle, MapPin, Edit } from 'lucide-react';
+import { Loader, Trash2, Share2, Building2, Calendar, GraduationCap, View, Users, User, Briefcase, ChevronDown, CheckCircle, Clock, PlayCircle, CheckSquare, XCircle, AlertTriangle, MapPin, Edit, FilePlus2 } from 'lucide-react';
 import { useToast } from '../../ui/Toast';
+import { showInfo } from '../../../utils/toast';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import CandidateAnalysisModal from './CandidateAnalysisModal';
@@ -75,6 +76,18 @@ export default function ManageJobs() {
   const [inReviewCount, setInReviewCount] = useState(0);
   const [postedCount, setPostedCount] = useState(0);
   const JOBS_PER_PAGE = 25;
+
+  useEffect(() => {
+    if (location.state?.fromCreate) {
+      setActiveFilter('in_review');
+      showInfo(
+        'Select schools, batches, and centres — or switch to invite-only and pick specific students — then click Approve & Post.',
+        'Job submitted for review',
+        { duration: 10000 }
+      );
+      navigate(location.pathname + location.search, { replace: true, state: {} });
+    }
+  }, [location.state, location.pathname, location.search, navigate]);
 
   // Reset to page 1 when filter changes
   useEffect(() => {
@@ -760,88 +773,127 @@ export default function ManageJobs() {
   const allManageJobs = jobs.filter(job => shouldShowInManageJobs(job));
 
   return (
-    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 overflow-x-hidden">
-      {/* Header with Statistics */}
-
-
-      {/* Filter Buttons - Show both IN_REVIEW and POSTED sections */}
-      <div className="flex justify-center mb-4 sm:mb-6">
-        <div className="bg-white rounded-lg p-1 shadow-sm border border-slate-200 inline-flex flex-wrap justify-center gap-2">
+    <div className="space-y-3 p-3 sm:p-4 overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="inline-flex rounded-md border border-slate-200 bg-white p-0.5 shadow-sm" role="tablist" aria-label="Job status">
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeFilter === 'in_review'}
             onClick={() => setActiveFilter('in_review')}
-            className={`px-4 sm:px-6 py-2 rounded-md font-medium transition-all duration-200 touch-manipulation ${activeFilter === 'in_review'
-              ? 'bg-indigo-500 text-white shadow-md'
-              : 'text-slate-600 hover:text-slate-800'
-              }`}
+            className={`px-3 py-1.5 rounded text-sm font-medium transition-colors touch-manipulation ${
+              activeFilter === 'in_review'
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+            }`}
           >
-            In Review ({inReviewCount})
+            Under Review ({inReviewCount})
           </button>
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeFilter === 'posted'}
             onClick={() => setActiveFilter('posted')}
-            className={`px-4 sm:px-6 py-2 rounded-md font-medium transition-all duration-200 touch-manipulation ${activeFilter === 'posted'
-              ? 'bg-emerald-500 text-white shadow-md'
-              : 'text-slate-600 hover:text-slate-800'
-              }`}
+            className={`px-3 py-1.5 rounded text-sm font-medium transition-colors touch-manipulation ${
+              activeFilter === 'posted'
+                ? 'bg-emerald-600 text-white'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+            }`}
           >
             Posted ({postedCount})
           </button>
         </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {(role === 'SUPER_ADMIN' || user?.role === 'SUPER_ADMIN') && adminOptions.length > 0 && (
+            <>
+              <label htmlFor="manage-jobs-admin-filter" className="text-xs font-medium text-slate-600 whitespace-nowrap">
+                Created by
+              </label>
+              <select
+                id="manage-jobs-admin-filter"
+                value={selectedAdmin}
+                onChange={(e) => setSelectedAdmin(e.target.value)}
+                className="bg-white border border-slate-200 rounded-md px-2 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              >
+                {adminOptions.map(admin => (
+                  <option key={admin.id} value={admin.storage}>
+                    {admin.display}
+                  </option>
+                ))}
+              </select>
+              {selectedAdmin !== 'ALL' && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedAdmin('ALL')}
+                  className="text-xs font-medium text-slate-500 hover:text-slate-800"
+                >
+                  Clear
+                </button>
+              )}
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => navigate(`${base}?tab=createJob`)}
+            className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            <FilePlus2 className="h-4 w-4" />
+            Create job
+          </button>
+        </div>
       </div>
 
-      {/* Super Admin: Filter by Creator */}
-      {(role === 'SUPER_ADMIN' || user?.role === 'SUPER_ADMIN') && adminOptions.length > 0 && (
-        <div className="flex justify-center mb-6">
-          <div className="flex items-center gap-3 bg-indigo-50/50 px-4 py-2 rounded-xl border border-indigo-100">
-            <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Filter by Admin:</span>
-            <select
-              value={selectedAdmin}
-              onChange={(e) => setSelectedAdmin(e.target.value)}
-              className="bg-white border border-indigo-200 rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer shadow-sm"
-            >
-              {adminOptions.map(admin => (
-                <option key={admin.id} value={admin.storage}>
-                  {admin.display}
-                </option>
-              ))}
-            </select>
-            {selectedAdmin !== 'ALL' && (
-              <button 
-                onClick={() => setSelectedAdmin('ALL')}
-                className="text-xs font-bold text-indigo-400 hover:text-indigo-600 transition-colors"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Jobs list */}
-      <div className="bg-white border border-slate-200 rounded-lg">
-        <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
-          <h3 className="font-semibold">
-            {activeFilter === 'in_review' ? 'Jobs In Review' : 'Posted Jobs'} ({totalJobs})
-          </h3>
+      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+        <div className="px-3 py-2 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+          <h2 className="text-sm font-semibold text-slate-900">
+            {activeFilter === 'in_review' ? 'Under Review' : 'Posted'} ({totalJobs})
+          </h2>
           {loading && (
-            <div className="inline-flex items-center gap-2 text-sm text-slate-500">
-              <Loader className="w-4 h-4 animate-spin" /> Loading jobs...
+            <div className="inline-flex items-center gap-2 text-xs text-slate-500">
+              <Loader className="w-3.5 h-3.5 animate-spin" /> Loading…
             </div>
           )}
         </div>
 
-        <div className="divide-y py-4">
+        <div className="py-3">
+          {!loading && allManageJobs.length === 0 && (
+            <div className="mx-3 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
+              <Briefcase className="mx-auto h-8 w-8 text-slate-300" />
+              <h3 className="mt-2 text-sm font-semibold text-slate-900">
+                {activeFilter === 'in_review' ? 'No jobs under review' : 'No posted jobs'}
+              </h3>
+              <p className="mt-1 text-xs text-slate-600 max-w-sm mx-auto">
+                {activeFilter === 'in_review'
+                  ? 'Create a job and submit it for review. It will appear here for targeting and approval.'
+                  : 'Jobs appear here after you approve them from Under Review.'}
+              </p>
+              {activeFilter === 'in_review' && (
+                <button
+                  type="button"
+                  onClick={() => navigate(`${base}?tab=createJob`)}
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+                >
+                  <FilePlus2 className="h-4 w-4" />
+                  Create job
+                </button>
+              )}
+            </div>
+          )}
+
           {allManageJobs.map((job, index) => {
             const isPosted = isJobPosted(job);
             const jobStatus = isPosted ? getJobStatus(job) : {
-              text: 'In Review',
-              color: 'bg-amber-100 text-amber-700 border-amber-200',
+              text: 'Under Review',
+              color: 'bg-amber-50 text-amber-800 border-amber-200',
               icon: <Clock className="w-3 h-3" />
             };
 
             // Get initials for company logo
             const companyName = job.company?.name || job.companyName || job.company || 'NA';
             const initials = companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-            const logoColorClass = index % 2 === 0 ? 'bg-indigo-500' : 'bg-purple-500';
+            const logoColorClass = index % 2 === 0 ? 'bg-blue-600' : 'bg-slate-600';
 
             const isAnyDropdownOpen = showSchools[job.id] || showBatches[job.id] || showCenters[job.id];
 
@@ -849,9 +901,9 @@ export default function ManageJobs() {
               <div 
                 key={job.id} 
                 style={{ zIndex: isAnyDropdownOpen ? 50 : 1 }}
-                className={`group relative bg-white border-l-[5px] rounded-xl shadow-sm hover:shadow-md transition-all duration-200 mb-6 mx-2 sm:mx-4 ${
-                  isPosted ? 'border-l-emerald-500' : 'border-l-indigo-500'
-                } border border-slate-200`}
+                className={`group relative bg-white rounded-lg border shadow-sm hover:shadow transition-shadow duration-150 mb-3 mx-2 sm:mx-3 ${
+                  isPosted ? 'border-emerald-200' : 'border-slate-200'
+                }`}
               >
                 {/* CARD HEADER (TOP BAR) */}
                 <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 ${
@@ -909,7 +961,7 @@ export default function ManageJobs() {
                     <div className="md:col-span-8 flex flex-wrap gap-4">
                       {/* School Dropdown */}
                       <div className="flex-1 min-w-[140px]" ref={el => schoolDropdownRefs.current[job.id] = el}>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Target Schools</label>
+                        <label className="text-xs font-medium text-slate-500 block mb-1.5">Target schools</label>
                         <div className="relative">
                           <button
                             disabled={visibilityModes[job.id] === 'INVITE_ONLY'}
@@ -939,7 +991,7 @@ export default function ManageJobs() {
 
                       {/* Batch Dropdown */}
                       <div className="flex-1 min-w-[140px]" ref={el => batchDropdownRefs.current[job.id] = el}>
-                        <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1.5">Eligible Batches</label>
+                        <label className="text-xs font-medium text-slate-500 block mb-1.5">Eligible batches</label>
                         <div className="relative">
                           <button
                             disabled={visibilityModes[job.id] === 'INVITE_ONLY'}
@@ -969,7 +1021,7 @@ export default function ManageJobs() {
 
                       {/* Center Dropdown */}
                       <div className="flex-1 min-w-[140px]" ref={el => centerDropdownRefs.current[job.id] = el}>
-                        <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1.5">Eligible Centres</label>
+                        <label className="text-xs font-medium text-slate-500 block mb-1.5">Eligible centres</label>
                         <div className="relative">
                           <button
                             disabled={visibilityModes[job.id] === 'INVITE_ONLY'}
@@ -1002,7 +1054,7 @@ export default function ManageJobs() {
                     {/* Visibility Mode Toggle */}
                     <div className="md:col-span-4 flex flex-col gap-4 sm:flex-row md:flex-col lg:flex-row">
                       <div className="flex-1">
-                        <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1.5">Visibility Mode</label>
+                        <label className="text-xs font-medium text-slate-500 block mb-1.5">Visibility</label>
                         <div className="flex bg-slate-200/50 p-1 rounded-xl gap-1">
                           {['OPEN', 'PRIORITY', 'INVITE_ONLY'].map(mode => (
                             <button
@@ -1109,10 +1161,10 @@ export default function ManageJobs() {
                     <button
                       onClick={() => handlePostJob(job.id)}
                       disabled={!canPostJob(job) || postingJobs.has(job.id)}
-                      className={`h-11 px-6 rounded-xl text-sm font-bold transition-all flex items-center gap-2.5 shadow-sm active:scale-95 ${
-                        postingJobs.has(job.id) ? 'bg-blue-100 text-blue-500' :
+                      className={`h-10 px-5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 ${
+                        postingJobs.has(job.id) ? 'bg-sky-100 text-sky-600' :
                         !canPostJob(job) ? 'bg-slate-100 text-slate-400 cursor-not-allowed' :
-                        'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200 shadow-lg'
+                        'bg-sky-600 text-white hover:bg-sky-700'
                       }`}
                     >
                       {postingJobs.has(job.id) ? (
@@ -1219,16 +1271,16 @@ export default function ManageJobs() {
       {/* Edit Dates Modal - For POSTED jobs only */}
       {editingDatesJobId && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-[2px]">
-          <div className="bg-white rounded-[2rem] shadow-2xl max-w-md w-full overflow-hidden border border-white/20 animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden border border-slate-200">
             {/* Header */}
-            <div className="px-8 py-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white relative">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md">
-                  <Edit className="w-5 h-5" />
+            <div className="px-6 py-5 bg-sky-50 border-b border-sky-100 relative">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white rounded-lg border border-sky-100">
+                  <Edit className="w-5 h-5 text-sky-700" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold tracking-tight leading-none">Adjust Timelines</h2>
-                  <p className="text-blue-100 text-xs font-medium mt-1.5 opacity-90">Updating: <span className="text-white font-semibold">{jobs.find(j => j.id === editingDatesJobId)?.jobTitle}</span></p>
+                  <h2 className="text-lg font-semibold text-slate-900 tracking-tight leading-none">Adjust timelines</h2>
+                  <p className="text-slate-600 text-xs font-medium mt-1.5">Updating: <span className="text-slate-900 font-semibold">{jobs.find(j => j.id === editingDatesJobId)?.jobTitle}</span></p>
                 </div>
               </div>
               <button
@@ -1236,56 +1288,56 @@ export default function ManageJobs() {
                   setEditingDatesJobId(null);
                   setEditDatesForm({ applicationDeadline: null, driveDate: null });
                 }}
-                className="absolute top-6 right-6 p-2 hover:bg-white/10 rounded-full transition-colors"
+                className="absolute top-4 right-4 p-2 hover:bg-white/80 rounded-lg transition-colors text-slate-500"
               >
                 <XCircle className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-8 space-y-6">
+            <div className="p-6 space-y-5">
               {/* Application Deadline */}
               <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">
-                  Application Deadline
+                <label className="block text-sm font-medium text-slate-700">
+                  Application deadline
                 </label>
                 <div className="relative group">
                   <input
                     type="datetime-local"
                     value={editDatesForm.applicationDeadline ? new Date(editDatesForm.applicationDeadline.getTime() - editDatesForm.applicationDeadline.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''}
                     onChange={(e) => setEditDatesForm(prev => ({ ...prev, applicationDeadline: e.target.value ? new Date(e.target.value) : null }))}
-                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all group-hover:bg-white"
+                    className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-colors"
                   />
                 </div>
               </div>
 
               {/* Drive Date */}
               <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">
-                  Interview/Drive Date
+                <label className="block text-sm font-medium text-slate-700">
+                  Interview / drive date
                 </label>
                 <div className="relative group">
                   <input
                     type="datetime-local"
                     value={editDatesForm.driveDate ? new Date(editDatesForm.driveDate.getTime() - editDatesForm.driveDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''}
                     onChange={(e) => setEditDatesForm(prev => ({ ...prev, driveDate: e.target.value ? new Date(e.target.value) : null }))}
-                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all group-hover:bg-white"
+                    className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-colors"
                   />
                 </div>
               </div>
 
               {/* Info Message */}
-              <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100/50">
-                <p className="text-[11px] text-amber-700 font-medium leading-relaxed">
-                  <span className="font-bold">Note:</span> Only timelines can be modified for posted jobs. Other details are locked to ensure consistency for applicants.
+              <div className="p-3 bg-amber-50 rounded-lg border border-amber-100">
+                <p className="text-xs text-amber-800 leading-relaxed">
+                  <span className="font-semibold">Note:</span> Only timelines can be modified for posted jobs. Other details stay locked for applicants.
                 </p>
               </div>
 
               {/* Validation message */}
               {editDatesForm.applicationDeadline && editDatesForm.driveDate &&
                 editDatesForm.driveDate <= editDatesForm.applicationDeadline && (
-                  <div className="p-4 bg-red-50 rounded-2xl border border-red-100 animate-pulse">
-                    <p className="text-red-700 text-[11px] font-bold uppercase tracking-tight text-center">
-                      Error: Drive date must be after deadline
+                  <div className="p-3 bg-red-50 rounded-lg border border-red-100">
+                    <p className="text-red-700 text-xs font-medium text-center">
+                      Drive date must be after the application deadline
                     </p>
                   </div>
                 )}

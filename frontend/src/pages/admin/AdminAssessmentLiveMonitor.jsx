@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Activity, AlertCircle, ArrowLeft, Clock, Eye, Filter, Grid3x3, List, Loader2, Radio, Shield, TriangleAlert, Video, X, ZoomIn } from 'lucide-react';
+import { ArrowLeft, Filter, Grid3x3, List, Loader2, Radio, TriangleAlert, Video, X, ZoomIn } from 'lucide-react';
 import api from '../../services/api';
 import { initSocket, subscribeProctoringMonitor } from '../../services/socket';
 import { ProctoringViewer } from '../../proctoring-engine/liveProctoringRtc';
@@ -246,129 +246,94 @@ export default function AdminAssessmentLiveMonitor() {
   }, [evidenceTimeline]);
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="sticky top-0 z-20 bg-white border-b border-slate-200">
-        <div className="max-w-[1400px] mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate(`${basePath}?tab=assessments`)}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900 text-white text-xs font-bold"
-            >
-              <ArrowLeft className="w-4 h-4" /> Back
-            </button>
-            <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center">
-                <Shield className="w-4 h-4 text-indigo-600" />
-              </div>
-              <div>
-                <div className="text-sm font-black text-slate-900">Live Proctoring Monitor</div>
-                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Assessment: {id}</div>
-              </div>
-            </div>
+    <div className="space-y-3 pb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-gray-200 rounded-lg px-3 py-2.5">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <button
+            type="button"
+            onClick={() => navigate(`${basePath}?tab=assessments`)}
+            className="p-2 text-gray-500 hover:text-gray-900 bg-gray-50 rounded-md border border-gray-200 shrink-0"
+            aria-label="Back"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <div className="min-w-0">
+            <h1 className="text-sm font-semibold text-gray-900">Live monitor</h1>
+            <p className="text-xs text-gray-500 truncate">Assessment · {id}</p>
           </div>
-
-          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right max-w-xs">
-            <div className="flex items-center justify-end gap-2">
-              <Radio className="w-4 h-4 text-emerald-500" />
-              Live video (WebRTC)
-            </div>
-            <p className="normal-case font-medium text-slate-400 mt-0.5">
-              Continuous webcam like a video call. Screenshots below are audit evidence only.
-            </p>
-          </div>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-gray-500 shrink-0">
+          <Radio className="w-3.5 h-3.5 text-emerald-500" />
+          Live webcam · evidence below
         </div>
       </div>
 
-      <div className="max-w-[1400px] mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 bg-white rounded-2xl border border-slate-200 overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-            <div>
-              <div className="text-sm font-black text-slate-900">Candidates</div>
-              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                {loading ? 'Loading…' : `${sessions.length} active`}
-              </div>
-            </div>
-            {loading && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+        <div className="lg:col-span-5 bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="px-3 py-2.5 border-b border-gray-100 flex items-center justify-between">
+            <p className="text-sm text-gray-500">
+              <span className="font-semibold text-gray-900 tabular-nums">{sessions.length}</span> active
+            </p>
+            {loading && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
           </div>
 
-          <div className="divide-y divide-slate-100">
-            {sessions.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => setSelectedSessionId(s.id)}
-                className={`w-full text-left px-5 py-4 hover:bg-slate-50 transition ${
-                  selectedSessionId === s.id ? 'bg-indigo-50/50' : 'bg-white'
-                }`}
-              >
-                {s.latestScreenshot?.url ? (
-                  <div className="mb-3 rounded-lg overflow-hidden border border-slate-200 aspect-video bg-slate-900">
-                    {/* eslint-disable-next-line jsx-a11y/alt-text */}
-                    <img
-                      src={s.latestScreenshot.url}
-                      className="w-full h-full object-cover"
-                      alt=""
-                    />
-                  </div>
-                ) : (
-                  <div className="mb-3 rounded-lg border border-dashed border-slate-200 aspect-video flex items-center justify-center bg-slate-50 text-[10px] font-bold text-slate-400 uppercase">
-                    {selectedSessionId === s.id && rtcConnected ? 'Live video' : 'In exam — select to watch'}
-                  </div>
+          <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
+            <table className="w-full text-left min-w-[400px]">
+              <thead className="sticky top-0 z-10">
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="px-3 py-2 text-xs font-medium text-gray-500">Candidate</th>
+                  <th className="px-3 py-2 text-xs font-medium text-gray-500">Risk</th>
+                  <th className="px-3 py-2 text-xs font-medium text-gray-500 text-center">Violations</th>
+                  <th className="px-3 py-2 text-xs font-medium text-gray-500">Ping</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {sessions.map((s) => (
+                  <tr
+                    key={s.id}
+                    onClick={() => setSelectedSessionId(s.id)}
+                    className={`cursor-pointer transition-colors ${
+                      selectedSessionId === s.id ? 'bg-sky-50' : 'hover:bg-sky-50/40'
+                    }`}
+                  >
+                    <td className="px-3 py-2.5">
+                      <p className="text-sm font-medium text-gray-900">{s.studentName}</p>
+                      <p className="text-[11px] text-gray-400 tabular-nums">{s.screenshots || 0} shots</p>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <span
+                        className={`inline-flex px-2 py-0.5 rounded-md text-xs font-medium border ${
+                          s.status === 'CRITICAL' || s.status === 'HIGH'
+                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                            : s.status === 'WARNING' || s.status === 'MEDIUM'
+                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                        }`}
+                      >
+                        {s.status}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-center text-sm tabular-nums text-gray-700">{s.violations}</td>
+                    <td className="px-3 py-2.5 text-xs text-gray-500 whitespace-nowrap">{s.lastPing}</td>
+                  </tr>
+                ))}
+                {!loading && sessions.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-12 text-center text-sm text-gray-500">
+                      No active sessions. Students appear after they start the secure test.
+                    </td>
+                  </tr>
                 )}
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-bold text-slate-900">{s.studentName}</div>
-                    <div className="flex items-center gap-2 mt-1 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                      <Clock className="w-3.5 h-3.5" /> {s.lastPing}
-                      <span>· {s.screenshots || 0} shots</span>
-                    </div>
-                  </div>
-                  <div className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border ${
-                    s.status === 'CRITICAL' || s.status === 'HIGH'
-                      ? 'bg-rose-50 text-rose-700 border-rose-200'
-                      : s.status === 'WARNING' || s.status === 'MEDIUM'
-                        ? 'bg-amber-50 text-amber-700 border-amber-200'
-                        : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  }`}>
-                    {s.status}
-                  </div>
-                </div>
-
-                <div className="mt-3 flex items-center justify-between">
-                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                    <AlertCircle className={`w-4 h-4 ${s.violations > 0 ? 'text-amber-500' : 'text-slate-300'}`} />
-                    {s.violations} violations
-                  </div>
-                  {s.lastViolation ? (
-                    <div className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-100 px-2 py-1 rounded-md">
-                      {s.lastViolation}
-                    </div>
-                  ) : (
-                    <div className="text-[10px] font-bold text-slate-400">—</div>
-                  )}
-                </div>
-              </button>
-            ))}
-
-            {!loading && sessions.length === 0 && (
-              <div className="px-6 py-16 text-center">
-                <div className="w-12 h-12 rounded-2xl bg-slate-100 mx-auto flex items-center justify-center mb-3">
-                  <Eye className="w-6 h-6 text-slate-300" />
-                </div>
-                <div className="text-sm font-bold text-slate-900">No active sessions</div>
-                <div className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
-                  A student must click <strong>Start Secure Test</strong> (after pre-check) for monitoring to begin.
-                  Screenshots upload every ~1 min and on tab switch / blur.
-                </div>
-              </div>
-            )}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div className="lg:col-span-7 bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
             <div>
-              <div className="text-sm font-black text-slate-900">Evidence timeline</div>
-              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+              <div className="text-sm font-semibold text-slate-900">Evidence timeline</div>
+              <div className="text-xs font-medium text-gray-500 ">
                 {selectedRow ? selectedRow.studentName : 'Select a candidate'}
               </div>
             </div>
@@ -377,38 +342,38 @@ export default function AdminAssessmentLiveMonitor() {
 
           {!selectedSessionId ? (
             <div className="px-6 py-16 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 mx-auto flex items-center justify-center mb-3">
-                <TriangleAlert className="w-6 h-6 text-indigo-600" />
+              <div className="w-14 h-14 rounded-lg bg-sky-50 border border-sky-100 mx-auto flex items-center justify-center mb-3">
+                <TriangleAlert className="w-6 h-6 text-sky-600" />
               </div>
               <div className="text-sm font-bold text-slate-900">Pick a candidate to review</div>
               <div className="text-xs text-slate-500 mt-1">Periodic and event-triggered screenshots with violation context.</div>
             </div>
           ) : (
             <div className="p-6 space-y-6">
-              <div className="rounded-2xl border-2 border-indigo-200 overflow-hidden bg-slate-900 shadow-lg shadow-indigo-500/10">
-                <div className="px-4 py-3 bg-gradient-to-r from-slate-800 to-slate-900 flex items-center justify-between">
+              <div className="rounded-lg border-2 border-sky-200 overflow-hidden bg-slate-900 ">
+                <div className="px-4 py-3 bg-slate-800 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Video className="w-4 h-4 text-indigo-400" />
-                    <span className="text-[10px] font-black text-white uppercase tracking-widest">
+                    <Video className="w-4 h-4 text-sky-300" />
+                    <span className="text-[10px] font-semibold text-white ">
                       Live webcam (WebRTC)
                     </span>
                     {sessionStillActive && (
-                      <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest flex items-center gap-1 ${
+                      <span className={`px-2 py-0.5 rounded-md text-[9px] font-semibold  flex items-center gap-1 ${
                         showLiveBadge
                           ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                           : showConnectingBadge
-                            ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                            ? 'bg-sky-500/20 text-sky-200 border border-sky-500/30'
                             : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                       }`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${
-                          showLiveBadge ? 'bg-emerald-400 animate-pulse' : showConnectingBadge ? 'bg-indigo-300 animate-pulse' : 'bg-amber-400'
+                          showLiveBadge ? 'bg-emerald-400 animate-pulse' : showConnectingBadge ? 'bg-sky-300 animate-pulse' : 'bg-amber-400'
                         }`} />
                         {showLiveBadge ? 'Live' : showConnectingBadge ? 'Connecting' : 'Waiting'}
                       </span>
                     )}
                   </div>
                   {showLiveBadge ? (
-                    <span className="text-[10px] font-bold text-emerald-400/90">Streaming · video call</span>
+                    <span className="text-xs font-medium text-emerald-400/90">Streaming · video call</span>
                   ) : null}
                 </div>
                 <div className="relative bg-black">
@@ -440,13 +405,13 @@ export default function AdminAssessmentLiveMonitor() {
                 </div>
               ) : (
               <>
-              <div className="rounded-2xl border border-slate-200 overflow-hidden bg-slate-50">
+              <div className="rounded-lg border border-slate-200 overflow-hidden bg-slate-50">
                 <div className="px-4 py-2 border-b border-slate-200 flex items-center justify-between bg-white">
-                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                  <span className="text-[10px] font-semibold text-slate-500 ">
                     Latest capture (evidence)
                   </span>
                   {latestEvidence ? (
-                    <span className="text-[10px] font-bold text-slate-400">
+                    <span className="text-xs font-medium text-slate-400">
                       {formatTime(latestEvidence.timestamp)} · {latestEvidence.captureType}
                     </span>
                   ) : null}
@@ -461,23 +426,25 @@ export default function AdminAssessmentLiveMonitor() {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="rounded-xl border border-slate-200 p-4">
-                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Risk</div>
-                  <div className="text-lg font-black text-slate-900 mt-1">{details?.riskLevel || 'LOW'}</div>
-                </div>
-                <div className="rounded-xl border border-slate-200 p-4">
-                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Violations</div>
-                  <div className="text-lg font-black text-slate-900 mt-1">{details?.violationsCount ?? 0}</div>
-                </div>
-                <div className="rounded-xl border border-slate-200 p-4">
-                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Screenshots</div>
-                  <div className="text-lg font-black text-slate-900 mt-1">{evidenceTimeline.length}</div>
-                </div>
-                <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-4">
-                  <div className="text-[10px] font-bold text-rose-600 uppercase tracking-widest">High-risk</div>
-                  <div className="text-lg font-black text-rose-700 mt-1">
-                    {evidenceTimeline.filter((r) => r.riskFlag).length}
+              <div className="bg-gray-50 rounded-md border border-gray-100 px-3 py-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-gray-200">
+                  <div className="px-2 py-1.5 md:py-0">
+                    <p className="text-xs font-medium text-gray-500">Risk</p>
+                    <p className="text-lg font-semibold text-gray-900 mt-0.5">{details?.riskLevel || 'LOW'}</p>
+                  </div>
+                  <div className="px-2 py-1.5 md:py-0">
+                    <p className="text-xs font-medium text-gray-500">Violations</p>
+                    <p className="text-lg font-semibold text-gray-900 tabular-nums mt-0.5">{details?.violationsCount ?? 0}</p>
+                  </div>
+                  <div className="px-2 py-1.5 md:py-0">
+                    <p className="text-xs font-medium text-gray-500">Screenshots</p>
+                    <p className="text-lg font-semibold text-gray-900 tabular-nums mt-0.5">{evidenceTimeline.length}</p>
+                  </div>
+                  <div className="px-2 py-1.5 md:py-0">
+                    <p className="text-xs font-medium text-rose-600">High-risk</p>
+                    <p className="text-lg font-semibold text-rose-700 tabular-nums mt-0.5">
+                      {evidenceTimeline.filter((r) => r.riskFlag).length}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -490,9 +457,9 @@ export default function AdminAssessmentLiveMonitor() {
                       key={f}
                       type="button"
                       onClick={() => setTimelineFilter(f)}
-                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition ${
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium  border transition ${
                         timelineFilter === f
-                          ? 'bg-indigo-600 text-white border-indigo-600'
+                          ? 'bg-slate-800 text-white border-slate-800'
                           : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                       }`}
                     >
@@ -521,14 +488,14 @@ export default function AdminAssessmentLiveMonitor() {
               </div>
 
               {viewMode === 'table' ? (
-                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <div className="overflow-x-auto rounded-lg border border-slate-200">
                   <table className="w-full text-left text-sm">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200">
-                        <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Time</th>
-                        <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Type</th>
-                        <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Event</th>
-                        <th className="px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Screenshot</th>
+                        <th className="px-4 py-3 text-[10px] font-semibold text-slate-500 ">Time</th>
+                        <th className="px-4 py-3 text-[10px] font-semibold text-slate-500 ">Type</th>
+                        <th className="px-4 py-3 text-[10px] font-semibold text-slate-500 ">Event</th>
+                        <th className="px-4 py-3 text-[10px] font-semibold text-slate-500 ">Screenshot</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -536,7 +503,7 @@ export default function AdminAssessmentLiveMonitor() {
                         <tr key={row.id} className={row.riskFlag ? 'bg-rose-50/30' : ''}>
                           <td className="px-4 py-3 text-xs font-mono text-slate-600">{formatTime(row.timestamp)}</td>
                           <td className="px-4 py-3">
-                            <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
+                            <span className={`text-[10px] font-semibold  px-2 py-0.5 rounded ${
                               row.captureType === 'EVENT'
                                 ? 'bg-amber-100 text-amber-800'
                                 : 'bg-slate-100 text-slate-700'
@@ -544,7 +511,7 @@ export default function AdminAssessmentLiveMonitor() {
                               {row.captureType}
                             </span>
                             {row.riskFlag ? (
-                              <span className="ml-2 text-[9px] font-black uppercase text-rose-600">Risk</span>
+                              <span className="ml-2 text-[9px] font-semibold uppercase text-rose-600">Risk</span>
                             ) : null}
                           </td>
                           <td className="px-4 py-3 text-xs text-slate-700">{formatEventLabel(row.event)}</td>
@@ -552,7 +519,7 @@ export default function AdminAssessmentLiveMonitor() {
                             <button
                               type="button"
                               onClick={() => setExpandedShot(row)}
-                              className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800"
+                              className="inline-flex items-center gap-1 text-xs font-medium text-sky-700 hover:text-sky-800"
                             >
                               <ZoomIn className="w-3.5 h-3.5" /> View
                             </button>
@@ -572,14 +539,14 @@ export default function AdminAssessmentLiveMonitor() {
                       key={row.id}
                       type="button"
                       onClick={() => setExpandedShot(row)}
-                      className={`text-left rounded-xl overflow-hidden border bg-slate-100 hover:shadow-md transition ${
+                      className={`text-left rounded-lg overflow-hidden border bg-slate-100 hover:shadow-md transition ${
                         row.riskFlag ? 'border-rose-300 ring-1 ring-rose-200' : 'border-slate-200'
                       }`}
                     >
                       {/* eslint-disable-next-line jsx-a11y/alt-text */}
                       <img src={row.imageUrl} className="w-full h-32 object-cover" />
                       <div className="px-2 py-2 bg-white">
-                        <div className="text-[10px] font-bold text-slate-600 flex justify-between">
+                        <div className="text-xs font-medium text-slate-600 flex justify-between">
                           <span>{formatTime(row.timestamp)}</span>
                           <span className="uppercase">{row.captureType}</span>
                         </div>
@@ -594,11 +561,11 @@ export default function AdminAssessmentLiveMonitor() {
               )}
 
               <div>
-                <div className="text-xs font-black text-slate-900 uppercase tracking-widest mb-3">Violation log</div>
+                <div className="text-xs font-semibold text-slate-900  mb-3">Violation log</div>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {(Array.isArray(details?.violations) ? details.violations : []).map((v) => (
-                    <div key={v.id} className="flex items-start gap-3 rounded-xl border border-slate-200 p-3">
-                      <div className="text-[10px] font-black text-slate-500 w-24 shrink-0">{formatTime(v.timestamp)}</div>
+                    <div key={v.id} className="flex items-start gap-3 rounded-lg border border-slate-200 p-3">
+                      <div className="text-[10px] font-semibold text-slate-500 w-24 shrink-0">{formatTime(v.timestamp)}</div>
                       <div className="flex-1">
                         <div className="text-xs font-bold text-slate-900">{normalizeType(v.type)}</div>
                         {v.details ? <div className="text-xs text-slate-500 mt-0.5">{v.details}</div> : null}
@@ -626,7 +593,7 @@ export default function AdminAssessmentLiveMonitor() {
           onKeyDown={(e) => e.key === 'Escape' && setExpandedShot(null)}
         >
           <div
-            className="relative max-w-4xl w-full bg-white rounded-2xl overflow-hidden shadow-2xl"
+            className="relative max-w-4xl w-full bg-white rounded-lg overflow-hidden shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <button

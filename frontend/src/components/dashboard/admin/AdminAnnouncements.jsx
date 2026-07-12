@@ -1,8 +1,8 @@
 /**
- * Admin Announcements — formal admin UI; email matching students by school/batch/center.
+ * Admin Announcements — compose + history tabs (Manage Jobs pattern).
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import api from '../../../services/api';
 import {
   Send,
@@ -14,11 +14,57 @@ import {
   ExternalLink,
   Users,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   GraduationCap,
   MapPin,
+  Megaphone,
 } from 'lucide-react';
 
+const HISTORY_PER_PAGE = 8;
+
+function formatAudience(a) {
+  const parts = [];
+  const parse = (raw) => {
+    if (raw == null || raw === '') return null;
+    try {
+      const v = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (Array.isArray(v) && v.length) return v;
+    } catch {
+      if (typeof raw === 'string' && raw.trim()) return [raw];
+    }
+    return null;
+  };
+  const schools = parse(a.targetSchools);
+  const batches = parse(a.targetBatches);
+  const centers = parse(a.targetCenters);
+  if (schools?.includes('ALL') || (!schools && !batches && !centers)) {
+    return 'All students';
+  }
+  if (schools?.length) parts.push(schools.filter((x) => x !== 'ALL').join(', ') || 'All schools');
+  if (batches?.length) parts.push(batches.filter((x) => x !== 'ALL').join(', ') || 'All batches');
+  if (centers?.length) parts.push(centers.filter((x) => x !== 'ALL').join(', ') || 'All centres');
+  return parts.length ? parts.join(' · ') : 'All students';
+}
+
+function isTargeted(a) {
+  const has = (raw) => {
+    if (raw == null || raw === '') return false;
+    try {
+      const v = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      return Array.isArray(v) ? v.length > 0 && !(v.length === 1 && v[0] === 'ALL') : Boolean(raw);
+    } catch {
+      return Boolean(raw);
+    }
+  };
+  return has(a.targetSchools) || has(a.targetBatches) || has(a.targetCenters);
+}
+
 export default function AdminAnnouncements() {
+  const [activeTab, setActiveTab] = useState('compose'); // compose | history
+  const [historyFilter, setHistoryFilter] = useState('all'); // all | targeted | broadcast
+  const [historyPage, setHistoryPage] = useState(1);
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [link, setLink] = useState('');
@@ -100,6 +146,26 @@ export default function AdminAnnouncements() {
     load();
   }, []);
 
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [historyFilter]);
+
+  const filteredHistory = useMemo(() => {
+    if (historyFilter === 'targeted') return list.filter(isTargeted);
+    if (historyFilter === 'broadcast') return list.filter((a) => !isTargeted(a));
+    return list;
+  }, [list, historyFilter]);
+
+  const historyTotalPages = Math.max(1, Math.ceil(filteredHistory.length / HISTORY_PER_PAGE));
+  const historyPageSafe = Math.min(historyPage, historyTotalPages);
+  const paginatedHistory = filteredHistory.slice(
+    (historyPageSafe - 1) * HISTORY_PER_PAGE,
+    historyPageSafe * HISTORY_PER_PAGE,
+  );
+
+  const targetedCount = useMemo(() => list.filter(isTargeted).length, [list]);
+  const broadcastCount = list.length - targetedCount;
+
   const onImageChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) {
@@ -161,6 +227,9 @@ export default function AdminAnnouncements() {
       setTargetBatches([]);
       setTargetCenters([]);
       setList((prev) => [res.announcement, ...prev]);
+      setHistoryFilter('all');
+      setHistoryPage(1);
+      setActiveTab('history');
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || 'Failed to send announcement';
       setError(msg);
@@ -172,41 +241,41 @@ export default function AdminAnnouncements() {
   const filterDropdown = (label, Icon, options, selected, setter, show, setShow, ref, otherSetters) => (
     <div className="flex-1 min-w-[140px] max-w-[200px]">
       <div className="flex items-center gap-2 mb-1.5">
-        <Icon className="w-4 h-4 text-slate-500" />
-        <span className="text-sm font-medium text-slate-700">{label}</span>
+        <Icon className="w-4 h-4 text-gray-500" />
+        <span className="text-sm font-medium text-gray-700">{label}</span>
       </div>
       <div className="relative" ref={ref}>
         <button
           type="button"
-          className={`w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-left flex items-center justify-between bg-white hover:border-slate-300 ${
-            selected.length ? 'border-indigo-300 ring-1 ring-indigo-100' : ''
+          className={`w-full border border-gray-200 rounded-md px-3 py-2 text-sm text-left flex items-center justify-between bg-white hover:border-sky-300 ${
+            selected.length ? 'border-sky-300 ring-1 ring-sky-100' : ''
           }`}
           onClick={() => {
             setShow((v) => !v);
             otherSetters.forEach((fn) => fn(false));
           }}
         >
-          <span className="truncate text-slate-700">
+          <span className="truncate text-gray-700">
             {selected.length
               ? selected.map((id) => options.find((o) => o.id === id)?.label || id).join(', ')
               : `Select ${label}`}
           </span>
-          <ChevronDown className="w-4 h-4 text-slate-400 shrink-0 ml-1" />
+          <ChevronDown className="w-4 h-4 text-gray-400 shrink-0 ml-1" />
         </button>
         {show && (
-          <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-36 overflow-y-auto">
+          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-36 overflow-y-auto">
             {options.map((opt) => (
               <label
                 key={opt.id}
-                className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-b-0"
+                className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-sky-50 cursor-pointer border-b border-gray-100 last:border-b-0"
               >
                 <input
                   type="checkbox"
                   checked={selected.includes(opt.id)}
                   onChange={() => toggleFilter(setter, opt.id)}
-                  className="rounded border-slate-300 text-indigo-600"
+                  className="rounded border-gray-300 text-blue-600"
                 />
-                <span className="text-slate-700">{opt.label}</span>
+                <span className="text-gray-700">{opt.label}</span>
               </label>
             ))}
           </div>
@@ -216,195 +285,349 @@ export default function AdminAnnouncements() {
   );
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 md:p-8">
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="flex flex-wrap items-end gap-4 pb-5 border-b border-slate-100">
-            {filterDropdown(
-              'School',
-              GraduationCap,
-              SCHOOL_OPTIONS,
-              targetSchools,
-              setTargetSchools,
-              showSchoolDropdown,
-              setShowSchoolDropdown,
-              schoolDropdownRef,
-              [setShowBatchDropdown, setShowCenterDropdown],
-            )}
-            {filterDropdown(
-              'Batch',
-              Users,
-              BATCH_OPTIONS,
-              targetBatches,
-              setTargetBatches,
-              showBatchDropdown,
-              setShowBatchDropdown,
-              batchDropdownRef,
-              [setShowSchoolDropdown, setShowCenterDropdown],
-            )}
-            {filterDropdown(
-              'Center',
-              MapPin,
-              CENTER_OPTIONS,
-              targetCenters,
-              setTargetCenters,
-              showCenterDropdown,
-              setShowCenterDropdown,
-              centerDropdownRef,
-              [setShowSchoolDropdown, setShowBatchDropdown],
-            )}
-            <span
-              className="inline-flex items-center shrink-0 px-3 py-2.5 rounded-lg text-xs font-medium border border-slate-200 bg-slate-50 text-slate-600"
-              title="No filters selected sends to all students"
-            >
-              No selection = all students
-            </span>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Title</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Announcement title"
-              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-sm"
-              maxLength={200}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Description</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Enter announcement details"
-              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-sm min-h-[120px] resize-y"
-              rows={4}
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              <LinkIcon className="w-4 h-4 inline mr-1 text-slate-500" />
-              Link (optional)
-            </label>
-            <input
-              type="url"
-              value={link}
-              onChange={(e) => setLink(e.target.value)}
-              placeholder="https://"
-              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-sm"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              <ImagePlus className="w-4 h-4 inline mr-1 text-slate-500" />
-              Attachment image (optional)
-            </label>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={onImageChange}
-              className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border file:border-slate-200 file:bg-white file:text-slate-700 file:font-medium file:cursor-pointer hover:file:bg-slate-50"
-            />
-            {imagePreview && (
-              <img
-                src={imagePreview}
-                alt="Preview"
-                className="mt-3 rounded-lg border border-slate-200 max-h-40 object-cover"
-              />
-            )}
-          </div>
-
-          {error && (
-            <div className="p-3 rounded-lg text-sm font-medium bg-red-50 text-red-800 border border-red-100">
-              {error}
-            </div>
-          )}
-          {success && (
-            <div className="p-3 rounded-lg flex items-center gap-2 bg-emerald-50 text-emerald-800 border border-emerald-100 text-sm">
-              <CheckCircle className="w-5 h-5 shrink-0" />
-              <span>{success}</span>
-            </div>
-          )}
-
+    <div className="space-y-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div
+          className="inline-flex rounded-md border border-gray-200 bg-white p-0.5 shadow-sm"
+          role="tablist"
+          aria-label="Announcements"
+        >
           <button
-            type="submit"
-            disabled={sending}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors"
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'compose'}
+            onClick={() => setActiveTab('compose')}
+            className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+              activeTab === 'compose'
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
           >
-            {sending ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Sending
-              </>
-            ) : (
-              <>
-                <Send className="w-4 h-4" />
-                Send announcement
-              </>
-            )}
+            Compose
           </button>
-        </form>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'history'}
+            onClick={() => setActiveTab('history')}
+            className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+              activeTab === 'history'
+                ? 'bg-emerald-600 text-white'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            History ({list.length})
+          </button>
+        </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 md:p-8">
-        <h2 className="text-lg font-semibold text-slate-900 mb-4 pb-3 border-b border-slate-200">
-          Announcement history
-        </h2>
-        {loadingList ? (
-          <div className="flex items-center justify-center py-10">
-            <Loader2 className="w-7 h-7 animate-spin text-indigo-600" />
+      {activeTab === 'compose' && (
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 sm:p-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="flex flex-wrap items-end gap-3 pb-4 border-b border-gray-100">
+              {filterDropdown(
+                'School',
+                GraduationCap,
+                SCHOOL_OPTIONS,
+                targetSchools,
+                setTargetSchools,
+                showSchoolDropdown,
+                setShowSchoolDropdown,
+                schoolDropdownRef,
+                [setShowBatchDropdown, setShowCenterDropdown],
+              )}
+              {filterDropdown(
+                'Batch',
+                Users,
+                BATCH_OPTIONS,
+                targetBatches,
+                setTargetBatches,
+                showBatchDropdown,
+                setShowBatchDropdown,
+                batchDropdownRef,
+                [setShowSchoolDropdown, setShowCenterDropdown],
+              )}
+              {filterDropdown(
+                'Center',
+                MapPin,
+                CENTER_OPTIONS,
+                targetCenters,
+                setTargetCenters,
+                showCenterDropdown,
+                setShowCenterDropdown,
+                centerDropdownRef,
+                [setShowSchoolDropdown, setShowBatchDropdown],
+              )}
+              <span
+                className="inline-flex items-center shrink-0 px-3 py-2 rounded-md text-xs font-medium border border-gray-200 bg-gray-50 text-gray-600"
+                title="No filters selected sends to all students"
+              >
+                No selection = all students
+              </span>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Title</label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Announcement title"
+                className="w-full px-3 py-2 rounded-md border border-gray-200 focus:ring-1 focus:ring-sky-400 focus:border-sky-400 text-sm outline-none"
+                maxLength={200}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Enter announcement details"
+                className="w-full px-3 py-2 rounded-md border border-gray-200 focus:ring-1 focus:ring-sky-400 focus:border-sky-400 text-sm min-h-[120px] resize-y outline-none"
+                rows={4}
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  <LinkIcon className="w-4 h-4 inline mr-1 text-gray-500" />
+                  Link (optional)
+                </label>
+                <input
+                  type="url"
+                  value={link}
+                  onChange={(e) => setLink(e.target.value)}
+                  placeholder="https://"
+                  className="w-full px-3 py-2 rounded-md border border-gray-200 focus:ring-1 focus:ring-sky-400 focus:border-sky-400 text-sm outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  <ImagePlus className="w-4 h-4 inline mr-1 text-gray-500" />
+                  Image (optional)
+                </label>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={onImageChange}
+                  className="block w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border file:border-gray-200 file:bg-white file:text-gray-700 file:font-medium file:cursor-pointer hover:file:bg-gray-50"
+                />
+                {imagePreview && (
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="mt-2 rounded-md border border-gray-200 max-h-32 object-cover"
+                  />
+                )}
+              </div>
+            </div>
+
+            {error && (
+              <div className="p-3 rounded-md text-sm font-medium bg-rose-50 text-rose-800 border border-rose-100">
+                {error}
+              </div>
+            )}
+            {success && (
+              <div className="p-3 rounded-md flex items-center gap-2 bg-emerald-50 text-emerald-800 border border-emerald-100 text-sm">
+                <CheckCircle className="w-4 h-4 shrink-0" />
+                <span>{success}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={sending}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+            >
+              {sending ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Sending
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  Send announcement
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {activeTab === 'history' && (
+        <div className="space-y-3">
+          <div
+            className="inline-flex rounded-md border border-gray-200 bg-white p-0.5 shadow-sm"
+            role="tablist"
+            aria-label="History filter"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={historyFilter === 'all'}
+              onClick={() => setHistoryFilter('all')}
+              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                historyFilter === 'all'
+                  ? 'bg-slate-800 text-white'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              All ({list.length})
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={historyFilter === 'broadcast'}
+              onClick={() => setHistoryFilter('broadcast')}
+              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                historyFilter === 'broadcast'
+                  ? 'bg-sky-600 text-white'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              Broadcast ({broadcastCount})
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={historyFilter === 'targeted'}
+              onClick={() => setHistoryFilter('targeted')}
+              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                historyFilter === 'targeted'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              Targeted ({targetedCount})
+            </button>
           </div>
-        ) : list.length === 0 ? (
-          <p className="text-sm text-slate-500 py-8 text-center">No announcements have been sent yet.</p>
-        ) : (
-          <ul className="divide-y divide-slate-100">
-            {list.map((a) => (
-              <li key={a.id} className="py-4 first:pt-0 last:pb-0">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-semibold text-slate-900">{a.title}</h3>
-                    <p className="text-sm text-slate-600 mt-1 line-clamp-2">{a.description}</p>
-                    <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-slate-500">
-                      <Calendar className="w-3.5 h-3.5" />
-                      {new Date(a.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
-                      {[a.targetSchools, a.targetBatches, a.targetCenters].some((x) => x != null && x !== '') && (
-                        <span className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-100">
-                          Targeted
-                        </span>
-                      )}
+
+          {loadingList ? (
+            <div className="bg-white rounded-lg border border-gray-200 p-12 flex items-center justify-center">
+              <Loader2 className="w-7 h-7 animate-spin text-sky-600" />
+            </div>
+          ) : filteredHistory.length === 0 ? (
+            <div className="bg-white rounded-lg border border-dashed border-gray-200 p-12 text-center">
+              <Megaphone className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+              <p className="text-sm font-medium text-gray-900">
+                {historyFilter === 'all'
+                  ? 'No announcements yet'
+                  : historyFilter === 'targeted'
+                    ? 'No targeted announcements'
+                    : 'No broadcast announcements'}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                {historyFilter === 'all'
+                  ? 'Sent announcements will appear here.'
+                  : 'Try another filter or compose a new one.'}
+              </p>
+              {historyFilter === 'all' && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('compose')}
+                  className="mt-4 px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"
+                >
+                  Compose announcement
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2.5">
+                {paginatedHistory.map((a) => {
+                  const targeted = isTargeted(a);
+                  return (
+                    <div
+                      key={a.id}
+                      className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm hover:border-sky-200 transition-colors"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <span
+                              className={`px-2 py-0.5 rounded-md text-xs font-medium border ${
+                                targeted
+                                  ? 'bg-blue-50 text-blue-700 border-blue-100'
+                                  : 'bg-sky-50 text-sky-700 border-sky-100'
+                              }`}
+                            >
+                              {targeted ? 'Targeted' : 'Broadcast'}
+                            </span>
+                            <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+                              <Calendar className="w-3.5 h-3.5" />
+                              {new Date(a.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                            </span>
+                          </div>
+                          <h3 className="font-semibold text-gray-900 text-sm sm:text-base">{a.title}</h3>
+                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">{a.description}</p>
+                          <p className="text-xs text-gray-500 mt-2 flex items-center gap-1.5">
+                            <Users className="w-3.5 h-3.5 shrink-0" />
+                            {formatAudience(a)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {a.imageUrl && (
+                            <img
+                              src={a.imageUrl}
+                              alt=""
+                              className="w-12 h-12 rounded-md object-cover border border-gray-200"
+                            />
+                          )}
+                          {a.link && (
+                            <a
+                              href={a.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium border border-gray-200 text-gray-700 hover:bg-gray-50"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              Link
+                            </a>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {a.imageUrl && (
-                      <img
-                        src={a.imageUrl}
-                        alt=""
-                        className="w-12 h-12 rounded-lg object-cover border border-slate-200"
-                      />
-                    )}
-                    {a.link && (
-                      <a
-                        href={a.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-slate-200 text-slate-700 hover:bg-slate-50"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        Link
-                      </a>
-                    )}
+                  );
+                })}
+              </div>
+
+              {filteredHistory.length > HISTORY_PER_PAGE && (
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <p className="text-xs text-gray-500">
+                    {(historyPageSafe - 1) * HISTORY_PER_PAGE + 1}–
+                    {Math.min(historyPageSafe * HISTORY_PER_PAGE, filteredHistory.length)} of {filteredHistory.length}
+                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+                      disabled={historyPageSafe <= 1}
+                      className="p-1.5 rounded-md border border-gray-200 bg-white text-gray-600 disabled:opacity-30 hover:bg-gray-50"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span className="text-xs text-gray-600 px-2 tabular-nums">
+                      {historyPageSafe} / {historyTotalPages}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setHistoryPage((p) => Math.min(historyTotalPages, p + 1))}
+                      disabled={historyPageSafe >= historyTotalPages}
+                      className="p-1.5 rounded-md border border-gray-200 bg-white text-gray-600 disabled:opacity-30 hover:bg-gray-50"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

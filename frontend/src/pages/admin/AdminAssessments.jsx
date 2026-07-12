@@ -369,9 +369,23 @@ export default function AdminAssessments() {
     return true;
   });
 
+  const filterTabs = [
+    { id: 'all', label: 'All', shortLabel: 'All', count: totalAssessments },
+    { id: 'active', label: 'Active', shortLabel: 'Active', count: activeAssessmentsCount },
+    { id: 'upcoming', label: 'Upcoming', shortLabel: 'Upcoming', count: upcomingScheduled },
+    { id: 'past', label: 'Past', shortLabel: 'Past', count: pastAssessmentsCount },
+  ];
+
+  const statsStrip = [
+    { label: 'Total', val: totalAssessments },
+    { label: 'Upcoming', val: upcomingScheduled },
+    { label: 'Active sessions', val: activeSessions },
+    { label: 'Completed', val: completedAttempts },
+  ];
+
   return (
     <>
-      <div className="space-y-5 p-4 sm:p-6 max-w-[1600px] mx-auto">
+      <div className="space-y-3">
         <div className="flex justify-end">
           <button
             type="button"
@@ -379,74 +393,72 @@ export default function AdminAssessments() {
               setStep(1);
               setShowCreateModal(true);
             }}
-            className={`flex items-center justify-center gap-2 ${au.btnPrimary}`}
+            className="flex items-center justify-center gap-2 px-3.5 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-4 h-4" /> New assessment
           </button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { label: 'Total', val: totalAssessments },
-            { label: 'Upcoming', val: upcomingScheduled },
-            { label: 'Active', val: activeSessions },
-            { label: 'Completed', val: completedAttempts },
-          ].map((stat, i) => (
-            <div
-              key={i}
-              className={`${au.statCard} flex flex-col gap-1`}
-            >
-              <p className={au.statLabel}>{stat.label}</p>
-              <p className={`text-xl ${au.statValue}`}>{stat.val}</p>
-            </div>
-          ))}
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm px-4 py-3.5">
+          <div className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+            {statsStrip.map((stat, i) => (
+              <div key={i} className="px-3 py-2 md:py-0 first:pt-0 last:pb-0 md:first:pl-0 md:last:pr-0">
+                <p className="text-xs font-medium text-gray-500">{stat.label}</p>
+                <p className="text-2xl font-semibold text-gray-900 tabular-nums mt-0.5">{stat.val}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className={`${au.panel} flex flex-col`}>
-          <div className="p-4 border-b border-slate-200 bg-slate-50 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className={`grid w-full grid-cols-4 gap-1 rounded-lg ${au.tabBar} lg:max-w-3xl lg:flex-1`}>
-              {[
-                { id: 'all', label: 'All', shortLabel: 'All', count: totalAssessments },
-                { id: 'active', label: 'Active', shortLabel: 'Active', count: activeAssessmentsCount },
-                { id: 'upcoming', label: 'Upcoming', shortLabel: 'Upcoming', count: upcomingScheduled },
-                { id: 'past', label: 'Past', shortLabel: 'Past', count: pastAssessmentsCount },
-              ].map((tab) => (
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden flex flex-col">
+          <div className="p-3 border-b border-gray-100 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div
+              className="inline-flex flex-wrap rounded-md border border-gray-200 bg-white p-0.5 shadow-sm w-full lg:w-auto"
+              role="tablist"
+            >
+              {filterTabs.map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
+                  role="tab"
+                  aria-selected={activeTab === tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center justify-center gap-1.5 rounded-md px-2 py-2 text-xs font-medium transition-colors sm:gap-2 sm:px-3 ${
-                    activeTab === tab.id ? au.tabActive : au.tabIdle
+                  className={`flex items-center justify-center gap-1.5 rounded px-2.5 py-1.5 text-xs font-medium transition-colors flex-1 lg:flex-none ${
+                    activeTab === tab.id
+                      ? 'bg-slate-800 text-white'
+                      : 'text-gray-600 hover:bg-gray-50'
                   }`}
                 >
                   <span className="hidden sm:inline whitespace-nowrap">{tab.label}</span>
                   <span className="sm:hidden whitespace-nowrap">{tab.shortLabel}</span>
                   <span
-                    className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] tabular-nums ${
-                      activeTab === tab.id ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-200 text-gray-600'
+                    className={`shrink-0 tabular-nums ${
+                      activeTab === tab.id ? 'text-white/80' : 'text-gray-400'
                     }`}
                   >
-                    {tab.count}
+                    ({tab.count})
                   </span>
                 </button>
               ))}
             </div>
 
             <div className="relative w-full shrink-0 lg:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search assessments…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white border border-gray-300 rounded-md pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-indigo-500/20 focus:border-indigo-500"
+                className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-md bg-gray-50 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400 focus:bg-white"
               />
             </div>
           </div>
 
-          <div className="p-4">
+          <div>
             {loading ? (
-              <DirectoryLoadingPanel title="Loading assessments..." subtitle="Please wait while we fetch the data" />
+              <div className="p-4">
+                <DirectoryLoadingPanel title="Loading assessments..." subtitle="Please wait while we fetch the data" />
+              </div>
             ) : filteredAssessments.length === 0 ? (
               <div className="py-16 flex flex-col items-center justify-center gap-4 text-center">
                 <AlertCircle className="w-10 h-10 text-gray-200" />
@@ -460,75 +472,125 @@ export default function AdminAssessments() {
                       setStep(1);
                       setShowCreateModal(true);
                     }}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"
                   >
                     Create assessment
                   </button>
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredAssessments.map((item) => (
-            <div key={item.id} className="bg-white rounded-lg border border-gray-200 p-4 hover:border-gray-300 transition-colors flex flex-col h-full">
-              <div className="flex justify-between items-start mb-3 gap-2">
-                <span className="text-xs text-gray-500 font-medium">
-                  {item.type?.replace(/_/g, ' ')}
-                </span>
-                {assessmentIsDraft(item) && (
-                  <span className="px-2 py-0.5 text-[10px] font-medium rounded border bg-amber-50 border-amber-200 text-amber-800">
-                    Draft
-                  </span>
-                )}
-              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left min-w-[780px]">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Assessment</th>
+                      <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Type</th>
+                      <th className="px-4 py-2.5 text-xs font-medium text-gray-500 text-center">Duration</th>
+                      <th className="px-4 py-2.5 text-xs font-medium text-gray-500 text-center">Attempts</th>
+                      <th className="px-4 py-2.5 text-xs font-medium text-gray-500 text-center">Questions</th>
+                      <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Status</th>
+                      <th className="px-4 py-2.5 text-xs font-medium text-gray-500 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {filteredAssessments.map((item) => {
+                      const isDraft = assessmentIsDraft(item);
+                      const isLive = assessmentHasLiveSession(item);
+                      const statusLabel = isDraft
+                        ? 'Draft'
+                        : isLive
+                          ? 'Live'
+                          : assessmentIsActiveWindow(item)
+                            ? 'Active'
+                            : assessmentIsUpcoming(item)
+                              ? 'Upcoming'
+                              : assessmentIsPast(item)
+                                ? 'Past'
+                                : 'Published';
+                      const statusClass = isDraft
+                        ? 'bg-amber-50 text-amber-800 border-amber-200'
+                        : isLive || assessmentIsActiveWindow(item)
+                          ? 'bg-sky-50 text-sky-700 border-sky-100'
+                          : assessmentIsUpcoming(item)
+                            ? 'bg-blue-50 text-blue-700 border-blue-100'
+                            : 'bg-gray-50 text-gray-600 border-gray-200';
 
-              <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-semibold text-gray-900 mb-1 truncate">{item.title}</h3>
-                <p className="text-xs text-gray-500 line-clamp-2 mb-4">{item.description || 'No description.'}</p>
-
-                <div className="flex flex-wrap gap-3 text-xs text-gray-500 mb-4">
-                  <span>{item.duration} min</span>
-                  <span>{item.sessions?.length || 0} attempts</span>
-                  <span>{item.questions?.length || 0} questions</span>
-                </div>
-              </div>
-
-              <div className="pt-3 border-t border-gray-100 flex flex-col gap-2">
-                {assessmentIsDraft(item) ? (
-                  <button
-                    type="button"
-                    onClick={() => handlePublishExisting(item.id)}
-                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-2"
-                  >
-                    <CheckCircle className="w-3.5 h-3.5" /> Publish
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => navigate(`${basePath}/assessments/${item.id}/live-monitor`)}
-                      className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Video className="w-3.5 h-3.5" /> Live monitor
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => navigate(`${basePath}?tab=assessmentResults&assessmentId=${item.id}`)}
-                      className="w-full py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 text-xs font-medium rounded-md transition-colors"
-                    >
-                      Results
-                    </button>
-                  </>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setSettingsAssessment(item)}
-                  className="w-full py-2 text-gray-600 hover:bg-gray-50 border border-gray-200 rounded-md transition-colors flex items-center justify-center gap-2 text-xs font-medium"
-                >
-                  <Settings className="w-3.5 h-3.5" /> Settings
-                </button>
-              </div>
-            </div>
-                ))}
+                      return (
+                        <tr key={item.id} className="hover:bg-sky-50/40 transition-colors">
+                          <td className="px-4 py-3 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
+                            <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">
+                              {item.description || 'No description'}
+                            </p>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                            {item.type?.replace(/_/g, ' ') || '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600 text-center tabular-nums">
+                            {item.duration}m
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600 text-center tabular-nums">
+                            {item.sessions?.length || 0}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600 text-center tabular-nums">
+                            {item.questions?.length || 0}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`inline-flex px-2 py-0.5 rounded-md text-xs font-medium border ${statusClass}`}
+                            >
+                              {statusLabel}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                              {isDraft ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handlePublishExisting(item.id)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md"
+                                >
+                                  <CheckCircle className="w-3.5 h-3.5" /> Publish
+                                </button>
+                              ) : (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      navigate(`${basePath}/assessments/${item.id}/live-monitor`)
+                                    }
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md"
+                                  >
+                                    <Video className="w-3.5 h-3.5" /> Monitor
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      navigate(
+                                        `${basePath}?tab=assessmentResults&assessmentId=${item.id}`,
+                                      )
+                                    }
+                                    className="px-2.5 py-1.5 border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-medium rounded-md"
+                                  >
+                                    Results
+                                  </button>
+                                </>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setSettingsAssessment(item)}
+                                className="p-1.5 text-gray-500 hover:text-gray-800 hover:bg-gray-50 border border-gray-200 rounded-md"
+                                title="Settings"
+                              >
+                                <Settings className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
@@ -566,7 +628,7 @@ export default function AdminAssessments() {
                           <input 
                             value={formData.title}
                             onChange={e => setFormData({...formData, title: e.target.value})}
-                            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 ring-indigo-500/10 outline-none font-bold text-slate-900 transition-all" 
+                            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 ring-sky-400/20 outline-none font-bold text-slate-900 transition-all" 
                             placeholder="e.g. SOT Fullstack Mock Test" 
                           />
                        </div>
@@ -582,7 +644,7 @@ export default function AdminAssessments() {
                                <button 
                                  key={type.id}
                                  onClick={() => setFormData({...formData, type: type.id})}
-                                 className={`p-3 rounded-xl border-2 transition-all flex items-center gap-3 ${formData.type === type.id ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-md shadow-indigo-500/5' : 'border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200'}`}
+                                 className={`p-3 rounded-xl border-2 transition-all flex items-center gap-3 ${formData.type === type.id ? 'border-sky-600 bg-sky-50 text-sky-700 shadow-md ' : 'border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200'}`}
                                >
                                  <type.icon className="w-4 h-4 flex-shrink-0" />
                                  <span className="text-[10px] font-bold uppercase truncate">{type.label}</span>
@@ -597,7 +659,7 @@ export default function AdminAssessments() {
                        <textarea 
                          value={formData.description}
                          onChange={e => setFormData({...formData, description: e.target.value})}
-                         className="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 ring-indigo-500/10 outline-none font-medium text-slate-700 h-32 resize-none transition-all shadow-inner" 
+                         className="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 ring-sky-400/20 outline-none font-medium text-slate-700 h-32 resize-none transition-all shadow-inner" 
                          placeholder="Describe the scope and rules of this test..." 
                        />
                     </div>
@@ -614,14 +676,14 @@ export default function AdminAssessments() {
                               type={field.type}
                               value={formData[field.key]}
                               onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
-                              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 ring-indigo-500/10 outline-none font-bold text-slate-900 transition-all text-xs"
+                              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 ring-sky-400/20 outline-none font-bold text-slate-900 transition-all text-xs"
                             />
                          </div>
                        ))}
                     </div>
 
-                    <div className="p-5 bg-indigo-50/50 border border-indigo-100 rounded-2xl space-y-4">
-                      <p className="text-xs font-bold text-indigo-900">Join window (when students can enter)</p>
+                    <div className="p-5 bg-sky-50/50 border border-sky-100 rounded-2xl space-y-4">
+                      <p className="text-xs font-medium text-sky-800">Join window (when students can enter)</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
@@ -718,7 +780,7 @@ export default function AdminAssessments() {
                                   <input 
                                      value={q.text}
                                      onChange={e => updateQuestion(idx, 'text', e.target.value)}
-                                     className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm focus:ring-2 ring-indigo-500/10 outline-none transition-all" 
+                                     className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm focus:ring-2 ring-sky-400/20 outline-none transition-all" 
                                      placeholder="Enter question text here..." 
                                   />
                                </div>
@@ -730,7 +792,7 @@ export default function AdminAssessments() {
                                      <select 
                                        value={q.type}
                                        onChange={e => updateQuestion(idx, 'type', e.target.value)}
-                                       className="flex-1 p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-[10px] uppercase tracking-widest cursor-pointer outline-none focus:ring-2 ring-indigo-500/10"
+                                       className="flex-1 p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-[10px] uppercase tracking-widest cursor-pointer outline-none focus:ring-2 ring-sky-400/20"
                                      >
                                        <option value="MCQ">MCQ</option>
                                        <option value="CODING">Coding</option>
@@ -740,7 +802,7 @@ export default function AdminAssessments() {
                                        type="number"
                                        value={q.points}
                                        onChange={e => updateQuestion(idx, 'points', e.target.value)}
-                                       className="w-20 p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-center outline-none focus:ring-2 ring-indigo-500/10" 
+                                       className="w-20 p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-center outline-none focus:ring-2 ring-sky-400/20" 
                                      />
                                   </div>
                                </div>
@@ -767,7 +829,7 @@ export default function AdminAssessments() {
                                                newOpts[optIdx] = e.target.value;
                                                updateQuestion(idx, 'options', newOpts);
                                              }}
-                                             className="w-full p-3 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-indigo-400 transition-all pr-10" 
+                                             className="w-full p-3 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-sky-400 transition-all pr-10" 
                                              placeholder={`Option ${String.fromCharCode(65 + optIdx)}`} 
                                            />
                                            {q.options?.length > 2 && (
@@ -795,7 +857,7 @@ export default function AdminAssessments() {
                                         const newOpts = [...(q.options || []), ''];
                                         updateQuestion(idx, 'options', newOpts);
                                       }}
-                                      className="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 hover:border-indigo-300 hover:text-indigo-600 transition-all text-[10px] font-bold uppercase tracking-widest"
+                                      className="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 hover:border-sky-300 hover:text-sky-600 transition-all text-[10px] font-bold uppercase tracking-widest"
                                     >
                                        <Plus className="w-3.5 h-3.5" /> Add Option
                                     </button>
@@ -893,7 +955,7 @@ export default function AdminAssessments() {
                               }}
                               className={`p-3 rounded-lg border text-left transition-colors ${
                                 formData.targetBatchIds.includes(batch.id)
-                                ? 'border-indigo-600 bg-indigo-50'
+                                ? 'border-sky-600 bg-sky-50'
                                 : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                               }`}
                             >
@@ -910,7 +972,7 @@ export default function AdminAssessments() {
                           <button 
                              type="button"
                              onClick={() => setShowStudentSelector(true)}
-                             className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                             className="text-xs font-medium text-sky-600 hover:text-sky-700"
                            >
                              Select students
                            </button>

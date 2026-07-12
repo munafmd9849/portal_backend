@@ -1,31 +1,30 @@
 import React, { useMemo } from 'react';
 import { Download, Edit3, Eye, Loader, Search, ShieldAlert, ShieldOff } from 'lucide-react';
 
-const ACTIONS_WIDTH = 144;
-
-const SR_WIDTH = 64;
-const NAME_WIDTH = 220;
+const ACTIONS_WIDTH = 132;
+const SR_WIDTH = 56;
+const NAME_WIDTH = 200;
 
 const ACTION_BTN =
-  'p-2 rounded-xl border active:scale-95 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed';
+  'p-1.5 rounded-md border transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
 
 const BADGE_STYLES = {
   green: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
-  mint: 'bg-green-50 text-green-700 border border-green-100',
+  mint: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
   yellow: 'bg-amber-50 text-amber-800 border border-amber-100',
-  pink: 'bg-rose-50 text-rose-600 border border-rose-100',
+  pink: 'bg-rose-50 text-rose-700 border border-rose-100',
   blue: 'bg-sky-50 text-sky-700 border border-sky-100',
-  red: 'bg-red-50 text-red-700 border border-red-100',
-  gray: 'bg-slate-100 text-slate-600 border border-slate-200',
+  red: 'bg-rose-50 text-rose-700 border border-rose-100',
+  gray: 'bg-gray-100 text-gray-600 border border-gray-200',
 };
 
 function StatusBadge({ label, variant = 'gray' }) {
   if (!label || label === '--') {
-    return <span className="text-slate-400 text-sm font-medium">--</span>;
+    return <span className="text-gray-400 text-sm">—</span>;
   }
   return (
     <span
-      className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${BADGE_STYLES[variant] || BADGE_STYLES.gray}`}
+      className={`inline-flex px-2 py-0.5 rounded-md text-xs font-medium whitespace-nowrap ${BADGE_STYLES[variant] || BADGE_STYLES.gray}`}
     >
       {label}
     </span>
@@ -33,48 +32,44 @@ function StatusBadge({ label, variant = 'gray' }) {
 }
 
 const BASIC_COLUMNS = [
-  { key: 'email', label: 'Email', minW: 200 },
-  { key: 'program', label: 'Program', minW: 140 },
-  { key: 'cohort', label: 'Cohort', minW: 160 },
-  { key: 'currentLocation', label: 'Current Location', minW: 130 },
-  { key: 'contactNumber', label: 'Contact Number', minW: 130 },
-  { key: 'csStatus', label: 'CS Status', minW: 110, badge: 'csStatus' },
-  { key: 'activation', label: 'Activation', minW: 100, badge: 'activation' },
+  { key: 'email', label: 'Email', minW: 180 },
+  { key: 'program', label: 'Program', minW: 130 },
+  { key: 'cohort', label: 'Cohort', minW: 140 },
+  { key: 'currentLocation', label: 'Location', minW: 120 },
+  { key: 'contactNumber', label: 'Contact', minW: 120 },
+  { key: 'csStatus', label: 'CS Status', minW: 100, badge: 'csStatus' },
+  { key: 'activation', label: 'Activation', minW: 96, badge: 'activation' },
 ];
 
 const MOCK_INTERVIEW_COLUMN = [
-  { key: 'mockInterviews', label: 'Mock Interviews', minW: 120 },
+  { key: 'mockInterviews', label: 'Mock interviews', minW: 110 },
 ];
 
 const STATS_COLUMNS = [
-  { key: 'placementStatus', label: 'Placement Status', minW: 120, badge: 'placementStatus' },
-  { key: 'jobsAssigned', label: 'Jobs Assigned', minW: 108, metric: 'default' },
-  { key: 'eligibleJobs', label: 'Eligible Jobs', minW: 100, metric: 'default' },
-  { key: 'jobsApplied', label: 'Jobs Applied', minW: 100, metric: 'blue' },
-  { key: 'appliedClosed', label: 'Applied (Closed)', minW: 118, metric: 'green' },
-  { key: 'noShows', label: 'No-Shows', minW: 88, metric: 'lime' },
-  { key: 'unapplied', label: 'Unapplied', minW: 96, metric: 'orange' },
+  { key: 'placementStatus', label: 'Placement', minW: 110, badge: 'placementStatus' },
+  { key: 'jobsAssigned', label: 'Assigned', minW: 88, metric: 'default' },
+  { key: 'eligibleJobs', label: 'Eligible', minW: 80, metric: 'default' },
+  { key: 'jobsApplied', label: 'Applied', minW: 80, metric: 'blue' },
+  { key: 'appliedClosed', label: 'Closed', minW: 80, metric: 'green' },
+  { key: 'noShows', label: 'No-shows', minW: 80, metric: 'default' },
+  { key: 'unapplied', label: 'Unapplied', minW: 88, metric: 'default' },
 ];
 
 const METRIC_TEXT = {
-  default: 'text-slate-700 font-medium',
-  blue: 'text-indigo-600 font-semibold',
-  green: 'text-emerald-600 font-semibold',
-  lime: 'text-lime-600 font-semibold',
-  orange: 'text-orange-600 font-semibold',
+  default: 'text-gray-700 font-medium',
+  blue: 'text-sky-700 font-medium',
+  green: 'text-emerald-700 font-medium',
+  lime: 'text-gray-700 font-medium',
+  orange: 'text-amber-700 font-medium',
 };
 
-function headerClass(col) {
-  return 'bg-slate-50 text-slate-700 border-slate-200/60';
-}
-
 function formatSrNo(n) {
-  if (n == null) return '--';
+  if (n == null) return '—';
   return String(n).padStart(2, '0');
 }
 
 function displayMock(val) {
-  if (val == null || val === '' || val === '—' || val === '-') return '--';
+  if (val == null || val === '' || val === '—' || val === '-') return '—';
   return val;
 }
 
@@ -90,21 +85,21 @@ function cellContent(row, col) {
   }
   if (col.key === 'mockInterviews') {
     return (
-      <span className="text-sm font-semibold text-slate-600 tabular-nums">
+      <span className="text-sm font-medium text-gray-700 tabular-nums">
         {displayMock(row.mockInterviews)}
       </span>
     );
   }
   if (col.metric) {
     const val = row[col.key];
-    const display = val === 0 || val ? val : '-';
+    const display = val === 0 || val ? val : '—';
     return (
       <span className={`text-sm tabular-nums ${METRIC_TEXT[col.metric]}`}>{display}</span>
     );
   }
   const val = row[col.key];
   return (
-    <span className="text-sm text-slate-600 truncate block max-w-[200px]" title={val || ''}>
+    <span className="text-sm text-gray-600 truncate block max-w-[200px]" title={val || ''}>
       {val || '—'}
     </span>
   );
@@ -128,16 +123,16 @@ function RowActions({
     row.status === 'Blocked' && row.blockInfo?.type === 'permanent' && !isSuperAdmin?.()
       ? 'Permanently blocked — only Super Admin can unblock'
       : row.status === 'Blocked'
-        ? 'Unblock Student'
-        : 'Block Student';
+        ? 'Unblock student'
+        : 'Block student';
 
   return (
-    <div className="flex items-center justify-center gap-2">
+    <div className="flex items-center justify-center gap-1.5">
       <button
         type="button"
         onClick={() => onView?.(row)}
-        className={`${ACTION_BTN} bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100`}
-        title="View Full Profile in Sidebar"
+        className={`${ACTION_BTN} bg-white text-gray-600 border-gray-200 hover:bg-gray-50`}
+        title="View profile"
       >
         <Eye className="w-4 h-4" strokeWidth={2} />
       </button>
@@ -145,8 +140,8 @@ function RowActions({
         type="button"
         onClick={() => onEdit?.(row)}
         disabled={!canModifyStudents?.() || operationLoading}
-        className={`${ACTION_BTN} bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100`}
-        title="Edit Student"
+        className={`${ACTION_BTN} bg-sky-50 text-sky-700 border-sky-100 hover:bg-sky-100`}
+        title="Edit student"
       >
         {operationLoading ? (
           <Loader className="w-4 h-4 animate-spin" />
@@ -161,7 +156,7 @@ function RowActions({
         className={`${ACTION_BTN} ${
           row.status === 'Blocked'
             ? 'bg-slate-700 hover:bg-slate-800 text-white border-slate-700'
-            : 'bg-gray-50 hover:bg-gray-100 text-slate-700 border-gray-200'
+            : 'bg-white hover:bg-gray-50 text-gray-600 border-gray-200'
         }`}
         title={blockTitle}
       >
@@ -200,15 +195,15 @@ export default function StudentDirectoryTable({
     [],
   );
 
-  const stickyShadow = 'shadow-[4px_0_6px_-2px_rgba(0,0,0,0.06)]';
+  const stickyShadow = 'shadow-[3px_0_6px_-2px_rgba(0,0,0,0.04)]';
   const stickyHeaderCell =
-    'sticky z-20 bg-slate-50 border-r border-slate-200/60 text-slate-400 uppercase tracking-wider font-semibold text-xs';
+    'sticky z-20 bg-gray-50 border-r border-gray-200 text-gray-500 font-medium text-xs';
   const stickyBodyCell =
-    'sticky z-20 bg-white group-hover:bg-slate-50 border-r border-slate-100 overflow-hidden align-middle';
+    'sticky z-20 bg-white group-hover:bg-sky-50/40 border-r border-gray-100 overflow-hidden align-middle';
   const scrollHeaderCell =
-    'px-6 py-4 text-xs font-semibold whitespace-nowrap border-r border-slate-200/60 last:border-r-0 uppercase tracking-wider';
+    'px-4 py-2.5 text-xs font-medium text-gray-500 whitespace-nowrap border-r border-gray-200 last:border-r-0 bg-gray-50';
   const scrollBodyCell =
-    'relative z-0 px-6 py-4 border-r border-slate-100 align-middle bg-white group-hover:bg-slate-50 text-slate-600';
+    'relative z-0 px-4 py-3 border-r border-gray-100 align-middle bg-white group-hover:bg-sky-50/40 text-gray-600';
 
   const getInitials = (name) => {
     if (!name) return 'ST';
@@ -222,46 +217,47 @@ export default function StudentDirectoryTable({
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-      {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-        <p className="text-sm text-slate-500 font-medium font-outfit">
-          Showing <span className="text-slate-800 font-bold">{showingCount}</span> of <span className="text-slate-800 font-bold">{totalCount}</span> Learners
+    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 border-b border-gray-100 bg-white">
+        <p className="text-sm text-gray-500">
+          Showing <span className="text-gray-900 font-semibold tabular-nums">{showingCount}</span>
+          {' '}of{' '}
+          <span className="text-gray-900 font-semibold tabular-nums">{totalCount}</span> students
         </p>
-        <div className="flex items-center gap-3">
-          <div className="relative w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" strokeWidth={2} />
+        <div className="flex items-center gap-2">
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" strokeWidth={2} />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange?.(e.target.value)}
-              placeholder="Search students..."
-              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+              placeholder="Search students…"
+              className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-md bg-gray-50 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400 focus:bg-white"
             />
           </div>
           <button
             type="button"
             onClick={onExport}
-            className="p-2 border border-slate-200 rounded-xl text-slate-600 hover:bg-white hover:text-slate-900 hover:border-slate-300 active:scale-95 transition-all bg-white"
-            title="Export Directory"
+            className="p-2 border border-gray-200 rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors bg-white"
+            title="Export directory"
           >
-            <Download className="w-5 h-5" />
+            <Download className="w-4 h-4" />
           </button>
         </div>
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-left" style={{ minWidth: 1520 }}>
+        <table className="w-full border-collapse text-left" style={{ minWidth: 1400 }}>
           <thead>
-            <tr className="border-b border-slate-100 bg-slate-50">
+            <tr className="border-b border-gray-200">
               <th
-                className={`${stickyHeaderCell} left-0 px-6 py-4 text-center font-outfit`}
+                className={`${stickyHeaderCell} left-0 px-3 py-2.5 text-center`}
                 style={{ width: SR_WIDTH, minWidth: SR_WIDTH }}
               >
-                Sr. No
+                #
               </th>
               <th
-                className={`${stickyHeaderCell} px-6 py-4 font-outfit ${stickyShadow}`}
+                className={`${stickyHeaderCell} px-4 py-2.5 ${stickyShadow}`}
                 style={{ left: SR_WIDTH, width: NAME_WIDTH, minWidth: NAME_WIDTH }}
               >
                 Name
@@ -269,50 +265,47 @@ export default function StudentDirectoryTable({
               {allScrollColumns.map((col) => (
                 <th
                   key={col.key}
-                  className={`${scrollHeaderCell} font-outfit ${headerClass(col)}`}
+                  className={scrollHeaderCell}
                   style={{ minWidth: col.minW }}
                 >
                   {col.label}
                 </th>
               ))}
               <th
-                className="sticky right-0 z-20 bg-slate-50 px-6 py-4 text-xs font-semibold text-slate-400 border-l border-slate-200/60 text-center font-outfit uppercase tracking-wider shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)]"
+                className="sticky right-0 z-20 bg-gray-50 px-4 py-2.5 text-xs font-medium text-gray-500 border-l border-gray-200 text-center shadow-[-3px_0_6px_-2px_rgba(0,0,0,0.04)]"
                 style={{ width: ACTIONS_WIDTH, minWidth: ACTIONS_WIDTH }}
               >
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-gray-100">
             {rows.map((row) => (
-              <tr
-                key={row.id}
-                className="group hover:bg-slate-50/70 transition-colors"
-              >
+              <tr key={row.id} className="group">
                 <td
-                  className={`${stickyBodyCell} left-0 px-6 py-4 text-sm text-slate-500 text-center font-medium`}
+                  className={`${stickyBodyCell} left-0 px-3 py-3 text-sm text-gray-400 text-center tabular-nums`}
                   style={{ width: SR_WIDTH, minWidth: SR_WIDTH }}
                 >
                   {formatSrNo(row.srNo)}
                 </td>
                 <td
-                  className={`${stickyBodyCell} px-6 py-4 ${stickyShadow}`}
+                  className={`${stickyBodyCell} px-4 py-3 ${stickyShadow}`}
                   style={{ left: SR_WIDTH, width: NAME_WIDTH, minWidth: NAME_WIDTH }}
                 >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-indigo-500 text-white flex items-center justify-center font-bold text-sm shadow-sm ring-2 ring-indigo-50 flex-shrink-0">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-md bg-sky-50 text-sky-700 border border-sky-100 flex items-center justify-center font-semibold text-xs shrink-0">
                       {getInitials(row.fullName || row.email)}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h4
-                        className="font-bold text-slate-800 text-sm truncate"
+                      <p
+                        className="font-medium text-gray-900 text-sm truncate"
                         title={row.fullName || row.email}
                       >
                         {row.fullName || '—'}
-                      </h4>
+                      </p>
                       {row.enrollmentId && (
-                        <span className="text-xs text-slate-400 block truncate" title={row.enrollmentId}>
-                          ID: {row.enrollmentId}
+                        <span className="text-xs text-gray-400 block truncate" title={row.enrollmentId}>
+                          {row.enrollmentId}
                         </span>
                       )}
                     </div>
@@ -328,7 +321,7 @@ export default function StudentDirectoryTable({
                   </td>
                 ))}
                 <td
-                  className={`${stickyBodyCell} right-0 px-6 py-4 border-l border-slate-100 text-center shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)]`}
+                  className={`${stickyBodyCell} right-0 px-3 py-3 border-l border-gray-100 text-center shadow-[-3px_0_6px_-2px_rgba(0,0,0,0.04)]`}
                   style={{ width: ACTIONS_WIDTH, minWidth: ACTIONS_WIDTH }}
                 >
                   <RowActions

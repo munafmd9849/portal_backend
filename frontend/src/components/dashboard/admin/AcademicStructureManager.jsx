@@ -134,41 +134,47 @@ const AcademicStructureManager = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-64">
-        <FaSpinner className="animate-spin text-4xl text-blue-600 mb-4" />
-        <p className="text-gray-500 font-medium">Loading academic structure...</p>
+      <div className="py-20 flex flex-col items-center justify-center gap-3">
+        <div className="w-8 h-8 border-2 border-gray-200 border-t-sky-600 rounded-full animate-spin" />
+        <p className="text-gray-500 text-sm">Loading academic structure...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="sticky top-[6.5rem] z-20 -mx-3 sm:-mx-6 md:-mx-8 px-3 sm:px-6 md:px-8 py-3 bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-50 border-b border-blue-100/80">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Academic Structure</h2>
-            <p className="text-sm text-gray-500">Manage branches, campuses, and student batches.</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => handleOpenModal(activeTab)}
-            className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-semibold transition-all shadow-md active:scale-95 shrink-0"
-          >
-            <FaPlus /> {addLabel}
-          </button>
+    <div className="space-y-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Academic Structure</h2>
+          <p className="text-sm text-gray-500">Manage branches, campuses, and student batches.</p>
         </div>
+        <button
+          type="button"
+          onClick={() => handleOpenModal(activeTab)}
+          className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-md text-sm font-medium transition-colors shrink-0"
+        >
+          <FaPlus /> {addLabel}
+        </button>
+      </div>
 
-        <div className="mt-4 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 border-b border-gray-200">
-          <div className="flex flex-wrap border-b border-gray-200 sm:border-b-0 -mb-px">
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="p-3 border-b border-gray-100">
+          <div
+            className="inline-flex rounded-md border border-gray-200 bg-white p-0.5 shadow-sm"
+            role="tablist"
+            aria-label="Academic structure"
+          >
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
+                role="tab"
+                aria-selected={activeTab === tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 sm:px-6 py-3 font-semibold transition-all border-b-2 ${
+                className={`flex items-center gap-1.5 rounded px-2.5 py-1.5 text-xs font-medium transition-colors ${
                   activeTab === tab.id
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    ? 'bg-slate-800 text-white'
+                    : 'text-gray-600 hover:bg-gray-50'
                 }`}
               >
                 <tab.icon />
@@ -177,30 +183,27 @@ const AcademicStructureManager = () => {
             ))}
           </div>
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full text-left border-collapse">
+        <table className="w-full text-left">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-100 text-xs font-bold text-gray-500 uppercase tracking-wider">
-              <th className="px-6 py-4">Name / Info</th>
-              <th className="px-6 py-4">ID / Code</th>
-              <th className="px-6 py-4">Status</th>
-              <th className="px-6 py-4 text-right">Actions</th>
+            <tr className="bg-gray-50 border-b border-gray-200">
+              <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Name / Info</th>
+              <th className="px-4 py-2.5 text-xs font-medium text-gray-500">ID / Code</th>
+              <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Status</th>
+              <th className="px-4 py-2.5 text-xs font-medium text-gray-500 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {data[activeTab].length === 0 ? (
               <tr>
-                <td colSpan="4" className="px-6 py-12 text-center">
-                  <p className="text-gray-500 mb-4">
+                <td colSpan="4" className="px-4 py-16 text-center">
+                  <p className="text-sm text-gray-500 mb-4">
                     No {activeTab} defined yet. Create your first {activeTabMeta.label.toLowerCase().replace(/es$/, '').replace(/s$/, '')} to get started.
                   </p>
                   <button
                     type="button"
                     onClick={() => handleOpenModal(activeTab)}
-                    className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-semibold shadow-md"
+                    className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
                   >
                     <FaPlus /> {addLabel}
                   </button>
@@ -208,45 +211,45 @@ const AcademicStructureManager = () => {
               </tr>
             ) : (
               data[activeTab].map(item => (
-                <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="font-semibold text-gray-900">
+                <tr key={item.id} className="hover:bg-sky-50/40 transition-colors">
+                  <td className="px-4 py-3">
+                    <div className="text-sm font-medium text-gray-900">
                       {activeTab === 'batches' ? item.year : item.name}
                     </div>
                     {activeTab === 'centers' && item.location && (
-                      <div className="text-xs text-gray-500">{item.location}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">{item.location}</div>
                     )}
                     {activeTab === 'batches' && item.label && (
-                      <div className="text-xs text-gray-500">Label: {item.label}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">Label: {item.label}</div>
                     )}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">
                     <code className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">
                       {activeTab === 'schools' ? item.code || 'N/A' : item.id.substring(0, 8) + '...'}
                     </code>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      item.status === 'ACTIVE' 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-red-100 text-red-700'
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium border ${
+                      item.status === 'ACTIVE'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                        : 'bg-rose-50 text-rose-700 border-rose-100'
                     }`}>
                       {item.status === 'ACTIVE' ? <FaCheckCircle size={10} /> : <FaTimesCircle size={10} />}
                       {item.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => handleOpenModal(activeTab, 'edit', item)}
-                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
                         title="Edit"
                       >
                         <FaEdit />
                       </button>
                       <button
                         onClick={() => handleDelete(activeTab, item.id)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
                         title="Delete"
                       >
                         <FaTrash />
@@ -260,42 +263,41 @@ const AcademicStructureManager = () => {
         </table>
       </div>
 
-      {/* Modal */}
       {modal.show && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-              <h3 className="text-xl font-bold text-gray-900">
+              <h3 className="text-lg font-semibold text-gray-900">
                 {modal.type === 'add' ? 'Add' : 'Edit'}{' '}
                 {(tabs.find((t) => t.id === modal.category) || tabs[0]).label.replace(/es$/, '').replace(/s$/, '')}
               </h3>
               <button onClick={handleCloseModal} className="text-gray-400 hover:text-gray-600 transition-colors">
-                <FaTimesCircle size={24} />
+                <FaTimesCircle size={20} />
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               {modal.category === 'schools' && (
                 <>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Branch Name</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Branch Name</label>
                     <input
                       type="text"
                       required
                       value={form.name}
                       onChange={e => setForm({ ...form, name: e.target.value })}
                       placeholder="e.g. School of Technology"
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-gray-50 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400 focus:bg-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Branch Code</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Branch Code</label>
                     <input
                       type="text"
                       value={form.code}
                       onChange={e => setForm({ ...form, code: e.target.value })}
                       placeholder="e.g. SOT"
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-gray-50 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400 focus:bg-white"
                     />
                   </div>
                 </>
@@ -304,24 +306,24 @@ const AcademicStructureManager = () => {
               {modal.category === 'centers' && (
                 <>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Campus Name</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Campus Name</label>
                     <input
                       type="text"
                       required
                       value={form.name}
                       onChange={e => setForm({ ...form, name: e.target.value })}
                       placeholder="e.g. Bangalore"
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-gray-50 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400 focus:bg-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Location Info</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Location Info</label>
                     <input
                       type="text"
                       value={form.location}
                       onChange={e => setForm({ ...form, location: e.target.value })}
                       placeholder="e.g. Electronic City"
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-gray-50 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400 focus:bg-white"
                     />
                   </div>
                 </>
@@ -330,24 +332,24 @@ const AcademicStructureManager = () => {
               {modal.category === 'batches' && (
                 <>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Batch Year / Range</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Batch Year / Range</label>
                     <input
                       type="text"
                       required
                       value={form.year}
                       onChange={e => setForm({ ...form, year: e.target.value })}
                       placeholder="e.g. 2023-2027"
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-gray-50 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400 focus:bg-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Display Label</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Display Label</label>
                     <input
                       type="text"
                       value={form.label}
                       onChange={e => setForm({ ...form, label: e.target.value })}
                       placeholder="e.g. 23-27"
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-gray-50 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400 focus:bg-white"
                     />
                   </div>
                 </>
@@ -355,11 +357,11 @@ const AcademicStructureManager = () => {
 
               {modal.type === 'edit' && (
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Status</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                   <select
                     value={form.status}
                     onChange={e => setForm({ ...form, status: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-gray-50 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400 focus:bg-white"
                   >
                     <option value="ACTIVE">Active</option>
                     <option value="INACTIVE">Inactive</option>
@@ -371,16 +373,16 @@ const AcademicStructureManager = () => {
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 font-semibold rounded-lg hover:bg-gray-50 transition-all"
+                  className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-md active:scale-95"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {actionLoading ? <FaSpinner className="animate-spin" /> : (modal.type === 'add' ? 'Create' : 'Save Changes')}
+                  {actionLoading ? <FaSpinner className="animate-spin" /> : (modal.type === 'add' ? 'Create' : 'Save')}
                 </button>
               </div>
             </form>

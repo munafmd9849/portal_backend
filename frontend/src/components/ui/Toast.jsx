@@ -114,12 +114,11 @@ const Toast = ({ id, type, title, message, onClose, duration = 5000 }) => {
 // Toast Container
 const ToastContainer = ({ toasts, removeToast }) => {
   return (
-    <div className="fixed top-4 right-4 z-[10050] space-y-2">
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[10050] w-[min(28rem,calc(100vw-2rem))] space-y-2 flex flex-col-reverse">
       {toasts.map((toast, index) => (
         <div
           key={toast.id}
           style={{ 
-            transform: `translateY(${index * 10}px)`,
             zIndex: 1000 - index 
           }}
         >

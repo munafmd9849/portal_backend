@@ -5,9 +5,6 @@ import {
     ChevronLeft,
     ChevronRight,
     Download,
-    Calendar,
-    User,
-    Activity,
     Info,
     RefreshCw,
     X
@@ -17,7 +14,7 @@ import { useAuth } from '../../../hooks/useAuth';
 
 const ROLE_COLORS = {
     'STUDENT': 'bg-blue-100 text-blue-700 border-blue-200',
-    'ADMIN': 'bg-purple-100 text-purple-700 border-purple-200',
+    'ADMIN': 'bg-sky-100 text-sky-700 border-sky-200',
     'RECRUITER': 'bg-orange-100 text-orange-700 border-orange-200',
     'SUPER_ADMIN': 'bg-red-100 text-red-700 border-red-200'
 };
@@ -124,30 +121,24 @@ export default function AuditLogs() {
     };
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                        <Activity className="h-6 w-6 text-violet-600" />
-                        System Audit Logs
-                    </h1>
-                    <p className="text-sm text-gray-500 mt-1">
-                        Track and monitor all significant actions across the portal
-                    </p>
-                </div>
-                <div className="flex items-center gap-2">
+        <div className="space-y-3">
+            {/* Toolbar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <p className="text-sm text-gray-500">
+                    Track and monitor portal activity
+                </p>
+                <div className="flex items-center gap-2 shrink-0">
                     <button
                         onClick={() => fetchLogs(pagination.page)}
-                        className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
+                        className="p-2 text-gray-500 hover:bg-gray-50 rounded-md transition-colors border border-gray-200"
                         title="Refresh"
                         disabled={loading}
                     >
-                        <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+                        <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                     </button>
                     <button
                         onClick={exportToCSV}
-                        className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
+                        className="flex items-center gap-2 px-3.5 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
                     >
                         <Download className="h-4 w-4" />
                         Export CSV
@@ -155,45 +146,44 @@ export default function AuditLogs() {
                 </div>
             </div>
 
-            {/* Search and Quick Filters */}
-            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-4">
-                <div className="flex flex-col md:flex-row gap-4">
+            {/* Search and filters */}
+            <div className="bg-white p-3 rounded-lg border border-gray-200 space-y-3">
+                <div className="flex flex-col md:flex-row gap-3">
                     <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                         <input
                             type="text"
                             name="search"
                             placeholder="Search by actor name, details, or target ID..."
                             value={filters.search}
                             onChange={handleFilterChange}
-                            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all"
+                            className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-md bg-gray-50 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400 focus:bg-white"
                         />
                     </div>
                     <button
                         onClick={() => setShowFilters(!showFilters)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${showFilters
-                                ? 'bg-violet-100 text-violet-700 border-violet-200'
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border shrink-0 ${showFilters
+                                ? 'bg-sky-100 text-sky-700 border-sky-200'
                                 : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
-                            } border`}
+                            }`}
                     >
-                        <Filter className="h-4 w-4" />
-                        Advanced Filters
+                        <Filter className="h-3.5 w-3.5" />
+                        Advanced filters
                         {(filters.role || filters.actionType || filters.startDate || filters.endDate) && (
-                            <span className="w-2 h-2 rounded-full bg-violet-600"></span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
                         )}
                     </button>
                 </div>
 
-                {/* Advanced Filters Panel */}
                 {showFilters && (
-                    <div className="pt-4 border-t border-gray-100 grid grid-cols-1 md:grid-cols-4 gap-4 animate-in slide-in-from-top-2 duration-300">
+                    <div className="pt-3 border-t border-gray-100 grid grid-cols-1 md:grid-cols-4 gap-3">
                         <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Actor Role</label>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">Actor role</label>
                             <select
                                 name="role"
                                 value={filters.role}
                                 onChange={handleFilterChange}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                                className="w-full px-3 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400"
                             >
                                 <option value="">All Roles</option>
                                 <option value="STUDENT">Student</option>
@@ -203,12 +193,12 @@ export default function AuditLogs() {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Action Type</label>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">Action type</label>
                             <select
                                 name="actionType"
                                 value={filters.actionType}
                                 onChange={handleFilterChange}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                                className="w-full px-3 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400"
                             >
                                 <option value="">All Actions</option>
                                 {availableActionTypes.map(type => (
@@ -217,31 +207,31 @@ export default function AuditLogs() {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Start Date</label>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">Start date</label>
                             <input
                                 type="date"
                                 name="startDate"
                                 value={filters.startDate}
                                 onChange={handleFilterChange}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                                className="w-full px-3 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400"
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">End Date</label>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">End date</label>
                             <div className="flex gap-2">
                                 <input
                                     type="date"
                                     name="endDate"
                                     value={filters.endDate}
                                     onChange={handleFilterChange}
-                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                                    className="w-full px-3 py-1.5 border border-gray-200 rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400"
                                 />
                                 <button
                                     onClick={clearFilters}
-                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
                                     title="Clear Filters"
                                 >
-                                    <X className="h-5 w-5" />
+                                    <X className="h-4 w-4" />
                                 </button>
                             </div>
                         </div>
@@ -249,51 +239,51 @@ export default function AuditLogs() {
                 )}
             </div>
 
-            {/* Logs Table */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            {/* Logs table */}
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-gray-50 border-b border-gray-200">
-                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Timestamp</th>
-                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Actor</th>
-                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Action</th>
-                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Target</th>
-                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Details</th>
+                                <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Timestamp</th>
+                                <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Actor</th>
+                                <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Action</th>
+                                <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Target</th>
+                                <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Details</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             {loading ? (
                                 Array.from({ length: 5 }).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
-                                        <td colSpan="5" className="px-6 py-4">
+                                        <td colSpan="5" className="px-4 py-2.5">
                                             <div className="h-4 bg-gray-100 rounded w-full"></div>
                                         </td>
                                     </tr>
                                 ))
                             ) : logs.length > 0 ? (
                                 logs.map((log) => (
-                                    <tr key={log.id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="px-6 py-4 whitespace-nowrap">
+                                    <tr key={log.id} className="hover:bg-sky-50/40 transition-colors">
+                                        <td className="px-4 py-2.5 whitespace-nowrap">
                                             <div className="text-sm text-gray-900">{new Date(log.timestamp).toLocaleDateString()}</div>
                                             <div className="text-xs text-gray-500">{new Date(log.timestamp).toLocaleTimeString()}</div>
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-4 py-2.5">
                                             <div className="flex flex-col">
-                                                <span className="text-sm font-semibold text-gray-900">{log.actorName}</span>
-                                                <span className={`inline-flex w-fit px-2 py-0.5 rounded-full text-[10px] font-bold border mt-1 ${ROLE_COLORS[log.actorRole] || 'bg-gray-100 text-gray-600'}`}>
+                                                <span className="text-sm font-medium text-gray-900">{log.actorName}</span>
+                                                <span className={`inline-flex w-fit px-2 py-0.5 rounded-full text-[10px] font-medium border mt-1 ${ROLE_COLORS[log.actorRole] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                                                     {log.actorRole}
                                                 </span>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <span className="text-sm font-medium text-gray-900">{log.actionType}</span>
+                                        <td className="px-4 py-2.5">
+                                            <span className="text-sm text-gray-900">{log.actionType}</span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
+                                        <td className="px-4 py-2.5 whitespace-nowrap">
                                             <div className="text-sm text-gray-700">{log.targetType}</div>
                                             <div className="text-xs text-gray-400 font-mono">{log.targetId}</div>
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-4 py-2.5">
                                             <p className="text-sm text-gray-600 max-w-xs truncate" title={log.details}>
                                                 {log.details || '-'}
                                             </p>
@@ -302,10 +292,10 @@ export default function AuditLogs() {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
+                                    <td colSpan="5" className="px-4 py-12 text-center text-gray-500">
                                         <div className="flex flex-col items-center gap-2">
-                                            <Info className="h-8 w-8 text-gray-300" />
-                                            <p>No audit logs found matching your criteria.</p>
+                                            <Info className="h-8 w-8 text-gray-200" />
+                                            <p className="text-sm">No audit logs found matching your criteria.</p>
                                         </div>
                                     </td>
                                 </tr>
@@ -314,23 +304,22 @@ export default function AuditLogs() {
                     </table>
                 </div>
 
-                {/* Pagination */}
                 {pagination.totalPages > 1 && (
-                    <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
-                        <div className="text-sm text-gray-500">
-                            Showing <span className="font-medium">{(pagination.page - 1) * pagination.limit + 1}</span> to{' '}
+                    <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="text-xs text-gray-500">
+                            Showing <span className="font-medium text-gray-700">{(pagination.page - 1) * pagination.limit + 1}</span> to{' '}
                             <span className="font-medium text-gray-700">
                                 {Math.min(pagination.page * pagination.limit, pagination.total)}
                             </span> of{' '}
                             <span className="font-medium text-gray-700">{pagination.total}</span> logs
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                             <button
                                 onClick={() => handlePageChange(pagination.page - 1)}
                                 disabled={pagination.page === 1 || loading}
-                                className="p-2 border border-gray-200 rounded-lg hover:bg-white disabled:opacity-50 transition-all shadow-sm"
+                                className="p-1.5 border border-gray-200 rounded-md hover:bg-white disabled:opacity-50 transition-colors"
                             >
-                                <ChevronLeft className="h-5 w-5" />
+                                <ChevronLeft className="h-4 w-4" />
                             </button>
                             <div className="flex gap-1">
                                 {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
@@ -344,9 +333,9 @@ export default function AuditLogs() {
                                         <button
                                             key={pageNum}
                                             onClick={() => handlePageChange(pageNum)}
-                                            className={`w-10 h-10 rounded-lg text-sm font-medium transition-all ${pagination.page === pageNum
-                                                    ? 'bg-violet-600 text-white shadow-md'
-                                                    : 'bg-white border border-gray-200 text-gray-600 hover:border-violet-500 hover:text-violet-600'
+                                            className={`w-8 h-8 rounded-md text-xs font-medium transition-colors ${pagination.page === pageNum
+                                                    ? 'bg-blue-600 text-white'
+                                                    : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
                                                 }`}
                                         >
                                             {pageNum}
@@ -357,9 +346,9 @@ export default function AuditLogs() {
                             <button
                                 onClick={() => handlePageChange(pagination.page + 1)}
                                 disabled={pagination.page === pagination.totalPages || loading}
-                                className="p-2 border border-gray-200 rounded-lg hover:bg-white disabled:opacity-50 transition-all shadow-sm"
+                                className="p-1.5 border border-gray-200 rounded-md hover:bg-white disabled:opacity-50 transition-colors"
                             >
-                                <ChevronRight className="h-5 w-5" />
+                                <ChevronRight className="h-4 w-4" />
                             </button>
                         </div>
                     </div>

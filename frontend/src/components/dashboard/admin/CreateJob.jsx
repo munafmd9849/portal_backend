@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
-import { Calendar, Info, Plus, X, Loader, ChevronsUp, ChevronsDown, ChevronDown, Upload, FileText, CheckCircle, AlertCircle, Building2, Globe, Linkedin, Briefcase, MapPin, Users, GraduationCap, Code2, Award, Mail, Phone, Hash, Clock, User, Archive, Trash2 } from 'lucide-react';
+import { Calendar, Info, Plus, X, Loader, ChevronsUp, ChevronsDown, ChevronDown, Upload, FileText, CheckCircle, AlertCircle, Building2, Globe, Linkedin, Briefcase, MapPin, Users, GraduationCap, Code2, Award, Mail, Phone, Hash, Clock, User, Archive, Trash2, ArrowRight, HelpCircle } from 'lucide-react';
 import CustomDropdown from '../../common/CustomDropdown';
 import { FaBriefcase, FaLaptop, FaMapMarkerAlt, FaClock, FaExclamationTriangle, FaCalendarAlt, FaDollarSign } from 'react-icons/fa';
 import DatePicker from 'react-datepicker';
@@ -10,6 +10,13 @@ import { saveJobDraft, addAnotherPositionDraft, postJob, submitJobForReview, get
 import ExcelUploader from './ExcelUploader'; // Import Excel component
 import JDFormatGuide from './JDFormatGuide'; // Import JD Format Guide
 import { showSuccess, showError, showWarning, showLoading, replaceLoadingToast, dismissToast } from '../../../utils/toast';
+import {
+  createEmptyCustomQuestion,
+  serializeCustomQuestions,
+  parseJobCustomQuestions,
+  CUSTOM_QUESTION_TYPES,
+  CUSTOM_QUESTION_TYPE_LABELS,
+} from '../../../utils/jobHelpers';
 
 // Utility helpers
 const toISOFromDDMMYYYY = (val) => {
@@ -65,8 +72,10 @@ const DRIVE_VENUES = [
 export default function CreateJob({ onCreated }) {
   const { user, role } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const editJobId = searchParams.get('editJobId');
+  const basePath = location.pathname.startsWith('/super-admin') ? '/super-admin' : '/admin';
   const [isEditing, setIsEditing] = useState(!!editJobId);
   const [editingJob, setEditingJob] = useState(null);
   const [loadingJob, setLoadingJob] = useState(!!editJobId);
@@ -118,8 +127,9 @@ export default function CreateJob({ onCreated }) {
   const [posting, setPosting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Creation method state - controls the three options
+  // Creation method: manual form vs file upload (JD or Excel)
   const [creationMethod, setCreationMethod] = useState('manual');
+  const [uploadKind, setUploadKind] = useState('jd'); // 'jd' | 'excel'
 
   // File upload states for JD parsing
   const [isUploading, setIsUploading] = useState(false);
@@ -238,12 +248,10 @@ export default function CreateJob({ onCreated }) {
           requiresTest: jobData.requiresTest || false,
           customQuestions: (() => {
             try {
-              const raw = jobData.customQuestions;
-              const parsed = typeof raw === 'string' ? JSON.parse(raw || '[]') : raw;
-              const list = Array.isArray(parsed) ? parsed.filter(Boolean) : [];
-              return list.length ? list : [''];
+              const list = parseJobCustomQuestions({ customQuestions: jobData.customQuestions });
+              return list.length ? list : [createEmptyCustomQuestion(CUSTOM_QUESTION_TYPES.YES_NO)];
             } catch {
-              return [''];
+              return [createEmptyCustomQuestion(CUSTOM_QUESTION_TYPES.YES_NO)];
             }
           })(),
           baseRoundDetails: (() => {
@@ -478,7 +486,7 @@ export default function CreateJob({ onCreated }) {
     // Pre-Interview Requirements
     requiresScreening: false,
     requiresTest: false,
-    customQuestions: [''],
+    customQuestions: [createEmptyCustomQuestion(CUSTOM_QUESTION_TYPES.YES_NO)],
   });
 
   // Local draft for About Drive section
@@ -585,7 +593,7 @@ export default function CreateJob({ onCreated }) {
     e.stopPropagation();
     const files = e.dataTransfer.files;
     if (files.length) {
-      if (creationMethod === 'uploadJD') {
+      if (creationMethod === 'upload' && uploadKind === 'jd') {
         fileInputRef.current.files = files;
         handleFileUpload({ target: { files } });
       }
@@ -1127,7 +1135,7 @@ export default function CreateJob({ onCreated }) {
       instructions: '',
       requiresScreening: false,
       requiresTest: false,
-      customQuestions: [''],
+      customQuestions: [createEmptyCustomQuestion(CUSTOM_QUESTION_TYPES.YES_NO)],
     }));
 
     setDriveDraft({
@@ -1168,9 +1176,7 @@ export default function CreateJob({ onCreated }) {
       // Skills are optional when eligibility section is not filled
     }
 
-    const cleanedQuestions = (Array.isArray(form.customQuestions) ? form.customQuestions : [])
-      .map((q) => String(q).trim())
-      .filter(Boolean);
+    const cleanedQuestions = serializeCustomQuestions(form.customQuestions);
 
     const interviewRounds = [
       { title: `${toRoman(1)} Round`, detail: form.baseRoundDetails[0] || '' },
@@ -1514,14 +1520,9 @@ export default function CreateJob({ onCreated }) {
 
         console.log('✅ Job updated successfully! Job ID:', editJobId);
 
-        if (onCreated) {
-          console.log('🔄 Calling onCreated callback...');
-          onCreated();
-        }
-        replaceLoadingToast(loadingToastId, 'success', 'Job updated successfully! Changes will appear in the "In Review" section of Manage Jobs.');
-
-        // Navigate back to manage jobs
-        navigate('/admin?tab=manageJobs');
+        replaceLoadingToast(loadingToastId, 'success', 'Job saved. Opening Manage Jobs…');
+        if (onCreated) onCreated();
+        navigate(`${basePath}?tab=manageJobs`, { state: { fromCreate: true, jobId: editJobId } });
       } else {
         // Submit job for review - it will appear in ManageJobs "In Review" section
         console.log('📤 Calling submitJobForReview...');
@@ -1536,12 +1537,10 @@ export default function CreateJob({ onCreated }) {
 
         console.log('✅ Job submitted successfully! Job ID:', jobId);
 
-        if (onCreated) {
-          console.log('🔄 Calling onCreated callback...');
-          onCreated();
-        }
-        replaceLoadingToast(loadingToastId, 'success', 'Job submitted successfully! It has been sent for review and will appear in the "In Review" section of Manage Jobs.');
+        dismissToast(loadingToastId);
         resetForm();
+        if (onCreated) onCreated();
+        navigate(`${basePath}?tab=manageJobs`, { state: { fromCreate: true, jobId } });
       }
     } catch (err) {
       console.error('❌ Submit error:', err);
@@ -1619,32 +1618,32 @@ export default function CreateJob({ onCreated }) {
   };
 
   return (
-    <div className="space-y-3 sm:space-y-4 p-3 sm:p-4 overflow-x-hidden">
+    <div className="space-y-3 p-3 sm:p-4 overflow-x-hidden">
       {/* Custom Calendar Styles */}
       <style>{`
         .react-datepicker {
           font-family: inherit;
-          border: 1px solid #e5e7eb;
+          border: 1px solid #e2e8f0;
           border-radius: 0.5rem;
-          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.08);
         }
         .react-datepicker__header {
-          background: linear-gradient(to right, #2563eb, #4f46e5);
-          border-bottom: none;
+          background: #f8fafc;
+          border-bottom: 1px solid #e2e8f0;
           border-radius: 0.5rem 0.5rem 0 0;
         }
         .react-datepicker__current-month {
-          color: white;
+          color: #0f172a;
           font-weight: 600;
           font-size: 0.875rem;
         }
         .react-datepicker__day-name {
-          color: white;
+          color: #64748b;
           font-weight: 500;
         }
         .react-datepicker__day--selected,
         .react-datepicker__day--keyboard-selected {
-          background: linear-gradient(to right, #2563eb, #4f46e5);
+          background: #2563eb;
           border-radius: 0.375rem;
         }
         .react-datepicker__day:hover {
@@ -1656,86 +1655,82 @@ export default function CreateJob({ onCreated }) {
           color: #2563eb;
         }
         .react-datepicker__navigation-icon::before {
-          border-color: white;
+          border-color: #64748b;
         }
         .react-datepicker__triangle {
           display: none;
         }
       `}</style>
 
+      {/* Toolbar: drafts only */}
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => {
+            loadDrafts();
+            setShowDraftsPanel(!showDraftsPanel);
+          }}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50"
+        >
+          <Archive className="w-3.5 h-3.5" />
+          Drafts ({savedDrafts.length})
+        </button>
+      </div>
+
       {/* Saved Drafts Panel */}
       {showDraftsPanel && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Archive className="w-5 h-5 text-blue-600" />
-              Saved Drafts
+        <div className="bg-white rounded-lg border border-slate-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+              <Archive className="w-4 h-4 text-slate-600" />
+              Saved drafts
             </h3>
             <button
               onClick={() => setShowDraftsPanel(false)}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-50"
+              aria-label="Close drafts"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
 
           {savedDrafts.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <Archive className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-sm">No saved drafts found.</p>
-              <p className="text-xs mt-1">Save your progress using the "Save (Draft)" button to see drafts here.</p>
+            <div className="text-center py-6 text-slate-500">
+              <p className="text-sm">No drafts saved.</p>
+              <p className="text-xs mt-1 text-slate-400">Use Save draft to store unfinished work.</p>
             </div>
           ) : (
-            <div className="space-y-3 max-h-96 overflow-y-auto">
+            <div className="space-y-2 max-h-72 overflow-y-auto">
               {savedDrafts.map((draft) => (
                 <div
                   key={draft.draftId}
-                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex items-center justify-between gap-3 p-3 border border-slate-200 rounded-md hover:bg-slate-50"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Building2 className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                      <p className="font-medium text-gray-900 truncate">
-                        {draft.jobTitle || draft.company || 'Untitled Draft'}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-4 text-xs text-gray-500 ml-6">
-                      {draft.company && (
-                        <span className="flex items-center gap-1">
-                          <Building2 className="w-3 h-3" />
-                          {draft.company}
-                        </span>
-                      )}
-                      {draft.createdAt && (
-                        <span>
-                          Saved: {new Date(draft.createdAt).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </span>
-                      )}
-                    </div>
+                    <p className="text-sm font-medium text-slate-900 truncate">
+                      {draft.jobTitle || draft.company || 'Untitled draft'}
+                    </p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {[draft.company, draft.createdAt && new Date(draft.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })].filter(Boolean).join(' · ')}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2 ml-4">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       onClick={() => loadDraft(draft)}
-                      className="px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md border border-blue-200 transition-colors"
+                      className="px-2.5 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md border border-blue-200"
                     >
                       Load
                     </button>
                     <button
                       onClick={() => {
-                        if (window.confirm('Are you sure you want to delete this draft?')) {
+                        if (window.confirm('Delete this draft?')) {
                           deleteDraft(draft.draftId);
                         }
                       }}
-                      className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                      className="p-1.5 text-red-600 hover:bg-red-50 rounded-md"
                       title="Delete draft"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -1745,58 +1740,65 @@ export default function CreateJob({ onCreated }) {
         </div>
       )}
 
-      {/* THREE CREATION METHOD OPTIONS - ALWAYS VISIBLE */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-5">
-        <div className="flex justify-end mb-2">
-          <button
-            type="button"
-            onClick={() => {
-              loadDrafts();
-              setShowDraftsPanel(!showDraftsPanel);
-            }}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md border border-blue-200 transition-colors"
-          >
-            <Archive className="w-3.5 h-3.5" />
-            Saved Drafts ({savedDrafts.length})
-          </button>
-        </div>
-        <div className="flex justify-center">
-          <div className="bg-gray-50 rounded-lg p-1 inline-flex gap-2 border border-gray-200">
+      {/* Method switcher — Manual | Upload */}
+      <div className="bg-white rounded-lg border border-slate-200 px-3 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5" role="tablist" aria-label="Creation method">
             <button
+              type="button"
+              role="tab"
+              aria-selected={creationMethod === 'manual'}
               onClick={() => setCreationMethod('manual')}
-              className={`px-6 py-2.5 rounded-md font-medium transition-all duration-200 ${creationMethod === 'manual'
-                ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-md'
-                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                }`}
+              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                creationMethod === 'manual' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-600 hover:text-slate-900'
+              }`}
             >
-              Manual Entry
+              Manual entry
             </button>
-
             <button
-              onClick={() => setCreationMethod('uploadJD')}
-              className={`px-6 py-2.5 rounded-md font-medium transition-all duration-200 ${creationMethod === 'uploadJD'
-                ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-md'
-                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                }`}
+              type="button"
+              role="tab"
+              aria-selected={creationMethod === 'upload'}
+              onClick={() => setCreationMethod('upload')}
+              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                creationMethod === 'upload' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-600 hover:text-slate-900'
+              }`}
             >
-              Upload JD
-            </button>
-
-            <button
-              onClick={() => setCreationMethod('uploadExcel')}
-              className={`px-6 py-2.5 rounded-md font-medium transition-all duration-200 ${creationMethod === 'uploadExcel'
-                ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-md'
-                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                }`}
-            >
-              Upload Excel
+              Upload file
             </button>
           </div>
+
+          {creationMethod === 'upload' && (
+            <div className="inline-flex rounded-md border border-slate-200 bg-white p-0.5" role="tablist" aria-label="Upload type">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={uploadKind === 'jd'}
+                onClick={() => setUploadKind('jd')}
+                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                  uploadKind === 'jd' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                Job description (PDF/DOC)
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={uploadKind === 'excel'}
+                onClick={() => setUploadKind('excel')}
+                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                  uploadKind === 'excel' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                Excel (bulk)
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* JD UPLOAD FORM */}
-      {creationMethod === 'uploadJD' && (
+      {/* Upload section */}
+      {creationMethod === 'upload' && uploadKind === 'jd' && (
         <JDUploadForm
           isUploading={isUploading}
           parseResult={parseResult}
@@ -1809,8 +1811,7 @@ export default function CreateJob({ onCreated }) {
         />
       )}
 
-      {/* EXCEL UPLOAD FORM */}
-      {creationMethod === 'uploadExcel' && (
+      {creationMethod === 'upload' && uploadKind === 'excel' && (
         <ExcelUploader
           onJobSelected={handleExcelJobSelected}
           onBulkProcessed={handleExcelBulkUpload}
@@ -1820,21 +1821,21 @@ export default function CreateJob({ onCreated }) {
 
       {/* Loading state when editing */}
       {loadingJob && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-          <Loader className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading job for editing...</p>
+        <div className="bg-white rounded-lg border border-slate-200 p-8 text-center">
+          <Loader className="w-7 h-7 animate-spin text-blue-600 mx-auto mb-3" />
+          <p className="text-sm text-slate-600">Loading job…</p>
         </div>
       )}
 
       {/* MANUAL FORM */}
       {!loadingJob && creationMethod === 'manual' && (
-        <form onSubmit={handleSubmit} noValidate className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-8">
+        <form onSubmit={handleSubmit} noValidate className="bg-white rounded-lg border border-slate-200 p-4 sm:p-5 space-y-6">
 
           {/* Section 1: Company Details */}
           <section className="space-y-4">
-            <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
-              <Building2 size={20} className="text-blue-600" />
-              <h3 className="text-lg font-semibold text-gray-900">Company Details</h3>
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
+              <Building2 size={18} className="text-blue-600" />
+              <h3 className="text-base font-semibold text-slate-900">Company details</h3>
             </div>
 
             {!isSectionCollapsed('company') && (
@@ -1846,7 +1847,7 @@ export default function CreateJob({ onCreated }) {
                     Company <span className="text-red-500">*</span>
                   </label>
                   <input
-                    className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${form.company?.trim() ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                    className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${form.company?.trim() ? 'border-sky-200 bg-white' : 'border-gray-300'
                       }`}
                     placeholder="e.g. ABC Corp"
                     value={form.company}
@@ -1862,7 +1863,7 @@ export default function CreateJob({ onCreated }) {
                       LinkedIn <span className="text-red-500">*</span>
                     </label>
                     <input
-                      className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${linkedinError ? 'border-red-500 bg-red-50' : form.linkedin?.trim() ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                      className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${linkedinError ? 'border-red-500 bg-red-50' : form.linkedin?.trim() ? 'border-sky-200 bg-white' : 'border-gray-300'
                         }`}
                       placeholder="https://linkedin.com/company/example"
                       value={form.linkedin}
@@ -1878,7 +1879,7 @@ export default function CreateJob({ onCreated }) {
                       Website <span className="text-red-500">*</span>
                     </label>
                     <input
-                      className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${websiteError ? 'border-red-500 bg-red-50' : form.website?.trim() ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                      className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${websiteError ? 'border-red-500 bg-red-50' : form.website?.trim() ? 'border-sky-200 bg-white' : 'border-gray-300'
                         }`}
                       placeholder="www.company.com"
                       value={form.website}
@@ -1915,7 +1916,7 @@ export default function CreateJob({ onCreated }) {
                         </label>
                         <input
                           type="email"
-                          className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${recruiterEmailError ? 'border-red-500 bg-red-50' : recruiter.email?.trim() ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                          className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${recruiterEmailError ? 'border-red-500 bg-red-50' : recruiter.email?.trim() ? 'border-sky-200 bg-white' : 'border-gray-300'
                             }`}
                           placeholder="recruiter@company.com"
                           value={recruiter.email || ''}
@@ -1930,7 +1931,7 @@ export default function CreateJob({ onCreated }) {
                           Name <span className="text-gray-400">(Optional)</span>
                         </label>
                         <input
-                          className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${recruiter.name?.trim() ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                          className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${recruiter.name?.trim() ? 'border-sky-200 bg-white' : 'border-gray-300'
                             }`}
                           placeholder="e.g. John Doe"
                           value={recruiter.name || ''}
@@ -1989,7 +1990,7 @@ export default function CreateJob({ onCreated }) {
                       Job Title <span className="text-red-500">*</span>
                     </label>
                     <input
-                      className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${form.jobTitle?.trim() ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                      className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${form.jobTitle?.trim() ? 'border-sky-200 bg-white' : 'border-gray-300'
                         }`}
                       placeholder="e.g. Full Stack Developer"
                       value={form.jobTitle}
@@ -2028,7 +2029,7 @@ export default function CreateJob({ onCreated }) {
                       </label>
                       <input
                         type="text"
-                        className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${stipendError ? 'border-red-500 bg-red-50' : form.stipend?.trim() ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                        className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${stipendError ? 'border-red-500 bg-red-50' : form.stipend?.trim() ? 'border-sky-200 bg-white' : 'border-gray-300'
                           }`}
                         placeholder="e.g. ₹15000 per month, As per performance, As per industry standards"
                         value={form.stipend}
@@ -2042,7 +2043,7 @@ export default function CreateJob({ onCreated }) {
                         Duration <span className="text-red-500">*</span>
                       </label>
                       <input
-                        className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${durationError ? 'border-red-500 bg-red-50' : form.duration?.trim() ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                        className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${durationError ? 'border-red-500 bg-red-50' : form.duration?.trim() ? 'border-sky-200 bg-white' : 'border-gray-300'
                           }`}
                         placeholder="e.g. 6 months"
                         value={form.duration}
@@ -2059,7 +2060,7 @@ export default function CreateJob({ onCreated }) {
                     </label>
                     <input
                       type="text"
-                      className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${salaryError ? 'border-red-500 bg-red-50' : form.salary?.trim() ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                      className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${salaryError ? 'border-red-500 bg-red-50' : form.salary?.trim() ? 'border-sky-200 bg-white' : 'border-gray-300'
                         }`}
                       placeholder="e.g. 12 LPA, 10–15 LPA, As per industry standards"
                       value={form.salary}
@@ -2076,7 +2077,7 @@ export default function CreateJob({ onCreated }) {
                       Company Location <span className="text-red-500">*</span>
                     </label>
                     <input
-                      className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${companyLocationError ? 'border-red-500 bg-red-50' : form.companyLocation?.trim() ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                      className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${companyLocationError ? 'border-red-500 bg-red-50' : form.companyLocation?.trim() ? 'border-sky-200 bg-white' : 'border-gray-300'
                         }`}
                       placeholder="City, State (e.g. Bangalore, Karnataka)"
                       value={form.companyLocation}
@@ -2090,7 +2091,7 @@ export default function CreateJob({ onCreated }) {
                       Open Positions
                     </label>
                     <input
-                      className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${form.openings?.trim() ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                      className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${form.openings?.trim() ? 'border-sky-200 bg-white' : 'border-gray-300'
                         }`}
                       placeholder="e.g. 15"
                       value={form.openings}
@@ -2105,7 +2106,7 @@ export default function CreateJob({ onCreated }) {
                     Roles & Responsibilities <span className="text-red-500">*</span>
                   </label>
                   <textarea
-                    className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text min-h-[120px] max-h-[300px] resize-y ${form.responsibilities?.trim() ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                    className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text min-h-[120px] max-h-[300px] resize-y ${form.responsibilities?.trim() ? 'border-sky-200 bg-white' : 'border-gray-300'
                       }`}
                     placeholder="Outline responsibilities, tech stack, team, etc."
                     value={form.responsibilities}
@@ -2172,7 +2173,7 @@ export default function CreateJob({ onCreated }) {
                             Full Name
                           </label>
                           <input
-                            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${spoc.fullName?.trim() ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${spoc.fullName?.trim() ? 'border-sky-200 bg-white' : 'border-gray-300'
                               }`}
                             placeholder="e.g. Amit Kumar"
                             value={spoc.fullName}
@@ -2186,7 +2187,7 @@ export default function CreateJob({ onCreated }) {
                           </label>
                           <input
                             type="email"
-                            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${spoc.email?.trim() ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${spoc.email?.trim() ? 'border-sky-200 bg-white' : 'border-gray-300'
                               }`}
                             placeholder="e.g. amit.kumar@company.com"
                             value={spoc.email}
@@ -2200,7 +2201,7 @@ export default function CreateJob({ onCreated }) {
                           </label>
                           <input
                             type="tel"
-                            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${spoc.phone?.trim() ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${spoc.phone?.trim() ? 'border-sky-200 bg-white' : 'border-gray-300'
                               }`}
                             placeholder="e.g. +91 9876543210"
                             value={spoc.phone}
@@ -2449,7 +2450,7 @@ export default function CreateJob({ onCreated }) {
                       Qualification <span className="text-red-500">*</span>
                     </label>
                     <input
-                      className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${form.qualification?.trim() ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                      className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${form.qualification?.trim() ? 'border-sky-200 bg-white' : 'border-gray-300'
                         }`}
                       placeholder="e.g. B.Tech, BCA, MCA"
                       value={form.qualification}
@@ -2462,7 +2463,7 @@ export default function CreateJob({ onCreated }) {
                       Specialization/Branch
                     </label>
                     <input
-                      className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${form.specialization?.trim() ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                      className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${form.specialization?.trim() ? 'border-sky-200 bg-white' : 'border-gray-300'
                         }`}
                       placeholder="e.g. Computer Science (optional)"
                       value={form.specialization}
@@ -2499,7 +2500,7 @@ export default function CreateJob({ onCreated }) {
                       Minimum CGPA/Percentage <span className="text-red-500">*</span>
                     </label>
                     <input
-                      className={`w-full border-2 rounded-lg px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${minCgpaError ? 'border-red-500 bg-red-50' : form.minCgpa?.trim() ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                      className={`w-full border-2 rounded-lg px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${minCgpaError ? 'border-red-500 bg-red-50' : form.minCgpa?.trim() ? 'border-sky-200 bg-white' : 'border-gray-300'
                         }`}
                       placeholder="e.g. 7.0 or 70%"
                       value={form.minCgpa}
@@ -2515,7 +2516,7 @@ export default function CreateJob({ onCreated }) {
                     <Code2 size={16} className="text-orange-600" />
                     Skills <span className="text-red-500">*</span>
                   </label>
-                  <div className={`relative border rounded-md px-3 py-2 min-h-[42px] flex flex-wrap items-center gap-1 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-colors ${form.skills.length > 0 ? 'border-green-300 bg-green-50' : form.skillsInput?.trim() ? 'border-yellow-300 bg-yellow-50' : 'border-gray-300'
+                  <div className={`relative border rounded-md px-3 py-2 min-h-[42px] flex flex-wrap items-center gap-1 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-colors ${form.skills.length > 0 ? 'border-sky-200 bg-white' : form.skillsInput?.trim() ? 'border-yellow-300 bg-yellow-50' : 'border-gray-300'
                     }`}>
                     {form.skills.map((s, idx) => (
                       <span key={`${s}-${idx}`} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
@@ -2697,7 +2698,7 @@ export default function CreateJob({ onCreated }) {
                           {i < 2 && <span className="text-gray-400 text-xs font-normal">(optional)</span>}
                         </label>
                         <input
-                          className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${form.baseRoundDetails[i]?.trim() ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                          className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${form.baseRoundDetails[i]?.trim() ? 'border-sky-200 bg-white' : 'border-gray-300'
                             }`}
                           placeholder={i < 2 ? "e.g. Online test, DS&A" : "e.g. HR round (optional)"}
                           value={form.baseRoundDetails[i]}
@@ -2718,7 +2719,7 @@ export default function CreateJob({ onCreated }) {
                           {r.title}
                         </label>
                         <input
-                          className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${r.detail?.trim() ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                          className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${r.detail?.trim() ? 'border-sky-200 bg-white' : 'border-gray-300'
                             }`}
                           placeholder="e.g. Managerial round (optional)"
                           value={r.detail}
@@ -2765,7 +2766,7 @@ export default function CreateJob({ onCreated }) {
                       </div>
                     </label>
                     <input
-                      className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${form.serviceAgreement?.trim() ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                      className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${form.serviceAgreement?.trim() ? 'border-sky-200 bg-white' : 'border-gray-300'
                         }`}
                       placeholder="e.g. 1 year bond (optional)"
                       value={form.serviceAgreement}
@@ -2791,7 +2792,7 @@ export default function CreateJob({ onCreated }) {
                       </div>
                     </label>
                     <input
-                      className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${form.blockingPeriod?.trim() ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                      className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text ${form.blockingPeriod?.trim() ? 'border-sky-200 bg-white' : 'border-gray-300'
                         }`}
                       placeholder="e.g. 6 months (optional)"
                       value={form.blockingPeriod}
@@ -2815,50 +2816,179 @@ export default function CreateJob({ onCreated }) {
             </div>
           </section>
 
-          {/* Section 4b: Custom apply questions (display-only for students) */}
-          <section className="space-y-4">
-            <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
-              <Info size={20} className="text-indigo-600" />
-              <h3 className="text-lg font-semibold text-gray-900">
-                Custom Apply Questions <span className="text-sm font-normal text-gray-500">(Optional)</span>
-              </h3>
+          {/* Section 4b: Custom apply questions */}
+          <section className="space-y-3">
+            <div className="flex items-start justify-between gap-3 pb-2 border-b border-slate-200">
+              <div>
+                <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                  <HelpCircle size={18} className="text-blue-600" />
+                  Application questions
+                  <span className="text-xs font-normal text-slate-500">Optional</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Students answer these when they apply. Use Yes/No, multiple choice, or short text.
+                </p>
+              </div>
             </div>
-            <p className="text-sm text-gray-600">
-              Students will see these questions when they click Apply Now (read-only). Examples: relocation, bond, notice period.
-            </p>
+
             <div className="space-y-3">
-              {(form.customQuestions || ['']).map((question, idx) => (
-                <div key={`custom-q-${idx}`} className="flex gap-2">
-                  <input
-                    type="text"
-                    className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="e.g. Are you ready to relocate to the job location?"
-                    value={question}
-                    onChange={(e) => {
-                      const next = [...(form.customQuestions || [''])];
-                      next[idx] = e.target.value;
-                      update({ customQuestions: next });
-                    }}
-                  />
-                  {(form.customQuestions || []).length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const next = (form.customQuestions || []).filter((_, i) => i !== idx);
-                        update({ customQuestions: next.length ? next : [''] });
-                      }}
-                      className="px-3 py-2 text-red-500 hover:bg-red-50 rounded-md"
-                      title="Remove question"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
+              {(form.customQuestions?.length
+                ? form.customQuestions
+                : [createEmptyCustomQuestion(CUSTOM_QUESTION_TYPES.YES_NO)]
+              ).map((question, idx) => {
+                const q =
+                  typeof question === 'string'
+                    ? { ...createEmptyCustomQuestion(CUSTOM_QUESTION_TYPES.DESCRIPTIVE), text: question }
+                    : question;
+                const updateQuestion = (patch) => {
+                  const next = [...(form.customQuestions || [])];
+                  while (next.length <= idx) next.push(createEmptyCustomQuestion());
+                  const current =
+                    typeof next[idx] === 'string'
+                      ? { ...createEmptyCustomQuestion(CUSTOM_QUESTION_TYPES.DESCRIPTIVE), text: next[idx] }
+                      : { ...next[idx] };
+                  let merged = { ...current, ...patch };
+                  if (patch.type === CUSTOM_QUESTION_TYPES.MCQ && (!merged.options || merged.options.length < 2)) {
+                    merged.options = ['', ''];
+                  }
+                  if (patch.type && patch.type !== CUSTOM_QUESTION_TYPES.MCQ) {
+                    merged.options = [];
+                  }
+                  next[idx] = merged;
+                  update({ customQuestions: next });
+                };
+
+                return (
+                  <div
+                    key={q.id || `custom-q-${idx}`}
+                    className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 sm:p-4 space-y-3"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-slate-500">Question {idx + 1}</span>
+                      <div className="flex items-center gap-1.5">
+                        <div className="inline-flex rounded-md border border-slate-200 bg-white p-0.5">
+                          {[
+                            CUSTOM_QUESTION_TYPES.YES_NO,
+                            CUSTOM_QUESTION_TYPES.MCQ,
+                            CUSTOM_QUESTION_TYPES.DESCRIPTIVE,
+                          ].map((type) => (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => updateQuestion({ type })}
+                              className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                                q.type === type
+                                  ? 'bg-blue-600 text-white'
+                                  : 'text-slate-600 hover:bg-slate-50'
+                              }`}
+                            >
+                              {CUSTOM_QUESTION_TYPE_LABELS[type]}
+                            </button>
+                          ))}
+                        </div>
+                        {(form.customQuestions || []).length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = (form.customQuestions || []).filter((_, i) => i !== idx);
+                              update({
+                                customQuestions: next.length
+                                  ? next
+                                  : [createEmptyCustomQuestion(CUSTOM_QUESTION_TYPES.YES_NO)],
+                              });
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md"
+                            title="Remove question"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <input
+                      type="text"
+                      className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                      placeholder="e.g. Are you ready to relocate to the job location?"
+                      value={q.text || ''}
+                      onChange={(e) => updateQuestion({ text: e.target.value })}
+                    />
+
+                    {q.type === CUSTOM_QUESTION_TYPES.YES_NO && (
+                      <div className="flex gap-2">
+                        {['Yes', 'No'].map((opt) => (
+                          <span
+                            key={opt}
+                            className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium bg-white border border-slate-200 text-slate-700"
+                          >
+                            {opt}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {q.type === CUSTOM_QUESTION_TYPES.MCQ && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-slate-600">Options (students pick one)</p>
+                        {(q.options || ['', '']).map((opt, optIdx) => (
+                          <div key={`opt-${idx}-${optIdx}`} className="flex items-center gap-2">
+                            <span className="text-xs text-slate-400 w-5 text-center">{optIdx + 1}.</span>
+                            <input
+                              type="text"
+                              className="flex-1 border border-slate-200 rounded-md px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                              placeholder={`Option ${optIdx + 1}`}
+                              value={opt}
+                              onChange={(e) => {
+                                const options = [...(q.options || [])];
+                                options[optIdx] = e.target.value;
+                                updateQuestion({ options });
+                              }}
+                            />
+                            {(q.options || []).length > 2 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const options = (q.options || []).filter((_, i) => i !== optIdx);
+                                  updateQuestion({ options });
+                                }}
+                                className="p-1 text-slate-400 hover:text-red-600"
+                                title="Remove option"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => updateQuestion({ options: [...(q.options || []), ''] })}
+                          className="text-xs font-medium text-blue-700 hover:text-blue-900"
+                        >
+                          + Add option
+                        </button>
+                      </div>
+                    )}
+
+                    {q.type === CUSTOM_QUESTION_TYPES.DESCRIPTIVE && (
+                      <p className="text-xs text-slate-500">
+                        Students will enter a short written response.
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+
               <button
                 type="button"
-                onClick={() => update({ customQuestions: [...(form.customQuestions || ['']), ''] })}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200"
+                onClick={() =>
+                  update({
+                    customQuestions: [
+                      ...(form.customQuestions || []),
+                      createEmptyCustomQuestion(CUSTOM_QUESTION_TYPES.YES_NO),
+                    ],
+                  })
+                }
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium bg-white text-blue-700 hover:bg-blue-50 border border-blue-200"
               >
                 <Plus className="w-4 h-4" /> Add question
               </button>
@@ -2959,7 +3089,7 @@ export default function CreateJob({ onCreated }) {
                 Any Specific Instructions
               </label>
               <textarea
-                className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text min-h-[120px] max-h-[250px] resize-y ${form.instructions?.trim() ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text min-h-[120px] max-h-[250px] resize-y ${form.instructions?.trim() ? 'border-sky-200 bg-white' : 'border-gray-300'
                   }`}
                 placeholder="Any notes for candidates or TPO team (optional)"
                 value={form.instructions}
@@ -2997,49 +3127,50 @@ export default function CreateJob({ onCreated }) {
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 pt-4">
+            <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-slate-200">
               <button
                 type="submit"
                 disabled={!canPost || posting}
-                className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-md font-medium text-white transition-all duration-200 ${!canPost || posting
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg'
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold text-white transition-colors ${!canPost || posting
+                    ? 'bg-slate-300 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700'
                   }`}
               >
                 {posting ? <Loader className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                {isEditing ? 'Update Job' : 'Submit for Review'}
+                {isEditing ? 'Save changes' : 'Submit for review'}
+                {!posting && <ArrowRight className="w-4 h-4" />}
               </button>
               <button
                 type="button"
                 onClick={handleSave}
                 disabled={isSaving || (!form.company?.trim() || !form.jobTitle?.trim())}
-                className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-md font-medium border transition-all duration-200 ${isSaving || (!form.company?.trim() || !form.jobTitle?.trim())
-                    ? 'bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed'
-                    : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300 shadow-sm hover:shadow'
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium border transition-colors ${isSaving || (!form.company?.trim() || !form.jobTitle?.trim())
+                    ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                    : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
                   }`}
               >
                 {isSaving ? <Loader className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-                Save (Draft)
+                Save draft
               </button>
               <button
                 type="button"
                 onClick={handleAddAnotherPosition}
                 disabled={isSaving || (!form.company?.trim() || !form.jobTitle?.trim())}
-                className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-md font-medium border transition-all duration-200 ${isSaving || (!form.company?.trim() || !form.jobTitle?.trim())
-                    ? 'bg-emerald-200 text-emerald-500 border-emerald-300 cursor-not-allowed'
-                    : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-300 shadow-sm hover:shadow'
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium border transition-colors ${isSaving || (!form.company?.trim() || !form.jobTitle?.trim())
+                    ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                    : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
                   }`}
               >
                 {isSaving ? <Loader className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                Add Another Position
+                Add another role
               </button>
               <button
                 type="button"
                 onClick={() => resetForm()}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-md font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 shadow-sm hover:shadow transition-all duration-200"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
               >
                 <X className="w-4 h-4" />
-                Cancel / Reset
+                Reset
               </button>
             </div>
           </section>
@@ -3055,12 +3186,12 @@ const JDUploadForm = ({
   handleDragOver, handleDrop, setParseResult
 }) => {
   return (
-    <div className="space-y-6 bg-white border border-slate-200 rounded-lg p-6">
+    <div className="space-y-4 bg-white border border-slate-200 rounded-lg p-4">
       {/* Upload Zone */}
       <div
         onDragOver={handleDragOver}
         onDrop={handleDrop}
-        className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${isUploading ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-gray-400 bg-gray-50'
+        className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${isUploading ? 'border-blue-400 bg-blue-50' : 'border-slate-200 hover:border-slate-300 bg-slate-50'
           }`}
       >
         <input
@@ -3089,17 +3220,17 @@ const JDUploadForm = ({
           <div className="flex flex-col items-center justify-center space-y-4">
             <Upload className="w-12 h-12 text-gray-400" />
             <div>
-              <p className="text-lg font-medium text-gray-900">Drag & Drop your Job Description</p>
-              <p className="text-sm text-gray-600">or</p>
+              <p className="text-base font-medium text-gray-900">Drop job description here</p>
+            <p className="text-sm text-gray-600">or</p>
             </div>
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium text-sm"
             >
-              Browse Files
+              Browse files
             </button>
-            <p className="text-xs text-gray-500">Supports PDF, DOC, DOCX • Max 5MB</p>
+            <p className="text-xs text-gray-500">PDF, DOC, or DOCX · max 5 MB</p>
           </div>
         )}
       </div>

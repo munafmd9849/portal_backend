@@ -1,23 +1,18 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import {
-  ChevronLeft, Users, Trophy, AlertTriangle, Activity, Search, Sparkles,
-  Star, Shield, Video, Loader2,
-} from 'lucide-react';
+import { ChevronLeft, Search, Loader2 } from 'lucide-react';
 import api from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
 import { ErrorBoundary } from '../../components/ui/ErrorBoundary';
 
-const CONTENT_WIDTH = 'w-full lg:w-[75%] max-w-full mx-auto px-4 sm:px-6';
-
 function statusBadge(status) {
   switch (status) {
     case 'COMPLETED':
-      return 'bg-emerald-50 text-emerald-600 border-emerald-100';
+      return 'bg-emerald-50 text-emerald-700 border-emerald-100';
     case 'IN_PROGRESS':
-      return 'bg-amber-50 text-amber-600 border-amber-100';
+      return 'bg-amber-50 text-amber-700 border-amber-100';
     default:
-      return 'bg-slate-50 text-slate-500 border-slate-200';
+      return 'bg-gray-50 text-gray-500 border-gray-200';
   }
 }
 
@@ -111,9 +106,9 @@ function AiMockInterviewReviewComponent() {
 
   if (loading) {
     return (
-      <div className="h-screen bg-slate-50 flex flex-col items-center justify-center gap-4">
-        <div className="w-12 h-12 border-4 border-gray-100 border-t-indigo-600 rounded-full animate-spin" />
-        <p className="text-gray-500 text-sm">Loading results…</p>
+      <div className="py-20 flex flex-col items-center gap-3">
+        <Loader2 className="w-7 h-7 animate-spin text-sky-600" />
+        <p className="text-sm text-gray-500">Loading results…</p>
       </div>
     );
   }
@@ -135,273 +130,267 @@ function AiMockInterviewReviewComponent() {
   if (selectedId) {
     const student = detail?.enrollment?.student;
     return (
-      <div className="min-h-screen bg-slate-50 pb-20 animate-in fade-in duration-700">
-        <div className="bg-white border-b border-slate-200 sticky top-0 z-50">
-          <div className={`${CONTENT_WIDTH} h-16 flex items-center justify-between`}>
-            <div className="flex items-center gap-4 min-w-0">
-              <button
-                type="button"
-                onClick={closeReport}
-                className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-slate-900 bg-slate-50 rounded-lg border border-slate-200 shrink-0"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <h1 className="text-sm font-semibold text-gray-900 truncate">
-                AI results: <span className="text-indigo-700">{student?.fullName || 'Candidate'}</span>
-              </h1>
-            </div>
-            <p className="hidden sm:block text-xs text-slate-400 font-medium shrink-0 ml-4">
-              {student?.enrollmentId}
+      <div className="space-y-4 pb-8">
+        <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-lg px-3 py-2.5">
+          <button
+            type="button"
+            onClick={closeReport}
+            className="p-2 text-gray-500 hover:text-gray-900 bg-gray-50 rounded-md border border-gray-200 shrink-0"
+            aria-label="Back to list"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <div className="min-w-0">
+            <h1 className="text-sm font-semibold text-gray-900 truncate">
+              {student?.fullName || 'Candidate'}
+            </h1>
+            <p className="text-xs text-gray-500 truncate">
+              {student?.enrollmentId || 'Review'}
             </p>
           </div>
         </div>
 
-        <div className={`${CONTENT_WIDTH} mt-8 space-y-8`}>
-          {detailLoading ? (
-            <div className="py-24 flex justify-center">
-              <Loader2 className="w-8 h-8 text-indigo-700 animate-spin" />
-            </div>
-          ) : (
-            <>
-              {detail?.aiInsight && (
-                <div className="bg-slate-50 rounded-xl border border-slate-200 p-6">
-                  <div className="space-y-4">
-                    <span className="text-xs font-medium text-slate-500">AI-assisted insights</span>
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                      {[
-                        ['Communication', detail.aiInsight.communicationScore],
-                        ['Confidence', detail.aiInsight.confidenceScore],
-                        ['Clarity', detail.aiInsight.clarityScore],
-                        ['Technical', detail.aiInsight.technicalUnderstanding],
-                        ['Overall', detail.aiInsight.overallPerformance],
-                      ].map(([label, val]) => (
-                        <div key={label} className="bg-white rounded-lg p-3 border border-slate-200">
-                          <p className="text-[10px] text-slate-500">{label}</p>
-                          <p className="text-lg font-semibold text-slate-900 mt-0.5 tabular-nums">{val ?? '—'}%</p>
-                        </div>
-                      ))}
-                    </div>
-                    {detail.aiInsight.strengths && (
-                      <p className="text-sm text-slate-600"><span className="font-medium text-slate-900">Strengths:</span> {detail.aiInsight.strengths}</p>
-                    )}
-                    {detail.aiInsight.improvements && (
-                      <p className="text-sm text-slate-600"><span className="font-medium text-slate-900">Improve:</span> {detail.aiInsight.improvements}</p>
-                    )}
-                    <button
-                      type="button"
-                      onClick={regenerateAi}
-                      className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
-                    >
-                      Regenerate insights
-                    </button>
+        {detailLoading ? (
+          <div className="py-16 flex justify-center">
+            <Loader2 className="w-7 h-7 text-sky-600 animate-spin" />
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {detail?.aiInsight && (
+              <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-gray-700">AI-assisted insights</p>
+                  <button
+                    type="button"
+                    onClick={regenerateAi}
+                    className="text-xs font-medium text-sky-700 hover:text-sky-800"
+                  >
+                    Regenerate
+                  </button>
+                </div>
+                <div className="bg-gray-50 rounded-md border border-gray-100 px-3 py-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 divide-y sm:divide-y-0 sm:divide-x divide-gray-200">
+                    {[
+                      ['Communication', detail.aiInsight.communicationScore],
+                      ['Confidence', detail.aiInsight.confidenceScore],
+                      ['Clarity', detail.aiInsight.clarityScore],
+                      ['Technical', detail.aiInsight.technicalUnderstanding],
+                      ['Overall', detail.aiInsight.overallPerformance],
+                    ].map(([label, val]) => (
+                      <div key={label} className="px-3 py-2 sm:py-0 first:pt-0 last:pb-0 sm:first:pl-0 sm:last:pr-0">
+                        <p className="text-xs font-medium text-gray-500">{label}</p>
+                        <p className="text-lg font-semibold text-gray-900 tabular-nums mt-0.5">
+                          {val ?? '—'}%
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              )}
-
-              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                <div className="px-4 py-3 border-b border-gray-200">
-                  <h3 className="text-sm font-medium text-gray-700">Question recordings</h3>
-                </div>
-                <div className="p-4 space-y-4 divide-y divide-gray-100">
-                  {detail?.answers?.map((a, i) => (
-                    <div key={a.id} className={i > 0 ? 'pt-4' : ''}>
-                      <p className="text-sm font-medium text-gray-900 mb-2">Q{i + 1}: {a.questionText}</p>
-                      {a.videoUrl ? (
-                        <video src={a.videoUrl} controls className="w-full rounded-md max-h-64 bg-black border border-gray-200" />
-                      ) : (
-                        <p className="text-xs text-gray-400">No recording uploaded</p>
-                      )}
-                    </div>
-                  ))}
-                  {!detail?.answers?.length && (
-                    <p className="text-sm text-gray-400 text-center py-6">No answers recorded yet.</p>
-                  )}
-                </div>
+                {detail.aiInsight.strengths && (
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium text-gray-900">Strengths:</span>{' '}
+                    {detail.aiInsight.strengths}
+                  </p>
+                )}
+                {detail.aiInsight.improvements && (
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium text-gray-900">Improve:</span>{' '}
+                    {detail.aiInsight.improvements}
+                  </p>
+                )}
               </div>
+            )}
 
-              <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-5 space-y-4">
-                <h3 className="text-sm font-medium text-gray-700">Human review</h3>
-                <label className="block text-xs font-medium text-gray-600">
-                  Overall rating (1–10): <span className="text-indigo-700">{reviewForm.overallRating}</span>
-                  <input
-                    type="range"
-                    min={1}
-                    max={10}
-                    value={reviewForm.overallRating}
-                    onChange={(e) => setReviewForm({ ...reviewForm, overallRating: +e.target.value })}
-                    className="w-full mt-2"
-                  />
-                </label>
-                <textarea
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-md text-sm resize-none focus:ring-1 focus:ring-blue-800 focus:border-indigo-600 outline-none"
-                  placeholder="Comments"
-                  rows={3}
-                  value={reviewForm.comments}
-                  onChange={(e) => setReviewForm({ ...reviewForm, comments: e.target.value })}
-                />
-                <textarea
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-md text-sm resize-none focus:ring-1 focus:ring-blue-800 focus:border-indigo-600 outline-none"
-                  placeholder="Strengths"
-                  rows={2}
-                  value={reviewForm.strengths}
-                  onChange={(e) => setReviewForm({ ...reviewForm, strengths: e.target.value })}
-                />
-                <textarea
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-md text-sm resize-none focus:ring-1 focus:ring-blue-800 focus:border-indigo-600 outline-none"
-                  placeholder="Areas for improvement"
-                  rows={2}
-                  value={reviewForm.improvements}
-                  onChange={(e) => setReviewForm({ ...reviewForm, improvements: e.target.value })}
-                />
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={saveReview}
-                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm font-medium disabled:opacity-60"
-                >
-                  Save review
-                </button>
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-100">
+                <h3 className="text-sm font-medium text-gray-700">Question recordings</h3>
               </div>
-            </>
-          )}
-        </div>
+              <div className="p-4 space-y-4 divide-y divide-gray-100">
+                {detail?.answers?.map((a, i) => (
+                  <div key={a.id} className={i > 0 ? 'pt-4' : ''}>
+                    <p className="text-sm font-medium text-gray-900 mb-2">
+                      Q{i + 1}: {a.questionText}
+                    </p>
+                    {a.videoUrl ? (
+                      <video
+                        src={a.videoUrl}
+                        controls
+                        className="w-full rounded-md max-h-64 bg-black border border-gray-200"
+                      />
+                    ) : (
+                      <p className="text-xs text-gray-400">No recording uploaded</p>
+                    )}
+                  </div>
+                ))}
+                {!detail?.answers?.length && (
+                  <p className="text-sm text-gray-500 text-center py-6">No answers recorded yet.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-3">
+              <h3 className="text-sm font-medium text-gray-700">Human review</h3>
+              <label className="block text-xs font-medium text-gray-600">
+                Overall rating (1–10):{' '}
+                <span className="text-sky-700 tabular-nums">{reviewForm.overallRating}</span>
+                <input
+                  type="range"
+                  min={1}
+                  max={10}
+                  value={reviewForm.overallRating}
+                  onChange={(e) => setReviewForm({ ...reviewForm, overallRating: +e.target.value })}
+                  className="w-full mt-2"
+                />
+              </label>
+              <textarea
+                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-md text-sm resize-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400 focus:bg-white outline-none"
+                placeholder="Comments"
+                rows={3}
+                value={reviewForm.comments}
+                onChange={(e) => setReviewForm({ ...reviewForm, comments: e.target.value })}
+              />
+              <textarea
+                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-md text-sm resize-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400 focus:bg-white outline-none"
+                placeholder="Strengths"
+                rows={2}
+                value={reviewForm.strengths}
+                onChange={(e) => setReviewForm({ ...reviewForm, strengths: e.target.value })}
+              />
+              <textarea
+                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-md text-sm resize-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400 focus:bg-white outline-none"
+                placeholder="Areas for improvement"
+                rows={2}
+                value={reviewForm.improvements}
+                onChange={(e) => setReviewForm({ ...reviewForm, improvements: e.target.value })}
+              />
+              <button
+                type="button"
+                disabled={saving}
+                onClick={saveReview}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium disabled:opacity-60"
+              >
+                Save review
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 animate-in fade-in duration-700">
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className={`${CONTENT_WIDTH} h-16 flex items-center justify-between`}>
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              onClick={() => navigate('/admin?tab=mockInterviews&mode=ai')}
-              className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-slate-900 bg-slate-50 rounded-lg border border-slate-200"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <h1 className="text-sm font-semibold text-gray-900">
-              AI results: <span className="text-indigo-700">{interview?.title}</span>
-            </h1>
+    <div className="space-y-3 pb-8">
+      <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-lg px-3 py-2.5">
+        <button
+          type="button"
+          onClick={() => navigate('/admin?tab=aiInterviews')}
+          className="p-2 text-gray-500 hover:text-gray-900 bg-gray-50 rounded-md border border-gray-200 shrink-0"
+          aria-label="Back"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <div className="min-w-0">
+          <h1 className="text-sm font-semibold text-gray-900 truncate">
+            {interview?.title || 'AI interview results'}
+          </h1>
+          <p className="text-xs text-gray-500">AI video interview</p>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm px-4 py-3.5">
+        <div className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+          <div className="px-3 py-2 md:py-0">
+            <p className="text-xs font-medium text-gray-500">Completion</p>
+            <p className="text-2xl font-semibold text-sky-700 tabular-nums mt-0.5">{completionRate}%</p>
+          </div>
+          <div className="px-3 py-2 md:py-0">
+            <p className="text-xs font-medium text-gray-500">Assigned</p>
+            <p className="text-2xl font-semibold text-gray-900 tabular-nums mt-0.5">{assigned}</p>
+          </div>
+          <div className="px-3 py-2 md:py-0">
+            <p className="text-xs font-medium text-gray-500">Completed</p>
+            <p className="text-2xl font-semibold text-gray-900 tabular-nums mt-0.5">{completed}</p>
+          </div>
+          <div className="px-3 py-2 md:py-0">
+            <p className="text-xs font-medium text-gray-500">High-risk flags</p>
+            <p className="text-2xl font-semibold text-gray-900 tabular-nums mt-0.5">
+              {analytics?.highRiskViolations ?? 0}
+            </p>
           </div>
         </div>
       </div>
 
-      <div className={`${CONTENT_WIDTH} mt-8 space-y-6`}>
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 sm:p-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-            <div className="space-y-4">
-              <div>
-                <span className="text-xs text-slate-500">AI video interview</span>
-                <h2 className="text-2xl font-semibold text-slate-900 mt-2 tabular-nums">{completionRate}% completion</h2>
-                <p className="text-slate-600 text-sm mt-2">
-                  {completed} of {assigned} candidates finished · {analytics?.pending ?? 0} pending
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-6 pt-3 border-t border-slate-200 text-sm">
-                <div>
-                  <p className="text-slate-500 text-xs">Assigned</p>
-                  <span className="font-semibold text-slate-900 tabular-nums">{assigned}</span>
-                </div>
-                <div>
-                  <p className="text-slate-500 text-xs">Completed</p>
-                  <span className="font-semibold text-slate-900 tabular-nums">{completed}</span>
-                </div>
-                <div>
-                  <p className="text-slate-500 text-xs">High-risk flags</p>
-                  <span className="font-semibold text-slate-900 tabular-nums">{analytics?.highRiskViolations ?? 0}</span>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-center md:justify-end">
-              <div className="relative w-40 h-40 flex items-center justify-center">
-                <svg className="w-full h-full transform -rotate-90" aria-hidden>
-                  <circle cx="50%" cy="50%" r="45%" fill="transparent" stroke="#e2e8f0" strokeWidth="10" />
-                  <circle
-                    cx="50%"
-                    cy="50%"
-                    r="45%"
-                    fill="transparent"
-                    stroke="#6366f1"
-                    strokeWidth="10"
-                    strokeDasharray="283"
-                    strokeDashoffset={283 - (283 * completionRate) / 100}
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <Sparkles className="absolute w-8 h-8 text-slate-500" />
-              </div>
-            </div>
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="p-3 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <p className="text-sm text-gray-500">
+            <span className="font-semibold text-gray-900 tabular-nums">{filtered.length}</span> candidates
+          </p>
+          <div className="relative w-full sm:w-56">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search candidate"
+              className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-md bg-gray-50 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400 focus:bg-white"
+            />
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <h3 className="text-sm font-medium text-gray-700">Candidate submissions</h3>
-            <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
-              <Search className="w-4 h-4 text-gray-400" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search candidate"
-                className="bg-transparent border-none outline-none text-sm text-gray-700 w-40 sm:w-48 placeholder:text-gray-400"
-              />
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-4 py-3 text-xs font-medium text-gray-500">#</th>
-                  <th className="px-4 py-3 text-xs font-medium text-gray-500">Candidate</th>
-                  <th className="px-4 py-3 text-xs font-medium text-gray-500 text-center">Progress</th>
-                  <th className="px-4 py-3 text-xs font-medium text-gray-500 text-center">Status</th>
-                  <th className="px-4 py-3 text-xs font-medium text-gray-500 text-center">Violations</th>
-                  <th className="px-4 py-3 text-xs font-medium text-gray-500 text-right">Action</th>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left min-w-[640px]">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="px-4 py-2.5 text-xs font-medium text-gray-500">#</th>
+                <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Candidate</th>
+                <th className="px-4 py-2.5 text-xs font-medium text-gray-500 text-center">Progress</th>
+                <th className="px-4 py-2.5 text-xs font-medium text-gray-500 text-center">Status</th>
+                <th className="px-4 py-2.5 text-xs font-medium text-gray-500 text-center">Violations</th>
+                <th className="px-4 py-2.5 text-xs font-medium text-gray-500 text-right"> </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {filtered.map((s, idx) => (
+                <tr key={s.enrollmentId} className="hover:bg-sky-50/40 transition-colors">
+                  <td className="px-4 py-3 text-sm text-gray-400 tabular-nums">{idx + 1}</td>
+                  <td className="px-4 py-3">
+                    <p className="text-sm font-medium text-gray-900">{s.student?.fullName || '—'}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{s.student?.enrollmentId}</p>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span className="text-sm font-semibold text-sky-700 tabular-nums">
+                      {s.progressPercent ?? 0}%
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span
+                      className={`inline-flex text-xs font-medium px-2 py-0.5 rounded-md border ${statusBadge(s.status)}`}
+                    >
+                      {s.status?.replace(/_/g, ' ') || '—'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-center text-sm text-gray-600 tabular-nums">
+                    {s.violationsCount ?? 0}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      onClick={() => openStudent(s.enrollmentId)}
+                      className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md"
+                    >
+                      View report
+                    </button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filtered.map((s, idx) => (
-                  <tr key={s.enrollmentId} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 text-sm text-gray-500">#{idx + 1}</td>
-                    <td className="px-4 py-3">
-                      <p className="text-sm font-medium text-gray-900">{s.student?.fullName || '—'}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{s.student?.enrollmentId}</p>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="text-sm font-semibold text-indigo-700 tabular-nums">{s.progressPercent ?? 0}%</span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded border ${statusBadge(s.status)}`}>
-                        {s.status?.replace(/_/g, ' ') || '—'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center text-sm text-gray-600 tabular-nums">
-                      {s.violationsCount ?? 0}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        type="button"
-                        onClick={() => openStudent(s.enrollmentId)}
-                        className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-md transition-colors"
-                      >
-                        View report
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-16 text-center text-sm text-slate-400 font-medium">
-                      No candidates match your search.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+              ))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-14 text-center text-sm text-gray-500">
+                    No candidates match your search.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
