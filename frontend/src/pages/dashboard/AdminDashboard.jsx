@@ -366,7 +366,11 @@ export default function AdminDashboard() {
           console.error('🚫 Unauthorized user attempted to access Create Job:', { userRole, userId: user?.id });
           return <div className="text-red-600 font-semibold">Access denied: Only ADMIN or RECRUITER users can create jobs.</div>;
         }
-        return <CreateJob onCreated={() => setActiveTab('manageJobs')} />;
+        return (
+          <CreateJob
+            onCreated={() => navigate(`${basePath}?tab=manageJobs`, { state: { fromCreate: true } })}
+          />
+        );
       case 'manageJobs':
         if (!canCreateJobs) {
           console.error('🚫 Unauthorized user attempted to access Manage Jobs:', { userRole, userId: user?.id });

@@ -243,34 +243,45 @@ function AdminAssessmentResultsComponent() {
 
   if (errorMsg) {
     return (
-      <div className="h-screen bg-white flex flex-col items-center justify-center p-8">
-        <div className="w-14 h-14 bg-gray-50 rounded-lg flex items-center justify-center mb-4 border border-gray-200">
-           <AlertTriangle className="w-7 h-7 text-gray-500" />
+      <div className="py-20 flex flex-col items-center justify-center p-8">
+        <div className="w-12 h-12 bg-gray-50 rounded-lg flex items-center justify-center mb-4 border border-gray-200">
+          <AlertTriangle className="w-6 h-6 text-gray-500" />
         </div>
         <p className="text-sm font-medium text-gray-900 mb-1">Unable to load results</p>
-        <p className="text-gray-500 text-sm mb-6 text-center max-w-md">The assessment results could not be loaded. This may be due to a network error or missing data.</p>
-        <button type="button" onClick={() => window.location.reload()} className={au.btnPrimary}>Try again</button>
+        <p className="text-gray-500 text-sm mb-6 text-center max-w-md">
+          The assessment results could not be loaded. This may be due to a network error or missing data.
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium"
+        >
+          Try again
+        </button>
       </div>
     );
   }
 
-  if (loading) return (
-    <div className="h-screen bg-white flex flex-col items-center justify-center gap-3">
-      <div className={au.spinner} />
-      <p className="text-gray-500 text-sm">Loading results...</p>
-    </div>
-  );
+  if (loading) {
+    return (
+      <div className="py-20 flex flex-col items-center justify-center gap-3">
+        <div className="w-8 h-8 border-2 border-gray-200 border-t-sky-600 rounded-full animate-spin" />
+        <p className="text-gray-500 text-sm">Loading results…</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-5 p-4 sm:p-6 max-w-[1400px] mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-3 pb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-gray-200 rounded-lg px-3 py-2.5">
         <div className="flex items-center gap-3 min-w-0">
-          <button 
+          <button
             type="button"
             onClick={handleBack}
-            className="w-9 h-9 bg-white rounded-md flex items-center justify-center text-gray-500 hover:text-gray-900 border border-gray-200 transition-colors shrink-0"
+            className="p-2 bg-gray-50 rounded-md text-gray-500 hover:text-gray-900 border border-gray-200 transition-colors shrink-0"
+            aria-label="Back"
           >
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft className="w-4 h-4" />
           </button>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-gray-900 truncate">{assessment?.title}</p>
@@ -279,85 +290,107 @@ function AdminAssessmentResultsComponent() {
             </span>
           </div>
         </div>
-        
+
         <button
           type="button"
           onClick={handleExportExcel}
           disabled={!assessment?.sessions?.length}
-          className="h-9 px-4 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+          className="h-9 px-3.5 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-200 hover:bg-gray-50 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
         >
           <Download className="w-4 h-4" /> Export
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {[
-          { label: 'Attempts', val: stats.totalAttempts },
-          { label: 'Average score', val: stats.avgScore },
-          { label: 'Violations rate', val: stats.violationsRate },
-        ].map((stat, i) => (
-          <div key={i} className={au.statCard}>
-             <p className={au.statLabel}>{stat.label}</p>
-             <p className={au.statValue}>{stat.val}</p>
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm px-4 py-3.5">
+        <div className="grid grid-cols-3 divide-x divide-gray-100">
+          <div className="px-3 text-center sm:text-left">
+            <p className="text-xs font-medium text-gray-500">Attempts</p>
+            <p className="text-2xl font-semibold text-gray-900 tabular-nums mt-0.5">{stats.totalAttempts}</p>
           </div>
-        ))}
+          <div className="px-3 text-center sm:text-left">
+            <p className="text-xs font-medium text-sky-700">Average score</p>
+            <p className="text-2xl font-semibold text-sky-700 tabular-nums mt-0.5">{stats.avgScore}</p>
+          </div>
+          <div className="px-3 text-center sm:text-left">
+            <p className="text-xs font-medium text-gray-500">Violations rate</p>
+            <p className="text-2xl font-semibold text-gray-900 tabular-nums mt-0.5">{stats.violationsRate}</p>
+          </div>
+        </div>
       </div>
 
-      <div className={`${au.panel} flex flex-col`}>
-        <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-           <p className={au.sectionLabel}>Candidate performance</p>
-           <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-md">
-              <Search className="w-3.5 h-3.5 text-gray-400" />
-              <input placeholder="Search candidate" className="bg-transparent border-none outline-none text-sm w-36" />
-           </div>
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden flex flex-col">
+        <div className="p-3 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <p className="text-sm text-gray-500">
+            <span className="font-semibold text-gray-900 tabular-nums">
+              {assessment?.sessions?.length || 0}
+            </span>{' '}
+            candidates
+          </p>
+          <div className="relative w-full sm:w-56">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+            <input
+              placeholder="Search candidate"
+              className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-md bg-gray-50 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400 focus:bg-white"
+            />
+          </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left min-w-[680px]">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="px-4 py-3 text-xs font-medium text-gray-500">Rank</th>
-                <th className="px-4 py-3 text-xs font-medium text-gray-500">Candidate</th>
-                <th className="px-4 py-3 text-xs font-medium text-gray-500 text-center">Score</th>
-                <th className="px-4 py-3 text-xs font-medium text-gray-500 text-center">Status</th>
-                <th className="px-4 py-3 text-xs font-medium text-gray-500">Attempted</th>
-                <th className="px-4 py-3 text-xs font-medium text-gray-500 text-right">Action</th>
+                <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Rank</th>
+                <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Candidate</th>
+                <th className="px-4 py-2.5 text-xs font-medium text-gray-500 text-center">Score</th>
+                <th className="px-4 py-2.5 text-xs font-medium text-gray-500 text-center">Status</th>
+                <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Attempted</th>
+                <th className="px-4 py-2.5 text-xs font-medium text-gray-500 text-right"> </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {assessment?.sessions?.map((session, idx) => (
-                <tr key={session.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 text-sm text-gray-500">#{idx + 1}</td>
+                <tr key={session.id} className="hover:bg-sky-50/40 transition-colors">
+                  <td className="px-4 py-3 text-sm text-gray-400 tabular-nums">{idx + 1}</td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-md bg-gray-100 text-gray-600 border border-gray-200 flex items-center justify-center font-medium text-xs uppercase">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-md bg-sky-50 text-sky-700 border border-sky-100 flex items-center justify-center font-semibold text-xs uppercase shrink-0">
                         {session.student?.fullName?.charAt(0) || '?'}
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{session.student?.fullName || 'Anonymous'}</p>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {session.student?.fullName || 'Anonymous'}
+                        </p>
                         <p className="text-xs text-gray-500">{session.student?.enrollmentId}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className={`text-sm ${au.accentText}`}>{session.score || 0}%</span>
-                    <p className="text-[10px] text-gray-400 mt-0.5">P{sessionPercentiles.get(session.id) ?? 0}</p>
+                    <span className="text-sm font-semibold text-sky-700 tabular-nums">
+                      {session.score || 0}%
+                    </span>
+                    <p className="text-[10px] text-gray-400 mt-0.5">
+                      P{sessionPercentiles.get(session.id) ?? 0}
+                    </p>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium border ${getStatusBadge(session.status)}`}>
+                    <span
+                      className={`inline-flex px-2 py-0.5 rounded-md text-xs font-medium border ${getStatusBadge(session.status)}`}
+                    >
                       {formatSessionStatus(session.status)}
                     </span>
-                    <p className="text-[10px] text-gray-400 mt-1">{session.violations?.length || 0} logs</p>
+                    <p className="text-[10px] text-gray-400 mt-1">
+                      {session.violations?.length || 0} logs
+                    </p>
                   </td>
                   <td className="px-4 py-3">
-                     <p className="text-xs text-gray-600">{formatSessionDate(session.startTime)}</p>
-                     <p className="text-xs text-gray-400">{formatSessionTime(session.startTime)}</p>
+                    <p className="text-xs text-gray-600">{formatSessionDate(session.startTime)}</p>
+                    <p className="text-xs text-gray-400">{formatSessionTime(session.startTime)}</p>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button 
+                    <button
                       type="button"
                       onClick={() => setSelectedSession(session)}
-                      className={`px-3 py-2 ${au.btnPrimary} text-xs`}
+                      className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md"
                     >
                       View report
                     </button>
@@ -366,11 +399,8 @@ function AdminAssessmentResultsComponent() {
               ))}
               {(!assessment?.sessions || assessment.sessions.length === 0) && (
                 <tr>
-                  <td colSpan="6" className="px-6 py-20 text-center">
-                    <div className="flex flex-col items-center">
-                       <Activity className="w-12 h-12 text-slate-100 mb-3" />
-                       <p className="text-sm font-bold text-slate-400">Waiting for assessment completions...</p>
-                    </div>
+                  <td colSpan="6" className="px-4 py-14 text-center text-sm text-gray-500">
+                    No completed attempts yet.
                   </td>
                 </tr>
               )}
@@ -385,7 +415,7 @@ function AdminAssessmentResultsComponent() {
           <div className={au.modalFull}>
              <div className={au.modalHeader}>
                 <div className="flex items-center gap-3 min-w-0">
-                   <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100 flex items-center justify-center font-medium text-sm shrink-0">
+                   <div className="w-9 h-9 rounded-lg bg-sky-50 text-sky-700 border border-sky-100 flex items-center justify-center font-medium text-sm shrink-0">
                       {selectedSession.student?.fullName?.charAt(0) || '?'}
                    </div>
                    <div className="min-w-0">
@@ -500,8 +530,8 @@ function AdminAssessmentResultsComponent() {
                 {/* Snapshots */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      <Shield className="w-3.5 h-3.5 text-indigo-600" /> Camera Snapshots
+                    <h4 className="text-xs font-bold text-slate-400 font-medium flex items-center gap-2">
+                      <Shield className="w-3.5 h-3.5 text-sky-600" /> Camera Snapshots
                     </h4>
                     <span className="text-[10px] font-bold text-slate-500">
                       {proctoringDetails?.screenshots?.length ?? 0} captured
@@ -539,8 +569,8 @@ function AdminAssessmentResultsComponent() {
 
                 {/* Submissions Section */}
                 <div className="space-y-4">
-                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                     <Code className="w-3.5 h-3.5 text-indigo-600" /> Submission Analytics
+                   <h4 className="text-xs font-bold text-slate-400 font-medium flex items-center gap-2">
+                     <Code className="w-3.5 h-3.5 text-sky-600" /> Submission Analytics
                    </h4>
 
                    <div className="space-y-6">
@@ -573,7 +603,7 @@ function AdminAssessmentResultsComponent() {
                                         }`}>
                                           {q.type}
                                         </span>
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest opacity-60">• {q.points} PTS</span>
+                                        <span className="text-[10px] font-bold text-slate-400 font-medium opacity-60">• {q.points} PTS</span>
                                      </div>
                                      <h5 className="text-sm font-bold text-slate-900 leading-tight">{q.questionText}</h5>
                                   </div>
@@ -584,13 +614,13 @@ function AdminAssessmentResultsComponent() {
                                {q.type === 'MCQ' && (
                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Candidate Selected</p>
+                                       <p className="text-[10px] font-bold text-slate-400 font-medium ml-1">Candidate Selected</p>
                                        <div className={`p-4 rounded-xl border-2 transition-all ${mcqCorrect ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700'}`}>
                                           <span className="text-xs font-bold">{studentMcqLabel || 'NO RESPONSE'}</span>
                                        </div>
                                     </div>
                                     <div className="space-y-2">
-                                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Key (Correct)</p>
+                                       <p className="text-[10px] font-bold text-slate-400 font-medium ml-1">Key (Correct)</p>
                                        <div className="p-4 rounded-xl border-2 bg-slate-50 border-slate-200 text-slate-700">
                                           <span className="text-xs font-bold">{correctMcqLabel ?? '—'}</span>
                                        </div>
@@ -600,13 +630,13 @@ function AdminAssessmentResultsComponent() {
 
                                {q.type === 'CODING' && (
                                  <div className="space-y-4">
-                                    <div className="bg-slate-900 rounded-2xl p-5 relative group/code overflow-hidden">
+                                    <div className="bg-slate-900 rounded-lg p-5 relative group/code overflow-hidden">
                                        <div className="absolute top-4 right-4 opacity-0 group-hover/code:opacity-100 transition-all">
                                           <button className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all" title="Copy Code">
                                              <FileText className="w-4 h-4" />
                                           </button>
                                        </div>
-                                       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                       <p className="text-[10px] font-bold text-slate-500 font-medium mb-3 flex items-center gap-2">
                                           <Terminal className="w-3.5 h-3.5" /> Source Code Submission
                                        </p>
                                        <pre className="text-xs font-mono text-emerald-400/90 overflow-x-auto custom-scrollbar leading-relaxed">
@@ -615,9 +645,9 @@ function AdminAssessmentResultsComponent() {
                                     </div>
                                     
                                     {logData && (
-                                      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-5">
                                          <div className="flex items-center justify-between mb-4">
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Compiler Result</p>
+                                            <p className="text-[10px] font-bold text-slate-400 font-medium">Compiler Result</p>
                                             <div className="flex gap-2">
                                               <span className="px-2 py-0.5 bg-emerald-500 text-white text-[9px] font-bold rounded uppercase tracking-wider shadow-sm">{logData.passed} Passed</span>
                                               <span className="px-2 py-0.5 bg-slate-200 text-slate-600 text-[9px] font-bold rounded uppercase tracking-wider">{logData.total} Total</span>
@@ -644,21 +674,21 @@ function AdminAssessmentResultsComponent() {
 
                                {q.type === 'DESCRIPTIVE' && (
                                  <div className="space-y-6">
-                                    <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 text-sm text-slate-700 whitespace-pre-wrap leading-relaxed font-medium">
+                                    <div className="p-6 bg-slate-50 rounded-lg border border-slate-100 text-sm text-slate-700 whitespace-pre-wrap leading-relaxed font-medium">
                                        {studentAnswer || 'No response recorded.'}
                                     </div>
                                     
-                                    <div className="pt-6 border-t border-slate-100 bg-indigo-50/30 -mx-6 -mb-6 p-6">
+                                    <div className="pt-6 border-t border-slate-100 bg-sky-50/30 -mx-6 -mb-6 p-6">
                                        <div className="flex flex-col sm:flex-row sm:items-end gap-4">
                                           <div className="flex-1 space-y-2">
-                                             <label className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest ml-1">Award Manual Grade</label>
+                                             <label className="text-[10px] font-bold text-sky-600 font-medium ml-1">Award Manual Grade</label>
                                              <input 
                                                 type="number" 
                                                 placeholder={`Points (Max ${q.points})`} 
-                                                className="w-full p-3 bg-white border border-indigo-100 rounded-xl focus:ring-4 ring-indigo-500/10 outline-none text-sm font-bold placeholder:text-slate-300 transition-all" 
+                                                className="w-full p-3 bg-white border border-sky-100 rounded-xl focus:ring-4 ring-sky-400/20 outline-none text-sm font-bold placeholder:text-slate-300 transition-all" 
                                              />
                                           </div>
-                                          <button className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-lg shadow-indigo-500/20 active:scale-95 transition-all">
+                                          <button className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-bold font-medium shadow-lg  active:scale-95 transition-all">
                                              Save Points
                                           </button>
                                        </div>

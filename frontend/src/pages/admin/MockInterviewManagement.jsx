@@ -10,7 +10,6 @@ import api from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
 import MockInterviewCreateModal from '../../components/dashboard/admin/MockInterviewCreateModal';
 import MockInterviewEditDriveModal from '../../components/dashboard/admin/MockInterviewEditDriveModal';
-import { au } from '../../components/assessment/assessmentUi';
 import DirectoryLoadingPanel from '../../components/dashboard/admin/DirectoryLoading';
 
 function driveHasLiveSlots(drive) {
@@ -70,15 +69,21 @@ function aiIsPast(iv) {
   return new Date(iv.endDate) < new Date();
 }
 
-export default function MockInterviewManagement({ autoOpenCreate = false }) {
+export default function MockInterviewManagement({
+  autoOpenCreate = false,
+  forcedMode = null,
+  dashboardTab = 'mockInterviews',
+}) {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const toast = useToast();
 
-  const adminBase = location.pathname.startsWith('/super-admin') ? '/super-admin' : '/admin';
+const adminBase = location.pathname.startsWith('/super-admin') ? '/super-admin' : '/admin';
 
-  const initialMode = searchParams.get('mode') === 'ai' ? 'ai' : 'live';
+  const urlMode = searchParams.get('mode') === 'ai' ? 'ai' : 'live';
+  const initialMode = forcedMode === 'ai' || forcedMode === 'live' ? forcedMode : urlMode;
+  const lockMode = forcedMode === 'ai' || forcedMode === 'live';
 
   const [loading, setLoading] = useState(true);
   const [drives, setDrives] = useState([]);
@@ -93,21 +98,28 @@ export default function MockInterviewManagement({ autoOpenCreate = false }) {
   const syncUrl = useCallback(
     (mode) => {
       const next = new URLSearchParams(searchParams);
-      next.set('tab', 'mockInterviews');
+      next.set('tab', dashboardTab || 'mockInterviews');
       if (mode === 'ai') next.set('mode', 'ai');
       else next.delete('mode');
       next.delete('aiFilter');
       setSearchParams(next, { replace: true });
     },
-    [searchParams, setSearchParams]
+    [searchParams, setSearchParams, dashboardTab]
   );
 
   const setMode = (mode) => {
+    if (lockMode) return;
     setMainMode(mode);
     setSearchQuery('');
     setFilterTab('all');
     syncUrl(mode);
   };
+
+  useEffect(() => {
+    if (lockMode && mainMode !== forcedMode) {
+      setMainMode(forcedMode);
+    }
+  }, [lockMode, forcedMode, mainMode]);
 
   const openCreateModal = () => setShowCreateModal(true);
 
@@ -272,42 +284,48 @@ export default function MockInterviewManagement({ autoOpenCreate = false }) {
           { id: 'past', label: 'Past Archives', shortLabel: 'Past', count: aiPastCount },
         ];
 
+  const statsStrip = mainMode === 'live' ? liveStats : aiStats;
+
   return (
     <>
-      <div className="space-y-5 p-4 sm:p-6 max-w-[1600px] mx-auto">
-        <div className="flex justify-center mb-2">
-          <div className="bg-white rounded-lg p-1 shadow-sm border border-slate-200 inline-flex flex-wrap justify-center gap-2">
-            <button
-              type="button"
-              onClick={() => setMode('live')}
-              className={`px-4 sm:px-6 py-2 rounded-md font-medium transition-all duration-200 touch-manipulation ${
-                mainMode === 'live'
-                  ? 'bg-indigo-500 text-white shadow-md'
-                  : 'text-slate-600 hover:text-slate-800'
-              }`}
-            >
-              Live 1:1
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('ai')}
-              className={`px-4 sm:px-6 py-2 rounded-md font-medium transition-all duration-200 touch-manipulation ${
-                mainMode === 'ai'
-                  ? 'bg-violet-500 text-white shadow-md'
-                  : 'text-slate-600 hover:text-slate-800'
-              }`}
-            >
-              AI Interviews
-            </button>
-          </div>
-        </div>
-
-        <div className="flex justify-end">
+<div className="space-y-5 p-4 sm:p-6 max-w-[1600px] mx-auto">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {!lockMode ? (
+            <div className="bg-white rounded-lg p-1 shadow-sm border border-slate-200 inline-flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setMode('live')}
+                className={`px-4 sm:px-6 py-2 rounded-md font-medium transition-all duration-200 touch-manipulation ${
+                  mainMode === 'live'
+                    ? 'bg-indigo-500 text-white shadow-md'
+                    : 'text-slate-600 hover:text-slate-800'
+                }`}
+              >
+                Live 1:1
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('ai')}
+                className={`px-4 sm:px-6 py-2 rounded-md font-medium transition-all duration-200 touch-manipulation ${
+                  mainMode === 'ai'
+                    ? 'bg-violet-500 text-white shadow-md'
+                    : 'text-slate-600 hover:text-slate-800'
+                }`}
+              >
+                AI Interviews
+              </button>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">
+              {mainMode === 'live' ? 'Live mock interview drives' : 'AI interviews'}
+            </p>
+          )}
+          <div className="flex justify-end">
           {mainMode === 'live' ? (
             <button
               type="button"
               onClick={openCreateModal}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors shrink-0"
+              className="flex items-center justify-center gap-2 px-3.5 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors shrink-0"
             >
               <Plus className="w-4 h-4" /> New live drive
             </button>
@@ -315,52 +333,59 @@ export default function MockInterviewManagement({ autoOpenCreate = false }) {
             <button
               type="button"
               onClick={() => navigate(`${adminBase}/mock-interviews/create-ai-interview`)}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-800 text-white rounded-md text-sm font-medium hover:bg-blue-900 transition-colors shrink-0"
+              className="flex items-center justify-center gap-2 px-3.5 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors shrink-0"
             >
               <Plus className="w-4 h-4" /> New AI interview
             </button>
           )}
+          </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {(mainMode === 'live' ? liveStats : aiStats).map((stat, i) => (
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm px-4 py-3.5">
+          <div className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+            {statsStrip.map((stat, i) => (
+              <div key={i} className="px-3 py-2 md:py-0 first:pt-0 last:pb-0 md:first:pl-0 md:last:pr-0">
+                <p className="text-xs font-medium text-gray-500">{stat.label}</p>
+                <p className="text-2xl font-semibold text-gray-900 tabular-nums mt-0.5">{stat.val}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg border border-gray-200 overflow-visible flex flex-col">
+          <div className="p-3 border-b border-gray-100 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div
-              key={i}
-              className={`${au.statCard} flex flex-col gap-1`}
+              className="inline-flex flex-wrap rounded-md border border-gray-200 bg-white p-0.5 shadow-sm w-full lg:w-auto"
+              role="tablist"
             >
-              <p className={au.statLabel}>{stat.label}</p>
-              <p className={`text-xl ${au.statValue}`}>{stat.val}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className={`${au.panel} overflow-visible flex flex-col`}>
-          <div className="p-4 border-b border-slate-200 bg-slate-50 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className={`grid w-full grid-cols-4 gap-1 rounded-lg ${au.tabBar} lg:max-w-3xl lg:flex-1`}>
               {filterTabs.map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
+                  role="tab"
+                  aria-selected={filterTab === tab.id}
                   onClick={() => setFilterTab(tab.id)}
-                  className={`flex items-center justify-center gap-1.5 rounded-md px-2 py-2 text-xs font-medium transition-colors sm:gap-2 sm:px-3 ${
-                    filterTab === tab.id ? au.tabActive : au.tabIdle
+                  className={`flex items-center justify-center gap-1.5 rounded px-2.5 py-1.5 text-xs font-medium transition-colors flex-1 lg:flex-none ${
+                    filterTab === tab.id
+                      ? 'bg-slate-800 text-white'
+                      : 'text-gray-600 hover:bg-gray-50'
                   }`}
                 >
                   <span className="hidden sm:inline whitespace-nowrap">{tab.label}</span>
                   <span className="sm:hidden whitespace-nowrap">{tab.shortLabel}</span>
                   <span
-                    className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] tabular-nums ${
-                      filterTab === tab.id ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-200 text-slate-600'
+                    className={`shrink-0 tabular-nums ${
+                      filterTab === tab.id ? 'text-white/80' : 'text-gray-400'
                     }`}
                   >
-                    {tab.count}
+                    ({tab.count})
                   </span>
                 </button>
               ))}
             </div>
 
             <div className="relative w-full shrink-0 lg:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
               <input
                 type="text"
                 placeholder={
@@ -368,7 +393,7 @@ export default function MockInterviewManagement({ autoOpenCreate = false }) {
                 }
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className={au.searchInput}
+                className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-md bg-gray-50 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400 focus:bg-white"
               />
             </div>
           </div>
@@ -396,7 +421,7 @@ export default function MockInterviewManagement({ autoOpenCreate = false }) {
                     <button
                       type="button"
                       onClick={openCreateModal}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700"
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"
                     >
                       Create drive
                     </button>
@@ -422,7 +447,7 @@ export default function MockInterviewManagement({ autoOpenCreate = false }) {
                             <div
                               className={`w-11 h-11 rounded-md flex flex-col items-center justify-center flex-shrink-0 border ${
                                 hasActiveSession
-                                  ? 'bg-indigo-600 text-white border-indigo-600'
+                                  ? 'bg-sky-50 text-sky-800 border-sky-200'
                                   : 'bg-gray-50 text-gray-700 border-gray-200'
                               }`}
                             >
@@ -442,7 +467,7 @@ export default function MockInterviewManagement({ autoOpenCreate = false }) {
                                     isDraft
                                       ? 'bg-amber-50 text-amber-800 border-amber-200'
                                       : hasActiveSession
-                                        ? 'bg-blue-50 text-indigo-700 border-blue-200'
+                                        ? 'bg-blue-50 text-sky-700 border-blue-200'
                                         : isPast
                                           ? 'bg-gray-100 text-gray-600 border-gray-200'
                                           : 'bg-gray-50 text-gray-700 border-gray-200'
@@ -461,7 +486,7 @@ export default function MockInterviewManagement({ autoOpenCreate = false }) {
                                 </span>
                               </div>
                               <h3
-                                className="text-sm font-semibold text-gray-900 cursor-pointer hover:text-indigo-700 truncate"
+                                className="text-sm font-semibold text-gray-900 cursor-pointer hover:text-sky-700 truncate"
                                 onClick={() => navigate(`/admin?tab=mockInterviews-slots&id=${drive.id}`)}
                               >
                                 {drive.title}
@@ -486,8 +511,8 @@ export default function MockInterviewManagement({ autoOpenCreate = false }) {
                           <div className="flex items-center gap-2 flex-wrap shrink-0">
                             <button
                               type="button"
-                              onClick={() => navigate(`${adminBase}/mock-interviews/${drive.id}/results`)}
-                              className="px-3 py-2 bg-blue-800 text-white rounded-md text-xs font-medium hover:bg-blue-900"
+onClick={() => navigate(`${adminBase}/mock-interviews/${drive.id}/results`)}
+                              className="px-3 py-2 bg-blue-600 text-white rounded-md text-xs font-medium hover:bg-blue-700"
                             >
                               Results
                             </button>
@@ -495,7 +520,7 @@ export default function MockInterviewManagement({ autoOpenCreate = false }) {
                               <button
                                 type="button"
                                 onClick={() => handlePublishDrive(drive)}
-                                className="px-3 py-2 bg-indigo-600 text-white rounded-md text-xs font-medium hover:bg-indigo-700"
+                                className="px-3 py-2 bg-blue-600 text-white rounded-md text-xs font-medium hover:bg-blue-700"
                               >
                                 Publish
                               </button>
@@ -569,8 +594,8 @@ export default function MockInterviewManagement({ autoOpenCreate = false }) {
                 {filterTab === 'all' && !searchQuery && (
                   <button
                     type="button"
-                    onClick={() => navigate(`${adminBase}/mock-interviews/create-ai-interview`)}
-                    className="px-4 py-2 bg-blue-800 text-white rounded-md text-sm font-medium hover:bg-blue-900"
+onClick={() => navigate(`${adminBase}/mock-interviews/create-ai-interview`)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"
                   >
                     Create AI interview
                   </button>
@@ -596,7 +621,7 @@ export default function MockInterviewManagement({ autoOpenCreate = false }) {
                           <div
                             className={`w-11 h-11 rounded-md flex flex-col items-center justify-center flex-shrink-0 border ${
                               isActive
-                                ? 'bg-indigo-600 text-white border-indigo-600'
+                                ? 'bg-sky-50 text-sky-800 border-sky-200'
                                 : 'bg-gray-50 text-gray-700 border-gray-200'
                             }`}
                           >
@@ -614,7 +639,7 @@ export default function MockInterviewManagement({ autoOpenCreate = false }) {
                               <span
                                 className={`px-2 py-0.5 text-[10px] font-medium rounded border ${
                                   isActive
-                                    ? 'bg-blue-50 text-indigo-700 border-blue-200'
+                                    ? 'bg-blue-50 text-sky-700 border-blue-200'
                                     : isPast
                                       ? 'bg-gray-100 text-gray-600 border-gray-200'
                                       : isDraft
@@ -660,8 +685,8 @@ export default function MockInterviewManagement({ autoOpenCreate = false }) {
                         <div className="flex items-center gap-2 shrink-0">
                           <button
                             type="button"
-                            onClick={() => navigate(`${adminBase}/mock-interviews/${iv.id}/review`)}
-                            className="px-3 py-2 bg-blue-800 text-white rounded-md text-xs font-medium hover:bg-blue-900"
+onClick={() => navigate(`${adminBase}/mock-interviews/${iv.id}/review`)}
+                            className="px-3 py-2 bg-blue-600 text-white rounded-md text-xs font-medium hover:bg-blue-700"
                           >
                             Results
                           </button>

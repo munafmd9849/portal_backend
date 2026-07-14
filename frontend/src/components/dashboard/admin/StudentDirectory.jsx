@@ -613,7 +613,7 @@ export default function StudentDirectory() {
   const [operationLoading, setOperationLoading] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [dashboardData, setDashboardData] = useState({ loading: true, error: null, jobs: [], applications: [], skills: [] });
-  const studentsPerPage = 50;
+  const studentsPerPage = 10;
   const [totalPages, setTotalPages] = useState(1);
   const [totalStudents, setTotalStudents] = useState(0);
   const [studentSummary, setStudentSummary] = useState({
@@ -756,7 +756,7 @@ export default function StudentDirectory() {
         return 'Active'; // Default to Active for unknown statuses
       };
 
-      const formattedStudents = studentsArray.map(student => {
+      const formattedStudents = studentsArray.map((student, index) => {
         // Parse blockInfo if it exists
         let blockInfo = null;
         if (student.user?.blockInfo) {
@@ -782,6 +782,7 @@ export default function StudentDirectory() {
 
         return {
           ...student,
+          srNo: (currentPage - 1) * studentsPerPage + index + 1,
           status: normalizeStatus(student.status || student.user?.status || 'ACTIVE'),
           emailVerified: Boolean(
             student.emailVerified ?? student.user?.emailVerified ?? student.user?.lastLoginAt,
@@ -1304,20 +1305,11 @@ export default function StudentDirectory() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40 p-4 sm:p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-12">
-            <div className="flex items-center justify-center py-12">
-              <div className="flex flex-col items-center">
-                <div className="relative">
-                  <Loader className="h-12 w-12 animate-spin text-blue-600 mb-4" />
-                  <div className="absolute inset-0 h-12 w-12 border-4 border-blue-200 rounded-full"></div>
-                </div>
-                <span className="text-gray-700 font-medium text-lg">Loading students...</span>
-                <p className="text-gray-500 text-sm mt-2">Please wait while we fetch the data</p>
-              </div>
-            </div>
-          </div>
+      <div className="bg-white rounded-lg border border-gray-200 p-12">
+        <div className="flex flex-col items-center py-8">
+          <Loader className="h-8 w-8 animate-spin text-sky-600 mb-3" />
+          <span className="text-gray-700 font-medium">Loading students…</span>
+          <p className="text-gray-500 text-sm mt-1">Fetching directory data</p>
         </div>
       </div>
     );
@@ -1326,87 +1318,66 @@ export default function StudentDirectory() {
   // Show error screen only if no students loaded AND error exists
   if (error && students.length === 0 && !loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40 p-4 sm:p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-12">
-            <div className="text-center py-12">
-              <div className="mb-6">
-                <div className="mx-auto w-24 h-24 rounded-full bg-gradient-to-br from-red-100 to-rose-100 flex items-center justify-center">
-                  <svg className="h-12 w-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                </div>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">Something went wrong</h3>
-              <p className="text-gray-500 max-w-md mx-auto mb-8">
-                {error || 'We couldn\'t load the student directory. This might be due to a connection issue or server error.'}
-              </p>
-              <div className="flex justify-center gap-4">
-                <button
-                  onClick={() => {
-                    setError(null);
-                    loadStudents();
-                  }}
-                  className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-200 font-semibold border-2 border-gray-200"
-                >
-                  Dismiss
-                </button>
-              </div>
-              <p className="text-sm text-gray-500 mt-6">
-                If the problem persists, check your connection or contact support.
-              </p>
-            </div>
-          </div>
-        </div>
+      <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Something went wrong</h3>
+        <p className="text-gray-500 max-w-md mx-auto mb-6 text-sm">
+          {error || "We couldn't load the student directory. Check your connection and try again."}
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            loadStudents();
+          }}
+          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm font-medium"
+        >
+          Dismiss
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Quick student metrics — from API (scoped to current filters) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="bg-sky-50 border border-sky-100 rounded-lg p-4 text-center">
-          <div className="text-2xl font-bold text-slate-800 tabular-nums">{stats.totalStudents ?? 0}</div>
-          <div className="text-sm text-slate-600 mt-1">Total Students</div>
-        </div>
-        <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-4 text-center">
-          <div className="text-2xl font-bold text-emerald-800 tabular-nums">{stats.activeStudents ?? 0}</div>
-          <div className="text-sm text-emerald-700 mt-1">Active</div>
-        </div>
-        <div className="bg-red-50 border border-red-100 rounded-lg p-4 text-center">
-          <div className="text-2xl font-bold text-red-800 tabular-nums">{stats.blockedStudents ?? 0}</div>
-          <div className="text-sm text-red-700 mt-1">Blocked</div>
+    <div className="space-y-4">
+      {/* Directory stats — always visible */}
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm px-4 py-3.5">
+        <div className="grid grid-cols-3 divide-x divide-gray-100">
+          <div className="px-3 sm:px-5 text-center sm:text-left">
+            <p className="text-xs font-medium text-gray-500">Total students</p>
+            <p className="text-2xl font-semibold text-gray-900 tabular-nums mt-0.5">{stats.totalStudents ?? 0}</p>
+          </div>
+          <div className="px-3 sm:px-5 text-center sm:text-left">
+            <p className="text-xs font-medium text-emerald-700">Active</p>
+            <p className="text-2xl font-semibold text-emerald-700 tabular-nums mt-0.5">{stats.activeStudents ?? 0}</p>
+          </div>
+          <div className="px-3 sm:px-5 text-center sm:text-left">
+            <p className="text-xs font-medium text-rose-700">Blocked</p>
+            <p className="text-2xl font-semibold text-rose-700 tabular-nums mt-0.5">{stats.blockedStudents ?? 0}</p>
+          </div>
         </div>
       </div>
 
-      {/* Error Banner */}
       {error && students.length > 0 && (
-        <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-yellow-400 p-4 rounded-xl shadow-sm mb-6">
-          <div className="flex items-start">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3 flex-1">
-              <p className="text-sm font-semibold text-yellow-800">
-                <strong>Warning:</strong> {error}
-              </p>
-              <p className="text-xs text-yellow-700 mt-1">
-                Showing previously loaded data. Click retry to refresh.
+        <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-lg">
+          <div className="flex items-start gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-amber-900">{error}</p>
+              <p className="text-xs text-amber-800 mt-0.5">
+                Showing previously loaded data. Retry to refresh.
               </p>
             </div>
-            <div className="ml-auto flex-shrink-0 flex gap-2">
+            <div className="flex gap-2 shrink-0">
               <button
+                type="button"
                 onClick={refreshStudents}
-                className="text-sm font-semibold text-yellow-850 hover:text-yellow-900 bg-yellow-100 hover:bg-yellow-250/80 px-3 py-1 rounded-lg transition-colors"
+                className="text-sm font-medium text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-md transition-colors"
               >
                 Retry
               </button>
               <button
+                type="button"
                 onClick={() => setError(null)}
-                className="text-sm text-yellow-850 hover:text-yellow-900 p-1 rounded-lg hover:bg-yellow-100 transition-colors"
+                className="text-sm text-amber-800 hover:bg-amber-100 px-2 py-1 rounded-md transition-colors"
               >
                 ✕
               </button>
@@ -1415,9 +1386,7 @@ export default function StudentDirectory() {
         </div>
       )}
 
-      {/* Filters and Search - Upgraded design */}
-      <div className="bg-white p-4 rounded-lg border border-gray-200 mb-6">
-        <h3 className="text-sm font-semibold text-gray-800 mb-3">Filters</h3>
+      <div className="bg-white p-4 rounded-lg border border-gray-200">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
           <CustomDropdown
             label="Center"
@@ -1579,40 +1548,38 @@ export default function StudentDirectory() {
               batchAtsRunning={batchAtsRunning}
             />
 
-            {/* Pagination */}
             {totalPages > 1 && (
               <div className="mt-3 bg-white rounded-lg border border-gray-200 px-4 py-3">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <span className="text-gray-500">Showing</span>
-                    <span className="font-semibold text-blue-700">{((currentPage - 1) * studentsPerPage) + 1}</span>
-                    <span className="text-gray-500">to</span>
-                    <span className="font-semibold text-blue-700">{Math.min(currentPage * studentsPerPage, totalStudents)}</span>
-                    <span className="text-gray-500">of</span>
-                    <span className="font-semibold text-blue-700">{totalStudents}</span>
-                    <span className="text-gray-500">results</span>
-                  </div>
-                  <div className="flex items-center gap-3">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <p className="text-sm text-gray-500">
+                    Showing{' '}
+                    <span className="font-semibold text-gray-900 tabular-nums">{((currentPage - 1) * studentsPerPage) + 1}</span>
+                    –{' '}
+                    <span className="font-semibold text-gray-900 tabular-nums">{Math.min(currentPage * studentsPerPage, totalStudents)}</span>
+                    {' '}of{' '}
+                    <span className="font-semibold text-gray-900 tabular-nums">{totalStudents}</span>
+                  </p>
+                  <div className="flex items-center gap-2">
                     <button
+                      type="button"
                       onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                       disabled={currentPage === 1}
-                      className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-all duration-200 flex items-center gap-2 shadow-sm"
+                      className="px-3 py-1.5 bg-white border border-gray-200 rounded-md text-sm font-medium text-gray-700 disabled:opacity-40 hover:bg-gray-50 flex items-center gap-1.5"
                     >
-                      <FaChevronLeft className="w-3.5 h-3.5" />
-                      <span>Previous</span>
+                      <FaChevronLeft className="w-3 h-3" />
+                      Previous
                     </button>
-                    <div className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 shadow-sm">
-                      <span className="text-blue-700">{currentPage}</span>
-                      <span className="text-gray-500 mx-1">/</span>
-                      <span>{totalPages}</span>
-                    </div>
+                    <span className="px-3 py-1.5 text-sm text-gray-600 tabular-nums">
+                      {currentPage} / {totalPages}
+                    </span>
                     <button
+                      type="button"
                       onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                       disabled={currentPage === totalPages}
-                      className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-all duration-200 flex items-center gap-2 shadow-sm"
+                      className="px-3 py-1.5 bg-white border border-gray-200 rounded-md text-sm font-medium text-gray-700 disabled:opacity-40 hover:bg-gray-50 flex items-center gap-1.5"
                     >
-                      <span>Next</span>
-                      <FaChevronRight className="w-3.5 h-3.5" />
+                      Next
+                      <FaChevronRight className="w-3 h-3" />
                     </button>
                   </div>
                 </div>

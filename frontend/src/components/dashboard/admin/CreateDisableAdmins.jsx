@@ -1,5 +1,5 @@
 /**
- * Create / Disable Admins (Super Admin only)
+ * Manage admins (Super Admin only)
  */
 
 import React, { useEffect, useState } from 'react';
@@ -222,25 +222,22 @@ export default function CreateDisableAdmins() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-slate-100 p-6">
-      <div className="max-w-5xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <FaUsers className="text-violet-600" />
-            Create / Disable Admins
-          </h1>
+    <div className="space-y-3">
+      <div className="w-full space-y-3">
+        <div className="flex items-center justify-end">
           <button
+            type="button"
             onClick={() => setCreateModal(true)}
-            className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 flex items-center gap-2"
+            className="inline-flex items-center gap-2 px-3.5 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"
           >
-            <FaUserPlus /> Create Admin
+            <FaUserPlus className="w-3.5 h-3.5" /> New admin
           </button>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           {loading ? (
             <div className="p-12 text-center">
-              <FaSpinner className="animate-spin text-3xl text-violet-500 mx-auto mb-2" />
+              <FaSpinner className="animate-spin text-3xl text-sky-600 mx-auto mb-2" />
               <p className="text-gray-500">Loading admin directory...</p>
             </div>
           ) : admins.length === 0 ? (
@@ -251,46 +248,46 @@ export default function CreateDisableAdmins() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
-                <thead className="bg-gray-50 text-gray-600 text-xs uppercase font-semibold">
+                <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-6 py-4">Name / Email</th>
-                    <th className="px-6 py-4">Role</th>
-                    <th className="px-6 py-4">Scope (School/Center)</th>
-                    <th className="px-6 py-4">Status</th>
-                    <th className="px-6 py-4 text-right">Actions</th>
+                    <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Admin</th>
+                    <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Role</th>
+                    <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Scope</th>
+                    <th className="px-4 py-2.5 text-xs font-medium text-gray-500">Status</th>
+                    <th className="px-4 py-2.5 text-xs font-medium text-gray-500 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                    {admins.map((a) => (
-                    <tr key={a.id} className="hover:bg-gray-50 transition-colors group cursor-pointer" onClick={() => openPerformanceModal(a)}>
-                      <td className="px-6 py-4">
+                    <tr key={a.id} className="hover:bg-sky-50/40 transition-colors group cursor-pointer" onClick={() => openPerformanceModal(a)}>
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-violet-50 text-violet-600 rounded-xl flex items-center justify-center font-bold text-sm shadow-sm group-hover:bg-violet-600 group-hover:text-white transition-all">
+                          <div className="w-10 h-10 bg-sky-50 text-sky-600 rounded-lg flex items-center justify-center font-bold text-sm shadow-sm group-hover:bg-blue-600 group-hover:text-white transition-all">
                             {a.displayName?.[0] || a.email?.[0]?.toUpperCase()}
                           </div>
                           <div className="min-w-0">
-                            <div className="font-semibold text-gray-900 group-hover:text-violet-600 transition-colors">{a.displayName || 'Unnamed Admin'}</div>
+                            <div className="font-semibold text-gray-900 group-hover:text-sky-600 transition-colors">{a.displayName || 'Unnamed Admin'}</div>
                             <div className="text-xs text-gray-500">{a.email}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                          a.adminRole === 'SUPER_ADMIN' ? 'bg-amber-100 text-amber-700' : 
-                          a.adminRole === 'COORDINATOR' ? 'bg-blue-100 text-blue-700' : 'bg-violet-100 text-violet-700'
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded-md text-xs font-medium border ${
+                          a.adminRole === 'SUPER_ADMIN' ? 'bg-amber-50 text-amber-800 border-amber-200' : 
+                          a.adminRole === 'COORDINATOR' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-sky-50 text-sky-700 border border-sky-100'
                         }`}>
                           {a.adminRole || 'ADMIN'}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-3">
                         {isAdminFullAccess(a) ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-100 text-emerald-700">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-emerald-50 text-emerald-700 border-emerald-100">
                             Full access
                           </span>
                         ) : (
                           <>
                             <div className="text-xs text-gray-600 max-w-[220px]">
-                              <span className="font-semibold text-violet-600">Branches:</span>{' '}
+                              <span className="font-semibold text-sky-600">Branches:</span>{' '}
                               {formatScopeDimensionDisplay(
                                 a.allowedSchoolIds,
                                 a.allowedSchools,
@@ -300,7 +297,7 @@ export default function CreateDisableAdmins() {
                               )}
                             </div>
                             <div className="text-xs text-gray-500 max-w-[220px] mt-0.5">
-                              <span className="font-semibold text-violet-600">Campuses:</span>{' '}
+                              <span className="font-semibold text-sky-600">Campuses:</span>{' '}
                               {formatScopeDimensionDisplay(
                                 a.allowedCenterIds,
                                 a.allowedCenters,
@@ -310,7 +307,7 @@ export default function CreateDisableAdmins() {
                               )}
                             </div>
                             <div className="text-xs text-gray-500 max-w-[220px] mt-0.5">
-                              <span className="font-semibold text-violet-600">Batches:</span>{' '}
+                              <span className="font-semibold text-sky-600">Batches:</span>{' '}
                               {formatScopeDimensionDisplay(
                                 a.allowedBatchIds,
                                 a.allowedBatches,
@@ -322,18 +319,18 @@ export default function CreateDisableAdmins() {
                           </>
                         )}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-3">
                         <span className={`px-2 py-1 rounded text-[10px] font-bold ${
-                          a.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                          a.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-200'
                         }`}>
                           {a.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
                            <button
                             onClick={(e) => { e.stopPropagation(); openEditModal(a); }}
-                            className="p-2 text-gray-500 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
+                            className="p-2 text-gray-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors"
                             title="Edit Scope"
                           >
                             <Settings className="w-4 h-4" />
@@ -372,11 +369,11 @@ export default function CreateDisableAdmins() {
 
       {/* Create/Edit Modal */}
       {(createModal || editModal) && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
-            <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
-              <h2 className="text-lg font-bold text-gray-800">
-                {createModal ? 'Create New Admin' : 'Update Admin Scope'}
+        <div className="fixed inset-0 bg-slate-900/50  flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg border border-gray-200 w-full overflow-hidden">
+            <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+              <h2 className="text-sm font-semibold text-gray-900">
+                {createModal ? 'New admin' : 'Edit admin scope'}
               </h2>
               <button onClick={() => { setCreateModal(false); setEditModal(false); resetForm(); }} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
@@ -388,23 +385,23 @@ export default function CreateDisableAdmins() {
                 <>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Email Address *</label>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Email Address *</label>
                       <input
                         type="email"
                         value={form.email}
                         onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-                        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
+                        className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-sky-400/30 focus:border-sky-400 outline-none transition-all"
                         placeholder="admin@institution.edu"
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Password *</label>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Password *</label>
                       <input
                         type="password"
                         value={form.password}
                         onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
-                        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
+                        className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-sky-400/30 focus:border-sky-400 outline-none transition-all"
                         placeholder="••••••••"
                         required={createModal}
                         minLength={6}
@@ -415,22 +412,22 @@ export default function CreateDisableAdmins() {
               )}
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Display Name</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Display Name</label>
                 <input
                   type="text"
                   value={form.displayName}
                   onChange={(e) => setForm((p) => ({ ...p, displayName: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
+                  className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-sky-400/30 focus:border-sky-400 outline-none transition-all"
                   placeholder="e.g. John Doe"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Access Role</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Access Role</label>
                 <select
                   value={form.role}
                   onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
+                  className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-sky-400/30 focus:border-sky-400 outline-none transition-all"
                 >
                   <option value="ADMIN">Admin (Full access to scoped data)</option>
                   <option value="COORDINATOR">Coordinator (Limited access to scoped data)</option>
@@ -439,9 +436,9 @@ export default function CreateDisableAdmins() {
               </div>
 
               <div className="pt-2 border-t border-gray-50">
-                <h3 className="text-xs font-bold text-violet-600 uppercase mb-3">Institutional Scope (Data Isolation)</h3>
+                <h3 className="text-xs font-bold text-sky-600 uppercase mb-3">Institutional Scope (Data Isolation)</h3>
 
-                <label className="flex items-start gap-3 p-3 mb-4 rounded-xl border border-emerald-200 bg-emerald-50/60 cursor-pointer">
+                <label className="flex items-start gap-3 p-3 mb-4 rounded-lg border border-emerald-200 bg-emerald-50/60 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={form.fullAccess}
@@ -476,8 +473,8 @@ export default function CreateDisableAdmins() {
                     </p>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Allowed Branches</label>
-                    <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-xl p-2 bg-gray-50 space-y-1">
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Allowed Branches</label>
+                    <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2 bg-gray-50 space-y-1">
                       {academicData.schools.length === 0 ? (
                         <div className="text-[10px] text-gray-400 italic p-1">No branches defined</div>
                       ) : (
@@ -492,7 +489,7 @@ export default function CreateDisableAdmins() {
                                   : form.allowedSchoolIds.filter(id => id !== s.id);
                                 setForm(p => ({ ...p, allowedSchoolIds: newIds }));
                               }}
-                              className="w-3 h-3 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                              className="w-3 h-3 rounded border-gray-300 text-sky-600 focus:ring-sky-400"
                             />
                             {s.name}
                           </label>
@@ -501,8 +498,8 @@ export default function CreateDisableAdmins() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Allowed Campuses</label>
-                    <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-xl p-2 bg-gray-50 space-y-1">
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Allowed Campuses</label>
+                    <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2 bg-gray-50 space-y-1">
                       {academicData.centers.length === 0 ? (
                         <div className="text-[10px] text-gray-400 italic p-1">No campuses defined</div>
                       ) : (
@@ -517,7 +514,7 @@ export default function CreateDisableAdmins() {
                                   : form.allowedCenterIds.filter(id => id !== c.id);
                                 setForm(p => ({ ...p, allowedCenterIds: newIds }));
                               }}
-                              className="w-3 h-3 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                              className="w-3 h-3 rounded border-gray-300 text-sky-600 focus:ring-sky-400"
                             />
                             {c.name}
                           </label>
@@ -527,16 +524,16 @@ export default function CreateDisableAdmins() {
                   </div>
                 </div>
                 <div className="mt-3">
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Allowed Batches</label>
-                  <div className="flex flex-wrap gap-2 p-2 bg-gray-50 border border-gray-200 rounded-xl">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Allowed Batches</label>
+                  <div className="flex flex-wrap gap-2 p-2 bg-gray-50 border border-gray-200 rounded-lg">
                     {academicData.batches.length === 0 ? (
                       <div className="text-[10px] text-gray-400 italic">No batches defined</div>
                     ) : (
                       academicData.batches.map(b => (
                         <label key={b.id} className={`px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-all border ${
                           form.allowedBatchIds.includes(b.id) 
-                            ? 'bg-violet-600 border-violet-600 text-white' 
-                            : 'bg-white border-gray-200 text-gray-500 hover:border-violet-300'
+                            ? 'bg-blue-600 border-blue-600 text-white' 
+                            : 'bg-white border-gray-200 text-gray-500 hover:border-sky-300'
                         }`}>
                           <input 
                             type="checkbox" 
@@ -563,17 +560,17 @@ export default function CreateDisableAdmins() {
                 <button
                   type="button"
                   onClick={() => { setCreateModal(false); setEditModal(false); resetForm(); }}
-                  className="px-6 py-2.5 text-sm font-semibold text-gray-500 hover:bg-gray-100 rounded-xl transition-colors"
+                  className="px-6 py-2.5 text-sm font-semibold text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading.create || actionLoading.update}
-                  className="px-8 py-2.5 bg-violet-600 text-white rounded-xl hover:bg-violet-700 shadow-lg shadow-violet-200 disabled:opacity-50 flex items-center gap-2 font-semibold transition-all"
+                  className="px-8 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700  disabled:opacity-50 flex items-center gap-2 font-semibold transition-all"
                 >
                   {(actionLoading.create || actionLoading.update) && <FaSpinner className="animate-spin" />}
-                  {createModal ? 'Create Admin' : 'Save Changes'}
+                  {createModal ? 'Create admin' : 'Save changes'}
                 </button>
               </div>
             </form>
@@ -583,90 +580,90 @@ export default function CreateDisableAdmins() {
 
       {/* Performance Dashboard Modal */}
       {performanceModal && createPortal(
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[100] p-4" onClick={() => setPerformanceModal(false)}>
-          <div className="bg-[#f8fafc] rounded-[32px] shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-white/20 animate-in fade-in zoom-in duration-300" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-slate-900/50  flex items-center justify-center z-[100] p-4" onClick={() => setPerformanceModal(false)}>
+          <div className="bg-gray-50 rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-white/20 " onClick={e => e.stopPropagation()}>
             
             {/* Header */}
-            <div className="px-8 py-6 bg-gradient-to-r from-violet-600 to-indigo-700 text-white relative">
-              <button onClick={() => setPerformanceModal(false)} className="absolute top-6 right-8 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-2xl flex items-center justify-center transition-all">
-                <X className="w-5 h-5" />
+            <div className="px-4 py-3 bg-white border-b border-gray-200 relative flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setPerformanceModal(false)}
+                className="absolute top-3 right-3 p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-50 rounded-md"
+              >
+                <X className="w-4 h-4" />
               </button>
-              
-              <div className="flex items-center gap-6">
-                <div className="w-16 h-16 bg-white/20 backdrop-blur-xl border border-white/30 rounded-[22px] flex items-center justify-center font-bold text-2xl shadow-inner">
-                  {selectedAdmin?.displayName?.[0] || selectedAdmin?.email?.[0]?.toUpperCase()}
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold tracking-tight">{selectedAdmin?.displayName || 'Admin'}</h2>
-                  <div className="flex items-center gap-4 mt-1 opacity-90 text-xs font-semibold tracking-wide uppercase">
-                    <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> {selectedAdmin?.email}</span>
-                    <span className="flex items-center gap-1.5"><Shield className="w-3.5 h-3.5" /> {selectedAdmin?.adminRole || 'ADMIN'}</span>
-                  </div>
-                </div>
+              <div className="w-10 h-10 bg-sky-50 text-sky-700 border border-sky-100 rounded-md flex items-center justify-center font-semibold text-sm shrink-0">
+                {selectedAdmin?.displayName?.[0] || selectedAdmin?.email?.[0]?.toUpperCase()}
+              </div>
+              <div className="min-w-0 pr-8">
+                <h2 className="text-sm font-semibold text-gray-900 truncate">
+                  {selectedAdmin?.displayName || 'Admin'}
+                </h2>
+                <p className="text-xs text-gray-500 truncate">
+                  {selectedAdmin?.email} · {selectedAdmin?.adminRole || 'ADMIN'}
+                </p>
               </div>
             </div>
 
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-8 space-y-8">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {perfLoading ? (
-                <div className="h-64 flex flex-col items-center justify-center space-y-4">
-                  <FaSpinner className="animate-spin text-4xl text-violet-500" />
-                  <p className="text-slate-500 font-bold text-xs uppercase tracking-widest">Gathering Performance Data...</p>
+                <div className="py-16 flex flex-col items-center justify-center gap-3">
+                  <FaSpinner className="animate-spin text-2xl text-sky-600" />
+                  <p className="text-sm text-gray-500">Loading performance…</p>
                 </div>
               ) : perfData ? (
                 <>
-                  {/* Quick Stats Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                      <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center mb-4">
-                        <Briefcase className="w-5 h-5" />
+                  <div className="bg-white rounded-lg border border-gray-200 shadow-sm px-4 py-3.5">
+                    <div className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+                      <div className="px-3 py-2 md:py-0">
+                        <p className="text-xs font-medium text-gray-500">Jobs created</p>
+                        <p className="text-2xl font-semibold text-gray-900 tabular-nums mt-0.5">
+                          {perfData.stats.totalJobsCreated}
+                        </p>
                       </div>
-                      <div className="text-2xl font-bold text-slate-900">{perfData.stats.totalJobsCreated}</div>
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Jobs Created</div>
-                    </div>
-                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                      <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center mb-4">
-                        <TrendingUp className="w-5 h-5" />
+                      <div className="px-3 py-2 md:py-0">
+                        <p className="text-xs font-medium text-gray-500">Updates</p>
+                        <p className="text-2xl font-semibold text-gray-900 tabular-nums mt-0.5">
+                          {perfData.stats.totalJobsUpdated}
+                        </p>
                       </div>
-                      <div className="text-2xl font-bold text-slate-900">{perfData.stats.totalJobsUpdated}</div>
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Updates Made</div>
-                    </div>
-                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                      <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center mb-4">
-                        <Users className="w-5 h-5" />
+                      <div className="px-3 py-2 md:py-0">
+                        <p className="text-xs font-medium text-gray-500">Applications</p>
+                        <p className="text-2xl font-semibold text-gray-900 tabular-nums mt-0.5">
+                          {perfData.stats.totalApplications}
+                        </p>
                       </div>
-                      <div className="text-2xl font-bold text-slate-900">{perfData.stats.totalApplications}</div>
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Applications</div>
-                    </div>
-                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                      <div className="w-10 h-10 bg-violet-50 text-violet-600 rounded-xl flex items-center justify-center mb-4">
-                        <Target className="w-5 h-5" />
+                      <div className="px-3 py-2 md:py-0">
+                        <p className="text-xs font-medium text-gray-500">Reach</p>
+                        <p className="text-2xl font-semibold text-gray-900 tabular-nums mt-0.5">
+                          {perfData.stats.totalReach}
+                        </p>
                       </div>
-                      <div className="text-2xl font-bold text-slate-900">{perfData.stats.totalReach}</div>
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Total Reach</div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                     {/* Recent Drives */}
-                    <div className="space-y-4">
-                      <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                        <History className="w-4 h-4 text-violet-500" />
-                        Recent Job Postings
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                        <History className="w-3.5 h-3.5 text-sky-600" />
+                        Recent job postings
                       </h3>
-                      <div className="space-y-3">
+                      <div className="space-y-2">
                         {perfData.recentJobs.length === 0 ? (
-                          <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                            <p className="text-xs text-slate-400 font-medium">No jobs posted yet</p>
+                          <div className="p-6 text-center bg-white rounded-lg border border-dashed border-gray-200">
+                            <p className="text-sm text-gray-500">No jobs posted yet</p>
                           </div>
                         ) : perfData.recentJobs.map(job => (
-                          <div key={job.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between group hover:border-violet-300 transition-all">
+                          <div key={job.id} className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex items-center justify-between group hover:border-sky-300 transition-all">
                             <div className="min-w-0">
                               <div className="text-sm font-semibold text-slate-900 truncate">{job.jobTitle}</div>
                               <div className="text-[10px] text-slate-500 mt-0.5">{job.companyName} • {new Date(job.createdAt).toLocaleDateString()}</div>
                             </div>
-                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
-                              job.status === 'POSTED' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+                            <span className={`px-2 py-0.5 rounded-md text-xs font-medium border ${
+                              job.status === 'POSTED'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                : 'bg-amber-50 text-amber-700 border-amber-100'
                             }`}>
                               {job.status}
                             </span>
@@ -676,30 +673,32 @@ export default function CreateDisableAdmins() {
                     </div>
 
                     {/* Activity Feed */}
-                    <div className="space-y-4">
-                      <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                        <Activity className="w-4 h-4 text-indigo-500" />
-                        Live Activity Trail
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                        <Activity className="w-3.5 h-3.5 text-sky-600" />
+                        Recent activity
                       </h3>
-                      <div className="space-y-4 relative before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-px before:bg-slate-100">
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
                         {perfData.recentActivity.length === 0 ? (
-                          <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                            <p className="text-xs text-slate-400 font-medium">No recent activity logged</p>
+                          <div className="p-6 text-center bg-white rounded-lg border border-dashed border-gray-200">
+                            <p className="text-sm text-gray-500">No recent activity logged</p>
                           </div>
-                        ) : perfData.recentActivity.map((log, idx) => (
-                          <div key={log.id} className="relative pl-10">
-                            <div className="absolute left-0 top-1 w-10 h-10 bg-white border-4 border-slate-50 rounded-full flex items-center justify-center z-10 shadow-sm">
-                              <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-pulse" />
+                        ) : perfData.recentActivity.map((log) => (
+                          <div key={log.id} className="bg-white p-3 rounded-lg border border-gray-200">
+                            <div className="flex justify-between items-start gap-2 mb-1">
+                              <span className="text-xs font-medium text-sky-700">
+                                {log.action.replace(/_/g, ' ')}
+                              </span>
+                              <span className="text-[11px] text-gray-400 tabular-nums shrink-0">
+                                {new Date(log.timestamp).toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
                             </div>
-                            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                              <div className="flex justify-between items-start mb-1">
-                                <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">{log.action.replace(/_/g, ' ')}</span>
-                                <span className="text-[9px] text-slate-400 flex items-center gap-1"><Clock className="w-2.5 h-2.5" /> {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                              </div>
-                              <p className="text-xs text-slate-600 leading-relaxed italic line-clamp-2">
-                                {log.details || `Admin performed ${log.action} on ${log.target}`}
-                              </p>
-                            </div>
+                            <p className="text-xs text-gray-600 line-clamp-2">
+                              {log.details || `Admin performed ${log.action} on ${log.target}`}
+                            </p>
                           </div>
                         ))}
                       </div>
@@ -715,7 +714,7 @@ export default function CreateDisableAdmins() {
 
             {/* Footer */}
             <div className="px-8 py-5 bg-white border-t border-slate-100 text-center">
-              <button onClick={() => setPerformanceModal(false)} className="text-slate-400 hover:text-slate-600 text-[10px] font-black uppercase tracking-widest transition-colors">
+              <button onClick={() => setPerformanceModal(false)} className="text-slate-400 hover:text-slate-600 text-[10px] font-semibold font-medium transition-colors">
                 Click outside to close
               </button>
             </div>

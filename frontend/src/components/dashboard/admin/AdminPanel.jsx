@@ -102,10 +102,10 @@ const CustomDropdown = ({
       <div className="relative" ref={dropdownRef}>
         <button
           type="button"
-          className={`w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm text-left flex items-center justify-between transition-all duration-200 ${selectedValues.length > 0
-            ? 'bg-gradient-to-r from-green-50 to-green-100 border-green-300'
-            : 'bg-gray-50 border-slate-300'
-            } hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200`}
+          className={`w-full border rounded-md px-3 py-2 text-sm text-left flex items-center justify-between transition-colors ${selectedValues.length > 0
+            ? 'bg-sky-50 border-sky-200 text-gray-900'
+            : 'bg-white border-gray-200 text-gray-700'
+            } hover:border-gray-300 focus:border-sky-400 focus:ring-1 focus:ring-sky-200`}
           onClick={() => setIsOpen(prev => !prev)}
         >
           <span className="truncate flex-1">
@@ -122,14 +122,14 @@ const CustomDropdown = ({
         </button>
 
         {isOpen && (
-          <div className="absolute z-20 w-full bg-white border-2 border-slate-300 rounded-lg shadow-lg mt-1 max-h-60 overflow-y-auto">
+          <div className="absolute z-20 w-full bg-white border border-gray-200 rounded-md shadow-sm mt-1 max-h-60 overflow-y-auto">
             {options.map((option) => {
               const isSelected = selectedValues.includes(option.id);
               return (
                 <button
                   key={option.id}
                   type="button"
-                  className={`w-full flex items-center justify-between px-3 py-2.5 text-sm hover:bg-blue-50 cursor-pointer border-b border-slate-100 last:border-b-0 text-left transition-colors duration-150 ${isSelected ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                  className={`w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-sky-50/60 cursor-pointer border-b border-gray-100 last:border-b-0 text-left transition-colors ${isSelected ? 'bg-sky-50 text-sky-700' : 'text-gray-700'
                     }`}
                   onClick={() => handleOptionClick(option)}
                 >
@@ -153,7 +153,7 @@ const CustomDropdown = ({
             return option ? (
               <span
                 key={value}
-                className="inline-flex items-center gap-1 bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 px-2 py-1 rounded-full text-xs font-medium"
+                className="inline-flex items-center gap-1 bg-sky-50 border border-sky-100 text-sky-800 px-2 py-0.5 rounded-md text-xs font-medium"
               >
                 {option.name}
                 <button
@@ -402,40 +402,40 @@ const AdminPanel = () => {
   }), []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 sm:p-6 overflow-x-hidden">
-      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
+    <div className="space-y-3 overflow-x-hidden">
+      <div className="w-full space-y-3">
 
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-800 flex items-center gap-3">
-              <FaChartBar className="text-blue-600" />
-              Admin Analytics Dashboard
+            <h1 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+              <FaChartBar className="text-sky-600 w-3.5 h-3.5" />
+              System settings
             </h1>
-            <p className="text-slate-600 mt-1">Real-time placement analytics and performance metrics</p>
+            <p className="text-xs text-gray-500 mt-0.5">Filters, metrics, and charts</p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-4 md:mt-0">
+          <div className="flex flex-wrap items-center gap-2 mt-2 md:mt-0">
             <button
               onClick={handleExportReport}
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-400/20 to-green-500/25 backdrop-blur-xl border border-green-300/30 text-green-700 rounded-lg hover:from-green-400/30 hover:to-green-500/35 hover:border-green-400/40 transition-all duration-200 shadow-lg shadow-green-200/20 hover:shadow-xl hover:shadow-green-300/30 disabled:opacity-50 font-medium"
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 bg-white text-gray-700 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50"
             >
-              <FaFileExcel className="w-4 h-4" />
+              <FaFileExcel className="w-3.5 h-3.5" />
               Export Report
             </button>
 
             <button
               onClick={handleDownloadData}
               disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-400/20 to-blue-500/25 backdrop-blur-xl border border-blue-300/30 text-blue-700 rounded-lg hover:from-blue-400/30 hover:to-blue-500/35 hover:border-blue-400/40 transition-all duration-200 shadow-lg shadow-blue-200/20 hover:shadow-xl hover:shadow-blue-300/30 disabled:opacity-50 font-medium"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 disabled:opacity-50"
             >
-              <FaDownload className="w-4 h-4" />
+              <FaDownload className="w-3.5 h-3.5" />
               Download Data
             </button>
 
-            <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-slate-400/20 to-slate-500/25 backdrop-blur-xl border border-slate-300/30 text-slate-700 rounded-lg hover:from-slate-400/30 hover:to-slate-500/35 hover:border-slate-400/40 transition-all duration-200 shadow-lg shadow-slate-200/20 hover:shadow-xl hover:shadow-slate-300/30 font-medium">
-              <FaCog className="w-4 h-4" />
+            <button className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 bg-white text-gray-700 rounded-md text-sm hover:bg-gray-50">
+              <FaCog className="w-3.5 h-3.5" />
               Settings
             </button>
           </div>
@@ -454,19 +454,19 @@ const AdminPanel = () => {
 
         {/* Filters Section - Only visible to SuperAdmin */}
         {isSuperAdmin && (
-          <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-4 sm:p-6">
-            <div className="flex flex-wrap items-center gap-3 mb-4 sm:mb-6">
-              <FaFilter className="text-blue-600 text-xl" />
-              <h2 className="text-lg sm:text-xl font-semibold text-slate-800">Filters & Controls</h2>
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              <FaFilter className="text-sky-600 w-3.5 h-3.5" />
+              <h2 className="text-sm font-medium text-gray-900">Filters & Controls</h2>
               {loading && (
-                <div className="flex items-center gap-2 text-blue-600">
-                  <FaSync className="w-4 h-4 animate-spin" />
-                  <span className="text-sm">Loading...</span>
+                <div className="flex items-center gap-1.5 text-sky-600">
+                  <FaSync className="w-3.5 h-3.5 animate-spin" />
+                  <span className="text-xs">Loading...</span>
                 </div>
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <CustomDropdown
                 label="Campus"
                 options={filterOptions.campuses}
@@ -504,10 +504,10 @@ const AdminPanel = () => {
               />
             </div>
 
-            <div className="flex justify-end gap-3 mt-6">
+            <div className="flex justify-end gap-2 mt-4">
               <button
                 onClick={resetFilters}
-                className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors duration-200"
+                className="px-3 py-1.5 border border-gray-200 bg-white text-gray-700 rounded-md text-sm hover:bg-gray-50"
               >
                 Reset Filters
               </button>
@@ -517,127 +517,97 @@ const AdminPanel = () => {
 
         {/* Info message for regular admins */}
         {!isSuperAdmin && (
-          <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg mb-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <FaFilter className="w-5 h-5 text-blue-500" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-blue-700">
-                  <strong>Viewing your data:</strong> You are viewing data for your assigned center/school only.
-                </p>
-              </div>
+          <div className="bg-sky-50 border border-sky-100 p-3 rounded-lg">
+            <div className="flex items-center gap-2">
+              <FaFilter className="w-3.5 h-3.5 text-sky-600 flex-shrink-0" />
+              <p className="text-sm text-gray-700">
+                <span className="font-medium">Viewing your data:</span> You are viewing data for your assigned center/school only.
+              </p>
             </div>
           </div>
         )}
 
-        {/* Enhanced Statistics Cards - Ultra Glassmorphic Style */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-          <div className="bg-gradient-to-br from-blue-400/20 to-blue-500/25 backdrop-blur-xl border border-blue-300/30 rounded-xl shadow-lg shadow-blue-200/20 p-6 hover:shadow-xl hover:shadow-blue-300/30 transition-all duration-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-blue-700 text-sm font-medium">Total Students</p>
-                <p className="text-3xl font-bold text-blue-800">{loading ? '...' : (statsData.totalStudents || 0).toLocaleString()}</p>
+        {/* Statistics strips */}
+        <div className="space-y-3">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm px-4 py-3.5">
+            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+              <div className="px-3 py-2 md:py-0">
+                <p className="text-xs font-medium text-gray-500">Total Students</p>
+                <p className="text-2xl font-semibold tabular-nums mt-0.5 text-gray-900">
+                  {loading ? '...' : (statsData.totalStudents || 0).toLocaleString()}
+                </p>
               </div>
-              <FaUserGraduate className="text-4xl text-blue-500/70" />
+              <div className="px-3 py-2 md:py-0">
+                <p className="text-xs font-medium text-gray-500">Active Students</p>
+                <p className="text-2xl font-semibold tabular-nums mt-0.5 text-gray-900">
+                  {loading ? '...' : (statsData.activeStudents || 0).toLocaleString()}
+                </p>
+              </div>
+              <div className="px-3 py-2 md:py-0">
+                <p className="text-xs font-medium text-emerald-700">Placed Students</p>
+                <p className="text-2xl font-semibold tabular-nums mt-0.5 text-emerald-700">
+                  {loading ? '...' : (statsData.placedStudents || 0).toLocaleString()}
+                </p>
+              </div>
+              <div className="px-3 py-2 md:py-0">
+                <p className="text-xs font-medium text-gray-500">Placement Rate</p>
+                <p className="text-2xl font-semibold tabular-nums mt-0.5 text-gray-900">
+                  {loading ? '...' : `${(statsData.placementRate || 0).toFixed(1)}%`}
+                </p>
+              </div>
+              <div className="px-3 py-2 md:py-0 col-span-2 md:col-span-1">
+                <p className="text-xs font-medium text-gray-500">Total Jobs</p>
+                <p className="text-2xl font-semibold tabular-nums mt-0.5 text-gray-900">
+                  {loading ? '...' : (statsData.totalJobs || 0).toLocaleString()}
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-emerald-400/20 to-emerald-500/25 backdrop-blur-xl border border-emerald-300/30 rounded-xl shadow-lg shadow-emerald-200/20 p-6 hover:shadow-xl hover:shadow-emerald-300/30 transition-all duration-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-emerald-700 text-sm font-medium">Active Students</p>
-                <p className="text-3xl font-bold text-emerald-800">{loading ? '...' : (statsData.activeStudents || 0).toLocaleString()}</p>
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm px-4 py-3.5">
+            <div className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+              <div className="px-3 py-2 md:py-0">
+                <p className="text-xs font-medium text-gray-500">Active Recruiters</p>
+                <p className="text-2xl font-semibold tabular-nums mt-0.5 text-gray-900">
+                  {loading ? '...' : (statsData.activeRecruiters || 0).toLocaleString()}
+                </p>
               </div>
-              <FaCheckCircle className="text-4xl text-emerald-500/70" />
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-green-400/20 to-green-500/25 backdrop-blur-xl border border-green-300/30 rounded-xl shadow-lg shadow-green-200/20 p-6 hover:shadow-xl hover:shadow-green-300/30 transition-all duration-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-green-700 text-sm font-medium">Placed Students</p>
-                <p className="text-3xl font-bold text-green-800">{loading ? '...' : (statsData.placedStudents || 0).toLocaleString()}</p>
+              <div className="px-3 py-2 md:py-0">
+                <p className="text-xs font-medium text-gray-500">Pending Queries</p>
+                <p className="text-2xl font-semibold tabular-nums mt-0.5 text-gray-900">
+                  {loading ? '...' : (statsData.pendingQueries || 0).toLocaleString()}
+                </p>
               </div>
-              <FaCheckCircle className="text-4xl text-green-500/70" />
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-purple-400/20 to-purple-500/25 backdrop-blur-xl border border-purple-300/30 rounded-xl shadow-lg shadow-purple-200/20 p-6 hover:shadow-xl hover:shadow-purple-300/30 transition-all duration-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-purple-700 text-sm font-medium">Placement Rate</p>
-                <p className="text-3xl font-bold text-purple-800">{loading ? '...' : (statsData.placementRate || 0).toFixed(1)}%</p>
+              <div className="px-3 py-2 md:py-0">
+                <p className="text-xs font-medium text-gray-500">Total Applications</p>
+                <p className="text-2xl font-semibold tabular-nums mt-0.5 text-gray-900">
+                  {loading ? '...' : (statsData.totalApplications || 0).toLocaleString()}
+                </p>
               </div>
-              <FaChartLine className="text-4xl text-purple-500/70" />
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-orange-400/20 to-orange-500/25 backdrop-blur-xl border border-orange-300/30 rounded-xl shadow-lg shadow-orange-200/20 p-6 hover:shadow-xl hover:shadow-orange-300/30 transition-all duration-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-orange-700 text-sm font-medium">Total Jobs</p>
-                <p className="text-3xl font-bold text-orange-800">{loading ? '...' : (statsData.totalJobs || 0).toLocaleString()}</p>
+              <div className="px-3 py-2 md:py-0">
+                <p className="text-xs font-medium text-gray-500">Avg Applications</p>
+                <p className="text-2xl font-semibold tabular-nums mt-0.5 text-gray-900">
+                  {loading ? '...' : (statsData.averageApplications || 0).toFixed(1)}
+                </p>
               </div>
-              <FaBriefcase className="text-4xl text-orange-500/70" />
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-teal-400/20 to-teal-500/25 backdrop-blur-xl border border-teal-300/30 rounded-xl shadow-lg shadow-teal-200/20 p-6 hover:shadow-xl hover:shadow-teal-300/30 transition-all duration-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-teal-700 text-sm font-medium">Active Recruiters</p>
-                <p className="text-3xl font-bold text-teal-800">{loading ? '...' : (statsData.activeRecruiters || 0).toLocaleString()}</p>
-              </div>
-              <FaUserTie className="text-4xl text-teal-500/70" />
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-red-400/20 to-red-500/25 backdrop-blur-xl border border-red-300/30 rounded-xl shadow-lg shadow-red-200/20 p-6 hover:shadow-xl hover:shadow-red-300/30 transition-all duration-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-red-700 text-sm font-medium">Pending Queries</p>
-                <p className="text-3xl font-bold text-red-800">{loading ? '...' : (statsData.pendingQueries || 0).toLocaleString()}</p>
-              </div>
-              <FaBell className="text-4xl text-red-500/70" />
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-indigo-400/20 to-indigo-500/25 backdrop-blur-xl border border-indigo-300/30 rounded-xl shadow-lg shadow-indigo-200/20 p-6 hover:shadow-xl hover:shadow-indigo-300/30 transition-all duration-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-indigo-700 text-sm font-medium">Total Applications</p>
-                <p className="text-3xl font-bold text-indigo-800">{loading ? '...' : (statsData.totalApplications || 0).toLocaleString()}</p>
-              </div>
-              <FaHandshake className="text-4xl text-indigo-500/70" />
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-pink-400/20 to-pink-500/25 backdrop-blur-xl border border-pink-300/30 rounded-xl shadow-lg shadow-pink-200/20 p-6 hover:shadow-xl hover:shadow-pink-300/30 transition-all duration-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-pink-700 text-sm font-medium">Avg Applications</p>
-                <p className="text-3xl font-bold text-pink-800">{loading ? '...' : (statsData.averageApplications || 0).toFixed(1)}</p>
-              </div>
-              <FaChartPie className="text-4xl text-pink-500/70" />
             </div>
           </div>
         </div>
 
         {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
 
           {/* Admin Performance Chart */}
-          <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <FaUsers className="text-blue-600 text-xl" />
-              <h3 className="text-xl font-semibold text-slate-800">Admin Performance</h3>
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="px-3 py-2.5 border-b border-gray-100 flex items-center gap-2">
+              <FaUsers className="text-sky-600 w-3.5 h-3.5" />
+              <h3 className="text-sm font-medium text-gray-900">Admin Performance</h3>
             </div>
-            <div className="h-80">
+            <div className="p-4 h-80">
               {adminPerformanceData.data && adminPerformanceData.data.length > 0 ? (
                 <AgCharts options={adminPerformanceData} />
               ) : (
-                <div className="flex items-center justify-center h-full text-slate-500">
+                <div className="flex items-center justify-center h-full text-sm text-gray-500">
                   {loading ? 'Loading chart data...' : 'No data available'}
                 </div>
               )}
@@ -645,17 +615,17 @@ const AdminPanel = () => {
           </div>
 
           {/* Placement Status Chart */}
-          <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <FaChartBar className="text-green-600 text-xl" />
-              <h3 className="text-xl font-semibold text-slate-800">Placement Status Distribution</h3>
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="px-3 py-2.5 border-b border-gray-100 flex items-center gap-2">
+              <FaChartBar className="text-sky-600 w-3.5 h-3.5" />
+              <h3 className="text-sm font-medium text-gray-900">Placement Status Distribution</h3>
             </div>
-            <div className="h-80">
+            <div className="p-4 h-80">
               {useMemo(() => (
                 chartData.placementStatus ? (
                   <Bar data={chartData.placementStatus} options={barOptions} />
                 ) : (
-                  <div className="flex items-center justify-center h-full text-slate-500">
+                  <div className="flex items-center justify-center h-full text-sm text-gray-500">
                     {loading ? 'Loading chart data...' : 'No data available'}
                   </div>
                 )
@@ -665,17 +635,17 @@ const AdminPanel = () => {
         </div>
 
         {/* Monthly Trend Chart */}
-        <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <FaChartLine className="text-purple-600 text-xl" />
-            <h3 className="text-xl font-semibold text-slate-800">Monthly Placement Trend</h3>
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="px-3 py-2.5 border-b border-gray-100 flex items-center gap-2">
+            <FaChartLine className="text-sky-600 w-3.5 h-3.5" />
+            <h3 className="text-sm font-medium text-gray-900">Monthly Placement Trend</h3>
           </div>
-          <div className="h-80">
+          <div className="p-4 h-80">
             {useMemo(() => (
               chartData.monthlyTrend ? (
                 <Line data={chartData.monthlyTrend} options={lineOptions} />
               ) : (
-                <div className="flex items-center justify-center h-full text-slate-500">
+                <div className="flex items-center justify-center h-full text-sm text-gray-500">
                   {loading ? 'Loading chart data...' : 'No data available'}
                 </div>
               )
