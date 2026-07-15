@@ -1915,20 +1915,20 @@ const StudentDashboardPanel = ({ isOpen, onClose, student, dashboardData }) => {
                     <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2 pb-3 border-b border-slate-100">
                       <GraduationCap className="w-4.5 h-4.5 text-indigo-500" /> Academic Details
                     </h3>
-                    <div className="grid grid-cols-2 gap-y-4 gap-x-2 text-sm">
-                      <div>
+                    <div className="grid grid-cols-2 gap-y-4 gap-x-3 text-sm">
+                      <div className="min-w-0">
                         <span className="text-slate-400 text-xs block">School</span>
-                        <span className="text-slate-800 font-medium">{currentStudent?.school || 'N/A'}</span>
+                        <span className="text-slate-800 font-medium break-words">{currentStudent?.school || 'N/A'}</span>
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <span className="text-slate-400 text-xs block">Center</span>
-                        <span className="text-slate-800 font-medium">{currentStudent?.center || 'N/A'}</span>
+                        <span className="text-slate-800 font-medium break-words">{currentStudent?.center || 'N/A'}</span>
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <span className="text-slate-400 text-xs block">Degree / Program</span>
-                        <span className="text-slate-800 font-medium">{currentStudent?.program || dashboardData?.education?.[0]?.degree || 'Not Available'}</span>
+                        <span className="text-slate-800 font-medium break-words">{currentStudent?.program || dashboardData?.education?.[0]?.degree || 'Not Available'}</span>
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <span className="text-slate-400 text-xs block">CGPA</span>
                         <span className="text-slate-800 font-semibold text-indigo-600">
                           {currentStudent?.cgpa ? `${currentStudent.cgpa} / 10.00` : '—'}
@@ -1975,22 +1975,22 @@ const StudentDashboardPanel = ({ isOpen, onClose, student, dashboardData }) => {
                     <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2 pb-3 border-b border-slate-100">
                       <Phone className="w-4.5 h-4.5 text-indigo-500" /> Contact & General Info
                     </h3>
-                    <div className="grid grid-cols-2 gap-y-4 gap-x-2 text-sm">
-                      <div>
+                    <div className="grid grid-cols-2 gap-y-4 gap-x-3 text-sm">
+                      <div className="min-w-0">
                         <span className="text-slate-400 text-xs block">Contact Number</span>
-                        <span className="text-slate-800 font-medium">{currentStudent?.phone || 'N/A'}</span>
+                        <span className="text-slate-800 font-medium break-words">{currentStudent?.phone || 'N/A'}</span>
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <span className="text-slate-400 text-xs block">Location</span>
-                        <span className="text-slate-800 font-medium">{currentStudent?.currentLocation || 'N/A'}</span>
+                        <span className="text-slate-800 font-medium break-words">{currentStudent?.currentLocation || 'N/A'}</span>
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <span className="text-slate-400 text-xs block">Registration Date</span>
                         <span className="text-slate-800 font-medium">
                           {currentStudent?.createdAt ? new Date(currentStudent.createdAt).toLocaleDateString() : 'N/A'}
                         </span>
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <span className="text-slate-400 text-xs block">Email Verification</span>
                         <span className={`inline-flex items-center gap-1 font-semibold ${
                           currentStudent?.emailVerified ? 'text-emerald-600' : 'text-slate-500'

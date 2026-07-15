@@ -1665,8 +1665,8 @@
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/student/StudentAssessments.jsx": {
-    "mtime": 1784128757.7215855,
-    "ast_hash": "30c6ca72af65a9d8edad6c0734fe52db",
+    "mtime": 1784129073.874149,
+    "ast_hash": "1e3acd9a989b7b02a556d37f4f0542c9",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/student/StudentCalendar.jsx": {
@@ -2145,8 +2145,8 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/dashboard/StudentDashboard.jsx": {
-    "mtime": 1784125821.9594977,
-    "ast_hash": "917ef931dca86f2a4809e8d57ce71238",
+    "mtime": 1784129117.1068766,
+    "ast_hash": "596b177a048d8c35968135aa0860108f",
     "semantic_hash": ""
   },
   "frontend/src/pages/dashboard/SuperAdminDashboard.jsx": {

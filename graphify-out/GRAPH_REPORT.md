@@ -1,16 +1,16 @@
 # Graph Report - PORTAL-main  (2026-07-15)
 
 ## Corpus Check
-- 612 files · ~1,987,592 words
+- 612 files · ~1,987,634 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 6061 nodes · 13509 edges · 288 communities (232 shown, 56 thin omitted)
+- 6061 nodes · 13510 edges · 286 communities (230 shown, 56 thin omitted)
 - Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 240 edges (avg confidence: 0.66)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `bf48a472`
+- Built from commit: `12e369e6`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -278,9 +278,7 @@
 - JobPostingsManager.jsx
 - Cognitive Load Assessment
 - event-validation.mjs
-- useAuth
 - acceptedDomAlreadyClean
-- adminRequests.js
 - Heuristics Scoring Guide
 - detect.mjs
 - syncEditBadgeHitProxies
@@ -322,7 +320,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (288 total, 56 thin omitted)
+## Communities (286 total, 56 thin omitted)
 
 ### Community 0 - "vision_wasm_internal.js"
 Cohesion: 0.01
@@ -333,16 +331,16 @@ Cohesion: 0.01
 Nodes (18): EmscriptenEH, EmscriptenSjLj, RFC-2279, RFC-3629, NOTE: In our implementation, st_blocks = Math.ceil(st_size/st_blksize),, NOTE: This is also used as the process return code in shell environments, TODO: check for O_SEARCH? (== search for dir only), NOTE: None of the defaults here are true. We're just returning safe and (+10 more)
 
 ### Community 2 - "interviewScheduling.js"
-Cohesion: 0.11
-Nodes (43): notifyStudentApplicationUpdate(), getAuditLogs(), autoCorrectSessionStatus(), configureRounds(), csvEscape(), endRound(), endSession(), evaluateCandidate() (+35 more)
+Cohesion: 0.10
+Nodes (46): notifyStudentApplicationUpdate(), getAuditLogs(), autoCorrectSessionStatus(), configureRounds(), csvEscape(), endRound(), endSession(), evaluateCandidate() (+38 more)
 
 ### Community 3 - "emailService.js"
-Cohesion: 0.09
-Nodes (56): __dirname, dummyAdmin, dummyApplication, dummyJob, dummyRecruiter, dummyStudent, dummyTeacher, runMasterTest() (+48 more)
+Cohesion: 0.08
+Nodes (66): __dirname, dummyAdmin, dummyApplication, dummyJob, dummyRecruiter, dummyStudent, dummyTeacher, runMasterTest() (+58 more)
 
 ### Community 4 - "StudentDirectory.jsx"
-Cohesion: 0.08
-Nodes (37): BASE_LOCATION_OPTIONS, EventCreationModal(), CustomDropdown(), PlacementAnalytics(), VALUE_COLORS, formatPlacementMetricDisplay(), formatResumeFileSize(), normalizePlacementMetric() (+29 more)
+Cohesion: 0.09
+Nodes (35): BASE_LOCATION_OPTIONS, EventCreationModal(), PlacementAnalytics(), VALUE_COLORS, formatPlacementMetricDisplay(), formatResumeFileSize(), normalizePlacementMetric(), PROBABILITY_TIER_LABELS (+27 more)
 
 ### Community 5 - "resumeGenerator.service.js"
 Cohesion: 0.20
@@ -364,36 +362,36 @@ Cohesion: 0.06
 Nodes (24): App(), router, Layout(), ProtectedRoute(), AuthContext, AuthProvider(), useAuth(), Login() (+16 more)
 
 ### Community 7 - "socket.js"
-Cohesion: 0.22
-Nodes (17): CATEGORIES, MockInterviewEditDriveModal(), MockInterviewTechBoard(), useMockInterviewCodeSync(), MockInterviewRoom(), buildJitsiEmbedUrl(), disposeJitsiEmbed(), getJitsiDomain() (+9 more)
+Cohesion: 0.13
+Nodes (22): loginUser(), MockInterviewTechBoard(), SOCKET_URL, AuthContext, AuthProvider(), TODO: Implement email verification, useMockInterviewCodeSync(), MockInterviewRoom() (+14 more)
 
 ### Community 8 - "server.js"
 Cohesion: 0.05
-Nodes (51): uploadToCloudinary(), getTurnIceServers(), authenticate(), requirePermission(), requireRole(), createAnnouncementImageUpload(), createMouUpload(), createProfileImageUpload() (+43 more)
+Nodes (58): getGoogleLoginUrl(), handleGoogleLoginCallback(), redirectLoginError(), getTurnIceServers(), authenticate(), generateAccessToken(), generateRefreshToken(), verifyRefreshToken() (+50 more)
 
 ### Community 9 - "App.jsx"
-Cohesion: 0.10
-Nodes (36): EmailVerificationModal(), ResetPasswordForm(), CreateJob(), DRIVE_VENUES, toDDMMYYYY(), toISOFromDDMMYYYY(), toRoman(), JDFormatGuide() (+28 more)
+Cohesion: 0.08
+Nodes (44): RegisterForm(), ResetPasswordForm(), CustomDropdown(), CreateJob(), DRIVE_VENUES, toDDMMYYYY(), toISOFromDDMMYYYY(), toRoman() (+36 more)
 
 ### Community 10 - "calendar.js"
-Cohesion: 0.09
-Nodes (18): AiInterviewResultBody(), formatDuration(), SCORE_FIELDS, DIMENSION_STYLES, MockInterviewRatingsGrid(), formatDuration(), MockInterviewResultBody(), ErrorBoundary (+10 more)
+Cohesion: 0.05
+Nodes (47): AcademicStructureManager(), AdminApplicantsHub(), CompanyFilterDropdown(), formatDriveDate(), getCompanyTheme(), groupJobsByCompany(), CandidateAnalysisModal(), ManageJobs() (+39 more)
 
 ### Community 11 - "AdminPanel.jsx"
-Cohesion: 0.09
-Nodes (71): abortSvelteComponentInjection(), applyEditing(), buildCyclingRow(), buildInsertPlaceholderSnapshotFromDom(), buildLocatorForLeaf(), buildSavingRow(), cancelEditing(), cancelEditingToPicking() (+63 more)
+Cohesion: 0.11
+Nodes (61): abortSvelteComponentInjection(), applyEditing(), buildInsertPlaceholderSnapshotFromDom(), buildLocatorForLeaf(), cancelEditing(), cancelEditingToPicking(), cancelInsertConfigure(), captureAndEmit() (+53 more)
 
 ### Community 12 - "v"
-Cohesion: 0.07
-Nodes (31): ErrorBoundary, AdminJobApplications(), FINAL_STATUS_OPTIONS, STAGE_OPTIONS, AdminPanel(), TODO: Replace Firebase operations with API calls, AdminProfile(), AuditLogs() (+23 more)
+Cohesion: 0.04
+Nodes (58): EmailVerificationModal(), LoginForm(), AuthRedirect(), ErrorBoundary, ThankYouPopup(), AdminAnnouncements(), formatAudience(), isTargeted() (+50 more)
 
 ### Community 13 - "mockInterview.js"
 Cohesion: 0.11
 Nodes (37): initSocket(), proctorStudentSockets, assignStudentToSlot(), buildSlotsForDrive(), createMockInterviewDrive(), defaultDraftSchedule(), deleteMockInterviewDrive(), getMockInterviewDriveResults() (+29 more)
 
 ### Community 14 - "AdminAssessments.jsx"
-Cohesion: 0.11
-Nodes (32): xlsx, ALL_CODING_LANGUAGE_IDS, mergeCodingIntoConfig(), AllowedCodingLanguagesPicker(), AssessmentQuestionExcelUpload(), au, StatHighlight(), ToggleList() (+24 more)
+Cohesion: 0.10
+Nodes (38): AssessmentModal(), au, StatHighlight(), ToggleList(), ToggleRow(), WizardField(), WizardFooter(), WizardModalHeader() (+30 more)
 
 ### Community 15 - "scripts"
 Cohesion: 0.06
@@ -413,31 +411,31 @@ Nodes (9): AI_CONFIG, validateAIConfig(), placementLimiter, requestCounts, route
 
 ### Community 19 - "live-browser.js"
 Cohesion: 0.03
-Nodes (130): addManualContextText(), applyGlobalBarLabelState(), applyPlaceholderSizingStyles(), applySvelteComponentVariantStyle(), bufferToBase64(), buildCollapsible(), buildColorModels(), buildListHtml() (+122 more)
+Nodes (134): addManualContextText(), applyGlobalBarLabelState(), applyPlaceholderSizingStyles(), applySvelteComponentVariantStyle(), averageRgb01(), bindEditBadgeProxy(), bufferToBase64(), buildCollapsible() (+126 more)
 
 ### Community 20 - "aiMockInterview.js"
 Cohesion: 0.12
 Nodes (35): buildWindow(), createGuidedInterview(), GUIDED_TEMPLATES, main(), assertEnrollmentAccess(), completeAiInterview(), createAiMockInterview(), deleteAiMockInterview() (+27 more)
 
 ### Community 21 - "AdminDashboard.jsx"
-Cohesion: 0.09
-Nodes (35): ApplicationTrackerSection(), DashboardHome(), IMPORTANT: Production behavior — no fallback datasets., DashboardStatsSection(), JobListingStatus(), JobPostingsSection(), formatDate(), StudentApplicationTracker() (+27 more)
+Cohesion: 0.05
+Nodes (50): QueryErrorBoundary, AchievementMedalBadge(), DashboardLayout(), formatCgpaDisplay(), scallopedMedalPath(), SCHOOL_LABELS, ApplicationTrackerSection(), EndorsementManagement() (+42 more)
 
 ### Community 22 - "students.js"
 Cohesion: 0.07
 Nodes (16): deleteFromCloudinary(), deleteFromS3(), s3Client, uploadToS3(), deleteProfileImage(), deleteResume(), getAllStudents(), getStudentProfile() (+8 more)
 
 ### Community 23 - "modern-screenshot.umd.js"
-Cohesion: 0.18
-Nodes (19): ae(), be(), bt(), Ce(), _e(), Ee(), Gt(), ht() (+11 more)
+Cohesion: 0.16
+Nodes (21): ae(), be(), bt(), Ce(), dt(), _e(), Ee(), ft() (+13 more)
 
 ### Community 24 - "api.js"
-Cohesion: 0.09
-Nodes (21): App(), AcademicStructureManager(), AdminApplicantsHub(), CompanyFilterDropdown(), formatDriveDate(), getCompanyTheme(), groupJobsByCompany(), ScheduleInterview() (+13 more)
+Cohesion: 0.10
+Nodes (26): canRestoreManualEditElement(), copyEditContainerContext(), copyEditLeafContext(), cssIdent(), directMixedTextRestoreNodes(), documentRefClassSuffix(), documentRefForElement(), documentRefIdSuffix() (+18 more)
 
 ### Community 25 - "StudentDashboard.jsx"
-Cohesion: 0.06
-Nodes (42): __dirname, __filename, optimizedDatabaseUrl, prisma, createCustomEvent(), deleteCustomEvent(), getCustomEvent(), getCustomEvents() (+34 more)
+Cohesion: 0.08
+Nodes (24): __dirname, __filename, optimizedDatabaseUrl, prisma, createAnnouncement(), parseTargeting(), createCustomEvent(), deleteCustomEvent() (+16 more)
 
 ### Community 26 - "seed.ts"
 Cohesion: 0.09
@@ -448,8 +446,8 @@ Cohesion: 0.15
 Nodes (24): evaluateTestCases(), extractCodeFromAnswer(), gradeCodingAnswer(), normalizeLanguage(), normalizeTestCases(), runCode(), RUNNERS, SUPPORTED (+16 more)
 
 ### Community 28 - "logger.js"
-Cohesion: 0.10
-Nodes (37): logger, createAdminEventController(), createRecruiterEventController(), createRecruiterSelfEventController(), createStudentEventController(), handleOAuthCallback(), getCalendarEvents(), getCalendarStatus() (+29 more)
+Cohesion: 0.11
+Nodes (35): logger, createAdminEventController(), createRecruiterEventController(), createRecruiterSelfEventController(), createStudentEventController(), handleOAuthCallback(), getCalendarEvents(), getCalendarStatus() (+27 more)
 
 ### Community 29 - "placementReadinessService.js"
 Cohesion: 0.15
@@ -460,8 +458,8 @@ Cohesion: 0.13
 Nodes (31): completeAssessment(), computeRiskLevel(), deleteAssessment(), emitProctoringLiveUpdate(), evaluateAssessmentCandidate(), getAssessmentCandidates(), getAssessmentDetails(), getAssessmentResults() (+23 more)
 
 ### Community 31 - "ResumeBuilder.jsx"
-Cohesion: 0.08
-Nodes (47): Achievements(), mergeAchievementsAndCertifications(), EducationSection(), ExperienceSection(), addBtnClass(), editBtnClass(), parseTechStack(), PROJECT_HEADER_TONES (+39 more)
+Cohesion: 0.05
+Nodes (63): StudentDetailsModal(), StudentDetailsModal(), Achievements(), mergeAchievementsAndCertifications(), DashboardHome(), IMPORTANT: Production behavior — no fallback datasets., DashboardStatsSection(), EducationSection() (+55 more)
 
 ### Community 32 - "CustomResumeBuilder.jsx"
 Cohesion: 0.09
@@ -472,16 +470,16 @@ Cohesion: 0.14
 Nodes (25): exportDirectory(), exportDirectoryToGoogleSheets(), getDirectory(), getStudentPanelData(), getStudentResumeViewUrl(), router, CONFIG_PATH, __dirname (+17 more)
 
 ### Community 34 - "ProctoringEngine"
-Cohesion: 0.08
-Nodes (19): ProctoringConsole(), useInterviewSpeech(), AiMockInterviewSession(), PHASE, defaultProctoringConfig, EVENT_SCREENSHOT_VIOLATIONS, ProctoringViolationType, ScreenshotCaptureType (+11 more)
+Cohesion: 0.13
+Nodes (4): clamp(), isHighRiskEvent(), nowMs(), ProctoringEngine
 
 ### Community 35 - "path"
 Cohesion: 0.07
 Nodes (27): path, analyzePath(), calculateAt(), createDataFile(), createDevice(), createFile(), createPath(), mkdirTree() (+19 more)
 
 ### Community 36 - "database.js"
-Cohesion: 0.06
-Nodes (36): AdminJobApplicationDetail(), CandidateAnalysisModal(), InterviewScheduling(), StudentSelectorModal(), HelpSupport(), TODO: Replace with actual API calls, RecruiterCalendar(), RecruiterProfile() (+28 more)
+Cohesion: 0.12
+Nodes (21): AdminPanel(), TODO: Replace Firebase operations with API calls, TODO: Replace with Socket.IO subscription for real-time updates, buildMonthlyTrendChart(), buildPlacementStatusChart(), downloadDataCSV(), exportReportCSV(), getAdminPanelData() (+13 more)
 
 ### Community 37 - "dependencies"
 Cohesion: 0.07
@@ -492,8 +490,8 @@ Cohesion: 0.05
 Nodes (100): borderColorsFromStyle(), borderWidthsFromStyle(), checkClippedOverflow(), checkColors(), checkCreamPalette(), checkElementAIPaletteDOM(), checkElementClippedOverflow(), checkElementClippedOverflowDOM() (+92 more)
 
 ### Community 39 - "index.js"
-Cohesion: 0.12
-Nodes (31): evaluateCode(), runCode(), CodingWorkspace(), CODING_LANGUAGES, DEFAULT_STARTERS, parseCodingAnswer(), serializeCodingAnswer(), createEmptyStarterCodesByLang() (+23 more)
+Cohesion: 0.17
+Nodes (22): evaluateCode(), runCode(), CodingWorkspace(), CODING_LANGUAGES, DEFAULT_STARTERS, parseCodingAnswer(), serializeCodingAnswer(), ALL_CODING_LANGUAGE_IDS (+14 more)
 
 ### Community 40 - "devDependencies"
 Cohesion: 0.08
@@ -516,8 +514,8 @@ Cohesion: 0.09
 Nodes (25): CSS_IN_JS_EXTENSIONS, extFromFilePath(), extractCSSinJS(), firstOverusedGoogleFont(), isNeutralBorderColor(), PAGE_ANALYZER_EXTS, REGEX_ANALYZERS, REGEX_MATCHERS (+17 more)
 
 ### Community 45 - "superAdmin.js"
-Cohesion: 0.09
-Nodes (39): getAdminPerformanceAnalytics(), getBatchPerformance(), getCenterPerformance(), getCommonFilters(), getCompanyPerformance(), getFunnel(), getOverview(), getSchoolPerformance() (+31 more)
+Cohesion: 0.08
+Nodes (44): getAdminPerformanceAnalytics(), getBatchPerformance(), getCenterPerformance(), getCommonFilters(), getCompanyPerformance(), getFunnel(), getOverview(), getSchoolPerformance() (+36 more)
 
 ### Community 46 - "applications.js"
 Cohesion: 0.15
@@ -528,16 +526,16 @@ Cohesion: 0.16
 Nodes (13): BlockModal(), formatBlockDate(), JobDetailsModal(), JobInfoDisplay(), JobDescriptionModal(), RecruiterDirectory(), blockRecruiter(), blockUnblockRecruiter() (+5 more)
 
 ### Community 48 - "AdminHome.jsx"
-Cohesion: 0.12
-Nodes (22): AdminJobDetail(), ManageJobs(), defaultInterviewTimeline, getRoundIcon(), JobDescription(), roundColors, JobList(), JobPostings() (+14 more)
+Cohesion: 0.09
+Nodes (37): AdminJobDetail(), JobPostingsManager(), defaultInterviewTimeline, getRoundIcon(), JobDescription(), roundColors, JobList(), JobForm() (+29 more)
 
 ### Community 49 - "ConnectGoogleCalendar.jsx"
 Cohesion: 0.17
 Nodes (16): AppContent(), CustomCalendar(), DirectoryLoadingPanel(), CalendarOAuthCallback(), ConnectGoogleCalendar(), logger, TODO: Pass event data to modal for editing, broadcastCalendarOAuthResult() (+8 more)
 
 ### Community 50 - "jobs.js"
-Cohesion: 0.06
-Nodes (43): getIO(), approveAdminRequest(), createAdminRequest(), getAllAdminRequests(), getPendingAdminRequests(), rejectAdminRequest(), applyToJob(), exportApplications() (+35 more)
+Cohesion: 0.04
+Nodes (62): getIO(), approveAdminRequest(), createAdminRequest(), getAllAdminRequests(), getPendingAdminRequests(), rejectAdminRequest(), applyToJob(), buildTrackerForApplication() (+54 more)
 
 ### Community 51 - "live-inject.mjs"
 Cohesion: 0.10
@@ -552,20 +550,20 @@ Cohesion: 0.07
 Nodes (60): ACK_EXTS, bumpEditCount(), clampByte(), clampGroupedToBudget(), clampToBudget(), CO_SCAN_STYLE_NAMES, coLocatedStylesheets(), colorIgnoreKey() (+52 more)
 
 ### Community 54 - "jobOpportunitiesPipeline.js"
-Cohesion: 0.12
-Nodes (34): buildStudentWhere(), bumpBreakdown(), getActiveDrives(), getDashboardStats(), getScopeFunnelStats(), INTERVIEWED_STATUSES, isShortlisted(), PLACED_STATUSES (+26 more)
+Cohesion: 0.21
+Nodes (22): getBreakdown(), getCrManagers(), getFilters(), getMom(), getOverview(), router, buildFilters(), countJobs() (+14 more)
 
 ### Community 55 - "impeccable-paths.mjs"
-Cohesion: 0.12
-Nodes (12): QueryErrorBoundary, StudentDetailsModal(), StudentDetailsModal(), QueryWithErrorBoundary(), StudentQuerySystem(), Assessment(), TODO: Implement export functionality, TODO: Implement announcement functionality (+4 more)
+Cohesion: 0.16
+Nodes (11): ProctoringConsole(), CodingProblemPanel(), useInterviewSpeech(), AiMockInterviewSession(), PHASE, defaultProctoringConfig, EVENT_SCREENSHOT_VIOLATIONS, ProctoringViolationType (+3 more)
 
 ### Community 56 - "resumeSession"
 Cohesion: 0.09
-Nodes (52): applyOriginalAttrsToSvelteAnchor(), applySavedSessionMeta(), clampVariantIndex(), clearHandled(), commitAcceptedSvelteComponentToDom(), cycleVariant(), elementMatchesOriginalMarkup(), ensureInsertPlaceholder() (+44 more)
+Nodes (52): applyOriginalAttrsToSvelteAnchor(), applySavedSessionMeta(), clampVariantIndex(), clearHandled(), commitAcceptedSvelteComponentToDom(), elementMatchesOriginalMarkup(), ensureInsertPlaceholder(), enterRecoveryWaitingForAnchor() (+44 more)
 
 ### Community 57 - "live-commit-manual-edits.mjs"
 Cohesion: 0.10
-Nodes (51): allEntryIds(), argVal(), buildRepairBatch(), candidatesForEntry(), changedFilesSinceSnapshot(), clearAppliedEntries(), collectApplyOwnedFiles(), collectRollbackFiles() (+43 more)
+Nodes (50): allEntryIds(), argVal(), buildRepairBatch(), candidatesForEntry(), changedFilesSinceSnapshot(), clearAppliedEntries(), collectApplyOwnedFiles(), collectRollbackFiles() (+42 more)
 
 ### Community 58 - "vision_wasm_module_internal.js"
 Cohesion: 0.12
@@ -580,24 +578,24 @@ Cohesion: 0.23
 Nodes (14): createBatch(), createCenter(), createSchool(), deleteBatch(), deleteCenter(), deleteSchool(), getBatches(), getCenters() (+6 more)
 
 ### Community 61 - "JobPostingsManager.jsx"
-Cohesion: 0.13
-Nodes (20): averageRgb01(), captureChromeNodes(), captureElementFromRenderedAncestor(), captureElementToBlob(), compileShader(), cssColorToRgb01(), dominantRgb01(), findBackdropAncestor() (+12 more)
+Cohesion: 0.25
+Nodes (13): xlsx, AssessmentQuestionExcelUpload(), ASSESSMENT_QUESTION_TEMPLATE_ROWS, buildHeaderIndex(), cell(), COL, downloadAssessmentQuestionTemplate(), normalizeType() (+5 more)
 
 ### Community 62 - "impeccable-config.mjs"
 Cohesion: 0.10
 Nodes (48): applyDetectionConfigSource(), clampByte(), cleanIgnoreValueDisplay(), cloneDetectionConfig(), cloneRawDetectionConfig(), colorIgnoreKey(), DEFAULT_DETECTION_CONFIG, DETECTOR_CONFIG_KEYS (+40 more)
 
 ### Community 63 - "showToast"
-Cohesion: 0.08
-Nodes (48): applyConfigureBarChrome(), armPageChatForTyping(), attachSteerFocusDebug(), clearSteerAwaitTimer(), collapsePageChat(), configureVoiceContext(), dismissToast(), expandPageChat() (+40 more)
+Cohesion: 0.09
+Nodes (48): armPageChatForTyping(), attachSteerFocusDebug(), clearSteerAwaitTimer(), collapsePageChat(), configureVoiceContext(), dismissToast(), expandPageChat(), finishVoiceSession() (+40 more)
 
 ### Community 64 - "Interview AI"
 Cohesion: 0.13
 Nodes (14): 1. Backend, 2. Frontend, API reference, Auth, How the AI calls are shaped, Interview, Interview AI, License (+6 more)
 
 ### Community 65 - "queries.js"
-Cohesion: 0.27
-Nodes (12): buildReferenceId(), createStudentQuery(), formatQuery(), getAllQueries(), getStudentQueries(), normalizeType(), notifyAdminsAboutQuery(), parseMetadata() (+4 more)
+Cohesion: 0.14
+Nodes (24): uploadToCloudinary(), buildReferenceId(), createStudentQuery(), formatQuery(), getAllQueries(), getStudentQueries(), normalizeType(), notifyAdminsAboutQuery() (+16 more)
 
 ### Community 66 - "studentDirectoryPanelService.js"
 Cohesion: 0.20
@@ -620,8 +618,8 @@ Cohesion: 0.14
 Nodes (21): NOTIFICATION_TYPES, Notifications(), PRIORITY_LEVELS, NotificationModal(), deleteNotification(), listNotificationsForUser(), markNotificationAsRead, markNotificationRead() (+13 more)
 
 ### Community 71 - "RecruiterDirectory.jsx"
-Cohesion: 0.24
-Nodes (12): __dirname, __filename, sendBulkEmail(), isRedisAvailable(), buildCSVString(), createWorker(), initCsvWorker(), createWorker() (+4 more)
+Cohesion: 0.26
+Nodes (7): createMediaPipeFaceDetector(), ensureFaceDetector(), getFaceDetectorState(), loadDetector(), resetFaceDetector(), withTimeout(), withTimeout()
 
 ### Community 72 - "AssessmentApp.jsx"
 Cohesion: 0.13
@@ -652,8 +650,8 @@ Cohesion: 0.21
 Nodes (8): Unsubscribe(), TODO: Backend handles this automatically when job is posted, TODO: Replace with API call, TODO: Replace with API call, TODO: Replace with API call, TODO: Replace with API call, resubscribeUser(), unsubscribeUser()
 
 ### Community 81 - "dependencies"
-Cohesion: 0.10
-Nodes (19): dependencies, bcrypt, cookie-parser, cors, docx, dotenv, express, jsonwebtoken (+11 more)
+Cohesion: 0.09
+Nodes (21): dependencies, bcrypt, cookie-parser, cors, docx, dotenv, express, jsonwebtoken (+13 more)
 
 ### Community 82 - "seedStudentsAllCombos.js"
 Cohesion: 0.20
@@ -680,16 +678,16 @@ Cohesion: 0.15
 Nodes (25): mergeDesignSystemFindings(), runRegexMatchers(), runTextContentAnalyzers(), buildStaticStyleMap(), buildStaticWindow(), collectStaticCssText(), checkStaticPageTypography(), detectHtml() (+17 more)
 
 ### Community 88 - "live-wrap.mjs"
-Cohesion: 0.12
-Nodes (40): hasGeneratedHeader(), HEADER_MARKERS, isGeneratedFile(), isGitIgnored(), argVal(), buildInsertWrapperLines(), computeInsertLine(), INSERT_POSITIONS (+32 more)
+Cohesion: 0.13
+Nodes (35): argVal(), buildInsertWrapperLines(), computeInsertLine(), INSERT_POSITIONS, insertCli(), isInsertPosition(), resolveElementMatch(), buildSvelteComponentCssAuthoring() (+27 more)
 
 ### Community 89 - "auth.controller.js"
-Cohesion: 0.17
-Nodes (8): devDependencies, prisma, app, connectDB, prisma, prisma, { PrismaClient }, prisma
+Cohesion: 0.11
+Nodes (10): app, connectDB, prisma, prisma, { PrismaClient }, bcrypt, cookieOptions, jwt (+2 more)
 
 ### Community 90 - "duckDuckGoFallback.js"
-Cohesion: 0.07
-Nodes (29): bcrypt, cookieOptions, jwt, loginUser(), prisma, SOCKET_URL, AuthContext, AuthProvider() (+21 more)
+Cohesion: 0.17
+Nodes (10): AdminAssessmentLiveMonitor(), buildEvidenceTimeline(), formatEventLabel(), formatTime(), normalizeType(), bindSocketHandlers(), ICE_SERVERS, ProctoringBroadcaster (+2 more)
 
 ### Community 91 - "mistralService.js"
 Cohesion: 0.39
@@ -704,8 +702,8 @@ Cohesion: 0.10
 Nodes (43): allow(), bumpCursorDenial(), cursorBlockMessage(), deny(), detectProposedHtml(), done(), escapeRegExp(), findingSignature() (+35 more)
 
 ### Community 94 - "Header.jsx"
-Cohesion: 0.26
-Nodes (13): AssessmentModal(), AssessmentSettingsModal(), STAT_STYLES, statusMeta(), StudentAssessments(), typeLabel(), formatAssessmentWindow(), fromDatetimeLocalValue() (+5 more)
+Cohesion: 0.29
+Nodes (5): Banner(), Header(), Login(), ScribbledText(), TypeWriter()
 
 ### Community 95 - "resumeStorage.js"
 Cohesion: 0.20
@@ -724,7 +722,7 @@ Cohesion: 0.14
 Nodes (39): ACTIONS, addIgnoreFile(), addIgnoreRule(), addIgnoreValue(), DETECTOR_CONFIG_KEYS, detectorSection(), fileHasImpeccableHookMarker(), HOOK_MANIFEST_TARGETS (+31 more)
 
 ### Community 99 - "RecruiterDirectoryTable.jsx"
-Cohesion: 0.31
+Cohesion: 0.33
 Nodes (6): cellContent(), formatSrNo(), getInitials(), RecruiterDirectoryTable(), SCROLL_COLUMNS, STATUS_BADGE_STYLES
 
 ### Community 100 - "css-cascade.mjs"
@@ -732,8 +730,8 @@ Cohesion: 0.10
 Nodes (27): applyStaticDeclaration(), buildBorderOverrideMap(), collectStaticCssRules(), compareStaticPriority(), cssPropToCamel(), expandStaticBoxValues(), expandStaticDeclaration(), extractStaticColor() (+19 more)
 
 ### Community 101 - "el"
-Cohesion: 0.10
-Nodes (39): actionLabel(), bindConfigureCountPillTooltip(), bindConfigureInlineControlHover(), bindConfigureModifierPillHover(), buildConfigureActionControl(), buildConfigureCountControl(), buildConfigureRow(), buildConfigureSubmitButton() (+31 more)
+Cohesion: 0.08
+Nodes (49): actionLabel(), applyConfigureBarChrome(), bindConfigureCountPillTooltip(), bindConfigureInlineControlHover(), bindConfigureModifierPillHover(), buildConfigureActionControl(), buildConfigureCountControl(), buildConfigureRow() (+41 more)
 
 ### Community 102 - "Color & Contrast"
 Cohesion: 0.24
@@ -757,7 +755,7 @@ Nodes (3): AdminSlider(), springValues, TiltedCard()
 
 ### Community 107 - "jdParser.js"
 Cohesion: 0.22
-Nodes (11): GuidedAiInterviewsStudent(), FEEDBACK_RATING_FIELDS, feedbackScorePercent(), getAiEnrollmentStatusBadge(), LoadingBlock(), PageShell(), STAT_ICON_BOX, STAT_ICON_COLOR (+3 more)
+Nodes (9): After This File, Codex: Visual Direction & Asset Production, Four stop points before code, Step A: Explore Directions with the User, Step B: Generate the Brand Palette First, Step C: Generate 1-3 Visual Mocks Against the Palette, Step D: Approval Loop, Step E: Mock Fidelity Inventory (+1 more)
 
 ### Community 108 - "resumeEnhancer.js"
 Cohesion: 0.25
@@ -788,8 +786,8 @@ Cohesion: 0.40
 Nodes (5): __dirname, __filename, main(), prisma, upsertUser()
 
 ### Community 116 - "Improve Copy Systematically"
-Cohesion: 0.07
-Nodes (24): Apply Clarity Principles, Assess Current Copy, Button & CTA Text, Confirmation Dialogs, Empty States, Error Messages, Form Labels & Instructions, Help Text & Tooltips (+16 more)
+Cohesion: 0.12
+Nodes (15): Apply Clarity Principles, Assess Current Copy, Button & CTA Text, Confirmation Dialogs, Empty States, Error Messages, Form Labels & Instructions, Help Text & Tooltips (+7 more)
 
 ### Community 117 - "makeEntry"
 Cohesion: 0.33
@@ -825,7 +823,7 @@ Nodes (5): makeVertexAttribute(), makeVertexAttributes(), makeVertexBuffer(), ma
 
 ### Community 130 - "inline-ignores.mjs"
 Cohesion: 0.06
-Nodes (26): Banner(), devLayout, devs, MeetDevTeamPage(), mentorLayout, mentors, faqData, PlacementFAQ() (+18 more)
+Nodes (38): App(), faqData, PlacementFAQ(), PWIOIFooter(), TestimonialSection(), GlareHover(), LoginModal(), CHANGE_ROW2_NAMES() (+30 more)
 
 ### Community 131 - "___syscall_ioctl"
 Cohesion: 0.50
@@ -852,12 +850,12 @@ Cohesion: 0.67
 Nodes (3): msync(), put_char(), write()
 
 ### Community 177 - "event-validation.mjs"
-Cohesion: 0.09
-Nodes (31): buildTrackerForApplication(), computeApplicationTrackingFields(), formatStudentApplicationRecord(), getAdminJobApplicationDetail(), getAdminJobApplications(), getAllApplications(), getFinalStatus(), getRejectedIn() (+23 more)
+Cohesion: 0.18
+Nodes (19): buildStudentWhere(), bumpBreakdown(), getActiveDrives(), getDashboardStats(), getScopeFunnelStats(), INTERVIEWED_STATUSES, isShortlisted(), PLACED_STATUSES (+11 more)
 
 ### Community 192 - "live-copy-edit-agent.mjs"
 Cohesion: 0.14
-Nodes (30): applyMockWrites(), buildCopyEditBatchPrompt(), checkFrameworkSourceSyntax(), chooseCopyEditAgent(), COMMAND_AUTH_CACHE, commandAuthed(), commandExists(), compactBatchForPrompt() (+22 more)
+Nodes (31): applyMockWrites(), buildCopyEditBatchPrompt(), checkFrameworkSourceSyntax(), chooseCopyEditAgent(), COMMAND_AUTH_CACHE, commandAuthed(), commandExists(), compactBatchForPrompt() (+23 more)
 
 ### Community 193 - "adapt.md"
 Cohesion: 0.26
@@ -928,8 +926,8 @@ Cohesion: 0.07
 Nodes (65): buildMissingTargetDirective(), buildResolvedContextDirective(), buildTargetSelectionDirective(), buildUpdateDirective(), cli(), compareSemver(), computeUpdateDirective(), contextSourcePath() (+57 more)
 
 ### Community 210 - "x"
-Cohesion: 0.48
-Nodes (7): er(), fe(), k(), Kt(), tr(), x(), Zt()
+Cohesion: 0.27
+Nodes (12): generateATSFallback(), er(), fe(), jt(), k(), Kt(), tr(), v() (+4 more)
 
 ### Community 211 - "animate.md"
 Cohesion: 0.10
@@ -952,8 +950,8 @@ Cohesion: 0.27
 Nodes (11): analyzeATSResume(), generateProjectContentEndpoint(), generateAIContent(), analyzeATSResume(), generateBulletsFallback(), generateFallback(), generateProjectContent(), generateSummaryFallback() (+3 more)
 
 ### Community 216 - "readLiveServerInfo"
-Cohesion: 0.23
-Nodes (12): de(), dt(), ft(), Ie(), jt(), Lt(), Mt(), oe() (+4 more)
+Cohesion: 0.31
+Nodes (9): de(), Ie(), Lt(), Mt(), oe(), Ot(), qt(), Re() (+1 more)
 
 ### Community 217 - "captureElementToBlob"
 Cohesion: 0.42
@@ -976,8 +974,8 @@ Cohesion: 0.19
 Nodes (19): args, cwd, pageUrlFilter, remaining, compactManualLogText(), summarizeManualApplyFailures(), summarizeManualDiagnostics(), summarizeManualLogFile() (+11 more)
 
 ### Community 222 - "screeningEmailService.js"
-Cohesion: 0.11
-Nodes (17): LoginForm(), RegisterForm(), AuthRedirect(), ThankYouPopup(), AboutMe(), EndorsementCard(), Endorsements(), parseRelatedSkills() (+9 more)
+Cohesion: 0.22
+Nodes (5): devLayout, devs, MeetDevTeamPage(), mentorLayout, mentors
 
 ### Community 223 - "context-signals.mjs"
 Cohesion: 0.23
@@ -1000,8 +998,8 @@ Cohesion: 0.23
 Nodes (15): streamByToken(), extractResumeText(), b64(), buildErrorMessage(), DEFAULT_LANGUAGE_IDS, envBool(), fromB64(), getConfig() (+7 more)
 
 ### Community 228 - "interview.controller.js"
-Cohesion: 0.18
-Nodes (12): aiService, analyze(), getReport(), parseReportFields(), prisma, resumeParser, stringifyReportFields(), cleanText() (+4 more)
+Cohesion: 0.27
+Nodes (7): aiService, analyze(), getReport(), parseReportFields(), prisma, resumeParser, stringifyReportFields()
 
 ### Community 229 - "discoverTargetCandidates"
 Cohesion: 0.12
@@ -1024,8 +1022,8 @@ Cohesion: 0.12
 Nodes (16): Accessibility Considerations, Anti-reflexes worth defending against, Classic Typography Principles, Fluid Type, Font Selection & Pairing, Modern Web Typography, Modular Scale & Hierarchy, OpenType Features (+8 more)
 
 ### Community 234 - "useJobDetails.js"
-Cohesion: 0.14
-Nodes (22): JobApplyQuestionsModal(), JobContent, JobDescriptionModal(), JobDescriptionSkeleton(), JobContent, JobDetailsView(), clearJobCache(), getCachedJob() (+14 more)
+Cohesion: 0.24
+Nodes (11): JobContent, JobDescriptionModal(), JobDescriptionSkeleton(), JobContent, JobDetailsView(), clearJobCache(), getCachedJob(), isCacheValid() (+3 more)
 
 ### Community 235 - "checkElementDesignSystemDOM"
 Cohesion: 0.07
@@ -1040,8 +1038,8 @@ Cohesion: 0.14
 Nodes (13): Animation Performance, Assess Performance Issues, Core Web Vitals Optimization, Cumulative Layout Shift (CLS < 0.1), First Input Delay (FID < 100ms) / INP (< 200ms), Largest Contentful Paint (LCP < 2.5s), Loading Performance, Network Optimization (+5 more)
 
 ### Community 238 - "scheduleLazyVisualContrast"
-Cohesion: 0.38
-Nodes (10): MockInterviewCreate(), aiIsActive(), aiIsPast(), aiIsUpcoming(), driveHasLiveSlots(), driveIsActive(), driveIsDraft(), driveIsPast() (+2 more)
+Cohesion: 0.58
+Nodes (7): StudentDashboard(), useApplyToJob(), useNotifications(), useStudentApplications(), useStudentProfile(), useTargetedJobs(), subscribeToUpdates()
 
 ### Community 239 - "parseAnyColor"
 Cohesion: 0.15
@@ -1052,8 +1050,8 @@ Cohesion: 0.15
 Nodes (21): applyPlaceholderDimensions(), beginEditPin(), buildAnnotationsForCapture(), buildPinElement(), cancelEditingPin(), clampPlaceholderSize(), finalizeEditingPin(), initAnnotOverlay() (+13 more)
 
 ### Community 242 - "AdminAssessmentResults.jsx"
-Cohesion: 0.23
-Nodes (16): AdminAssessmentResultsComponent(), computeAssessmentStats(), computeSessionPercentiles(), formatSessionDate(), formatSessionStatus(), formatSessionTime(), normalizeSessionStatus(), summarizeViolations() (+8 more)
+Cohesion: 0.21
+Nodes (17): AdminAssessmentResults(), AdminAssessmentResultsComponent(), computeAssessmentStats(), computeSessionPercentiles(), formatSessionDate(), formatSessionStatus(), formatSessionTime(), normalizeSessionStatus() (+9 more)
 
 ### Community 243 - "bolder.md"
 Cohesion: 0.15
@@ -1084,8 +1082,8 @@ Cohesion: 0.17
 Nodes (11): Accessibility Resilience, Assess Hardening Needs, Edge Cases & Boundary Conditions, Error Handling, Hardening Dimensions, Input Validation & Sanitization, Internationalization (i18n), Performance Resilience (+3 more)
 
 ### Community 250 - "seedBulkAiInterviews.js"
-Cohesion: 0.25
-Nodes (8): AchievementMedalBadge(), DashboardLayout(), formatCgpaDisplay(), scallopedMedalPath(), SCHOOL_LABELS, safeDefault, StudentMobileMenuContext, useStudentMobileMenu()
+Cohesion: 0.60
+Nodes (5): cleanText(), extractTextFromBuffer(), pdfParse, stripXml(), tryRequire()
 
 ### Community 251 - "ui-core.mjs"
 Cohesion: 0.23
@@ -1116,8 +1114,8 @@ Cohesion: 0.40
 Nodes (9): addRules(), applyInlineIgnores(), getSet(), hasDirectives(), isInlineIgnored(), normalizeRule(), parseInlineIgnores(), parseRuleList() (+1 more)
 
 ### Community 259 - "collectVisualContrastCandidates"
-Cohesion: 0.27
-Nodes (10): bindEditBadgeProxy(), editBadgeProxyTargets(), initEditBadge(), initEditBadgeHitProxies(), positionEditBadge(), proxyMouseEvent(), setImportantStyle(), styleEditBadgeProxy() (+2 more)
+Cohesion: 0.33
+Nodes (6): Establish Hierarchy, Fix Readability, Font Selection, Improve Typography Systematically, Refine Details, Weight Consistency
 
 ### Community 260 - "palette.mjs"
 Cohesion: 0.24
@@ -1156,8 +1154,8 @@ Cohesion: 0.25
 Nodes (8): 1. Impatient Power User: "Alex", 2. Confused First-Timer: "Jordan", 3. Accessibility-Dependent User: "Sam", 4. Deliberate Stress Tester: "Riley", 5. Distracted Mobile User: "Casey", Persona-Based Design Testing, Project-Specific Personas, Selecting Personas
 
 ### Community 269 - "JobPostingsManager.jsx"
-Cohesion: 0.23
-Nodes (16): JobPostingsManager(), analyticsSubscribers, applyFilters(), approveJob(), archiveJob(), autoArchiveExpiredJobs(), buildAnalytics(), getCompaniesForDropdown() (+8 more)
+Cohesion: 0.53
+Nodes (5): hasGeneratedHeader(), HEADER_MARKERS, isGeneratedFile(), isGitIgnored(), searchDir()
 
 ### Community 270 - "Cognitive Load Assessment"
 Cohesion: 0.29
@@ -1167,17 +1165,9 @@ Nodes (7): Cognitive Load Assessment, Cognitive Load Checklist, Extraneous Load:
 Cohesion: 0.33
 Nodes (7): buildSelectorSegment(), generateSelector(), isLikelyHashedClass(), postSerializedFindings(), renderBrowserFindings(), scanResultMeta(), serializeFindings()
 
-### Community 272 - "useAuth"
-Cohesion: 0.36
-Nodes (7): generateATSFallback(), v(), hardware_concurrency(), ModuleFactory(), AdminAnnouncements(), formatAudience(), isTargeted()
-
 ### Community 273 - "acceptedDomAlreadyClean"
 Cohesion: 0.47
 Nodes (6): applyPatchText(), envProjectDir(), looksLikeApplyPatch(), normalizeGitHubEvent(), normalizeHookEvent(), parseGitHubToolArgs()
-
-### Community 274 - "adminRequests.js"
-Cohesion: 0.80
-Nodes (4): EndorsementManagement(), nameFromEmail(), normalizeEndorsement(), resolveTeacherChoice()
 
 ### Community 276 - "Heuristics Scoring Guide"
 Cohesion: 0.50
@@ -1192,8 +1182,8 @@ Cohesion: 0.39
 Nodes (5): extractJobData(), parseDocument(), parseJobDescription(), parsePDF(), parseText()
 
 ### Community 279 - "qt"
-Cohesion: 0.06
-Nodes (29): Extract Flow, Step 1: Discover the Design System, Step 2: Identify Patterns, Step 3: Plan Extraction, Step 4: Extract & Enrich, Step 5: Migrate, Step 6: Document, Constraints (+21 more)
+Cohesion: 0.07
+Nodes (23): Extract Flow, Step 1: Discover the Design System, Step 2: Identify Patterns, Step 3: Plan Extraction, Step 4: Extract & Enrich, Step 5: Migrate, Step 6: Document, Constraints (+15 more)
 
 ### Community 280 - "checkElementTextOverflowDOM"
 Cohesion: 0.28
@@ -1228,23 +1218,23 @@ Cohesion: 0.83
 Nodes (3): mcqAnswersMatch(), normalizeMcqAnswer(), parseMcqOptions()
 
 ## Knowledge Gaps
-- **1103 isolated node(s):** `COMMON_DEV_PORTS`, `SOURCE_DIRS`, `PRODUCT_NAMES`, `DESIGN_NAMES`, `FALLBACK_DIRS` (+1098 more)
+- **1102 isolated node(s):** `COMMON_DEV_PORTS`, `SOURCE_DIRS`, `PRODUCT_NAMES`, `DESIGN_NAMES`, `FALLBACK_DIRS` (+1097 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **56 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `v()` connect `useAuth` to `GENERIC_FONTS`, `ProfileCardComponent`, `StudentDirectory.jsx`, `checks.mjs`, `app.routes.jsx`, `design-parser.mjs`, `App.jsx`, `ProctoringEngine.js`, `AdminHome.jsx`, `x`, `live-browser.js`, `resolveLengthPx`, `modern-screenshot.umd.js`, `readLiveServerInfo`, `ResumeBuilder.jsx`, `context-signals.mjs`?**
+- **Why does `v()` connect `x` to `GENERIC_FONTS`, `ProfileCardComponent`, `StudentDirectory.jsx`, `checks.mjs`, `app.routes.jsx`, `design-parser.mjs`, `App.jsx`, `calendar.js`, `v`, `ProctoringEngine.js`, `live-browser.js`, `resolveLengthPx`, `modern-screenshot.umd.js`, `ResumeBuilder.jsx`, `context-signals.mjs`?**
   _High betweenness centrality (0.145) - this node is a cross-community bridge._
-- **Why does `ModuleFactory()` connect `useAuth` to `path`, `refreshParamsPanel`, `x`, `readLiveServerInfo`, `vision_wasm_module_internal.js`?**
+- **Why does `ModuleFactory()` connect `x` to `readLiveServerInfo`, `vision_wasm_module_internal.js`, `path`, `refreshParamsPanel`?**
   _High betweenness centrality (0.126) - this node is a cross-community bridge._
-- **Why does `buffer` connect `refreshParamsPanel` to `interviewScheduling.js`, `RecruiterDirectory.jsx`, `server.js`, `detect-antipatterns.mjs`, `live-server.mjs`, `useAuth`, `live-inject.mjs`, `live-wrap.mjs`, `manual-edit-routes.mjs`, `session-store.mjs`, `hook-before-edit.mjs`, `readConfig`?**
+- **Why does `buffer` connect `refreshParamsPanel` to `queries.js`, `interviewScheduling.js`, `emailService.js`, `detect-antipatterns.mjs`, `live-server.mjs`, `JobPostingsManager.jsx`, `x`, `live-inject.mjs`, `manual-edit-routes.mjs`, `session-store.mjs`, `hook-before-edit.mjs`, `readConfig`?**
   _High betweenness centrality (0.122) - this node is a cross-community bridge._
 - **Are the 35 inferred relationships involving `el()` (e.g. with `browserFindingsFromMap()` and `collectVisualContrastCandidates()`) actually correct?**
   _`el()` has 35 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `COMMON_DEV_PORTS`, `SOURCE_DIRS`, `PRODUCT_NAMES` to the rest of the system?**
-  _1212 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1211 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `vision_wasm_internal.js` be split into smaller, more focused modules?**
   _Cohesion score 0.010471204188481676 - nodes in this community are weakly interconnected._
 - **Should `vision_wasm_nosimd_internal.js` be split into smaller, more focused modules?**
