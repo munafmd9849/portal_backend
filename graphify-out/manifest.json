@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "backend/src/middleware/auth.js": {
-    "mtime": 1781538190.2541282,
-    "ast_hash": "80bbb98a6ab33c5b093cbc0316c0a61d",
+    "mtime": 1784125822.7914593,
+    "ast_hash": "e8519baa03e32e6b12fb752765c3859c",
     "semantic_hash": ""
   },
   "backend/src/middleware/roles.js": {
@@ -710,8 +710,8 @@
     "semantic_hash": ""
   },
   "backend/src/routes/auth.js": {
-    "mtime": 1781538190.2587516,
-    "ast_hash": "94d3679bfe3033c4aa1682f59234722b",
+    "mtime": 1784125822.571277,
+    "ast_hash": "1343169dcb5f455403085ab57de2966d",
     "semantic_hash": ""
   },
   "backend/src/routes/calendar.js": {
@@ -1060,8 +1060,8 @@
     "semantic_hash": ""
   },
   "backend/src/utils/sessionManager.js": {
-    "mtime": 1781538190.2627592,
-    "ast_hash": "52a329e9e13c1bd201e65d7bb7afab93",
+    "mtime": 1784125822.7476397,
+    "ast_hash": "637770c5e6b0e54438f173437a35307c",
     "semantic_hash": ""
   },
   "backend/src/utils/sessionToken.js": {
@@ -1165,8 +1165,8 @@
     "semantic_hash": ""
   },
   "frontend/src/App.jsx": {
-    "mtime": 1781538370.8735611,
-    "ast_hash": "c854eb7fa0bba25b630e05a873461143",
+    "mtime": 1784125823.2676978,
+    "ast_hash": "1f996af3244764f2f00716941077347a",
     "semantic_hash": ""
   },
   "frontend/src/coding-engine/CodingWorkspace.jsx": {
@@ -1490,12 +1490,12 @@
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/admin/StudentDirectory.jsx": {
-    "mtime": 1783869920.6914077,
+    "mtime": 1784125822.2937105,
     "ast_hash": "a4ebc9a967404e8eb1684b1b10afac05",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/admin/StudentDirectoryTable.jsx": {
-    "mtime": 1783869836.6098218,
+    "mtime": 1784125822.181655,
     "ast_hash": "452be49d454eabe6ac85bbfc2953a2ff",
     "semantic_hash": ""
   },
@@ -1550,8 +1550,8 @@
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/shared/DashboardLayout.jsx": {
-    "mtime": 1773327263.546641,
-    "ast_hash": "91c177067d8cdee4f51ac38f4e82f848",
+    "mtime": 1784125822.8410823,
+    "ast_hash": "fcfdd3de9d8f0c063bb67fb044fe0e9b",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/student/AboutMe.jsx": {
@@ -1560,8 +1560,8 @@
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/student/Achievements.jsx": {
-    "mtime": 1780896911.083134,
-    "ast_hash": "1af8daec5ee0c6337592bd28c3dd18d3",
+    "mtime": 1784125823.001827,
+    "ast_hash": "f157387ec7c73e2436ab60e1f10b70f0",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/student/ApplicationTrackerSection.jsx": {
@@ -1575,8 +1575,8 @@
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/student/DashboardStatsSection.jsx": {
-    "mtime": 1773327263.554694,
-    "ast_hash": "411cc7d32f87a5b660c26f22d6c9c603",
+    "mtime": 1784125823.1257315,
+    "ast_hash": "a99fb3d569da11da7f79a7bf51185659",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/student/EducationSection.jsx": {
@@ -1585,13 +1585,13 @@
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/student/EndorsementManagement.jsx": {
-    "mtime": 1781538190.2798076,
-    "ast_hash": "7eb044cef98db6e5b3fc03943b943466",
+    "mtime": 1784125823.7523508,
+    "ast_hash": "5584a2ec307a7f4ffb56d32535b677e3",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/student/Endorsements.jsx": {
-    "mtime": 1781299990.7568216,
-    "ast_hash": "721235e49b844b956f92118cb7ffd2f6",
+    "mtime": 1784125823.8502944,
+    "ast_hash": "1351e19a921c64abad31656be3a6c746",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/student/ExperienceSection.jsx": {
@@ -1630,8 +1630,8 @@
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/student/JobListingStatus.jsx": {
-    "mtime": 1781538190.2888708,
-    "ast_hash": "051c413e5c69da5d34a851f2d5f896a3",
+    "mtime": 1784125823.5984576,
+    "ast_hash": "1f6d4bb4754db3a26bc18d3ee9c55920",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/student/JobPostingsSection.jsx": {
@@ -1640,33 +1640,33 @@
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/student/ProjectsSection.jsx": {
-    "mtime": 1779653149.751182,
-    "ast_hash": "84ea633336d8b0d65f0bf5db00720afc",
+    "mtime": 1784125822.9038093,
+    "ast_hash": "c3a9fccde11189a3a2d18cec93ad8601",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/student/Query.jsx": {
-    "mtime": 1781301028.182746,
-    "ast_hash": "6aebc5dacc0e90475b12924bc877d5ad",
+    "mtime": 1784125947.1912756,
+    "ast_hash": "fddd646a0784c6ddb93adad482987bf5",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/student/Resources.jsx": {
-    "mtime": 1773327263.6181183,
-    "ast_hash": "11267bae9c420ae691a7f616d105bda8",
+    "mtime": 1784125823.6508236,
+    "ast_hash": "af60cc34fb2f8775a2fc33a9801cdcab",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/student/SkillsSection.jsx": {
-    "mtime": 1781295132.8302195,
-    "ast_hash": "149fded9890e8ca72e3a7dc7969a6856",
+    "mtime": 1784125823.0617101,
+    "ast_hash": "0d8e7682611749ba314b1602738637ab",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/student/StudentApplicationTracker.jsx": {
-    "mtime": 1780896911.083134,
-    "ast_hash": "26dba11a7254021ad402810e0c8600b6",
+    "mtime": 1784125823.5474913,
+    "ast_hash": "518b362f1293ff27d4b91fb4f140b52e",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/student/StudentAssessments.jsx": {
-    "mtime": 1783591344.2429833,
-    "ast_hash": "b16de8ed5e44fdef3478f14b1ca9cdaa",
+    "mtime": 1784129073.874149,
+    "ast_hash": "1e3acd9a989b7b02a556d37f4f0542c9",
     "semantic_hash": ""
   },
   "frontend/src/components/dashboard/student/StudentCalendar.jsx": {
@@ -1730,8 +1730,8 @@
     "semantic_hash": ""
   },
   "frontend/src/components/landing/LoginModal.jsx": {
-    "mtime": 1780896764.4317782,
-    "ast_hash": "a6facbce30d94ad1c4a23319ea317829",
+    "mtime": 1784125822.696578,
+    "ast_hash": "a820f94c4b1c5fcda02665355bcee0c8",
     "semantic_hash": ""
   },
   "frontend/src/components/landing/ManagementSkills.jsx": {
@@ -1840,8 +1840,8 @@
     "semantic_hash": ""
   },
   "frontend/src/components/resume/JobPickerDropdown.jsx": {
-    "mtime": 1781538190.2908638,
-    "ast_hash": "73091fe4a488cf8f73a4c60496a2be3d",
+    "mtime": 1784125823.497337,
+    "ast_hash": "78adc6a50cba32ed2510c67f9802f7da",
     "semantic_hash": ""
   },
   "frontend/src/components/resume/PDFPreviewErrorBoundary.jsx": {
@@ -1850,13 +1850,13 @@
     "semantic_hash": ""
   },
   "frontend/src/components/resume/ResumeAnalyzer.jsx": {
-    "mtime": 1780896764.43438,
-    "ast_hash": "89b815fabfe0e5da00d3d28f3d67c8a9",
+    "mtime": 1784125823.4430602,
+    "ast_hash": "e1b662d55ee0a51214333a97fee54a76",
     "semantic_hash": ""
   },
   "frontend/src/components/resume/ResumeBuilder.jsx": {
-    "mtime": 1781538190.2929006,
-    "ast_hash": "623e0ab833eb41fa8d0bc577387a4009",
+    "mtime": 1784125823.3353238,
+    "ast_hash": "77c5773e3bb6a9f8df98f40f6fbe83f5",
     "semantic_hash": ""
   },
   "frontend/src/components/resume/ResumeManager.jsx": {
@@ -1945,8 +1945,8 @@
     "semantic_hash": ""
   },
   "frontend/src/hooks/useAuth.js": {
-    "mtime": 1765179513.4808338,
-    "ast_hash": "c7325e9fe2cedf20523f627222f8f190",
+    "mtime": 1784125823.2205696,
+    "ast_hash": "e4624841751adbf8290dce77b37e0f96",
     "semantic_hash": ""
   },
   "frontend/src/hooks/useInterviewSpeech.js": {
@@ -1970,8 +1970,8 @@
     "semantic_hash": ""
   },
   "frontend/src/main.jsx": {
-    "mtime": 1765179511.54783,
-    "ast_hash": "294c972051e832cd4622796abc3a3c9e",
+    "mtime": 1784125823.171355,
+    "ast_hash": "0969cd318cdcab543a42e63fe6cf1e1e",
     "semantic_hash": ""
   },
   "frontend/src/pages/Assessment.jsx": {
@@ -2115,23 +2115,23 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/assessment/AssessmentApp.jsx": {
-    "mtime": 1780896911.1092708,
-    "ast_hash": "b675fb9c76bdc11f75b03453123b7f06",
+    "mtime": 1784127815.8119893,
+    "ast_hash": "57ee08a23bf025ffb31c5f8dc2376c41",
     "semantic_hash": ""
   },
   "frontend/src/pages/assessment/AssessmentResultStudent.jsx": {
-    "mtime": 1780896911.1092708,
-    "ast_hash": "b47a7c829f22c86a9fc95dc8c5a9bad5",
+    "mtime": 1784128757.9984043,
+    "ast_hash": "57c98d03ff7ab5f4b9501e6e19abdf57",
     "semantic_hash": ""
   },
   "frontend/src/pages/assessment/MockInterviewPreCheck.jsx": {
-    "mtime": 1781299483.60464,
-    "ast_hash": "f5aed176ad4bf1335105a6317ed7af6c",
+    "mtime": 1784127081.1749897,
+    "ast_hash": "22f410f090d7918cc029e5487163a2e3",
     "semantic_hash": ""
   },
   "frontend/src/pages/assessment/MockInterviewRoom.jsx": {
-    "mtime": 1780896911.1117885,
-    "ast_hash": "00174507037f25a51a9c1f9c6a82bc68",
+    "mtime": 1784126696.3061142,
+    "ast_hash": "eb031c3591cf55467b14436994700eda",
     "semantic_hash": ""
   },
   "frontend/src/pages/dashboard/AdminDashboard.jsx": {
@@ -2145,8 +2145,8 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/dashboard/StudentDashboard.jsx": {
-    "mtime": 1783869634.6529465,
-    "ast_hash": "d840a3614fd99231f1db7dfa32e10d6e",
+    "mtime": 1784129117.1068766,
+    "ast_hash": "596b177a048d8c35968135aa0860108f",
     "semantic_hash": ""
   },
   "frontend/src/pages/dashboard/SuperAdminDashboard.jsx": {
@@ -2200,23 +2200,23 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/student/AiInterviewResultStudent.jsx": {
-    "mtime": 1781538370.9612105,
-    "ast_hash": "f04645bdfe1513d6ac17f7a30c9af2c4",
+    "mtime": 1784127869.189089,
+    "ast_hash": "c118ab1f5a31245b8bb13b2e1473cbd4",
     "semantic_hash": ""
   },
   "frontend/src/pages/student/AiMockInterviewSession.jsx": {
-    "mtime": 1781299769.0411906,
-    "ast_hash": "19cdba82824981cc67d2d7c222ff0541",
+    "mtime": 1784127722.0405629,
+    "ast_hash": "6346068b7c1a60e21dd763e9e672e034",
     "semantic_hash": ""
   },
   "frontend/src/pages/student/GuidedAiInterviewsStudent.jsx": {
-    "mtime": 1781538370.9612105,
-    "ast_hash": "463e0353ff007d89091417a9878243af",
+    "mtime": 1784127627.3174434,
+    "ast_hash": "f70d6c582b8f2ca0de931596808e5f8d",
     "semantic_hash": ""
   },
   "frontend/src/pages/student/LiveMockInterviewsStudent.jsx": {
-    "mtime": 1781538370.9622715,
-    "ast_hash": "f2e4b589e2a66b2fc1367954bb2d08bd",
+    "mtime": 1784127081.2175677,
+    "ast_hash": "190b1c8a9889c9a20da180098c490e25",
     "semantic_hash": ""
   },
   "frontend/src/pages/student/MockInterviewResultStudent.jsx": {
@@ -2230,8 +2230,8 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/student/interviewStudentShared.jsx": {
-    "mtime": 1781538370.9622715,
-    "ast_hash": "2852eac0320f9fbc70e6cfa62f873f4a",
+    "mtime": 1784127647.7995348,
+    "ast_hash": "16e624ddb022e969a55e85405cd71f79",
     "semantic_hash": ""
   },
   "frontend/src/proctoring-engine/ProctoringEngine.js": {
@@ -2270,8 +2270,8 @@
     "semantic_hash": ""
   },
   "frontend/src/services/api.js": {
-    "mtime": 1783496500.4244924,
-    "ast_hash": "57f2ec7c9fd64edf45bd0e5fe5cde6fa",
+    "mtime": 1784125822.4799886,
+    "ast_hash": "dc82c34c2a1b972e47eb7967e2192581",
     "semantic_hash": ""
   },
   "frontend/src/services/applicationCleanup.js": {
@@ -2485,8 +2485,8 @@
     "semantic_hash": ""
   },
   "frontend/src/utils/toast.js": {
-    "mtime": 1773327263.8622365,
-    "ast_hash": "0d9ba7ccc70bf8dfa02f38a69ee22de7",
+    "mtime": 1784125822.625086,
+    "ast_hash": "224c1851a4ade133f571f2434812ccdb",
     "semantic_hash": ""
   },
   "frontend/tailwind.config.js": {
@@ -3705,8 +3705,8 @@
     "semantic_hash": ""
   },
   "frontend/src/components/assessment/assessmentUi.js": {
-    "mtime": 1783881875.4726155,
-    "ast_hash": "aa89a365d90e3fe26fb5f8c66dc2fb98",
+    "mtime": 1784127655.6828713,
+    "ast_hash": "ef10c060fd3a0667ae683526f565ca29",
     "semantic_hash": ""
   },
   "frontend/src/components/admin/AssessmentQuestionExcelUpload.jsx": {
@@ -3722,6 +3722,11 @@
   "frontend/src/utils/assessmentQuestionExcel.js": {
     "mtime": 1783592706.1366625,
     "ast_hash": "1c5a439b4722282b45c5797e0a0a30ed",
+    "semantic_hash": ""
+  },
+  "frontend/brand_logo-FHFSK4UX.webp": {
+    "mtime": 1784066657.5429456,
+    "ast_hash": "abca61fd4020f857f31b01d52efaa835",
     "semantic_hash": ""
   }
 }

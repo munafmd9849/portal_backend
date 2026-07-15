@@ -537,6 +537,7 @@ export const api = {
     const response = apiRequest('/auth/login', {
       method: 'POST',
       body: JSON.stringify(data),
+      silent: true, // Login UI shows its own toast
     }).then(data => {
       if (data.accessToken && data.refreshToken) {
         setAuthTokens(data.accessToken, data.refreshToken);

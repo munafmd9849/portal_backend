@@ -233,34 +233,34 @@ export default function MockInterviewRoom() {
   if (loading) return (
     <div className="h-screen bg-white flex flex-col items-center justify-center gap-6">
       <div className="relative">
-        <div className="w-16 h-16 border-4 border-slate-100 border-t-indigo-600 rounded-full animate-spin" />
-        <Video className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 text-indigo-600" />
+        <div className="w-16 h-16 border-4 border-slate-100 border-t-teal-600 rounded-full animate-spin" />
+        <Video className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 text-teal-600" />
       </div>
       <div className="text-center">
-        <p className="text-sm font-bold text-slate-900 uppercase tracking-widest animate-pulse">Initializing Secure Room</p>
-        <p className="text-[10px] text-slate-500 mt-2 font-medium">Please wait while we connect your video feed...</p>
+        <p className="text-sm font-bold text-slate-900 uppercase tracking-widest animate-pulse">Connecting room</p>
+        <p className="text-[10px] text-slate-500 mt-2 font-medium">Connecting video…</p>
       </div>
     </div>
   );
 
   if (isEarly) return (
     <div className="h-screen bg-slate-50 flex flex-col items-center justify-center p-6 sm:p-10">
-       <div className="w-20 h-20 bg-indigo-600 rounded-2xl flex items-center justify-center mb-8 shadow-2xl shadow-indigo-600/10">
-          <Timer className="w-10 h-10 text-white animate-pulse" />
+       <div className="w-16 h-16 bg-teal-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-teal-600/15">
+          <Timer className="w-7 h-7 text-white" />
        </div>
-       <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-center text-slate-900">Room is <span className="text-indigo-600">Not Yet Open</span></h1>
-       <p className="text-slate-500 mt-4 text-sm font-medium text-center max-w-md leading-relaxed">
-         This room will automatically unlock 10 minutes before your scheduled slot. 
+       <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-center text-slate-900">Room not open yet</h1>
+       <p className="text-slate-600 mt-2 text-sm text-center max-w-md">
+         Unlocks 10 minutes before your slot.
        </p>
-       <div className="mt-10 p-8 bg-white border border-slate-200 rounded-3xl flex flex-col items-center shadow-xl shadow-slate-200/50">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Starts In</p>
-          <p className="text-5xl sm:text-6xl font-bold tabular-nums tracking-tighter text-indigo-600">{timeUntilStart}</p>
+       <div className="mt-8 px-8 py-6 bg-white border border-slate-200/80 rounded-2xl flex flex-col items-center shadow-sm">
+          <p className="text-xs font-medium text-slate-500 mb-1">Starts in</p>
+          <p className="text-4xl sm:text-5xl font-semibold tabular-nums tracking-tight text-teal-600">{timeUntilStart}</p>
        </div>
        <button 
          onClick={() => navigate(-1)}
-         className="mt-12 text-slate-400 hover:text-slate-900 transition-colors text-xs font-bold uppercase tracking-widest flex items-center gap-2"
+         className="mt-10 text-slate-500 hover:text-slate-900 transition-colors text-sm font-medium flex items-center gap-2"
        >
-         <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+         <ArrowLeft className="w-4 h-4" /> Back
        </button>
     </div>
   );
@@ -270,8 +270,8 @@ export default function MockInterviewRoom() {
       {/* Header - Clean White */}
       <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between z-20 shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="w-9 h-9 bg-indigo-50 rounded-lg flex items-center justify-center border border-indigo-100">
-            <ShieldCheck className="w-5 h-5 text-indigo-600" />
+          <div className="w-9 h-9 bg-teal-50 rounded-lg flex items-center justify-center border border-teal-100">
+            <ShieldCheck className="w-5 h-5 text-teal-600" />
           </div>
           <div>
             <div className="flex items-center gap-3">
@@ -314,7 +314,7 @@ export default function MockInterviewRoom() {
                }}
                className={`h-9 px-4 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border flex items-center gap-2 ${
                  showTechnicalBoard 
-                 ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-500/20' 
+                 ? 'bg-teal-600 border-teal-600 text-white shadow-md shadow-teal-500/20' 
                  : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
                }`}
              >
@@ -340,7 +340,7 @@ export default function MockInterviewRoom() {
 
               {videoStatus === 'loading' && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-slate-950/90 z-20">
-                  <Loader2 className="w-10 h-10 animate-spin text-indigo-400" />
+                  <Loader2 className="w-10 h-10 animate-spin text-teal-400" />
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Starting video…</p>
                 </div>
               )}
@@ -352,7 +352,7 @@ export default function MockInterviewRoom() {
                   <button
                     type="button"
                     onClick={retryVideo}
-                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold uppercase tracking-wider rounded-lg flex items-center gap-2"
+                    className="px-5 py-2.5 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold uppercase tracking-wider rounded-lg flex items-center gap-2"
                   >
                     <RefreshCcw className="w-4 h-4" /> Retry Video
                   </button>
@@ -385,7 +385,7 @@ export default function MockInterviewRoom() {
                      onClick={() => setActiveTab(tab.id)}
                      className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
                        activeTab === tab.id 
-                       ? 'bg-white text-indigo-600 shadow-md border border-slate-100' 
+                       ? 'bg-white text-teal-600 shadow-md border border-slate-100' 
                        : 'text-slate-500 hover:text-slate-700 hover:bg-white/40'
                      }`}
                    >
@@ -420,7 +420,7 @@ export default function MockInterviewRoom() {
               {activeTab === 'profile' && (
                 <div className="p-6 sm:p-8 space-y-8 animate-in fade-in duration-300">
                    <div className="flex items-center gap-5">
-                      <div className="w-20 h-20 bg-indigo-50 rounded-2xl flex items-center justify-center text-2xl font-bold text-indigo-600 border border-indigo-100 shadow-inner uppercase">
+                      <div className="w-20 h-20 bg-teal-50 rounded-2xl flex items-center justify-center text-2xl font-bold text-teal-600 border border-teal-100 shadow-inner uppercase">
                         {studentProfile?.fullName?.[0] || 'C'}
                       </div>
                       <div>
@@ -430,7 +430,7 @@ export default function MockInterviewRoom() {
                             <span className="px-2.5 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-md border border-slate-200 uppercase tracking-wider">
                                {studentProfile?.batch || 'Batch 2026'}
                             </span>
-                            <span className="px-2.5 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-bold rounded-md border border-indigo-100 uppercase tracking-wider">
+                            <span className="px-2.5 py-1 bg-teal-50 text-teal-600 text-[10px] font-bold rounded-md border border-teal-100 uppercase tracking-wider">
                                CS Engineering
                             </span>
                          </div>
@@ -444,17 +444,17 @@ export default function MockInterviewRoom() {
                             <Layout className="w-3.5 h-3.5 text-slate-300" />
                          </div>
                          <div className="space-y-3">
-                            <button className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between hover:bg-white hover:border-indigo-400 transition-all group">
+                            <button className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between hover:bg-white hover:border-teal-400 transition-all group">
                                <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-slate-100 group-hover:border-indigo-100 transition-all">
-                                    <FileText className="w-4 h-4 text-indigo-500" />
+                                  <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-slate-100 group-hover:border-teal-100 transition-all">
+                                    <FileText className="w-4 h-4 text-teal-500" />
                                   </div>
                                   <div className="text-left">
                                      <p className="text-xs font-bold text-slate-700">Resume_v2.pdf</p>
                                      <p className="text-[10px] text-slate-400 mt-0.5 uppercase">Updated 2 days ago</p>
                                   </div>
                                </div>
-                               <ExternalLink className="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-500 transition-colors" />
+                               <ExternalLink className="w-3.5 h-3.5 text-slate-300 group-hover:text-teal-500 transition-colors" />
                             </button>
                             <button className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between hover:bg-white hover:border-amber-400 transition-all group">
                                <div className="flex items-center gap-3">
@@ -471,9 +471,9 @@ export default function MockInterviewRoom() {
                          </div>
                       </div>
 
-                      <div className="p-5 bg-indigo-50 rounded-2xl border border-indigo-100 flex items-start gap-4">
-                         <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-indigo-100 shrink-0 shadow-sm">
-                            <AlertCircle className="w-4 h-4 text-indigo-600" />
+                      <div className="p-5 bg-teal-50 rounded-2xl border border-teal-100 flex items-start gap-4">
+                         <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-teal-100 shrink-0 shadow-sm">
+                            <AlertCircle className="w-4 h-4 text-teal-600" />
                          </div>
                          <div className="space-y-1">
                             <h4 className="text-xs font-bold text-indigo-900 leading-none mt-1">Interviewer Tip</h4>
@@ -491,7 +491,7 @@ export default function MockInterviewRoom() {
                    <div className="space-y-6">
                       <div className="flex items-center justify-between">
                          <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Skill Rubric</h4>
-                         <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full">Grading Active</span>
+                         <span className="text-[10px] font-bold text-teal-500 bg-teal-50 px-2 py-0.5 rounded-full">Grading Active</span>
                       </div>
                       
                       {[
@@ -506,7 +506,7 @@ export default function MockInterviewRoom() {
                         <div key={item.id} className="space-y-2.5">
                            <div className="flex items-center justify-between px-1">
                               <label className="text-[11px] font-semibold text-slate-700">{item.label}</label>
-                              <span className="text-[11px] font-bold text-indigo-600 tabular-nums">{evaluation[item.id] ?? 0} <span className="text-slate-300 font-medium">/ 5</span></span>
+                              <span className="text-[11px] font-bold text-teal-600 tabular-nums">{evaluation[item.id] ?? 0} <span className="text-slate-300 font-medium">/ 5</span></span>
                            </div>
                            <div className="flex gap-1.5">
                               {[1, 2, 3, 4, 5].map((star) => (
@@ -515,7 +515,7 @@ export default function MockInterviewRoom() {
                                   onClick={() => setEvaluation({...evaluation, [item.id]: star})}
                                   className={`flex-1 h-9 rounded-lg transition-all flex items-center justify-center border text-[11px] font-bold ${
                                     evaluation[item.id] >= star 
-                                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100' 
+                                    ? 'bg-teal-600 border-teal-600 text-white shadow-md shadow-teal-100' 
                                     : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-white hover:border-slate-400'
                                   }`}
                                 >
@@ -533,18 +533,19 @@ export default function MockInterviewRoom() {
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Final Status</label>
                       <div className="grid grid-cols-2 gap-2">
                          {[
-                           { id: 'EXCELLENT', color: 'emerald' },
-                           { id: 'GOOD', color: 'indigo' },
-                           { id: 'AVERAGE', color: 'slate' },
-                           { id: 'NEEDS_IMPROVEMENT', color: 'rose' }
-                         ].map(res => (
+                           { id: 'EXCELLENT', active: 'bg-emerald-600 border-emerald-600 text-white shadow-sm' },
+                           { id: 'GOOD', active: 'bg-teal-600 border-teal-600 text-white shadow-sm' },
+                           { id: 'AVERAGE', active: 'bg-slate-600 border-slate-600 text-white shadow-sm' },
+                           { id: 'NEEDS_IMPROVEMENT', active: 'bg-rose-600 border-rose-600 text-white shadow-sm' },
+                         ].map((res) => (
                            <button
                              key={res.id}
-                             onClick={() => setEvaluation({...evaluation, result: res.id})}
-                             className={`py-3 px-2 rounded-xl text-[9px] font-bold uppercase tracking-wider border transition-all ${
-                               evaluation.result === res.id 
-                               ? `bg-${res.color}-600 border-${res.color}-600 text-white shadow-lg` 
-                               : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                             type="button"
+                             onClick={() => setEvaluation({ ...evaluation, result: res.id })}
+                             className={`py-2.5 px-2 rounded-xl text-[10px] font-semibold border transition-colors ${
+                               evaluation.result === res.id
+                                 ? res.active
+                                 : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                              }`}
                            >
                              {res.id.replace('_', ' ')}
@@ -559,7 +560,7 @@ export default function MockInterviewRoom() {
                         rows={5}
                         value={evaluation.detailedRemarks}
                         onChange={(e) => setEvaluation({...evaluation, detailedRemarks: e.target.value})}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/10 transition-all resize-none shadow-inner placeholder:text-slate-300"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/10 transition-all resize-none shadow-inner placeholder:text-slate-300"
                         placeholder="Provide detailed feedback for candidate growth..."
                       />
                    </div>

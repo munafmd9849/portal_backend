@@ -6,6 +6,7 @@
 
 import jwt from 'jsonwebtoken';
 import prisma from '../config/database.js';
+import { getUserSessionVersion } from '../utils/sessionManager.js';
 
 /**
  * Verify JWT token and attach user to request
@@ -43,16 +44,19 @@ export async function authenticate(req, res, next) {
     }
 
     // Single-device login for students: reject tokens from a superseded session
-    if (
-      user.role === 'STUDENT' &&
-      decoded.sessionVersion !== undefined &&
-      (user.sessionVersion ?? 0) !== decoded.sessionVersion
-    ) {
-      return res.status(401).json({
-        error: 'Session expired',
-        code: 'SESSION_SUPERSEDED',
-        message: 'Your account was logged in on another device. Please log in again.',
-      });
+    if (user.role === 'STUDENT' && decoded.sessionVersion !== undefined) {
+      const currentVersion =
+        user.sessionVersion !== undefined && user.sessionVersion !== null
+          ? Number(user.sessionVersion)
+          : await getUserSessionVersion(user.id);
+      user.sessionVersion = currentVersion;
+      if (currentVersion !== decoded.sessionVersion) {
+        return res.status(401).json({
+          error: 'Session expired',
+          code: 'SESSION_SUPERSEDED',
+          message: 'Your account was logged in on another device. Please log in again.',
+        });
+      }
     }
 
     // Attach user to request

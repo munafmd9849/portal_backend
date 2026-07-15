@@ -28,8 +28,11 @@ export const EndorsementCardStyles = () => (
       opacity: 1;
       transform: translateY(0);
     }
+    .endorse-card {
+      transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
     .endorse-hint {
-      transition: opacity 400ms ease, max-height 400ms ease, margin 400ms ease;
+      transition: opacity 280ms ease, max-height 280ms ease, margin 280ms ease;
       max-height: 1.25rem;
     }
     .endorse-card:hover .endorse-hint,
@@ -38,6 +41,10 @@ export const EndorsementCardStyles = () => (
       max-height: 0;
       margin-top: 0;
       overflow: hidden;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .endorse-card:hover { transform: none !important; }
+      .endorse-expand, .endorse-expand-inner, .endorse-hint { transition: none !important; }
     }
   `}</style>
 );
@@ -53,31 +60,20 @@ export const EndorsementCard = ({ endorsement, index = 0 }) => {
     skills.length > 0 ||
     Boolean(endorsement.submittedAt);
 
-  const bgStyle =
-    index % 2 === 0
-      ? 'from-stone-50 via-amber-50/25 to-stone-100/80'
-      : 'from-slate-50 via-stone-50 to-slate-100/60';
-
   return (
     <div
       tabIndex={0}
-      className={`endorse-card group/endorse relative overflow-hidden rounded-lg md:rounded-xl px-3 py-3.5 md:px-5 md:py-4 min-w-0 outline-none border border-stone-200/90 bg-gradient-to-br transition-[box-shadow,border-color,transform] duration-500 ease-out hover:shadow-[0_10px_28px_rgba(92,74,42,0.09)] hover:border-amber-800/30 focus-within:border-amber-800/30 focus-within:shadow-[0_10px_28px_rgba(92,74,42,0.09)] ${bgStyle}`}
+      className={`endorse-card group/endorse relative overflow-hidden rounded-xl px-3 py-3.5 md:px-4 md:py-4 min-w-0 outline-none border border-slate-200/90 bg-white transition-[box-shadow,border-color,transform] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-teal-200/80 focus-within:border-teal-200 focus-within:shadow-md`}
     >
-      {/* Gold accent — deepens on hover */}
-      <div
-        className="absolute left-0 top-0 bottom-0 w-[3px] bg-amber-800/15 transition-colors duration-500 group-hover/endorse:bg-amber-700/45 group-focus-within/endorse:bg-amber-700/45"
-        aria-hidden
-      />
-
       {/* Always visible: name, designation, rating */}
-      <div className="flex items-start justify-between gap-3 pl-1">
+      <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-2.5 md:gap-3 flex-1 min-w-0">
           <div className="relative flex-shrink-0">
-            <div className="w-9 h-9 md:w-10 md:h-10 rounded-md bg-gradient-to-br from-amber-100/90 to-stone-200/80 border border-amber-200/70 flex items-center justify-center shadow-sm">
-              <Award className="h-4 w-4 md:h-[18px] md:w-[18px] text-amber-900/85" strokeWidth={1.75} />
+            <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center">
+              <Award className="h-4 w-4 md:h-[18px] md:w-[18px] text-teal-700" strokeWidth={1.75} />
             </div>
             <CheckCircle
-              className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 text-emerald-700 bg-stone-50 rounded-full"
+              className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 text-emerald-600 bg-white rounded-full"
               strokeWidth={2.5}
             />
           </div>
@@ -120,9 +116,9 @@ export const EndorsementCard = ({ endorsement, index = 0 }) => {
       <div className="mt-3 md:mt-3.5 pl-1 sm:pl-11 md:pl-12 min-w-0">
         {endorsement.message ? (
           <p className="text-sm md:text-[15px] text-stone-700 leading-relaxed italic break-words whitespace-pre-wrap">
-            <span className="text-amber-900/25 not-italic font-serif text-lg mr-0.5">"</span>
+            <span className="text-teal-700/30 not-italic font-serif text-lg mr-0.5">"</span>
             {endorsement.message}
-            <span className="text-amber-900/25 not-italic font-serif text-lg ml-0.5">"</span>
+            <span className="text-teal-700/30 not-italic font-serif text-lg ml-0.5">"</span>
           </p>
         ) : (
           <p className="text-sm text-stone-400 italic">No endorsement message provided.</p>
@@ -133,7 +129,7 @@ export const EndorsementCard = ({ endorsement, index = 0 }) => {
       {hasExpandedContent ? (
         <div className="endorse-expand grid grid-rows-[0fr] group-hover/endorse:grid-rows-[1fr] group-focus-within/endorse:grid-rows-[1fr]">
           <div className="overflow-hidden min-h-0">
-            <div className="endorse-expand-inner pt-3 mt-3 ml-1 sm:ml-11 md:ml-12 border-t border-amber-900/10 space-y-2.5">
+            <div className="endorse-expand-inner pt-3 mt-3 ml-1 sm:ml-11 md:ml-12 border-t border-slate-100 space-y-2.5">
               {(endorsement.relationship || endorsement.context) && (
                 <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-4 gap-y-1.5">
                   {endorsement.relationship && (
@@ -153,8 +149,8 @@ export const EndorsementCard = ({ endorsement, index = 0 }) => {
 
               {skills.length > 0 && (
                 <div>
-                  <p className="text-[10px] md:text-xs font-semibold text-amber-900/55 uppercase tracking-[0.14em] mb-1.5">
-                    Related Skills
+                  <p className="text-[10px] md:text-xs font-medium text-slate-500 mb-1.5">
+                    Related skills
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {skills.map((skill, idx) => {
@@ -162,7 +158,7 @@ export const EndorsementCard = ({ endorsement, index = 0 }) => {
                       return (
                         <span
                           key={idx}
-                          className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-stone-100/90 text-slate-700 text-xs md:text-sm font-medium rounded border border-stone-300/70"
+                          className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-teal-50 text-teal-800 text-xs md:text-sm font-medium rounded-full border border-teal-100"
                           title={skill}
                         >
                           {skill}
@@ -330,14 +326,11 @@ const Endorsements = ({ isAdminView = false, studentId = null, profileData = nul
   // Show loading state
   if (loading) {
     return (
-      <fieldset className="bg-white rounded-lg border-2 border-[#8ec5ff] pt-1 pb-4 px-4 sm:px-6 transition-all duration-200 shadow-lg">
-        <legend className="text-lg sm:text-xl font-bold px-2 bg-gradient-to-r from-[#211868] to-[#b5369d] text-transparent bg-clip-text">
-          Endorsements
-        </legend>
+      <section className="bg-white rounded-xl border border-slate-200/80 p-4 sm:p-5 shadow-sm">
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+          <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
         </div>
-      </fieldset>
+      </section>
     );
   }
 
@@ -354,12 +347,8 @@ const Endorsements = ({ isAdminView = false, studentId = null, profileData = nul
   return (
     <>
       <EndorsementCardStyles />
-    <fieldset className="bg-white rounded-lg border-2 border-[#8ec5ff] pt-1 pb-3 px-3 md:pb-4 md:px-6 transition-all duration-200 shadow-lg min-w-0 overflow-hidden">
-      <legend className="text-base md:text-lg md:text-xl font-bold px-2 bg-gradient-to-r from-[#211868] to-[#b5369d] text-transparent bg-clip-text">
-        Endorsements
-      </legend>
-
-      <div className="space-y-2 md:space-y-3 py-3 md:py-4">
+    <section className="bg-white rounded-xl border border-slate-200/80 p-3.5 sm:p-5 shadow-sm min-w-0 overflow-hidden">
+      <div className="space-y-2 md:space-y-3">
         {/* Show only the latest 3 endorsements on dashboard */}
         {displayEndorsements
           .sort((a, b) => {
@@ -373,7 +362,7 @@ const Endorsements = ({ isAdminView = false, studentId = null, profileData = nul
             <EndorsementCard key={index} endorsement={endorsement} index={index} />
           ))}
       </div>
-    </fieldset>
+    </section>
     </>
   );
 };

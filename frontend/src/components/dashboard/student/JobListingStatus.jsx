@@ -6,7 +6,7 @@ export const JOB_LISTING_GRID_COLS =
 
 /** Wider status column for Explore Jobs tab (full action buttons). */
 export const EXPLORE_JOBS_GRID_COLS =
-  'minmax(0,1.1fr) minmax(0,1.1fr) minmax(0,0.7fr) minmax(0,0.85fr) minmax(9.5rem,10.5rem)';
+  'minmax(0,1.15fr) minmax(0,1.15fr) minmax(0,0.7fr) minmax(0,0.85fr) minmax(8rem,9rem)';
 
 const statusPill =
   'inline-flex items-center justify-center gap-0.5 w-full max-w-[104px] px-1.5 py-1 rounded-md text-[10px] sm:text-[11px] leading-tight font-medium border text-center';

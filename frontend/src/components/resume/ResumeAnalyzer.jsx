@@ -317,13 +317,13 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
   // Removed auto-analysis - user must click button to analyze
 
   const getScoreColor = (score) => {
-    if (score >= 80) return 'text-green-600';
+    if (score >= 80) return 'text-emerald-600';
     if (score >= 60) return 'text-yellow-600';
     return 'text-red-600';
   };
 
   const getScoreBgColor = (score) => {
-    if (score >= 80) return 'bg-green-100';
+    if (score >= 80) return 'bg-emerald-100';
     if (score >= 60) return 'bg-yellow-100';
     return 'bg-red-100';
   };
@@ -331,13 +331,13 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
   const getStatusIcon = (status) => {
     switch (status) {
       case 'excellent':
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
+        return <CheckCircle className="h-4 w-4 text-emerald-600" />;
       case 'good':
         return <TrendingUp className="h-4 w-4 text-yellow-600" />;
       case 'needs_improvement':
         return <AlertTriangle className="h-4 w-4 text-red-600" />;
       default:
-        return <AlertTriangle className="h-4 w-4 text-gray-400" />;
+        return <AlertTriangle className="h-4 w-4 text-slate-400" />;
     }
   };
 
@@ -348,9 +348,9 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
   if (!hasAnyResume) {
     return (
       <div className="text-center py-8">
-        <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No Resume to Analyze</h3>
-        <p className="text-gray-500">Upload a resume to get detailed analysis and improvement suggestions.</p>
+        <FileText className="mx-auto h-12 w-12 text-slate-400 mb-4" />
+        <h3 className="text-lg font-medium text-slate-900 mb-2">No Resume to Analyze</h3>
+        <p className="text-slate-500">Upload a resume to get detailed analysis and improvement suggestions.</p>
       </div>
     );
   }
@@ -360,9 +360,9 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
     return (
       <div className="space-y-6">
         <div className="text-center py-4">
-          <BarChart3 className="mx-auto h-12 w-12 text-blue-600 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Select Resume to Analyze</h3>
-          <p className="text-gray-500 mb-6">Choose which resume you want to analyze for ATS compatibility.</p>
+          <BarChart3 className="mx-auto h-12 w-12 text-indigo-600 mb-4" />
+          <h3 className="text-lg font-medium text-slate-900 mb-2">Select Resume to Analyze</h3>
+          <p className="text-slate-500 mb-6">Choose which resume you want to analyze for ATS compatibility.</p>
         </div>
         
         <div className="space-y-3 max-h-96 overflow-y-auto">
@@ -372,18 +372,18 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
               onClick={() => handleResumeSelect(resume)}
               className={`w-full text-left p-4 border-2 rounded-lg transition-all ${
                 selectedResume?.id === resume.id
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+                  ? 'border-indigo-400 bg-indigo-50'
+                  : 'border-gray-200 hover:border-indigo-200 hover:bg-slate-50'
               }`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <FileText className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                  <FileText className="h-5 w-5 text-indigo-600 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-semibold text-gray-900 truncate">
+                    <h4 className="font-semibold text-slate-900 truncate">
                       {resume.fileName || resume.title || 'Resume'}
                     </h4>
-                    <div className="flex items-center gap-3 text-sm text-gray-600 mt-1">
+                    <div className="flex items-center gap-3 text-sm text-slate-600 mt-1">
                       {resume.fileSize && (
                         <span>{formatFileSize(resume.fileSize)}</span>
                       )}
@@ -391,7 +391,7 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
                         <span>• Uploaded {new Date(resume.uploadedAt).toLocaleDateString()}</span>
                       )}
                       {resume.isDefault && (
-                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                        <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium">
                           Default
                         </span>
                       )}
@@ -399,7 +399,7 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
                   </div>
                 </div>
                 {selectedResume?.id === resume.id && (
-                  <CheckCircle className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                  <CheckCircle className="h-5 w-5 text-indigo-600 flex-shrink-0" />
                 )}
               </div>
             </button>
@@ -409,7 +409,7 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
         <div className="flex gap-3">
           <button
             onClick={() => setShowResumeSelector(false)}
-            className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            className="flex-1 px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
           >
             Cancel
           </button>
@@ -419,7 +419,7 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
                 setShowResumeSelector(false);
                 analyzeResume();
               }}
-              className="flex-1 inline-flex items-center justify-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              className="flex-1 inline-flex items-center justify-center px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
             >
               <BarChart3 className="h-5 w-5 mr-2" />
               Analyze Selected Resume
@@ -435,20 +435,20 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
     return (
       <div className="space-y-5">
         {/* Job Picker */}
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-5 border border-blue-100">
+        <div className="bg-indigo-50/80 rounded-xl p-5 border border-indigo-100">
           <div className="flex items-center gap-2 mb-3">
-            <Zap className="w-4 h-4 text-blue-600" />
-            <span className="text-sm font-semibold text-blue-800">Job-Matched ATS Score</span>
-            <span className="ml-auto text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-medium">Powered by Mistral</span>
+            <Zap className="w-4 h-4 text-indigo-600" />
+            <span className="text-sm font-semibold text-indigo-800">Job-Matched ATS Score</span>
+            <span className="ml-auto text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium">Powered by Mistral</span>
           </div>
-          <p className="text-xs text-blue-600 mb-3">Select a job to get a score matched against that specific job description. Or skip to run a general ATS check.</p>
+          <p className="text-xs text-indigo-700/80 mb-3">Select a job to get a score matched against that specific job description. Or skip to run a general ATS check.</p>
           <JobPickerDropdown selectedJob={selectedJob} onSelect={setSelectedJob} />
         </div>
 
         {/* Resume selector info */}
         {resumes && resumes.length > 1 && currentResume && (
-          <p className="text-sm text-gray-400">
-            Resume: <span className="font-medium text-gray-600">{currentResume.fileName || currentResume.title || 'Resume'}</span>
+          <p className="text-sm text-slate-400">
+            Resume: <span className="font-medium text-slate-600">{currentResume.fileName || currentResume.title || 'Resume'}</span>
           </p>
         )}
 
@@ -456,7 +456,7 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
           {resumes && resumes.length > 1 && (
             <button
               onClick={() => setShowResumeSelector(true)}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              className="inline-flex items-center px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
             >
               <FileText className="h-4 w-4 mr-2" />
               Change Resume
@@ -465,7 +465,7 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
           <button
             onClick={analyzeResume}
             disabled={!currentResume && !hasBuilderText}
-            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all font-semibold shadow-lg shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors font-semibold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <BarChart3 className="h-5 w-5 mr-2" />
             {selectedJob ? `Score vs ${selectedJob.jobTitle}` : 'Run General ATS Check'}
@@ -479,10 +479,10 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
     return (
       <div className="text-center py-8">
         <div className="inline-flex items-center">
-          <RefreshCw className="h-6 w-6 animate-spin text-blue-600 mr-2" />
-          <span className="text-gray-600">Analyzing your resume...</span>
+          <RefreshCw className="h-6 w-6 animate-spin text-indigo-600 mr-2" />
+          <span className="text-slate-600">Analyzing your resume...</span>
         </div>
-        <p className="text-sm text-gray-500 mt-2">This may take a few moments</p>
+        <p className="text-sm text-slate-500 mt-2">This may take a few moments</p>
       </div>
     );
   }
@@ -491,11 +491,11 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
     return (
       <div className="text-center py-8">
         <AlertTriangle className="mx-auto h-12 w-12 text-red-400 mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">Analysis Failed</h3>
-        <p className="text-gray-500 mb-4">{error}</p>
+        <h3 className="text-lg font-medium text-slate-900 mb-2">Analysis Failed</h3>
+        <p className="text-slate-500 mb-4">{error}</p>
         <button
           onClick={analyzeResume}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
         >
           <RefreshCw className="h-4 w-4 mr-2" />
           Try Again
@@ -509,11 +509,11 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
   return (
     <div className="space-y-6">
       {/* Overall Score Card */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-blue-600" />
+            <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-indigo-600" />
               Resume Analysis
               {analysis.isJobMatched && (
                 <span className="text-xs font-medium bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
@@ -529,7 +529,7 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
             {!analysis.isJobMatched && (
               <button
                 onClick={() => { setAnalysis(null); setError(null); }}
-                className="px-3 py-1.5 text-xs text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors flex items-center gap-1"
+                className="px-3 py-1.5 text-xs text-indigo-600 border border-indigo-100 rounded-lg hover:bg-indigo-50 transition-colors flex items-center gap-1"
               >
                 <Zap className="h-3 w-3" />
                 Match to Job
@@ -538,7 +538,7 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
             {resumes && resumes.length > 1 && (
               <button
                 onClick={() => { setShowResumeSelector(true); setAnalysis(null); setError(null); }}
-                className="px-3 py-2 text-sm text-blue-600 hover:text-blue-700 border border-blue-300 rounded-md hover:bg-blue-50 transition-colors flex items-center gap-2"
+                className="px-3 py-2 text-sm text-indigo-600 hover:text-indigo-700 border border-indigo-200 rounded-md hover:bg-indigo-50 transition-colors flex items-center gap-2"
               >
                 <FileText className="h-4 w-4" />
                 Change Resume
@@ -546,7 +546,7 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
             )}
             <button
               onClick={analyzeResume}
-              className="p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100"
+              className="p-2 text-slate-400 hover:text-slate-600 rounded-md hover:bg-slate-100"
               title="Re-analyze"
             >
               <RefreshCw className="h-4 w-4" />
@@ -556,14 +556,14 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
 
         {/* Score Circle + Match % */}
         <div className={`grid gap-4 mb-6 ${analysis.matchPercentage ? 'grid-cols-2' : 'grid-cols-1'}`}>
-          <div className="text-center p-4 bg-blue-50 rounded-xl">
+          <div className="text-center p-4 bg-indigo-50 rounded-xl">
             <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full ${getScoreBgColor(analysis.overallScore)} mb-2`}>
               <span className={`text-3xl font-bold ${getScoreColor(analysis.overallScore)}`}>{analysis.overallScore}</span>
             </div>
             <div className="text-sm font-medium text-slate-600">ATS Score</div>
           </div>
           {analysis.matchPercentage && (
-            <div className="text-center p-4 bg-purple-50 rounded-xl">
+            <div className="text-center p-4 bg-violet-50 rounded-xl">
               <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full ${getScoreBgColor(analysis.matchPercentage)} mb-2`}>
                 <span className={`text-3xl font-bold ${getScoreColor(analysis.matchPercentage)}`}>{analysis.matchPercentage}</span>
               </div>
@@ -588,13 +588,13 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
                 <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-700 ${
-                      value >= 80 ? 'bg-green-500' : value >= 60 ? 'bg-yellow-400' : 'bg-red-400'
+                      value >= 80 ? 'bg-emerald-500' : value >= 60 ? 'bg-yellow-400' : 'bg-red-400'
                     }`}
                     style={{ width: `${value || 0}%` }}
                   />
                 </div>
                 <span className={`text-xs font-semibold w-8 text-right ${
-                  value >= 80 ? 'text-green-600' : value >= 60 ? 'text-yellow-600' : 'text-red-500'
+                  value >= 80 ? 'text-emerald-600' : value >= 60 ? 'text-yellow-600' : 'text-red-500'
                 }`}>{value ?? 0}</span>
               </div>
             ))}
@@ -604,28 +604,28 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
 
       {/* Matched Keywords (Mistral mode) */}
       {analysis.matchedKeywords?.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-            <CheckCircle className="w-4 h-4 text-green-500" />
+            <CheckCircle className="w-4 h-4 text-emerald-500" />
             Matched Keywords
           </h4>
           <div className="flex flex-wrap gap-2">
             {analysis.matchedKeywords.map((kw, i) => (
-              <span key={i} className="px-3 py-1 bg-green-50 text-green-700 text-xs font-medium rounded-full border border-green-200">{kw}</span>
+              <span key={i} className="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full border border-emerald-200">{kw}</span>
             ))}
           </div>
         </div>
       )}
 
       {/* Analysis Type Indicator */}
-      <div className={`border rounded-lg p-4 ${analysis.isAI ? 'bg-blue-50 border-blue-200' : 'bg-amber-50 border-amber-200'}`}>
+      <div className={`border rounded-lg p-4 ${analysis.isAI ? 'bg-indigo-50 border-indigo-100' : 'bg-amber-50 border-amber-200'}`}>
         <div className="flex items-start gap-3">
           {analysis.isAI ? (
             <>
-              <Sparkles className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+              <Sparkles className="h-5 w-5 text-indigo-600 mt-0.5 flex-shrink-0" />
               <div className="flex-1">
                 <h4 className="text-sm font-semibold text-blue-900 mb-1">AI-Powered Analysis</h4>
-                <p className="text-sm text-blue-700">This analysis was generated using advanced AI technology for comprehensive resume evaluation.</p>
+                <p className="text-sm text-indigo-700">This analysis was generated using advanced AI technology for comprehensive resume evaluation.</p>
               </div>
             </>
           ) : (
@@ -647,26 +647,26 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
 
       {/* Overall Feedback */}
       {analysis.overallFeedback && (
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <FileText className="h-5 w-5 text-blue-600 mr-2" />
+        <div className="bg-white border border-slate-200 rounded-lg p-6">
+          <h4 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+            <FileText className="h-5 w-5 text-indigo-600 mr-2" />
             Overall Feedback
           </h4>
-          <p className="text-gray-700 leading-relaxed">{analysis.overallFeedback}</p>
+          <p className="text-slate-700 leading-relaxed">{analysis.overallFeedback}</p>
         </div>
       )}
 
       {/* Strengths */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-          <Award className="h-5 w-5 text-green-600 mr-2" />
+      <div className="bg-white border border-slate-200 rounded-lg p-6">
+        <h4 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+          <Award className="h-5 w-5 text-emerald-600 mr-2" />
           Strengths
         </h4>
         <div className="space-y-2">
           {analysis.strengths.map((strength, index) => (
             <div key={index} className="flex items-start">
-              <CheckCircle className="h-4 w-4 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-              <span className="text-gray-700">{strength}</span>
+              <CheckCircle className="h-4 w-4 text-emerald-600 mr-2 mt-0.5 flex-shrink-0" />
+              <span className="text-slate-700">{strength}</span>
             </div>
           ))}
         </div>
@@ -674,8 +674,8 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
 
       {/* Improvements */}
       {analysis.improvements && analysis.improvements.length > 0 ? (
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+        <div className="bg-white border border-slate-200 rounded-lg p-6">
+          <h4 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
             <Lightbulb className="h-5 w-5 text-yellow-600 mr-2" />
             Suggested Improvements
           </h4>
@@ -683,36 +683,36 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
             {analysis.improvements.map((improvement, index) => (
               <div key={index} className="flex items-start">
                 <AlertTriangle className="h-4 w-4 text-yellow-600 mr-2 mt-0.5 flex-shrink-0" />
-                <span className="text-gray-700">{improvement}</span>
+                <span className="text-slate-700">{improvement}</span>
               </div>
             ))}
           </div>
         </div>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+        <div className="bg-white border border-slate-200 rounded-lg p-6">
+          <h4 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
             <Lightbulb className="h-5 w-5 text-yellow-600 mr-2" />
             Suggested Improvements
           </h4>
           <div className="text-center py-4">
-            <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
-            <p className="text-gray-600">No specific improvements needed. Your resume looks good!</p>
-            <p className="text-sm text-gray-500 mt-2">Continue to refine your resume based on job requirements.</p>
+            <CheckCircle className="h-8 w-8 text-emerald-500 mx-auto mb-2" />
+            <p className="text-slate-600">No specific improvements needed. Your resume looks good!</p>
+            <p className="text-sm text-slate-500 mt-2">Continue to refine your resume based on job requirements.</p>
           </div>
         </div>
       )}
 
       {/* Missing Keywords */}
       {analysis.keywords?.missing && analysis.keywords.missing.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <Star className="h-5 w-5 text-orange-600 mr-2" />
+        <div className="bg-white border border-slate-200 rounded-lg p-6">
+          <h4 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+            <Star className="h-5 w-5 text-amber-700 mr-2" />
             Missing Keywords
           </h4>
-          <p className="text-sm text-gray-600 mb-3">Consider adding these keywords to improve ATS compatibility:</p>
+          <p className="text-sm text-slate-600 mb-3">Consider adding these keywords to improve ATS compatibility:</p>
           <div className="flex flex-wrap gap-2">
             {analysis.keywords.missing.map((keyword, index) => (
-              <span key={index} className="px-3 py-1 bg-orange-100 text-orange-800 text-sm rounded-full">
+              <span key={index} className="px-3 py-1 bg-amber-100 text-orange-800 text-sm rounded-full">
                 {keyword}
               </span>
             ))}
@@ -722,15 +722,15 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
 
       {/* Missing Skills */}
       {analysis.missingSkills && analysis.missingSkills.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <Target className="h-5 w-5 text-purple-600 mr-2" />
+        <div className="bg-white border border-slate-200 rounded-lg p-6">
+          <h4 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+            <Target className="h-5 w-5 text-violet-600 mr-2" />
             Missing Skills
           </h4>
-          <p className="text-sm text-gray-600 mb-3">These skills are commonly sought after:</p>
+          <p className="text-sm text-slate-600 mb-3">These skills are commonly sought after:</p>
           <div className="flex flex-wrap gap-2">
             {analysis.missingSkills.map((skill, index) => (
-              <span key={index} className="px-3 py-1 bg-purple-100 text-purple-800 text-sm rounded-full">
+              <span key={index} className="px-3 py-1 bg-violet-100 text-purple-800 text-sm rounded-full">
                 {skill}
               </span>
             ))}
@@ -740,8 +740,8 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
 
       {/* Grammar Issues */}
       {analysis.grammarIssues && analysis.grammarIssues.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+        <div className="bg-white border border-slate-200 rounded-lg p-6">
+          <h4 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
             <AlertTriangle className="h-5 w-5 text-red-600 mr-2" />
             Grammar Issues
           </h4>
@@ -749,7 +749,7 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
             {analysis.grammarIssues.map((issue, index) => (
               <div key={index} className="flex items-start">
                 <AlertTriangle className="h-4 w-4 text-red-600 mr-2 mt-0.5 flex-shrink-0" />
-                <span className="text-gray-700">{issue}</span>
+                <span className="text-slate-700">{issue}</span>
               </div>
             ))}
           </div>
@@ -758,8 +758,8 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
 
       {/* Formatting Issues */}
       {analysis.formattingIssues && analysis.formattingIssues.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+        <div className="bg-white border border-slate-200 rounded-lg p-6">
+          <h4 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
             <FileText className="h-5 w-5 text-yellow-600 mr-2" />
             Formatting Issues
           </h4>
@@ -767,7 +767,7 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
             {analysis.formattingIssues.map((issue, index) => (
               <div key={index} className="flex items-start">
                 <AlertTriangle className="h-4 w-4 text-yellow-600 mr-2 mt-0.5 flex-shrink-0" />
-                <span className="text-gray-700">{issue}</span>
+                <span className="text-slate-700">{issue}</span>
               </div>
             ))}
           </div>
@@ -776,16 +776,16 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
 
       {/* Clarity Issues */}
       {analysis.clarityIssues && analysis.clarityIssues.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <TrendingUp className="h-5 w-5 text-blue-600 mr-2" />
+        <div className="bg-white border border-slate-200 rounded-lg p-6">
+          <h4 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+            <TrendingUp className="h-5 w-5 text-indigo-600 mr-2" />
             Clarity Issues
           </h4>
           <div className="space-y-2">
             {analysis.clarityIssues.map((issue, index) => (
               <div key={index} className="flex items-start">
-                <AlertTriangle className="h-4 w-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
-                <span className="text-gray-700">{issue}</span>
+                <AlertTriangle className="h-4 w-4 text-indigo-600 mr-2 mt-0.5 flex-shrink-0" />
+                <span className="text-slate-700">{issue}</span>
               </div>
             ))}
           </div>
@@ -794,15 +794,15 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
 
       {/* Analyze Another Resume Button - Show at bottom if multiple resumes exist */}
       {resumes && resumes.length > 1 && (
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="bg-white border border-slate-200 rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="text-lg font-semibold text-gray-900 mb-1">Analyze Another Resume</h4>
-              <p className="text-sm text-gray-600">You have {resumes.length} resumes. Select another one to analyze.</p>
+              <h4 className="text-lg font-semibold text-slate-900 mb-1">Analyze Another Resume</h4>
+              <p className="text-sm text-slate-600">You have {resumes.length} resumes. Select another one to analyze.</p>
             </div>
             <button
               onClick={handleAnalyzeAnother}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
             >
               <FileText className="h-4 w-4 mr-2" />
               Select Another Resume

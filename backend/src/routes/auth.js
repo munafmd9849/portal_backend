@@ -441,10 +441,9 @@ router.post('/login', [
       name: error.name,
       meta: error.meta,
     });
+    // Never leak ORM / stack internals to the client
     res.status(500).json({
-      error: 'Login failed',
-      message: error.message || 'An unexpected error occurred',
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      error: 'Login failed. Please try again.',
     });
   }
 });

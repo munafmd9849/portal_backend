@@ -37,9 +37,7 @@ import GoogleAuthCallback from './pages/GoogleAuthCallback'
 import CalendarOAuthCallback from './pages/CalendarOAuthCallback'
 import StudentOnboarding from './pages/StudentOnboarding'
 import { useAuth } from './hooks/useAuth'
-import { AuthProvider } from './context/AuthContextJWT'
 import AuthRedirect from './components/AuthRedirect'
-import { ToastProvider } from './components/ui/Toast'
 import { isAllowedCalendarOAuthOrigin } from './utils/calendarOAuth'
 import AssessmentApp from './pages/assessment/AssessmentApp'
 import AdminAssessments from './pages/admin/AdminAssessments'
@@ -312,13 +310,7 @@ function AppContent() {
 }
 
 function App() {
-  return (
-    <AuthProvider>
-      <ToastProvider>
-        <AppContent />
-      </ToastProvider>
-    </AuthProvider>
-  )
+  return <AppContent />
 }
 
 export default App;

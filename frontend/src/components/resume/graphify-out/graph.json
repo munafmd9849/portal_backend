@@ -1,0 +1,1029 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {},
+  "nodes": [
+    {
+      "label": "CustomResumeBuilder.jsx",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/CustomResumeBuilder.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "customresumebuilder",
+      "community": 1,
+      "norm_label": "customresumebuilder.jsx"
+    },
+    {
+      "label": "SECTION_TYPES",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/CustomResumeBuilder.jsx",
+      "source_location": "L12",
+      "_origin": "ast",
+      "id": "customresumebuilder_section_types",
+      "community": 1,
+      "norm_label": "section_types"
+    },
+    {
+      "label": "SECTION_ICONS",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/CustomResumeBuilder.jsx",
+      "source_location": "L26",
+      "_origin": "ast",
+      "id": "customresumebuilder_section_icons",
+      "community": 1,
+      "norm_label": "section_icons"
+    },
+    {
+      "label": "DEFAULT_RESUME_DATA",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/CustomResumeBuilder.jsx",
+      "source_location": "L40",
+      "_origin": "ast",
+      "id": "customresumebuilder_default_resume_data",
+      "community": 1,
+      "norm_label": "default_resume_data"
+    },
+    {
+      "label": "CustomResumeBuilder()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/CustomResumeBuilder.jsx",
+      "source_location": "L65",
+      "_origin": "ast",
+      "id": "customresumebuilder_customresumebuilder",
+      "community": 1,
+      "norm_label": "customresumebuilder()"
+    },
+    {
+      "label": "PersonalInfoForm()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/CustomResumeBuilder.jsx",
+      "source_location": "L578",
+      "_origin": "ast",
+      "id": "customresumebuilder_personalinfoform",
+      "community": 1,
+      "norm_label": "personalinfoform()"
+    },
+    {
+      "label": "SummaryForm()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/CustomResumeBuilder.jsx",
+      "source_location": "L677",
+      "_origin": "ast",
+      "id": "customresumebuilder_summaryform",
+      "community": 1,
+      "norm_label": "summaryform()"
+    },
+    {
+      "label": "SectionForm()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/CustomResumeBuilder.jsx",
+      "source_location": "L703",
+      "_origin": "ast",
+      "id": "customresumebuilder_sectionform",
+      "community": 1,
+      "norm_label": "sectionform()"
+    },
+    {
+      "label": "JobPickerDropdown.jsx",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/JobPickerDropdown.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "jobpickerdropdown",
+      "community": 4,
+      "norm_label": "jobpickerdropdown.jsx"
+    },
+    {
+      "label": "JobPickerDropdown()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/JobPickerDropdown.jsx",
+      "source_location": "L16",
+      "_origin": "ast",
+      "id": "jobpickerdropdown_jobpickerdropdown",
+      "community": 4,
+      "norm_label": "jobpickerdropdown()"
+    },
+    {
+      "label": "PDFPreviewErrorBoundary.jsx",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/PDFPreviewErrorBoundary.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "pdfpreviewerrorboundary",
+      "community": 2,
+      "norm_label": "pdfpreviewerrorboundary.jsx"
+    },
+    {
+      "label": "PDFPreviewErrorBoundary",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/PDFPreviewErrorBoundary.jsx",
+      "source_location": "L4",
+      "_origin": "ast",
+      "id": "pdfpreviewerrorboundary_pdfpreviewerrorboundary",
+      "community": 2,
+      "norm_label": "pdfpreviewerrorboundary"
+    },
+    {
+      "label": ".constructor()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/PDFPreviewErrorBoundary.jsx",
+      "source_location": "L5",
+      "_origin": "ast",
+      "id": "pdfpreviewerrorboundary_pdfpreviewerrorboundary_constructor",
+      "community": 2,
+      "norm_label": ".constructor()"
+    },
+    {
+      "label": ".getDerivedStateFromError()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/PDFPreviewErrorBoundary.jsx",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "pdfpreviewerrorboundary_pdfpreviewerrorboundary_getderivedstatefromerror",
+      "community": 2,
+      "norm_label": ".getderivedstatefromerror()"
+    },
+    {
+      "label": ".componentDidCatch()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/PDFPreviewErrorBoundary.jsx",
+      "source_location": "L14",
+      "_origin": "ast",
+      "id": "pdfpreviewerrorboundary_pdfpreviewerrorboundary_componentdidcatch",
+      "community": 2,
+      "norm_label": ".componentdidcatch()"
+    },
+    {
+      "label": ".handleRetry()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/PDFPreviewErrorBoundary.jsx",
+      "source_location": "L18",
+      "_origin": "ast",
+      "id": "pdfpreviewerrorboundary_pdfpreviewerrorboundary_handleretry",
+      "community": 2,
+      "norm_label": ".handleretry()"
+    },
+    {
+      "label": ".render()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/PDFPreviewErrorBoundary.jsx",
+      "source_location": "L22",
+      "_origin": "ast",
+      "id": "pdfpreviewerrorboundary_pdfpreviewerrorboundary_render",
+      "community": 2,
+      "norm_label": ".render()"
+    },
+    {
+      "label": "ResumeAnalyzer.jsx",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumeAnalyzer.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "resumeanalyzer",
+      "community": 4,
+      "norm_label": "resumeanalyzer.jsx"
+    },
+    {
+      "label": "ResumeAnalyzer()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumeAnalyzer.jsx",
+      "source_location": "L27",
+      "_origin": "ast",
+      "id": "resumeanalyzer_resumeanalyzer",
+      "community": 4,
+      "norm_label": "resumeanalyzer()"
+    },
+    {
+      "label": "ResumeBuilder.jsx",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumeBuilder.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "resumebuilder",
+      "community": 3,
+      "norm_label": "resumebuilder.jsx"
+    },
+    {
+      "label": "buildResumeTextForAnalysis()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumeBuilder.jsx",
+      "source_location": "L74",
+      "_origin": "ast",
+      "id": "resumebuilder_buildresumetextforanalysis",
+      "community": 3,
+      "norm_label": "buildresumetextforanalysis()"
+    },
+    {
+      "label": "ResumeBuilder()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumeBuilder.jsx",
+      "source_location": "L128",
+      "_origin": "ast",
+      "id": "resumebuilder_resumebuilder",
+      "community": 3,
+      "norm_label": "resumebuilder()"
+    },
+    {
+      "label": "ResumeManager.jsx",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumeManager.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "resumemanager",
+      "community": 6,
+      "norm_label": "resumemanager.jsx"
+    },
+    {
+      "label": "ResumeManager()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumeManager.jsx",
+      "source_location": "L25",
+      "_origin": "ast",
+      "id": "resumemanager_resumemanager",
+      "community": 6,
+      "norm_label": "resumemanager()"
+    },
+    {
+      "label": "ResumePreview.jsx",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumePreview.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "resumepreview",
+      "community": 0,
+      "norm_label": "resumepreview.jsx"
+    },
+    {
+      "label": "TEMPLATES",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumePreview.jsx",
+      "source_location": "L5",
+      "_origin": "ast",
+      "id": "resumepreview_templates",
+      "community": 0,
+      "norm_label": "templates"
+    },
+    {
+      "label": "ResumePreview()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumePreview.jsx",
+      "source_location": "L40",
+      "_origin": "ast",
+      "id": "resumepreview_resumepreview",
+      "community": 1,
+      "norm_label": "resumepreview()"
+    },
+    {
+      "label": "ExperienceSection()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumePreview.jsx",
+      "source_location": "L412",
+      "_origin": "ast",
+      "id": "resumepreview_experiencesection",
+      "community": 0,
+      "norm_label": "experiencesection()"
+    },
+    {
+      "label": "EducationSection()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumePreview.jsx",
+      "source_location": "L457",
+      "_origin": "ast",
+      "id": "resumepreview_educationsection",
+      "community": 0,
+      "norm_label": "educationsection()"
+    },
+    {
+      "label": "SkillsSection()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumePreview.jsx",
+      "source_location": "L501",
+      "_origin": "ast",
+      "id": "resumepreview_skillssection",
+      "community": 0,
+      "norm_label": "skillssection()"
+    },
+    {
+      "label": "ProjectsSection()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumePreview.jsx",
+      "source_location": "L554",
+      "_origin": "ast",
+      "id": "resumepreview_projectssection",
+      "community": 0,
+      "norm_label": "projectssection()"
+    },
+    {
+      "label": "CertificationsSection()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumePreview.jsx",
+      "source_location": "L623",
+      "_origin": "ast",
+      "id": "resumepreview_certificationssection",
+      "community": 0,
+      "norm_label": "certificationssection()"
+    },
+    {
+      "label": "LanguagesSection()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumePreview.jsx",
+      "source_location": "L654",
+      "_origin": "ast",
+      "id": "resumepreview_languagessection",
+      "community": 0,
+      "norm_label": "languagessection()"
+    },
+    {
+      "label": "InterestsSection()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumePreview.jsx",
+      "source_location": "L680",
+      "_origin": "ast",
+      "id": "resumepreview_interestssection",
+      "community": 0,
+      "norm_label": "interestssection()"
+    },
+    {
+      "label": "EndorsementsSection()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumePreview.jsx",
+      "source_location": "L708",
+      "_origin": "ast",
+      "id": "resumepreview_endorsementssection",
+      "community": 0,
+      "norm_label": "endorsementssection()"
+    },
+    {
+      "label": "CustomSection()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumePreview.jsx",
+      "source_location": "L753",
+      "_origin": "ast",
+      "id": "resumepreview_customsection",
+      "community": 0,
+      "norm_label": "customsection()"
+    },
+    {
+      "label": "ResumeSplitView.jsx",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumeSplitView.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "resumesplitview",
+      "community": 7,
+      "norm_label": "resumesplitview.jsx"
+    },
+    {
+      "label": "ResumeSplitView()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumeSplitView.jsx",
+      "source_location": "L4",
+      "_origin": "ast",
+      "id": "resumesplitview_resumesplitview",
+      "community": 7,
+      "norm_label": "resumesplitview()"
+    },
+    {
+      "label": "ResumeTemplate1.jsx",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumeTemplate1.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "resumetemplate1",
+      "community": 3,
+      "norm_label": "resumetemplate1.jsx"
+    },
+    {
+      "label": "ResumeTemplate1()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumeTemplate1.jsx",
+      "source_location": "L8",
+      "_origin": "ast",
+      "id": "resumetemplate1_resumetemplate1",
+      "community": 3,
+      "norm_label": "resumetemplate1()"
+    },
+    {
+      "label": "ResumeTemplate2.jsx",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumeTemplate2.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "resumetemplate2",
+      "community": 8,
+      "norm_label": "resumetemplate2.jsx"
+    },
+    {
+      "label": "ResumeTemplate2()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumeTemplate2.jsx",
+      "source_location": "L8",
+      "_origin": "ast",
+      "id": "resumetemplate2_resumetemplate2",
+      "community": 8,
+      "norm_label": "resumetemplate2()"
+    },
+    {
+      "label": "ResumeTemplate3.jsx",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumeTemplate3.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "resumetemplate3",
+      "community": 9,
+      "norm_label": "resumetemplate3.jsx"
+    },
+    {
+      "label": "ResumeTemplate3()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/ResumeTemplate3.jsx",
+      "source_location": "L8",
+      "_origin": "ast",
+      "id": "resumetemplate3_resumetemplate3",
+      "community": 9,
+      "norm_label": "resumetemplate3()"
+    },
+    {
+      "label": "SectionForms.jsx",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/SectionForms.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "sectionforms",
+      "community": 5,
+      "norm_label": "sectionforms.jsx"
+    },
+    {
+      "label": "ExperienceForm()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/SectionForms.jsx",
+      "source_location": "L5",
+      "_origin": "ast",
+      "id": "sectionforms_experienceform",
+      "community": 5,
+      "norm_label": "experienceform()"
+    },
+    {
+      "label": "EducationForm()",
+      "file_type": "code",
+      "source_file": "frontend/src/components/resume/SectionForms.jsx",
+      "source_location": "L215",
+      "_origin": "ast",
+      "id": "sectionforms_educationform",
+      "community": 5,
+      "norm_label": "educationform()"
+    }
+  ],
+  "links": [
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/CustomResumeBuilder.jsx",
+      "source_location": "L65",
+      "weight": 1.0,
+      "source": "customresumebuilder",
+      "target": "customresumebuilder_customresumebuilder",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/CustomResumeBuilder.jsx",
+      "source_location": "L40",
+      "weight": 1.0,
+      "source": "customresumebuilder",
+      "target": "customresumebuilder_default_resume_data",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/CustomResumeBuilder.jsx",
+      "source_location": "L578",
+      "weight": 1.0,
+      "source": "customresumebuilder",
+      "target": "customresumebuilder_personalinfoform",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/CustomResumeBuilder.jsx",
+      "source_location": "L26",
+      "weight": 1.0,
+      "source": "customresumebuilder",
+      "target": "customresumebuilder_section_icons",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/CustomResumeBuilder.jsx",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "customresumebuilder",
+      "target": "customresumebuilder_section_types",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/CustomResumeBuilder.jsx",
+      "source_location": "L703",
+      "weight": 1.0,
+      "source": "customresumebuilder",
+      "target": "customresumebuilder_sectionform",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/CustomResumeBuilder.jsx",
+      "source_location": "L677",
+      "weight": 1.0,
+      "source": "customresumebuilder",
+      "target": "customresumebuilder_summaryform",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/CustomResumeBuilder.jsx",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "customresumebuilder",
+      "target": "resumepreview",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/CustomResumeBuilder.jsx",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "customresumebuilder",
+      "target": "resumepreview_resumepreview",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/CustomResumeBuilder.jsx",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "customresumebuilder",
+      "target": "sectionforms",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/CustomResumeBuilder.jsx",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "customresumebuilder",
+      "target": "sectionforms_educationform",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/CustomResumeBuilder.jsx",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "customresumebuilder",
+      "target": "sectionforms_experienceform",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/JobPickerDropdown.jsx",
+      "source_location": "L16",
+      "weight": 1.0,
+      "source": "jobpickerdropdown",
+      "target": "jobpickerdropdown_jobpickerdropdown",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumeAnalyzer.jsx",
+      "source_location": "L21",
+      "weight": 1.0,
+      "source": "resumeanalyzer",
+      "target": "jobpickerdropdown",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumeBuilder.jsx",
+      "source_location": "L25",
+      "weight": 1.0,
+      "source": "resumebuilder",
+      "target": "jobpickerdropdown",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumeAnalyzer.jsx",
+      "source_location": "L21",
+      "weight": 1.0,
+      "source": "resumeanalyzer",
+      "target": "jobpickerdropdown_jobpickerdropdown",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumeBuilder.jsx",
+      "source_location": "L25",
+      "weight": 1.0,
+      "source": "resumebuilder",
+      "target": "jobpickerdropdown_jobpickerdropdown",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/PDFPreviewErrorBoundary.jsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "pdfpreviewerrorboundary",
+      "target": "pdfpreviewerrorboundary_pdfpreviewerrorboundary",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/PDFPreviewErrorBoundary.jsx",
+      "source_location": "L14",
+      "weight": 1.0,
+      "source": "pdfpreviewerrorboundary_pdfpreviewerrorboundary",
+      "target": "pdfpreviewerrorboundary_pdfpreviewerrorboundary_componentdidcatch",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/PDFPreviewErrorBoundary.jsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "pdfpreviewerrorboundary_pdfpreviewerrorboundary",
+      "target": "pdfpreviewerrorboundary_pdfpreviewerrorboundary_constructor",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/PDFPreviewErrorBoundary.jsx",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "pdfpreviewerrorboundary_pdfpreviewerrorboundary",
+      "target": "pdfpreviewerrorboundary_pdfpreviewerrorboundary_getderivedstatefromerror",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/PDFPreviewErrorBoundary.jsx",
+      "source_location": "L18",
+      "weight": 1.0,
+      "source": "pdfpreviewerrorboundary_pdfpreviewerrorboundary",
+      "target": "pdfpreviewerrorboundary_pdfpreviewerrorboundary_handleretry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/PDFPreviewErrorBoundary.jsx",
+      "source_location": "L22",
+      "weight": 1.0,
+      "source": "pdfpreviewerrorboundary_pdfpreviewerrorboundary",
+      "target": "pdfpreviewerrorboundary_pdfpreviewerrorboundary_render",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumeAnalyzer.jsx",
+      "source_location": "L27",
+      "weight": 1.0,
+      "source": "resumeanalyzer",
+      "target": "resumeanalyzer_resumeanalyzer",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumeBuilder.jsx",
+      "source_location": "L69",
+      "weight": 1.0,
+      "source": "resumebuilder",
+      "target": "resumeanalyzer",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumeBuilder.jsx",
+      "source_location": "L69",
+      "weight": 1.0,
+      "source": "resumebuilder",
+      "target": "resumeanalyzer_resumeanalyzer",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumeBuilder.jsx",
+      "source_location": "L74",
+      "weight": 1.0,
+      "source": "resumebuilder",
+      "target": "resumebuilder_buildresumetextforanalysis",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumeBuilder.jsx",
+      "source_location": "L128",
+      "weight": 1.0,
+      "source": "resumebuilder",
+      "target": "resumebuilder_resumebuilder",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumeBuilder.jsx",
+      "source_location": "L22",
+      "weight": 1.0,
+      "source": "resumebuilder",
+      "target": "resumetemplate1",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumeBuilder.jsx",
+      "source_location": "L22",
+      "weight": 1.0,
+      "source": "resumebuilder",
+      "target": "resumetemplate1_resumetemplate1",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumeBuilder.jsx",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "resumebuilder",
+      "target": "resumetemplate2",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumeBuilder.jsx",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "resumebuilder",
+      "target": "resumetemplate2_resumetemplate2",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumeBuilder.jsx",
+      "source_location": "L24",
+      "weight": 1.0,
+      "source": "resumebuilder",
+      "target": "resumetemplate3",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumeBuilder.jsx",
+      "source_location": "L24",
+      "weight": 1.0,
+      "source": "resumebuilder",
+      "target": "resumetemplate3_resumetemplate3",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumeBuilder.jsx",
+      "source_location": "L2442",
+      "weight": 1.0,
+      "source": "resumebuilder_resumebuilder",
+      "target": "resumebuilder_buildresumetextforanalysis",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumeManager.jsx",
+      "source_location": "L25",
+      "weight": 1.0,
+      "source": "resumemanager",
+      "target": "resumemanager_resumemanager",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumePreview.jsx",
+      "source_location": "L623",
+      "weight": 1.0,
+      "source": "resumepreview",
+      "target": "resumepreview_certificationssection",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumePreview.jsx",
+      "source_location": "L753",
+      "weight": 1.0,
+      "source": "resumepreview",
+      "target": "resumepreview_customsection",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumePreview.jsx",
+      "source_location": "L457",
+      "weight": 1.0,
+      "source": "resumepreview",
+      "target": "resumepreview_educationsection",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumePreview.jsx",
+      "source_location": "L708",
+      "weight": 1.0,
+      "source": "resumepreview",
+      "target": "resumepreview_endorsementssection",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumePreview.jsx",
+      "source_location": "L412",
+      "weight": 1.0,
+      "source": "resumepreview",
+      "target": "resumepreview_experiencesection",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumePreview.jsx",
+      "source_location": "L680",
+      "weight": 1.0,
+      "source": "resumepreview",
+      "target": "resumepreview_interestssection",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumePreview.jsx",
+      "source_location": "L654",
+      "weight": 1.0,
+      "source": "resumepreview",
+      "target": "resumepreview_languagessection",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumePreview.jsx",
+      "source_location": "L554",
+      "weight": 1.0,
+      "source": "resumepreview",
+      "target": "resumepreview_projectssection",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumePreview.jsx",
+      "source_location": "L40",
+      "weight": 1.0,
+      "source": "resumepreview",
+      "target": "resumepreview_resumepreview",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumePreview.jsx",
+      "source_location": "L501",
+      "weight": 1.0,
+      "source": "resumepreview",
+      "target": "resumepreview_skillssection",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumePreview.jsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "resumepreview",
+      "target": "resumepreview_templates",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumeSplitView.jsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "resumesplitview",
+      "target": "resumesplitview_resumesplitview",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumeTemplate1.jsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "resumetemplate1",
+      "target": "resumetemplate1_resumetemplate1",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumeTemplate2.jsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "resumetemplate2",
+      "target": "resumetemplate2_resumetemplate2",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/ResumeTemplate3.jsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "resumetemplate3",
+      "target": "resumetemplate3_resumetemplate3",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/SectionForms.jsx",
+      "source_location": "L215",
+      "weight": 1.0,
+      "source": "sectionforms",
+      "target": "sectionforms_educationform",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/components/resume/SectionForms.jsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "sectionforms",
+      "target": "sectionforms_experienceform",
+      "confidence_score": 1.0
+    }
+  ],
+  "hyperedges": [],
+  "built_at_commit": "bf48a47240c565ef49341e1a9c16a78c5831a290"
+}

@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Clock, Video, Info, Camera, Trophy } from 'lucide-react';
+import { Calendar, Clock, Video, Trophy } from 'lucide-react';
 import api from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
 import {
   PageShell,
-  PageHeader,
   StatGrid,
   LoadingBlock,
   getAiEnrollmentStatusBadge,
@@ -49,7 +48,7 @@ export default function GuidedAiInterviewsStudent() {
       {
         label: 'Avg. Progress',
         val: avgProgress != null ? `${avgProgress}%` : '—',
-        color: 'purple',
+        color: 'violet',
       },
       { label: 'Assigned', val: interviews.length, color: 'amber' },
     ];
@@ -57,135 +56,144 @@ export default function GuidedAiInterviewsStudent() {
 
   return (
     <PageShell>
-      <PageHeader
-        title="Guided AI Interviews"
-        subtitle="Proctored one-way interviews with a fixed set of timed questions"
-      />
+      <style>{`
+        .guided-ai-surface .slot-card {
+          transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 180ms ease, border-color 180ms ease;
+        }
+        .guided-ai-surface .slot-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 12px 28px rgba(79, 70, 229, 0.08);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .guided-ai-surface .slot-card:hover { transform: none; }
+        }
+      `}</style>
 
-      <StatGrid stats={stats} loading={loading} />
+      <div className="guided-ai-surface space-y-5 sm:space-y-6">
+        <StatGrid stats={stats} loading={loading} />
 
-      {loading ? (
-        <LoadingBlock message="Loading guided interviews..." />
-      ) : interviews.length === 0 ? (
-        <div className="bg-white rounded-3xl p-16 border border-slate-200 shadow-sm flex flex-col items-center text-center">
-          <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mb-6">
-            <Calendar className="w-10 h-10 text-slate-200" />
+        {loading ? (
+          <LoadingBlock message="Loading sessions…" accent="indigo" />
+        ) : interviews.length === 0 ? (
+          <div className="bg-white rounded-lg border border-slate-200/80 p-10 sm:p-12 flex flex-col items-center text-center shadow-sm">
+            <div className="w-12 h-12 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center mb-4">
+              <Calendar className="w-5 h-5 text-indigo-600" strokeWidth={1.75} />
+            </div>
+            <p className="text-sm text-slate-600 max-w-sm">
+              No guided AI interviews assigned yet.
+            </p>
           </div>
-          <h3 className="text-lg font-bold text-slate-900">No guided AI interviews assigned</h3>
-          <p className="text-sm text-slate-500 mt-2 max-w-xs leading-relaxed font-medium">
-            When your placement team assigns guided AI mocks, they will appear here.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {interviews.map((iv) => {
-            const sessionDate = iv.startDate ? new Date(iv.startDate) : null;
-            const isCompleted = iv.status === 'COMPLETED';
-            const hasReport = isCompleted && iv.aiInsightStatus === 'COMPLETED';
-            const reportPending = isCompleted && iv.aiInsightStatus === 'PENDING';
+        ) : (
+          <div className="space-y-3">
+            {interviews.map((iv) => {
+              const sessionDate = iv.startDate ? new Date(iv.startDate) : null;
+              const isCompleted = iv.status === 'COMPLETED';
+              const hasReport = isCompleted && iv.aiInsightStatus === 'COMPLETED';
+              const reportPending = isCompleted && iv.aiInsightStatus === 'PENDING';
+              const inProgress = iv.status === 'IN_PROGRESS';
 
-            return (
-              <div
-                key={iv.enrollmentId}
-                className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all group overflow-hidden relative border-l-4 border-l-indigo-600"
-              >
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                  <div className="flex gap-5">
-                    <div className="w-14 h-14 bg-slate-900 rounded-xl flex flex-col items-center justify-center text-white flex-shrink-0 shadow-lg shadow-slate-900/10">
-                      {sessionDate ? (
-                        <>
-                          <span className="text-[10px] font-bold uppercase tracking-tight opacity-70">
-                            {sessionDate.toLocaleString('default', { month: 'short' })}
-                          </span>
-                          <span className="text-xl font-bold leading-none">{sessionDate.getDate()}</span>
-                        </>
-                      ) : (
-                        <Camera className="w-6 h-6 opacity-80" />
-                      )}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-3 mb-1 flex-wrap">
-                        <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-[9px] font-bold rounded uppercase tracking-wider border border-indigo-100">
-                          Guided AI
-                        </span>
-                        {getAiEnrollmentStatusBadge(iv.status)}
-                      </div>
-                      <h3 className="text-lg font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
-                        {iv.title}
-                      </h3>
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-slate-500">
-                        {sessionDate && (
-                          <div className="flex items-center gap-1.5 text-xs font-semibold tabular-nums">
-                            <Clock className="w-3.5 h-3.5 text-slate-400" />
-                            Opens{' '}
-                            {sessionDate.toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </div>
+              return (
+                <div
+                  key={iv.enrollmentId}
+                  className={`slot-card bg-white rounded-lg p-4 sm:p-5 border shadow-sm overflow-hidden ${
+                    inProgress
+                      ? 'border-amber-200 ring-1 ring-amber-100'
+                      : 'border-slate-200/80'
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex gap-3.5 min-w-0">
+                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-indigo-600 to-violet-700 flex flex-col items-center justify-center text-white flex-shrink-0 shadow-sm">
+                        {sessionDate ? (
+                          <>
+                            <span className="text-[9px] font-medium uppercase tracking-wide opacity-90">
+                              {sessionDate.toLocaleString('default', { month: 'short' })}
+                            </span>
+                            <span className="text-lg font-semibold leading-none tabular-nums">
+                              {sessionDate.getDate()}
+                            </span>
+                          </>
+                        ) : (
+                          <Video className="w-5 h-5 opacity-90" strokeWidth={1.75} />
                         )}
-                        <span className="text-xs font-semibold text-slate-500">
-                          {iv.questionCount} questions · {iv.progressPercent ?? 0}% progress
-                        </span>
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          {getAiEnrollmentStatusBadge(iv.status)}
+                        </div>
+                        <h3 className="text-sm sm:text-base font-semibold text-slate-900 truncate">
+                          {iv.title}
+                        </h3>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-slate-500">
+                          {sessionDate && (
+                            <span className="inline-flex items-center gap-1.5 text-xs tabular-nums">
+                              <Clock className="w-3.5 h-3.5 text-slate-400" strokeWidth={1.75} />
+                              Opens{' '}
+                              {sessionDate.toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          )}
+                          <span className="text-xs text-slate-500">
+                            {iv.questionCount} questions · {iv.progressPercent ?? 0}% done
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {!isCompleted ? (
-                      iv.canStart ? (
+
+                    <div className="flex items-center gap-2 sm:shrink-0">
+                      {!isCompleted ? (
+                        iv.canStart ? (
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/student/interviews/${iv.interviewId}`)}
+                            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors shadow-sm shadow-indigo-600/20"
+                          >
+                            <Video className="w-4 h-4" strokeWidth={1.75} />
+                            {inProgress ? 'Resume' : 'Enter room'}
+                          </button>
+                        ) : (
+                          <span className="px-3 py-2 text-xs font-medium text-slate-500 bg-slate-50 rounded-lg border border-slate-200">
+                            Opens{' '}
+                            {sessionDate
+                              ? sessionDate.toLocaleString([], {
+                                  dateStyle: 'medium',
+                                  timeStyle: 'short',
+                                })
+                              : 'soon'}
+                          </span>
+                        )
+                      ) : hasReport ? (
                         <button
                           type="button"
-                          onClick={() => navigate(`/student/interviews/${iv.interviewId}`)}
-                          className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-slate-900/10 active:scale-95"
+                          onClick={() =>
+                            navigate(`/student/ai-interview/results/${iv.enrollmentId}`, {
+                              state: { from: 'guided' },
+                            })
+                          }
+                          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium transition-colors border border-indigo-100"
                         >
-                          <Video className="w-4 h-4" />
-                          {iv.status === 'IN_PROGRESS' ? 'Resume Session' : 'Enter Room'}
+                          <Trophy className="w-4 h-4" strokeWidth={1.75} />
+                          View report
                         </button>
-                      ) : (
-                        <span className="px-4 py-2.5 text-xs font-semibold text-slate-400 bg-slate-50 rounded-xl border border-slate-100">
-                          Opens{' '}
-                          {sessionDate
-                            ? sessionDate.toLocaleString([], {
-                                dateStyle: 'medium',
-                                timeStyle: 'short',
-                              })
-                            : 'soon'}
+                      ) : reportPending ? (
+                        <span className="px-3 py-2 text-xs font-medium text-amber-700 bg-amber-50 rounded-lg border border-amber-100">
+                          Generating report…
                         </span>
-                      )
-                    ) : hasReport ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          navigate(`/student/ai-interview/results/${iv.enrollmentId}`, {
-                            state: { from: 'guided' },
-                          })
-                        }
-                        className="px-6 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 active:scale-95"
-                      >
-                        <Trophy className="w-4 h-4" /> View Report
-                      </button>
-                    ) : reportPending ? (
-                      <span className="px-4 py-2.5 text-xs font-semibold text-amber-600 bg-amber-50 rounded-xl border border-amber-100">
-                        Generating report…
-                      </span>
-                    ) : (
-                      <span className="px-4 py-2.5 text-xs font-semibold text-slate-400 bg-slate-50 rounded-xl border border-slate-100">
-                        Submitted for review
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      className="p-2.5 bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-100 hover:text-slate-600 transition-all border border-transparent hover:border-slate-200"
-                    >
-                      <Info className="w-4 h-4" />
-                    </button>
+                      ) : (
+                        <span className="px-3 py-2 text-xs font-medium text-slate-500 bg-slate-50 rounded-lg border border-slate-200">
+                          Submitted
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
+      </div>
     </PageShell>
   );
 }

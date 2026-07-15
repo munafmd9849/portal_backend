@@ -136,20 +136,19 @@ const SkillsSection = ({ isAdminView = false, initialSkills = null, school = '' 
   const [skillsInForm, setSkillsInForm] = useState([]); // Skills being added/edited in form { skillName, rating }
   const [newSkillName, setNewSkillName] = useState(''); // Custom skill name input
 
-  // OPTIMIZED: Only load skills if not provided as props (avoids redundant API call)
+  // OPTIMIZED: Seed from parent once, or load from API. Do not re-sync parent props after local saves —
+  // parent skillsEntries often stays stale and was wiping newly added skills.
   useEffect(() => {
-    // Use parent-provided skills when non-empty; otherwise fetch from API
-    if (initialSkills !== null && Array.isArray(initialSkills) && initialSkills.length > 0) {
-      setSkills(initialSkills);
-      return;
-    }
-
-    // Fallback: Load skills only if not provided as props (for admin view or other cases)
-    if (!user?.id) return;
-
     let isMounted = true;
 
     const loadSkills = async () => {
+      if (initialSkills !== null && Array.isArray(initialSkills) && initialSkills.length > 0) {
+        setSkills(initialSkills);
+        return;
+      }
+
+      if (!user?.id) return;
+
       try {
         setLoading(true);
         const skillsData = await getStudentSkills(user.id);
@@ -175,14 +174,8 @@ const SkillsSection = ({ isAdminView = false, initialSkills = null, school = '' 
     return () => {
       isMounted = false;
     };
-  }, [user?.id, initialSkills]);
-
-  // Sync skills when initialSkills prop changes (for when skills are updated from parent)
-  useEffect(() => {
-    if (initialSkills !== null && Array.isArray(initialSkills)) {
-      setSkills(initialSkills);
-    }
-  }, [initialSkills]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: seed/fetch once per user; avoid parent array identity resets
+  }, [user?.id]);
 
   const handleAddClick = () => {
     // If form is already open, close it
@@ -628,7 +621,7 @@ const SkillsSection = ({ isAdminView = false, initialSkills = null, school = '' 
       `}</style>
       
       <div className="w-full">
-        <fieldset className="bg-white rounded-lg border-2 border-[#8ec5ff] pt-1 pb-4 px-3 sm:px-6 transition-all duration-200 shadow-lg">
+        <fieldset className="bg-white rounded-xl border-2 border-[#8ec5ff] pt-1 pb-4 px-3 sm:px-6 transition-all duration-200 shadow-lg hover:shadow-xl">
 
           <legend className="text-base sm:text-xl font-bold px-2 bg-gradient-to-r from-[#211868] to-[#b5369d] rounded-full text-transparent bg-clip-text select-none">
             Skills {skills.length > 0 && <span className="text-sm text-gray-500">({Math.min(skills.length, 8)}/8)</span>}

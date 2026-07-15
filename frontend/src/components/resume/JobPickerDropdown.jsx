@@ -136,19 +136,19 @@ export default function JobPickerDropdown({
                     key={job.id}
                     type="button"
                     onClick={() => handleSelect(job)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50 transition-colors text-left border-b border-slate-50 last:border-0 ${
-                      selectedJob?.id === job.id ? 'bg-blue-50' : ''
+                    className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-indigo-50 transition-colors text-left border-b border-slate-50 last:border-0 ${
+                      selectedJob?.id === job.id ? 'bg-indigo-50' : ''
                     }`}
                   >
-                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-blue-100 to-indigo-100 flex-shrink-0">
-                      <Building2 className="w-4 h-4 text-blue-600" />
+                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-100 flex-shrink-0">
+                      <Building2 className="w-4 h-4 text-indigo-600" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-800 truncate">{job.jobTitle}</p>
                       <p className="text-xs text-slate-500 truncate">{job.companyName || 'Company'}</p>
                     </div>
                     {selectedJob?.id === job.id && (
-                      <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
+                      <div className="w-2 h-2 rounded-full bg-indigo-500 flex-shrink-0" />
                     )}
                   </button>
                 ))
@@ -164,10 +164,10 @@ export default function JobPickerDropdown({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center gap-3 px-4 py-3 bg-white border-2 border-blue-200 rounded-2xl hover:border-blue-400 focus:outline-none focus:border-blue-500 transition-all text-left shadow-sm"
+        className="w-full flex items-center gap-3 px-4 py-3 bg-white border-2 border-indigo-100 rounded-xl hover:border-indigo-300 focus:outline-none focus:border-indigo-500 transition-colors text-left shadow-sm"
       >
-        <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-blue-50 flex-shrink-0">
-          <Briefcase className="w-4 h-4 text-blue-600" />
+        <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-indigo-50 flex-shrink-0">
+          <Briefcase className="w-4 h-4 text-indigo-600" />
         </div>
         <div className="flex-1 min-w-0">
           {selectedJob ? (

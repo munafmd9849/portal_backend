@@ -64,7 +64,7 @@ export default function AiMockInterviewSession() {
       setPhase(PHASE.PRECHECK);
     } catch (err) {
       toast.error(err.message || 'Failed to load interview');
-      navigate('/student?tab=mockInterviews');
+      navigate('/student?tab=guidedAiInterviews');
     }
   }, [interviewId, navigate, toast]);
 
@@ -266,30 +266,35 @@ export default function AiMockInterviewSession() {
 
   if (phase === PHASE.LOAD) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-3">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-        <p className="text-sm text-gray-500">Loading interview...</p>
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-7 h-7 animate-spin text-indigo-600" />
+        <p className="text-sm text-slate-500">Loading interview…</p>
       </div>
     );
   }
 
   if (phase === PHASE.DONE) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 text-center">
-        <div className="max-w-md w-full bg-white rounded-lg p-8 border border-gray-200 shadow-sm">
+      <div className="min-h-screen relative flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+        <div className="absolute inset-0 bg-slate-100" aria-hidden />
+        <div
+          className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(79,70,229,0.12),_transparent_55%)]"
+          aria-hidden
+        />
+        <div className="relative max-w-md w-full bg-white rounded-lg p-7 border border-slate-200/80 shadow-xl text-center">
           <div className="w-12 h-12 bg-emerald-50 rounded-lg flex items-center justify-center mx-auto mb-4 border border-emerald-100">
-            <CheckCircle className="w-6 h-6 text-emerald-600" />
+            <CheckCircle className="w-6 h-6 text-emerald-600" strokeWidth={1.75} />
           </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Interview submitted</h2>
-          <p className="text-sm text-gray-500 leading-relaxed">
-            Your responses have been saved. Your institution will review them and share feedback when ready.
+          <h2 className="text-lg font-semibold text-slate-900 mb-2">Interview submitted</h2>
+          <p className="text-sm text-slate-500 leading-relaxed">
+            Your responses are saved. Feedback will appear when your institution releases the report.
           </p>
           <button
             type="button"
-            onClick={() => navigate('/student?tab=mockInterviews')}
-            className="mt-6 px-5 py-2.5 bg-gray-900 hover:bg-black text-white rounded-md text-sm font-medium"
+            onClick={() => navigate('/student?tab=guidedAiInterviews')}
+            className="mt-6 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors"
           >
-            Back to mock interviews
+            Back to Guided AI
           </button>
         </div>
       </div>
@@ -300,111 +305,123 @@ export default function AiMockInterviewSession() {
     const readyToStart = precheck.cameraReady && precheck.micReady && precheck.fullscreen;
 
     return (
-      <div className="min-h-screen bg-gray-50 text-gray-900 flex items-center justify-center p-4 overflow-y-auto">
-        <div className="max-w-5xl w-full bg-white rounded-lg border border-gray-200 shadow-sm p-4 sm:p-5 my-4">
-          <div className="grid lg:grid-cols-5 gap-4 lg:gap-5">
-            <div className="lg:col-span-2 space-y-3">
-              <div>
-                <h1 className="text-lg font-semibold text-gray-900 leading-snug">{session?.title}</h1>
-                <p className="text-xs text-gray-500 mt-1">Video mock interview setup</p>
-              </div>
+      <div className="min-h-screen relative flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+        <div className="absolute inset-0 bg-slate-100" aria-hidden />
+        <div
+          className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(79,70,229,0.14),_transparent_55%),radial-gradient(ellipse_at_bottom_right,_rgba(124,58,237,0.1),_transparent_50%)]"
+          aria-hidden
+        />
 
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="ai-precheck-title"
+          className="relative w-full max-w-3xl bg-white rounded-lg border border-slate-200/80 shadow-xl shadow-indigo-900/5 overflow-hidden"
+        >
+          <div className="px-5 sm:px-6 py-3.5 border-b border-slate-100 flex items-center justify-between gap-3">
+            <h1 id="ai-precheck-title" className="text-base font-semibold text-slate-900 truncate min-w-0">
+              {session?.title || 'Guided AI interview'}
+            </h1>
+            <button
+              type="button"
+              onClick={() => navigate('/student?tab=guidedAiInterviews')}
+              className="text-slate-500 hover:text-slate-800 px-2.5 py-1.5 rounded-md hover:bg-slate-50 text-xs font-medium transition-colors shrink-0"
+            >
+              Back
+            </button>
+          </div>
+
+          <div className="p-5 sm:p-6 grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div className="space-y-4">
+              <div className="relative aspect-video max-h-52 bg-slate-900 rounded-md overflow-hidden border border-slate-800">
+                <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+              </div>
+              {precheck.error && <p className="text-xs text-rose-600">{precheck.error}</p>}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={startCameraPrecheck}
+                  className="flex-1 px-3 py-2 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 transition-colors"
+                >
+                  Enable camera
+                </button>
+                <button
+                  type="button"
+                  onClick={enterFullscreenPrecheck}
+                  className="flex-1 px-3 py-2 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 transition-colors"
+                >
+                  Go fullscreen
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-3">
               <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-md border border-gray-200 p-3 bg-gray-50">
-                  <Video className="w-4 h-4 text-blue-600 mb-1.5" />
-                  <p className="text-xs font-medium text-gray-900">Camera & mic</p>
-                  <p className="text-[11px] text-gray-500 mt-0.5 leading-snug">Required for recording your answers.</p>
+                <div className="rounded-md border border-slate-200 p-3 bg-slate-50">
+                  <Video className="w-4 h-4 text-indigo-600 mb-1.5" strokeWidth={1.75} />
+                  <p className="text-xs font-medium text-slate-900">Camera & mic</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">Required to record answers.</p>
                 </div>
-                <div className="rounded-md border border-gray-200 p-3 bg-gray-50">
-                  <Maximize2 className="w-4 h-4 text-blue-600 mb-1.5" />
-                  <p className="text-xs font-medium text-gray-900">Fullscreen</p>
-                  <p className="text-[11px] text-gray-500 mt-0.5 leading-snug">Stay in fullscreen during the interview.</p>
+                <div className="rounded-md border border-slate-200 p-3 bg-slate-50">
+                  <Maximize2 className="w-4 h-4 text-indigo-600 mb-1.5" strokeWidth={1.75} />
+                  <p className="text-xs font-medium text-slate-900">Fullscreen</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">Stay fullscreen during the session.</p>
                 </div>
               </div>
 
               <div className="rounded-md border border-amber-200 bg-amber-50 p-3 flex gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-xs font-medium text-amber-800">Before you begin</p>
-                  <p className="text-[11px] text-amber-700/90 mt-0.5 leading-relaxed">
-                    Questions are read aloud. You cannot change an answer after submitting.
-                    {session?.instructions ? ` ${session.instructions}` : ''}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="lg:col-span-3 grid sm:grid-cols-2 gap-3">
-              <div className="rounded-md border border-gray-200 p-3">
-                <p className="text-xs font-medium text-gray-500 mb-2">Camera preview</p>
-                <div className="rounded-md overflow-hidden border border-gray-200 bg-gray-100 h-32 sm:h-36">
-                  <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
-                </div>
-                {precheck.error && <p className="text-xs text-red-600 mt-1.5">{precheck.error}</p>}
-                <div className="mt-2 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={startCameraPrecheck}
-                    className="flex-1 px-2 py-1.5 rounded-md bg-white hover:bg-gray-50 border border-gray-200 text-xs font-medium text-gray-700"
-                  >
-                    Enable camera
-                  </button>
-                  <button
-                    type="button"
-                    onClick={enterFullscreenPrecheck}
-                    className="flex-1 px-2 py-1.5 rounded-md bg-white hover:bg-gray-50 border border-gray-200 text-xs font-medium text-gray-700"
-                  >
-                    Go fullscreen
-                  </button>
-                </div>
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" strokeWidth={1.75} />
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  Questions are read aloud. You cannot edit an answer after submitting.
+                  {session?.instructions ? ` ${session.instructions}` : ''}
+                </p>
               </div>
 
-              <div className="rounded-md border border-gray-200 p-3">
-                <p className="text-xs font-medium text-gray-500 mb-2">Setup checklist</p>
-                <div className="space-y-1.5">
-                  {[
-                    ['Camera enabled', precheck.cameraReady],
-                    ['Microphone enabled', precheck.micReady],
-                    ['Fullscreen on', precheck.fullscreen],
-                  ].map(([label, ok]) => (
-                    <div
-                      key={label}
-                      className="flex items-center justify-between px-2.5 py-2 bg-gray-50 rounded-md border border-gray-100"
-                    >
-                      <span className="text-xs text-gray-700">{label}</span>
-                      {ok ? (
-                        <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
-                      ) : (
-                        <XCircle className="w-3.5 h-3.5 text-gray-300" />
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <p className="text-[11px] text-gray-400 mt-2">{totalQ} questions</p>
+              <div className="rounded-md border border-slate-200 p-3 space-y-1.5">
+                {[
+                  ['Camera enabled', precheck.cameraReady],
+                  ['Microphone enabled', precheck.micReady],
+                  ['Fullscreen on', precheck.fullscreen],
+                ].map(([label, ok]) => (
+                  <div
+                    key={label}
+                    className="flex items-center justify-between px-2.5 py-2 bg-slate-50 rounded-md border border-slate-100"
+                  >
+                    <span className="text-xs text-slate-700">{label}</span>
+                    {ok ? (
+                      <CheckCircle className="w-3.5 h-3.5 text-emerald-600" strokeWidth={1.75} />
+                    ) : (
+                      <XCircle className="w-3.5 h-3.5 text-slate-300" strokeWidth={1.75} />
+                    )}
+                  </div>
+                ))}
+                <p className="text-[11px] text-slate-400 pt-1">{totalQ} questions</p>
               </div>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={startInterview}
-            disabled={starting || !readyToStart}
-            className={`w-full mt-4 py-2.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-              starting || !readyToStart
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
-                : 'bg-gray-900 hover:bg-black text-white'
-            }`}
-          >
-            {starting ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" /> Starting...
-              </>
-            ) : (
-              <>
-                Start interview <ChevronRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
+          <div className="px-5 sm:px-6 pb-5">
+            <button
+              type="button"
+              onClick={startInterview}
+              disabled={starting || !readyToStart}
+              className={`w-full py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                starting || !readyToStart
+                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
+                  : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm shadow-indigo-600/20'
+              }`}
+            >
+              {starting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Starting…
+                </>
+              ) : (
+                <>
+                  Start interview <ChevronRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -427,14 +444,14 @@ export default function AiMockInterviewSession() {
   };
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden text-gray-900">
-      <header className="h-14 bg-white border-b border-gray-200 px-4 sm:px-6 flex items-center justify-between shrink-0">
+    <div className="h-screen bg-slate-50 flex flex-col overflow-hidden text-slate-900">
+      <header className="h-14 bg-white border-b border-slate-200/80 px-4 sm:px-6 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 bg-blue-600 rounded-md flex items-center justify-center flex-shrink-0">
-            <Video className="w-4 h-4 text-white" />
+          <div className="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm shadow-indigo-600/20">
+            <Video className="w-4 h-4 text-white" strokeWidth={1.75} />
           </div>
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold text-gray-900 truncate">{session?.title}</h2>
+            <h2 className="text-sm font-semibold text-slate-900 truncate">{session?.title}</h2>
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
               <span className="text-[11px] text-emerald-700 font-medium">In progress</span>
@@ -443,15 +460,15 @@ export default function AiMockInterviewSession() {
         </div>
 
         <div
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-md border flex-shrink-0 ${
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border flex-shrink-0 ${
             phaseStep === 'answer'
-              ? 'bg-red-50 border-red-200 text-red-700'
-              : 'bg-gray-50 border-gray-200 text-gray-900'
+              ? 'bg-rose-50 border-rose-200 text-rose-700'
+              : 'bg-slate-50 border-slate-200 text-slate-900'
           }`}
         >
-          <Clock className={`w-3.5 h-3.5 ${phaseStep === 'answer' ? 'animate-pulse' : ''}`} />
+          <Clock className={`w-3.5 h-3.5 ${phaseStep === 'answer' ? 'animate-pulse' : ''}`} strokeWidth={1.75} />
           <div className="flex flex-col">
-            <span className="text-[10px] text-gray-500 leading-none">{phaseStepLabel}</span>
+            <span className="text-[10px] text-slate-500 leading-none">{phaseStepLabel}</span>
             <span className="text-sm font-semibold tabular-nums leading-tight">
               {phaseStep === 'prep'
                 ? `${prepLeft}s`
@@ -464,7 +481,7 @@ export default function AiMockInterviewSession() {
       </header>
 
       <div className="flex-1 flex overflow-hidden min-h-0">
-        <aside className="w-14 sm:w-16 bg-white border-r border-gray-200 flex flex-col items-center py-4 gap-2 overflow-y-auto shrink-0">
+        <aside className="w-14 sm:w-16 bg-white border-r border-slate-200/80 flex flex-col items-center py-4 gap-2 overflow-y-auto shrink-0">
           {questions.map((q, i) => {
             const done = answeredIds.has(q.id);
             const current = i === qIndex;
@@ -473,10 +490,10 @@ export default function AiMockInterviewSession() {
                 key={q.id}
                 className={`w-9 h-9 rounded-md flex items-center justify-center text-xs font-medium ${
                   current
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-indigo-600 text-white'
                     : done
                       ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                      : 'bg-gray-50 text-gray-400 border border-gray-200'
+                      : 'bg-slate-50 text-slate-400 border border-slate-200'
                 }`}
                 title={q.mandatory ? 'Required' : 'Optional'}
               >
@@ -491,40 +508,40 @@ export default function AiMockInterviewSession() {
             <div className="max-w-3xl w-full mx-auto space-y-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md text-xs font-medium border border-blue-100">
+                  <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md text-xs font-medium border border-indigo-100">
                     Question {qIndex + 1} of {totalQ}
                   </span>
                   {speaking && (
                     <span className="px-2 py-0.5 bg-violet-50 text-violet-700 rounded-md text-xs font-medium border border-violet-100">
-                      Reading question…
+                      Reading…
                     </span>
                   )}
                 </div>
-                <div className="h-1.5 w-24 bg-gray-200 rounded-full overflow-hidden flex-shrink-0">
-                  <div className="h-full bg-blue-600 transition-all" style={{ width: `${progressPct}%` }} />
+                <div className="h-1.5 w-24 bg-slate-200 rounded-full overflow-hidden flex-shrink-0">
+                  <div className="h-full bg-indigo-600 transition-all" style={{ width: `${progressPct}%` }} />
                 </div>
               </div>
 
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 leading-snug">
+              <h3 className="text-base sm:text-lg font-semibold text-slate-900 leading-snug text-balance">
                 {currentQ?.questionText}
               </h3>
               {currentQ?.notes && (
-                <p className="text-sm text-gray-500 leading-relaxed">{currentQ.notes}</p>
+                <p className="text-sm text-slate-500 leading-relaxed">{currentQ.notes}</p>
               )}
 
-              <div className="bg-white border border-gray-200 rounded-lg flex flex-col items-center justify-center p-6 sm:p-8 gap-4">
+              <div className="bg-white border border-slate-200/80 rounded-lg flex flex-col items-center justify-center p-6 sm:p-8 gap-4 shadow-sm">
                 <div
-                  className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${
+                  className={`w-14 h-14 rounded-full flex items-center justify-center transition-colors ${
                     phaseStep === 'answer'
-                      ? 'bg-red-500 animate-pulse'
-                      : 'bg-gray-100 border border-gray-200'
+                      ? 'bg-rose-500 animate-pulse'
+                      : 'bg-slate-100 border border-slate-200'
                   }`}
                 >
-                  <Mic className={`w-7 h-7 ${phaseStep === 'answer' ? 'text-white' : 'text-gray-400'}`} />
+                  <Mic className={`w-7 h-7 ${phaseStep === 'answer' ? 'text-white' : 'text-slate-400'}`} strokeWidth={1.75} />
                 </div>
                 <div className="text-center">
-                  <p className="text-sm font-medium text-gray-900">Video response</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="text-sm font-medium text-slate-900">Video response</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
                     {phaseStepDetail[phaseStep] || phaseStepDetail.idle}
                   </p>
                 </div>
@@ -534,14 +551,14 @@ export default function AiMockInterviewSession() {
                     type="button"
                     onClick={() => currentQ && speak(currentQ.questionText)}
                     disabled={speaking || !speechSupported}
-                    className="px-3 py-1.5 bg-gray-900 hover:bg-black text-white rounded-md text-xs font-medium flex items-center gap-1.5 disabled:opacity-40"
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 disabled:opacity-40 transition-colors"
                   >
                     <RotateCcw className="w-3.5 h-3.5" /> Replay
                   </button>
                   <select
                     value={voiceRate}
                     onChange={(e) => setVoiceRate(Number(e.target.value))}
-                    className="px-3 py-1.5 bg-white border border-gray-200 rounded-md text-xs font-medium text-gray-700"
+                    className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-700"
                   >
                     <option value={0.85}>Slow voice</option>
                     <option value={1}>Normal voice</option>
@@ -554,7 +571,7 @@ export default function AiMockInterviewSession() {
                     type="button"
                     onClick={handleSubmitAnswer}
                     disabled={submitting}
-                    className="px-5 py-2 bg-gray-900 hover:bg-black text-white rounded-md text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium flex items-center gap-2 disabled:opacity-50 transition-colors"
                   >
                     <Send className="w-4 h-4" /> Submit answer
                   </button>
@@ -564,12 +581,12 @@ export default function AiMockInterviewSession() {
           </div>
         </main>
 
-        <aside className="w-64 sm:w-72 bg-white border-l border-gray-200 flex flex-col p-4 gap-3 shrink-0 overflow-y-auto min-h-0">
+        <aside className="w-64 sm:w-72 bg-white border-l border-slate-200/80 flex flex-col p-4 gap-3 shrink-0 overflow-y-auto min-h-0">
           <ProctoringConsole videoRef={videoRef} violations={violations} cameraLive={cameraLive} variant="light" />
-          <div className="rounded-lg p-4 border border-gray-200 bg-gray-50">
-            <h4 className="text-xs font-medium text-gray-500 mb-2">Progress</h4>
-            <p className="text-xl font-semibold text-gray-900 tabular-nums">{progressPct}%</p>
-            <p className="text-xs text-gray-500 mt-1">
+          <div className="rounded-lg p-4 border border-slate-200 bg-slate-50">
+            <p className="text-xs font-medium text-slate-500 mb-2">Progress</p>
+            <p className="text-xl font-semibold text-slate-900 tabular-nums">{progressPct}%</p>
+            <p className="text-xs text-slate-500 mt-1">
               {answeredIds.size} of {totalQ} answers submitted
             </p>
           </div>
