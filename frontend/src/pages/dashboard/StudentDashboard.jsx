@@ -1067,7 +1067,7 @@ export default function StudentDashboard() {
         applicationResult = await applyToJob(user.id, pendingJob.id, {
           companyId,
           resumeId,
-          customAnswers: pendingCustomAnswers || {},
+          customAnswers: pendingCustomAnswers || undefined,
         });
       } catch (applyError) {
         // Re-throw with more context
@@ -5084,13 +5084,13 @@ export default function StudentDashboard() {
       {/* Old floating alert removed - using toast notifications instead */}
 
 
-      {/* Custom apply questions (read-only) before resume selection */}
+      {/* Application questions before resume selection */}
       {isQuestionsModalOpen && pendingJob && (
         <JobApplyQuestionsModal
           job={pendingJob}
-          onContinue={async (answers) => {
+          onContinue={async (customAnswers) => {
             setIsQuestionsModalOpen(false);
-            setPendingCustomAnswers(answers);
+            setPendingCustomAnswers(customAnswers || null);
             await proceedToResumeSelection(pendingJob);
           }}
           onCancel={() => {

@@ -2,14 +2,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AdminLayout from '../../components/dashboard/shared/AdminLayout';
 import { AdminMobileMenuContext } from '../../contexts/AdminMobileMenuContext';
-import AdminDashboardHub from '../../components/dashboard/admin/AdminDashboardHub';
+import AdminHome from '../../components/dashboard/admin/AdminHome';
 import CreateJob from '../../components/dashboard/admin/CreateJob';
 import ManageJobs from '../../components/dashboard/admin/ManageJobs';
 import InterviewScheduling from '../../components/dashboard/admin/InterviewScheduling';
 import StudentDirectory from '../../components/dashboard/admin/StudentDirectory';
 import RecruiterDirectory from '../../components/dashboard/admin/RecruiterDirectory';
 import AdminPanel from '../../components/dashboard/admin/AdminPanel';
-import Notifications from '../../components/dashboard/admin/Notifications';
 import AdminAnnouncements from '../../components/dashboard/admin/AdminAnnouncements';
 import AdminProfile from '../../components/dashboard/admin/AdminProfile';
 import AdminJobDetail from '../../components/dashboard/admin/AdminJobDetail';
@@ -23,7 +22,7 @@ import AdminAssessments from '../admin/AdminAssessments';
 import MockInterviewManagement from '../admin/MockInterviewManagement';
 import PlacementCalendar from '../../components/dashboard/admin/PlacementCalendar';
 import PlacementsRegistry from '../../components/dashboard/admin/PlacementsRegistry';
-import { Home, FilePlus2, Briefcase, GripVertical, LogOut, Users, Bell, Settings, User, Calendar, UserPlus, BarChart3, X, History, Megaphone, ShieldCheck, Video, UserCheck } from 'lucide-react';
+import { Home, FilePlus2, Briefcase, GripVertical, LogOut, Users, Settings, User, Calendar, UserPlus, BarChart3, X, History, Megaphone, ShieldCheck, Video, UserCheck } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import showLogoutConfirm from '../../utils/logoutConfirm';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
@@ -121,7 +120,6 @@ export default function SuperAdminDashboard() {
     { id: 'announcements', label: 'Announcements', icon: Megaphone },
     { id: 'mockInterviews', label: 'Mock Interviews', icon: Video },
     { id: 'assessments', label: 'Assessments', icon: ShieldCheck },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'createDisableAdmins', label: 'Create / Disable Admins', icon: UserPlus },
     { id: 'auditLogs', label: 'Audit Logs', icon: History },
     { id: 'adminPanel', label: 'Admin Panel', icon: Settings },
@@ -174,8 +172,13 @@ export default function SuperAdminDashboard() {
     if (isJobDetailPage) return <AdminJobDetail />;
     if (isJobApplicationsPage) return <AdminJobApplications />;
     switch (activeTab) {
-      case 'dashboard': return <AdminDashboardHub />;
-      case 'createJob': return <CreateJob onCreated={() => setActiveTab('manageJobs')} />;
+      case 'dashboard': return <AdminHome />;
+      case 'createJob':
+        return (
+          <CreateJob
+            onCreated={() => navigate(`${BASE}?tab=manageJobs`, { state: { fromCreate: true } })}
+          />
+        );
       case 'manageJobs': return <ManageJobs />;
       case 'jobApplications': return <AdminApplicantsHub />;
       case 'interviewScheduling': return <InterviewScheduling />;
@@ -186,14 +189,13 @@ export default function SuperAdminDashboard() {
       case 'announcements': return <AdminAnnouncements />;
       case 'mockInterviews': return <MockInterviewManagement />;
       case 'assessments': return <AdminAssessments />;
-      case 'notifications': return <Notifications />;
       case 'createDisableAdmins': return <CreateDisableAdmins />;
       case 'auditLogs': return <AuditLogs />;
       case 'adminPanel': return <AdminPanel />;
       case 'academicStructure': return <AcademicStructureManager />;
       case 'superAdminStats': return <SuperAdminStats />;
       case 'profile': return <AdminProfile />;
-      default: return <AdminDashboardHub />;
+      default: return <AdminHome />;
     }
   };
 

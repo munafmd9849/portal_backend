@@ -163,30 +163,92 @@ function computeApplicationTrackingFields({
   };
 }
 
-import { parseJobCustomQuestions } from '../utils/customQuestions.js';
+import { parseJobCustomQuestions, customQuestionText } from '../utils/customQuestions.js';
+
+function parseCustomQuestionsList(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (!trimmed) return [];
+    try {
+      const parsed = JSON.parse(trimmed);
+      return Array.isArray(parsed) ? parsed : [trimmed];
+    } catch {
+      return [trimmed];
+    }
+  }
+  return [];
+}
+
+function getStructuredJobQuestions(job) {
+  return parseCustomQuestionsList(job?.customQuestions)
+    .map((entry) => {
+      if (typeof entry === 'string') {
+        const text = entry.trim();
+        return text ? { id: null, text } : null;
+      }
+      if (entry && typeof entry === 'object') {
+        const text = customQuestionText(entry);
+        return text ? { id: entry.id || null, text } : null;
+      }
+      return null;
+    })
+    .filter(Boolean);
+}
 
 function parseStoredCustomAnswers(raw) {
   if (!raw || raw === '{}') return {};
   try {
     const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    if (Array.isArray(parsed)) {
+      return Object.fromEntries(
+        parsed
+          .map((entry) => {
+            const question = String(entry?.question || entry?.text || '').trim();
+            const answer = entry?.answer != null ? String(entry.answer).trim() : '';
+            return question && answer ? [question, answer] : null;
+          })
+          .filter(Boolean),
+      );
+    }
+    return parsed && typeof parsed === 'object' ? parsed : {};
   } catch {
     return {};
   }
 }
 
-function normalizeCustomAnswersForApply(questions, customAnswers) {
+function normalizeCustomAnswersForApply(job, customAnswers) {
+  const questions = getStructuredJobQuestions(job);
   if (!questions.length) return '{}';
-  if (!customAnswers || typeof customAnswers !== 'object' || Array.isArray(customAnswers)) {
+
+  if (Array.isArray(customAnswers)) {
+    const normalized = {};
+    for (const question of questions) {
+      const match = customAnswers.find((entry) => {
+        if (question.id && entry?.questionId === question.id) return true;
+        const entryQuestion = String(entry?.question || entry?.text || '').trim();
+        return entryQuestion === question.text;
+      });
+      if (!match || String(match.answer ?? '').trim() === '') {
+        return null;
+      }
+      normalized[question.text] = String(match.answer).trim();
+    }
+    return JSON.stringify(normalized);
+  }
+
+  if (!customAnswers || typeof customAnswers !== 'object') {
     return null;
   }
+
   const normalized = {};
   for (const question of questions) {
-    const answer = customAnswers[question];
+    const answer = customAnswers[question.text];
     if (answer == null || String(answer).trim() === '') {
       return null;
     }
-    normalized[question] = String(answer).trim();
+    normalized[question.text] = String(answer).trim();
   }
   return JSON.stringify(normalized);
 }
@@ -1966,7 +2028,7 @@ export async function applyToJob(req, res) {
     // Note: To properly store resumeId, we'd need to add a resumeId field to Application model
     // For now, we'll store it in the notes field as JSON
     const jobQuestions = parseJobCustomQuestions(job);
-    const serializedCustomAnswers = normalizeCustomAnswersForApply(jobQuestions, customAnswers);
+    const serializedCustomAnswers = normalizeCustomAnswersForApply(job, customAnswers);
     if (jobQuestions.length > 0 && serializedCustomAnswers == null) {
       return res.status(400).json({
         error: 'Custom answers required',

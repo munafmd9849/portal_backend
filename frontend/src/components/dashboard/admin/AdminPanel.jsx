@@ -16,7 +16,7 @@ import {
 import { Bar, Line, Doughnut } from 'react-chartjs-2';
 import { AgCharts } from 'ag-charts-react';
 import {
-  FaBell, FaUserTie, FaUniversity, FaFilter,
+  FaExclamationTriangle, FaUserTie, FaUniversity, FaFilter,
   FaBuilding, FaUserGraduate, FaHandshake,
   FaFileExcel, FaChartBar, FaChartLine, FaChartPie,
   FaSync, FaDownload, FaCog, FaSearch, FaUsers,
@@ -445,7 +445,7 @@ const AdminPanel = () => {
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="flex items-center gap-2 text-red-800">
-              <FaBell className="w-4 h-4" />
+              <FaExclamationTriangle className="w-4 h-4" />
               <span className="font-medium">Error loading data:</span>
             </div>
             <p className="text-red-700 mt-1">{error}</p>

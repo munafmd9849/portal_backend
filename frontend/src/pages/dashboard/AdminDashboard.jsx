@@ -9,7 +9,6 @@ import InterviewScheduling from '../../components/dashboard/admin/InterviewSched
 import StudentDirectory from '../../components/dashboard/admin/StudentDirectory';
 import RecruiterDirectory from '../../components/dashboard/admin/RecruiterDirectory';
 import AdminPanel from '../../components/dashboard/admin/AdminPanel';
-import Notifications from '../../components/dashboard/admin/Notifications';
 import AdminProfile from '../../components/dashboard/admin/AdminProfile';
 import AdminJobDetail from '../../components/dashboard/admin/AdminJobDetail';
 import AdminJobApplications from '../../components/dashboard/admin/AdminJobApplications';
@@ -28,7 +27,7 @@ import PlacementCalendar from '../../components/dashboard/admin/PlacementCalenda
 import PlacementsRegistry from '../../components/dashboard/admin/PlacementsRegistry';
 import LandingCmsManager from '../../components/dashboard/admin/LandingCmsManager';
 import SuccessStoriesManager from '../../components/dashboard/admin/SuccessStoriesManager';
-import { Home, FilePlus2, Briefcase, GripVertical, LogOut, Users, Bell, Settings, User, Calendar, Megaphone, X, Loader2, UserPlus, History, BarChart3, ShieldCheck, Video, UserCheck, Layout, Sparkles } from 'lucide-react';
+import { Home, FilePlus2, Briefcase, GripVertical, LogOut, Users, Settings, User, Calendar, Megaphone, X, Loader2, UserPlus, History, BarChart3, ShieldCheck, Video, UserCheck, Layout, Sparkles } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import showLogoutConfirm from '../../utils/logoutConfirm';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
@@ -43,7 +42,7 @@ const NAV_GROUPS = [
   { label: 'People', tabIds: ['studentDirectory', 'recruiterDirectory'] },
   { label: 'Programs', tabIds: ['announcements', 'mockInterviews', 'assessments'] },
   { label: 'Content', tabIds: ['landingCms', 'successStories'] },
-  { label: 'Account', tabIds: ['notifications', 'profile'] },
+  { label: 'Account', tabIds: ['profile'] },
   { label: 'System', tabIds: ['createDisableAdmins', 'auditLogs', 'adminPanel', 'academicStructure', 'superAdminStats'], roles: ['SUPER_ADMIN'] },
 ];
 
@@ -279,7 +278,6 @@ export default function AdminDashboard() {
     { id: 'announcements', label: 'Announcements', icon: Megaphone, roles: ['ADMIN', 'SUPER_ADMIN'] }, // ADMIN only
     { id: 'mockInterviews', label: 'Mock Interviews', icon: Video, roles: ['ADMIN', 'SUPER_ADMIN'] },
     { id: 'assessments', label: 'Assessments', icon: ShieldCheck, roles: ['ADMIN', 'SUPER_ADMIN'] },
-    { id: 'notifications', label: 'Notifications', icon: Bell, roles: ['ADMIN', 'RECRUITER', 'STUDENT', 'SUPER_ADMIN'] },
     { id: 'createDisableAdmins', label: 'Manage Admins', icon: UserPlus, roles: ['SUPER_ADMIN'] }, // SUPER_ADMIN only
     { id: 'auditLogs', label: 'Audit Logs', icon: History, roles: ['SUPER_ADMIN'] }, // SUPER_ADMIN only
     { id: 'adminPanel', label: 'System Settings', icon: Settings, roles: ['SUPER_ADMIN'] }, // SUPER_ADMIN only
@@ -424,7 +422,6 @@ export default function AdminDashboard() {
           return <div className="text-red-600 font-semibold">Access denied: Only ADMIN users can view assessment results.</div>;
         }
         return <AdminAssessmentResults />;
-      case 'notifications': return <Notifications />;
       case 'createDisableAdmins':
         if (!isSuperAdmin) {
           return <div className="text-red-600 font-semibold p-6 bg-red-50 rounded-xl">Access denied: Only SUPER_ADMIN can manage other admins.</div>;

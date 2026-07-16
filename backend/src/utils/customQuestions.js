@@ -3,52 +3,82 @@ export function customQuestionText(entry) {
   if (entry == null) return '';
   if (typeof entry === 'string') return entry.trim();
   if (typeof entry === 'object') {
-    return String(entry.question || entry.label || entry.text || '').trim();
+    return String(entry.text || entry.question || entry.label || '').trim();
   }
   const text = String(entry).trim();
   return text === '[object Object]' ? '' : text;
 }
 
-/** Parse custom apply questions from a job record into question strings. */
-export function parseJobCustomQuestions(job) {
-  const raw = job?.customQuestions;
-  if (!raw) return [];
+function getStructuredJobQuestions(job) {
+  const list = parseCustomQuestionsList(job?.customQuestions);
+  return list
+    .map((entry) => {
+      if (typeof entry === 'string') {
+        const text = entry.trim();
+        return text ? { id: null, text } : null;
+      }
+      if (entry && typeof entry === 'object') {
+        const text = customQuestionText(entry);
+        return text ? { id: entry.id || null, text } : null;
+      }
+      return null;
+    })
+    .filter(Boolean);
+}
 
-  let list = [];
-  if (Array.isArray(raw)) {
-    list = raw;
-  } else if (typeof raw === 'string') {
+function parseCustomQuestionsList(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
     const trimmed = raw.trim();
     if (!trimmed) return [];
     try {
       const parsed = JSON.parse(trimmed);
-      list = Array.isArray(parsed) ? parsed : [trimmed];
+      return Array.isArray(parsed) ? parsed : [trimmed];
     } catch {
-      list = [trimmed];
+      return [trimmed];
     }
   }
-
-  return list.map(customQuestionText).filter(Boolean);
+  return [];
 }
 
-/** Normalize custom questions for database storage (string array JSON). */
+/** Parse custom apply questions from a job record into question strings. */
+export function parseJobCustomQuestions(job) {
+  return getStructuredJobQuestions(job).map((q) => q.text);
+}
+
+/** Normalize custom questions for database storage (structured JSON array). */
 export function normalizeCustomQuestions(value) {
   if (!value) return '[]';
 
-  let list = [];
-  if (Array.isArray(value)) {
-    list = value;
-  } else if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (!trimmed) return '[]';
-    try {
-      const parsed = JSON.parse(trimmed);
-      list = Array.isArray(parsed) ? parsed : [trimmed];
-    } catch {
-      list = [trimmed];
-    }
-  }
+  const list = parseCustomQuestionsList(value);
 
-  const cleaned = list.map(customQuestionText).filter(Boolean);
+  const cleaned = list
+    .map((q) => {
+      if (q == null) return null;
+      if (typeof q === 'string') {
+        const text = q.trim();
+        return text ? { text, type: 'descriptive', options: [] } : null;
+      }
+      if (typeof q === 'object') {
+        const text = String(q.text || q.question || '').trim();
+        if (!text) return null;
+        const allowed = ['yes_no', 'mcq', 'descriptive'];
+        const type = allowed.includes(q.type) ? q.type : 'descriptive';
+        const options = Array.isArray(q.options)
+          ? q.options.map((o) => String(o ?? '').trim()).filter(Boolean)
+          : [];
+        if (type === 'mcq' && options.length < 2) return null;
+        return {
+          id: q.id || undefined,
+          text,
+          type,
+          options: type === 'yes_no' ? ['Yes', 'No'] : type === 'mcq' ? options : [],
+        };
+      }
+      return null;
+    })
+    .filter(Boolean);
+
   return JSON.stringify(cleaned);
 }

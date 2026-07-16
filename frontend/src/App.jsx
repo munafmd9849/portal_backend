@@ -14,7 +14,6 @@ import AdminSlider from './components/landing/CareerService'
 import PlacementFAQ from './components/landing/FAQs'
 import RecruitersSection from './components/landing/founder'
 import Records from './components/landing/Records'
-import NotificationModal from './components/Notification'
 import DevTeam from './components/landing/DevTeam'
 import LoginModal from './components/landing/LoginModal'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -219,7 +218,6 @@ function AppContent() {
   return (
     <>
       <AuthRedirect />
-      <NotificationModal />
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<LandingPage />} />

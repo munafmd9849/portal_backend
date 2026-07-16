@@ -233,7 +233,7 @@ const JobDescriptionPage = () => {
       await applyToJob(user.id, pendingJob.id, {
         companyId,
         resumeId,
-        customAnswers: pendingCustomAnswers || {},
+        customAnswers: pendingCustomAnswers || undefined,
       });
       setHasApplied(true);
       showSuccess(formatApplicationSuccessMessage(pendingJob));
@@ -443,9 +443,9 @@ const JobDescriptionPage = () => {
       {isQuestionsModalOpen && pendingJob && (
         <JobApplyQuestionsModal
           job={pendingJob}
-          onContinue={async (answers) => {
+          onContinue={async (customAnswers) => {
             setIsQuestionsModalOpen(false);
-            setPendingCustomAnswers(answers);
+            setPendingCustomAnswers(customAnswers || null);
             await proceedToResumeSelection(pendingJob);
           }}
           onCancel={() => {
