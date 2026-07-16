@@ -423,38 +423,35 @@ export default function AiMockInterviewSession() {
 
   if (phase === PHASE.LOAD) {
     return (
-      <div className="h-screen bg-slate-950 flex flex-col items-center justify-center gap-6">
-        <div className="relative">
-          <div className="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Shield className="w-6 h-6 text-indigo-500 animate-pulse" />
-          </div>
-        </div>
-        <p className="text-slate-400 font-black uppercase tracking-widest text-xs animate-pulse">
-          Initializing Guided Interview
-        </p>
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-7 h-7 animate-spin text-indigo-600" />
+        <p className="text-sm text-slate-500">Loading interview…</p>
       </div>
     );
   }
 
   if (phase === PHASE.DONE) {
     return (
-      <div className="h-screen bg-slate-950 flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-emerald-500/10 via-transparent to-transparent opacity-50 pointer-events-none" />
-        <div className="max-w-xl w-full bg-slate-900/40 backdrop-blur-2xl rounded-[3rem] p-12 border border-slate-800 shadow-2xl relative z-10">
-          <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-emerald-500/30">
-            <CheckCircle className="w-10 h-10 text-emerald-400" />
+      <div className="min-h-screen relative flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+        <div className="absolute inset-0 bg-slate-100" aria-hidden />
+        <div
+          className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(79,70,229,0.12),_transparent_55%)]"
+          aria-hidden
+        />
+        <div className="relative max-w-md w-full bg-white rounded-lg p-7 border border-slate-200/80 shadow-xl text-center">
+          <div className="w-12 h-12 bg-emerald-50 rounded-lg flex items-center justify-center mx-auto mb-4 border border-emerald-100">
+            <CheckCircle className="w-6 h-6 text-emerald-600" strokeWidth={1.75} />
           </div>
-          <h2 className="text-3xl font-black text-white tracking-tight mb-3">Interview Complete</h2>
-          <p className="text-slate-400 text-sm font-medium leading-relaxed">
-            Your responses are saved securely. AI analysis and reviewer feedback will be available to your placement team.
+          <h2 className="text-lg font-semibold text-slate-900 mb-2">Interview submitted</h2>
+          <p className="text-sm text-slate-500 leading-relaxed">
+            Your responses are saved. Feedback will appear when your institution releases the report.
           </p>
           <button
             type="button"
             onClick={() => navigate('/student?tab=guidedAiInterviews')}
-            className="mt-8 px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black uppercase tracking-widest text-xs"
+            className="mt-6 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors"
           >
-            Return to Dashboard
+            Back to Guided AI
           </button>
         </div>
       </div>

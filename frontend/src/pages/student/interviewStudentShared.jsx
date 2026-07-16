@@ -7,6 +7,8 @@ export const STAT_ICON_BOX = {
   amber: 'bg-amber-50 border-amber-100',
   purple: 'bg-purple-50 border-purple-100',
   violet: 'bg-violet-50 border-violet-100',
+  teal: 'bg-teal-50 border-teal-100',
+  cyan: 'bg-cyan-50 border-cyan-100',
 };
 
 export const STAT_ICON_COLOR = {
@@ -15,6 +17,8 @@ export const STAT_ICON_COLOR = {
   amber: 'text-amber-600',
   purple: 'text-purple-600',
   violet: 'text-violet-600',
+  teal: 'text-teal-600',
+  cyan: 'text-cyan-700',
 };
 
 const FEEDBACK_RATING_FIELDS = [
@@ -52,20 +56,21 @@ export function getAiEnrollmentStatusBadge(status) {
   switch (status) {
     case 'COMPLETED':
       return (
-        <span className="px-3 py-1 bg-slate-100 text-slate-500 text-[10px] font-bold rounded-full border border-slate-200 uppercase tracking-wider">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
           Completed
         </span>
       );
     case 'IN_PROGRESS':
       return (
-        <span className="px-3 py-1 bg-amber-50 text-amber-600 text-[10px] font-bold rounded-full border border-amber-100 uppercase tracking-wider animate-pulse">
-          In Progress
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-800 border border-amber-100">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+          In progress
         </span>
       );
     default:
       return (
-        <span className="px-3 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-bold rounded-full border border-indigo-100 uppercase tracking-wider">
-          Not Started
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-indigo-50 text-indigo-800 border border-indigo-100">
+          Not started
         </span>
       );
   }
@@ -73,24 +78,22 @@ export function getAiEnrollmentStatusBadge(status) {
 
 export function StatGrid({ stats, loading }) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
       {stats.map((stat, i) => (
         <div
           key={i}
-          className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between"
+          className="bg-white p-3.5 rounded-lg border border-slate-200/80 shadow-sm flex items-center justify-between"
         >
           <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              {stat.label}
-            </p>
-            <p className="text-xl font-bold text-slate-900 mt-0.5 tabular-nums">
+            <p className="text-[11px] font-medium text-slate-500">{stat.label}</p>
+            <p className="text-lg font-semibold text-slate-900 mt-0.5 tabular-nums">
               {loading ? '—' : stat.val}
             </p>
           </div>
           <div
             className={`w-8 h-8 rounded-lg border flex items-center justify-center ${STAT_ICON_BOX[stat.color]}`}
           >
-            <Activity className={`w-4 h-4 ${STAT_ICON_COLOR[stat.color]}`} />
+            <Activity className={`w-3.5 h-3.5 ${STAT_ICON_COLOR[stat.color]}`} />
           </div>
         </div>
       ))}
@@ -98,11 +101,13 @@ export function StatGrid({ stats, loading }) {
   );
 }
 
-export function LoadingBlock({ message = 'Syncing your schedule...' }) {
+export function LoadingBlock({ message = 'Loading…', accent = 'teal' }) {
+  const ring =
+    accent === 'indigo' ? 'border-t-indigo-600' : accent === 'sky' ? 'border-t-sky-600' : 'border-t-teal-600';
   return (
-    <div className="py-32 flex flex-col items-center justify-center gap-4 bg-white rounded-3xl border border-slate-200 shadow-sm">
-      <div className="w-12 h-12 border-4 border-slate-100 border-t-indigo-600 rounded-full animate-spin" />
-      <p className="text-sm font-bold text-slate-400 animate-pulse">{message}</p>
+    <div className="py-20 flex flex-col items-center justify-center gap-3 bg-white rounded-lg border border-slate-200/80 shadow-sm">
+      <div className={`w-10 h-10 border-[3px] border-slate-100 ${ring} rounded-full animate-spin`} />
+      <p className="text-sm text-slate-500">{message}</p>
     </div>
   );
 }

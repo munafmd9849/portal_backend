@@ -38,9 +38,9 @@ import { ProctoringBroadcaster } from '../../proctoring-engine/liveProctoringRtc
 
 function MetaSegment({ label, highlight = false }) {
   return (
-    <div className="flex items-center px-4 py-3 border-l border-slate-200 first:border-l-0">
+    <div className="flex items-center px-4 py-2.5 border-l border-slate-200 first:border-l-0">
       <span
-        className={`text-[10px] font-bold uppercase tracking-widest whitespace-nowrap ${
+        className={`text-xs font-medium whitespace-nowrap ${
           highlight ? 'text-indigo-600' : 'text-slate-600'
         }`}
       >
@@ -58,7 +58,7 @@ function QuestionMetaBar({ question, questionIndex }) {
   ];
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden shrink-0">
+    <div className="bg-white border border-slate-200/80 rounded-lg shadow-sm overflow-hidden shrink-0">
       <div className="flex items-stretch justify-between">
         <MetaSegment label={`Question ${questionIndex + 1}`} />
         <div className="flex items-stretch border-l border-slate-200">
@@ -78,13 +78,13 @@ function QuestionPanelShell({ question, questionIndex, children, layout = 'defau
     return (
       <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-y-auto text-slate-900">
         <QuestionMetaBar question={question} questionIndex={questionIndex} />
-        <section className="bg-white border border-slate-200 rounded-xl p-5 space-y-5 shadow-sm flex-1 min-h-0">
-          <div className="space-y-3 pb-5 border-b border-slate-100">
-            <h2 className="text-lg font-bold text-slate-900 leading-snug">
+        <section className="bg-white border border-slate-200/80 rounded-lg p-5 space-y-5 shadow-sm flex-1 min-h-0">
+          <div className="space-y-3 pb-4 border-b border-slate-100">
+            <h2 className="text-base font-semibold text-slate-900 leading-snug text-balance">
               {question?.questionText || 'Question'}
             </h2>
             {question?.description ? (
-              <p className="text-slate-600 text-sm leading-relaxed font-medium whitespace-pre-wrap">
+              <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap">
                 {question.description}
               </p>
             ) : null}
@@ -96,38 +96,36 @@ function QuestionPanelShell({ question, questionIndex, children, layout = 'defau
   }
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col rounded-2xl overflow-hidden border border-slate-800">
+    <div className="flex-1 min-h-0 flex flex-col rounded-lg overflow-hidden border border-slate-200/80">
       <div className="flex flex-col h-full min-h-0 overflow-y-auto bg-[#f8f9fb] text-slate-900">
         <div className="px-5 py-4 border-b border-slate-200 bg-white sticky top-0 z-10 shrink-0">
           <div className="flex flex-wrap items-center gap-2 mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
+            <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
               Question {questionIndex + 1}
             </span>
-            <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
+            <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
               {question?.type}
             </span>
             {question?.difficulty && (
-              <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
                 {question.difficulty}
               </span>
             )}
             {question?.points != null && (
-              <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-600 border border-indigo-100">
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">
                 {question.points} pts
               </span>
             )}
           </div>
-          <h2 className="text-lg font-bold text-slate-900 leading-snug">
+          <h2 className="text-base font-semibold text-slate-900 leading-snug">
             {question?.questionText || 'Question'}
           </h2>
         </div>
         <div className="flex-1 min-h-0 flex flex-col px-5 py-5 gap-6">
           {question?.description ? (
             <section>
-              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">
-                Description
-              </h3>
-              <div className="text-slate-700 whitespace-pre-wrap font-medium text-sm leading-relaxed">
+              <p className="text-xs font-medium text-slate-500 mb-2">Description</p>
+              <div className="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed">
                 {question.description}
               </div>
             </section>
@@ -776,43 +774,54 @@ export default function AssessmentApp() {
     }
   }, [assessmentId, toast]);
 
-  if (loading) return (
-    <div className="h-screen bg-slate-950 flex flex-col items-center justify-center gap-6">
-      <div className="relative">
-        <div className="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Shield className="w-6 h-6 text-indigo-500 animate-pulse" />
-        </div>
+  if (loading) {
+    return (
+      <div className="h-screen bg-slate-50 flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-7 h-7 animate-spin text-indigo-600" />
+        <p className="text-sm text-slate-500">Preparing assessment…</p>
       </div>
-      <p className="text-slate-400 font-black uppercase tracking-widest text-xs animate-pulse">Initializing Secure Environment</p>
-    </div>
-  );
+    );
+  }
 
   if (entryStatus === 'TOO_EARLY') {
     const entry = assessment ? getAssessmentEntryStatus(assessment) : null;
     return (
-      <div className="h-screen bg-slate-950 flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
-        <div className="w-24 h-24 bg-indigo-500/20 rounded-full flex items-center justify-center mb-6 border border-indigo-500/30 shadow-2xl shadow-indigo-500/20">
-           <Clock className="w-10 h-10 text-indigo-400" />
-        </div>
-        <h2 className="text-3xl font-black text-white tracking-tight mb-3">You're Early</h2>
-        <p className="text-slate-400 max-w-md mx-auto">
-          Entry opens at{' '}
-          <span className="text-white font-bold">{formatAssessmentWindow(entry?.entryOpensAt)}</span>.
-          {entry?.joinWindow && (
-            <> ( {entry.joinWindow.opensMinutesBeforeStart} minutes before the scheduled start).</>
+      <div className="h-screen relative flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+        <div className="absolute inset-0 bg-slate-100" aria-hidden />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(79,70,229,0.12),_transparent_55%)]" aria-hidden />
+        <div className="relative max-w-md w-full bg-white rounded-lg border border-slate-200/80 shadow-xl p-7 text-center">
+          <div className="w-12 h-12 bg-indigo-50 rounded-lg flex items-center justify-center mx-auto mb-4 border border-indigo-100">
+            <Clock className="w-6 h-6 text-indigo-600" strokeWidth={1.75} />
+          </div>
+          <h2 className="text-lg font-semibold text-slate-900 mb-2">You&apos;re early</h2>
+          <p className="text-sm text-slate-500 leading-relaxed">
+            Entry opens at{' '}
+            <span className="font-semibold text-slate-800">{formatAssessmentWindow(entry?.entryOpensAt)}</span>
+            {entry?.joinWindow
+              ? ` (${entry.joinWindow.opensMinutesBeforeStart} minutes before start).`
+              : '.'}
+          </p>
+          {assessment?.startTime && (
+            <p className="text-xs text-slate-400 mt-3">
+              Scheduled start: {formatAssessmentWindow(assessment.startTime)}
+            </p>
           )}
-        </p>
-        {assessment?.startTime && (
-          <p className="text-slate-500 text-xs mt-3">Scheduled start: {formatAssessmentWindow(assessment.startTime)}</p>
-        )}
-        <div className="mt-8 flex flex-wrap gap-3 justify-center">
-          <button type="button" onClick={recheckEntryWindow} className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold transition-all text-sm">
-            Check again
-          </button>
-          <button onClick={() => navigate('/student')} className="px-8 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold transition-all text-sm">
-            Return to Dashboard
-          </button>
+          <div className="mt-6 flex flex-wrap gap-2 justify-center">
+            <button
+              type="button"
+              onClick={recheckEntryWindow}
+              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              Check again
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/student?tab=assessments')}
+              className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-medium border border-slate-200 transition-colors"
+            >
+              Back
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -821,35 +830,43 @@ export default function AssessmentApp() {
   if (entryStatus === 'TOO_LATE') {
     const entry = assessment ? getAssessmentEntryStatus(assessment) : null;
     return (
-      <div className="h-screen bg-slate-950 flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
-        <div className="w-24 h-24 bg-rose-500/20 rounded-full flex items-center justify-center mb-6 border border-rose-500/30 shadow-2xl shadow-rose-500/20">
-           <Ban className="w-10 h-10 text-rose-400" />
-        </div>
-        <h2 className="text-3xl font-black text-white tracking-tight mb-3">Entry Closed</h2>
-        <p className="text-slate-400 max-w-md mx-auto">
-          The last time to join was{' '}
-          <span className="text-white font-bold">{formatAssessmentWindow(entry?.entryClosesAt)}</span>.
-          {entry?.joinWindow && (
-            <> ({entry.joinWindow.closesMinutesAfterStart} minutes after scheduled start).</>
-          )}
-        </p>
-        {assessment?.startTime && (
-          <p className="text-slate-500 text-xs mt-3 max-w-md">
-            Scheduled start: {formatAssessmentWindow(assessment.startTime)}
-            {assessment.endTime ? ` · Overall end: ${formatAssessmentWindow(assessment.endTime)}` : ''}
+      <div className="h-screen relative flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+        <div className="absolute inset-0 bg-slate-100" aria-hidden />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(225,29,72,0.1),_transparent_55%)]" aria-hidden />
+        <div className="relative max-w-md w-full bg-white rounded-lg border border-slate-200/80 shadow-xl p-7 text-center">
+          <div className="w-12 h-12 bg-rose-50 rounded-lg flex items-center justify-center mx-auto mb-4 border border-rose-100">
+            <Ban className="w-6 h-6 text-rose-600" strokeWidth={1.75} />
+          </div>
+          <h2 className="text-lg font-semibold text-slate-900 mb-2">Entry closed</h2>
+          <p className="text-sm text-slate-500 leading-relaxed">
+            The last time to join was{' '}
+            <span className="font-semibold text-slate-800">{formatAssessmentWindow(entry?.entryClosesAt)}</span>
+            {entry?.joinWindow
+              ? ` (${entry.joinWindow.closesMinutesAfterStart} minutes after start).`
+              : '.'}
           </p>
-        )}
-        <div className="mt-8 flex flex-wrap gap-3 justify-center">
-          <button
-            type="button"
-            onClick={recheckEntryWindow}
-            className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold transition-all text-sm"
-          >
-            Check again
-          </button>
-          <button onClick={() => navigate('/student/dashboard')} className="px-8 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold transition-all text-sm">
-            Return to Dashboard
-          </button>
+          {assessment?.startTime && (
+            <p className="text-xs text-slate-400 mt-3">
+              Scheduled start: {formatAssessmentWindow(assessment.startTime)}
+              {assessment.endTime ? ` · Ends: ${formatAssessmentWindow(assessment.endTime)}` : ''}
+            </p>
+          )}
+          <div className="mt-6 flex flex-wrap gap-2 justify-center">
+            <button
+              type="button"
+              onClick={recheckEntryWindow}
+              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              Check again
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/student?tab=assessments')}
+              className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-medium border border-slate-200 transition-colors"
+            >
+              Back
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -857,30 +874,34 @@ export default function AssessmentApp() {
 
   if (entryStatus === 'WAITING' && isPreCheckDone) {
     return (
-      <div className="h-screen bg-slate-950 flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent opacity-50 pointer-events-none" />
-        
-        <div className="max-w-2xl w-full bg-slate-900/40 backdrop-blur-2xl rounded-[3rem] p-12 border border-slate-800 shadow-2xl relative z-10 flex flex-col items-center">
-           <div className="w-24 h-24 bg-amber-500/10 rounded-full flex items-center justify-center mb-6 border border-amber-500/20">
-              <Clock className="w-10 h-10 text-amber-500 animate-pulse" />
-           </div>
-           <h2 className="text-3xl font-black text-white tracking-tight mb-4">Holding Room</h2>
-           <p className="text-slate-400 max-w-md mx-auto mb-8 font-medium leading-relaxed">
-             You have successfully completed the hardware pre-check. Please wait here. The exam questions will automatically load exactly at the scheduled start time.
-           </p>
-           
-           <div className="bg-slate-800/50 px-8 py-6 rounded-3xl border border-slate-700 w-full mb-8">
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Scheduled Start Time</p>
-              <p className="text-2xl font-black text-white">{new Date(assessment.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-           </div>
-           
-           <button 
-             onClick={executeTestStart}
-             className="px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-xl shadow-indigo-500/20"
-           >
-             Start Exam Now
-           </button>
-           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-4">Only click if it is past the start time.</p>
+      <div className="h-screen relative flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+        <div className="absolute inset-0 bg-slate-100" aria-hidden />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(245,158,11,0.12),_transparent_55%)]" aria-hidden />
+        <div className="relative max-w-lg w-full bg-white rounded-lg border border-slate-200/80 shadow-xl p-7 text-center">
+          <div className="w-12 h-12 bg-amber-50 rounded-lg flex items-center justify-center mx-auto mb-4 border border-amber-100">
+            <Clock className="w-6 h-6 text-amber-600 animate-pulse" strokeWidth={1.75} />
+          </div>
+          <h2 className="text-lg font-semibold text-slate-900 mb-2">Holding room</h2>
+          <p className="text-sm text-slate-500 leading-relaxed mb-5">
+            Device check is done. Questions will unlock at the scheduled start time.
+          </p>
+          <div className="bg-slate-50 rounded-lg border border-slate-200 px-5 py-4 mb-5">
+            <p className="text-xs text-slate-500 mb-1">Scheduled start</p>
+            <p className="text-xl font-semibold text-slate-900 tabular-nums">
+              {new Date(assessment.startTime).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={executeTestStart}
+            className="w-full px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            Start exam now
+          </button>
+          <p className="text-xs text-slate-400 mt-3">Only if it is past the start time.</p>
         </div>
       </div>
     );
@@ -919,137 +940,137 @@ export default function AssessmentApp() {
     ];
 
     return (
-      <div className="h-screen bg-slate-950 text-white flex flex-col overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent opacity-60 pointer-events-none" />
+      <div className="h-screen relative flex items-center justify-center p-4 sm:p-6 overflow-hidden bg-slate-100">
+        <div
+          className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(79,70,229,0.14),_transparent_55%),radial-gradient(ellipse_at_bottom_right,_rgba(14,165,233,0.08),_transparent_50%)]"
+          aria-hidden
+        />
 
-        {/* Header — same background as page (no separate strip) */}
-        <header className="relative z-10 shrink-0 px-5 sm:px-8 py-4 flex items-center gap-4">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0">
-            <Shield className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-base sm:text-lg md:text-xl font-black text-white tracking-tight truncate">
-              {assessment.title}
-            </h1>
-            <p className="text-slate-400 font-bold uppercase tracking-[0.18em] text-[10px] mt-0.5">
-              Secure Assessment Portal
-            </p>
-          </div>
-          <button
-            onClick={startAssessment}
-            disabled={starting || !allChecksPass}
-            className={`shrink-0 px-3 sm:px-4 py-2 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wide transition-all flex items-center gap-1.5 ${
-              starting || !allChecksPass
-                ? 'bg-slate-700/60 text-slate-400 cursor-not-allowed border border-slate-600'
-                : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-500/20'
-            }`}
-          >
-            {starting ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span className="hidden sm:inline">Starting…</span>
-              </>
-            ) : (
-              <>
-                <span>Start Test</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </>
-            )}
-          </button>
-        </header>
-
-        {/* Main — camera wider; right panel compact & centered */}
-        <main className="relative z-10 flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[1.6fr_1fr] overflow-hidden">
-          {/* Left: camera preview — fills column height */}
-          <section className="flex flex-col min-h-0 p-5 sm:p-6 lg:p-8 overflow-hidden">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 shrink-0">Camera Preview</p>
-            <div className="flex-1 min-h-[220px] sm:min-h-[300px] w-full rounded-2xl overflow-hidden border border-slate-800 bg-black">
-              <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="assessment-precheck-title"
+          className="relative w-full max-w-4xl bg-white rounded-lg border border-slate-200/80 shadow-xl shadow-indigo-900/5 overflow-hidden max-h-[min(92vh,900px)] flex flex-col"
+        >
+          <div className="px-5 sm:px-6 py-3.5 border-b border-slate-100 flex items-center justify-between gap-3 shrink-0">
+            <div className="min-w-0 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0 shadow-sm shadow-indigo-600/20">
+                <Shield className="w-4 h-4 text-white" strokeWidth={1.75} />
+              </div>
+              <h1 id="assessment-precheck-title" className="text-base font-semibold text-slate-900 truncate">
+                {assessment.title}
+              </h1>
             </div>
-            {precheck.error && (
-              <p className="text-xs text-rose-300 mt-2">{precheck.error}</p>
-            )}
-          </section>
+            <button
+              type="button"
+              onClick={startAssessment}
+              disabled={starting || !allChecksPass}
+              className={`shrink-0 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                starting || !allChecksPass
+                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
+                  : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm shadow-indigo-600/20'
+              }`}
+            >
+              {starting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Starting…
+                </>
+              ) : (
+                <>
+                  Start test
+                  <ChevronRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </div>
 
-          {/* Right: single compact panel, vertically centered */}
-          <section className="flex flex-col min-h-0 p-5 sm:p-6 md:justify-center md:items-center overflow-y-auto">
-            <div className="w-full max-w-md space-y-4">
-              <div className="rounded-2xl bg-slate-800/25 border border-slate-700/35 p-5 space-y-5">
-                <div className="flex items-start gap-3 pb-3.5 border-b border-slate-700/40">
-                  <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
-                  <div className="min-w-0">
-                    <h4 className="text-[11px] font-black text-amber-500 uppercase tracking-widest mb-1">Important Note</h4>
-                    <p className="text-xs text-amber-200/70 leading-snug">
-                      Webcam monitoring is required. Tab switches or leaving the frame may result in disqualification.
-                    </p>
-                  </div>
+          <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[1.4fr_1fr] overflow-hidden">
+            <section className="flex flex-col min-h-0 p-5 sm:p-6 overflow-hidden border-b md:border-b-0 md:border-r border-slate-100">
+              <p className="text-xs font-medium text-slate-500 mb-2 shrink-0">Camera preview</p>
+              <div className="flex-1 min-h-[200px] w-full rounded-md overflow-hidden border border-slate-800 bg-slate-900">
+                <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+              </div>
+              {precheck.error && (
+                <p className="text-xs text-rose-600 mt-2">{precheck.error}</p>
+              )}
+            </section>
+
+            <section className="flex flex-col min-h-0 p-5 sm:p-6 overflow-y-auto">
+              <div className="space-y-4">
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3.5 flex gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" strokeWidth={1.75} />
+                  <p className="text-xs text-amber-800 leading-relaxed">
+                    Webcam monitoring is on. Leaving the tab or frame may flag a violation.
+                  </p>
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-2.5">
-                    <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Validation Checks</p>
-                    <span className={`text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
-                      allChecksPass ? 'bg-emerald-500/15 text-emerald-400' : 'bg-slate-700/60 text-slate-400'
-                    }`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-medium text-slate-500">Validation</p>
+                    <span
+                      className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${
+                        allChecksPass
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                          : 'bg-slate-50 text-slate-500 border-slate-200'
+                      }`}
+                    >
                       {passedCount}/3
                     </span>
                   </div>
-
-                  <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden mb-3.5">
+                  <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden mb-3">
                     <div
-                      className="h-full bg-indigo-500 transition-all duration-500"
+                      className="h-full bg-indigo-600 transition-all duration-300"
                       style={{ width: `${(passedCount / 3) * 100}%` }}
                     />
                   </div>
-
-                  <div className="rounded-xl bg-slate-900/40 overflow-hidden divide-y divide-slate-700/35">
+                  <div className="rounded-md border border-slate-200 overflow-hidden divide-y divide-slate-100">
                     {validationChecks.map((check) => {
                       const Icon = check.icon;
                       const statusPass = check.pass;
                       const statusLoading = check.loading;
-
                       return (
-                        <div key={check.key} className="flex items-center gap-3 px-3.5 py-3">
-                          <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
-                            statusPass
-                              ? 'bg-emerald-500/15'
-                              : statusLoading
-                                ? 'bg-indigo-500/15'
-                                : 'bg-slate-700/40'
-                          }`}>
-                            <Icon className={`w-4 h-4 ${
-                              statusPass ? 'text-emerald-400' : statusLoading ? 'text-indigo-400' : 'text-slate-400'
-                            }`} />
+                        <div key={check.key} className="flex items-center gap-3 px-3 py-2.5 bg-white">
+                          <div
+                            className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 border ${
+                              statusPass
+                                ? 'bg-emerald-50 border-emerald-100'
+                                : statusLoading
+                                  ? 'bg-indigo-50 border-indigo-100'
+                                  : 'bg-slate-50 border-slate-200'
+                            }`}
+                          >
+                            <Icon
+                              className={`w-4 h-4 ${
+                                statusPass
+                                  ? 'text-emerald-600'
+                                  : statusLoading
+                                    ? 'text-indigo-600'
+                                    : 'text-slate-400'
+                              }`}
+                              strokeWidth={1.75}
+                            />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-slate-200">{check.label}</p>
-                            <p className="text-[10px] text-slate-500 truncate">{check.hint}</p>
+                            <p className="text-xs font-medium text-slate-800">{check.label}</p>
+                            <p className="text-[11px] text-slate-500 truncate">{check.hint}</p>
                           </div>
-                          <div className={`shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-[9px] font-black uppercase ${
-                            statusPass
-                              ? 'text-emerald-400'
-                              : statusLoading
-                                ? 'text-indigo-400'
-                                : 'text-rose-400'
-                          }`}>
-                            {statusLoading ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : statusPass ? (
-                              <CheckCircle className="w-3.5 h-3.5" />
-                            ) : (
-                              <XCircle className="w-3.5 h-3.5" />
-                            )}
-                          </div>
+                          {statusLoading ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                          ) : statusPass ? (
+                            <CheckCircle className="w-3.5 h-3.5 text-emerald-600" strokeWidth={1.75} />
+                          ) : (
+                            <XCircle className="w-3.5 h-3.5 text-rose-400" strokeWidth={1.75} />
+                          )}
                         </div>
                       );
                     })}
                   </div>
-
                   {precheck.faceDetectorFailed && (
                     <button
                       type="button"
                       onClick={retryFaceDetection}
-                      className="w-full mt-2.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5"
+                      className="w-full mt-2.5 py-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-medium border border-indigo-100 flex items-center justify-center gap-1.5 transition-colors"
                     >
                       <ScanFace className="w-3.5 h-3.5" />
                       Retry face detection
@@ -1057,37 +1078,34 @@ export default function AssessmentApp() {
                   )}
                 </div>
 
-                <div className="pt-2 border-t border-slate-700/40 space-y-3">
-                  <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Setup</p>
-                  <div className="flex gap-2.5">
-                    <button
-                      type="button"
-                      onClick={startCameraPrecheck}
-                      className="flex-1 px-3.5 py-3 rounded-xl bg-indigo-600/80 hover:bg-indigo-500 border border-indigo-500/40 text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5"
-                    >
-                      <Video className="w-4 h-4" />
-                      Enable Camera
-                    </button>
-                    <button
-                      type="button"
-                      onClick={enterFullscreenPrecheck}
-                      className="flex-1 px-3.5 py-3 rounded-xl bg-indigo-600/80 hover:bg-indigo-500 border border-indigo-500/40 text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5"
-                    >
-                      <Maximize2 className="w-4 h-4" />
-                      Fullscreen
-                    </button>
-                  </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={startCameraPrecheck}
+                    className="flex-1 px-3 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <Video className="w-4 h-4" strokeWidth={1.75} />
+                    Enable camera
+                  </button>
+                  <button
+                    type="button"
+                    onClick={enterFullscreenPrecheck}
+                    className="flex-1 px-3 py-2.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium border border-slate-200 flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <Maximize2 className="w-4 h-4" strokeWidth={1.75} />
+                    Fullscreen
+                  </button>
                 </div>
-              </div>
 
-              <p className="text-[11px] text-slate-500 text-center leading-snug px-1">
-                Start only after all checks pass.
-                {precheck.faceLoading ? ' Face detection may take up to 20s.' : ''}
-                {precheck.faceHint ? ` ${precheck.faceHint}` : ''}
-              </p>
-            </div>
-          </section>
-        </main>
+                <p className="text-[11px] text-slate-400 text-center leading-snug">
+                  Start only after all checks pass.
+                  {precheck.faceLoading ? ' Face detection may take up to 20s.' : ''}
+                  {precheck.faceHint ? ` ${precheck.faceHint}` : ''}
+                </p>
+              </div>
+            </section>
+          </div>
+        </div>
       </div>
     );
   }
@@ -1096,48 +1114,56 @@ export default function AssessmentApp() {
   const currentQuestion = assessment?.questions?.[currentQuestionIdx];
 
   return (
-    <div className="h-screen bg-slate-950 flex flex-col overflow-hidden text-slate-200">
-      {/* Header — same background as page (no separate strip) */}
-      <div className="shrink-0 px-5 sm:px-8 py-3 z-30">
-        <header className="flex items-center justify-between gap-6">
-        <div className="flex items-center gap-4 min-w-0">
-          <div className="w-10 h-10 shrink-0 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            {assessment?.type === 'MOCK_TEST' ? <FileText className="w-5 h-5 text-white" /> : <Video className="w-5 h-5 text-white" />}
+    <div className="h-screen bg-slate-50 flex flex-col overflow-hidden text-slate-900">
+      <div className="shrink-0 px-4 sm:px-6 py-3 z-30 bg-white border-b border-slate-200/80">
+        <header className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 shrink-0 bg-indigo-600 rounded-lg flex items-center justify-center shadow-sm shadow-indigo-600/20">
+            {assessment?.type === 'MOCK_TEST' ? (
+              <FileText className="w-4 h-4 text-white" strokeWidth={1.75} />
+            ) : (
+              <Video className="w-4 h-4 text-white" strokeWidth={1.75} />
+            )}
           </div>
           <div className="min-w-0">
-            <h2 className="text-sm font-black text-white tracking-tight truncate">{assessment?.title}</h2>
-            <div className="flex items-center gap-2.5 mt-0.5">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{assessment?.type.replace('_', ' ')}</span>
-              <div className="w-1 h-1 bg-slate-700 rounded-full shrink-0" />
+            <h2 className="text-sm font-semibold text-slate-900 tracking-tight truncate">{assessment?.title}</h2>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-[11px] font-medium text-slate-500">
+                {assessment?.type?.replace(/_/g, ' ')}
+              </span>
+              <span className="w-1 h-1 bg-slate-300 rounded-full shrink-0" />
               <div className="flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shrink-0" />
-                <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Live Secure Session</span>
+                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shrink-0" />
+                <span className="text-[11px] font-medium text-emerald-700">Live</span>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {!isInterviewer && (
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all ${
-              timeLeft < 300 ? 'bg-rose-500/10 text-rose-500' : 'bg-slate-800/50 text-white'
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors ${
+              timeLeft < 300
+                ? 'bg-rose-50 border-rose-200 text-rose-700'
+                : 'bg-slate-50 border-slate-200 text-slate-900'
             }`}>
-              <Clock className={`w-3.5 h-3.5 ${timeLeft < 300 ? 'animate-pulse' : ''}`} />
+              <Clock className={`w-3.5 h-3.5 ${timeLeft < 300 ? 'animate-pulse' : ''}`} strokeWidth={1.75} />
               <div className="flex flex-col">
-                <span className="text-[7px] font-black uppercase tracking-widest opacity-50 leading-none">Time Remaining</span>
-                <span className="text-sm font-black tabular-nums leading-tight">
+                <span className="text-[10px] text-slate-500 leading-none">Time left</span>
+                <span className="text-sm font-semibold tabular-nums leading-tight">
                   {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
                 </span>
               </div>
             </div>
           )}
-          
-          <button 
+
+          <button
+            type="button"
             onClick={submitAssessment}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-all shadow-md shadow-indigo-500/20 active:scale-95 flex items-center gap-2"
+            className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition-colors shadow-sm shadow-indigo-600/20 flex items-center gap-2"
           >
             <Send className="w-3.5 h-3.5" />
-            Finish & Submit
+            <span className="hidden sm:inline">Submit</span>
           </button>
         </div>
         </header>
@@ -1154,11 +1180,9 @@ export default function AssessmentApp() {
       </div>
 
       <div className="flex-1 flex overflow-hidden min-h-0 relative">
-        {/* Main Workspace */}
-        <main className="flex-1 flex overflow-hidden bg-slate-950 relative min-w-0">
+        <main className="flex-1 flex overflow-hidden bg-slate-50 relative min-w-0">
           <div className="flex-1 flex flex-col overflow-hidden min-h-0 p-4">
             <div className="w-full flex-1 flex flex-col min-h-0">
-              {/* Interaction Area */}
               <div className="flex-1 min-h-0 flex flex-col">
                 {currentQuestion?.type === 'MCQ' ? (
                   <QuestionPanelShell
@@ -1176,14 +1200,14 @@ export default function AssessmentApp() {
                               key={i}
                               type="button"
                               onClick={() => handleAnswerChange(currentQuestion.id, String(i))}
-                              className={`group p-4 text-left rounded-xl transition-all flex items-center gap-4 border ${
+                              className={`group p-4 text-left rounded-lg transition-colors flex items-center gap-4 border ${
                                 selected
                                   ? 'bg-indigo-50 border-indigo-400 text-slate-900 shadow-sm'
                                   : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
                               }`}
                             >
                               <div
-                                className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm transition-all ${
+                                className={`w-9 h-9 rounded-md flex items-center justify-center font-semibold text-sm transition-colors ${
                                   selected
                                     ? 'bg-indigo-600 text-white'
                                     : 'bg-slate-100 text-slate-600 group-hover:bg-slate-200'
@@ -1191,18 +1215,18 @@ export default function AssessmentApp() {
                               >
                                 {String.fromCharCode(65 + i)}
                               </div>
-                              <span className="text-sm font-semibold flex-1">{opt}</span>
-                              {selected && <CheckCircle className="w-5 h-5 text-indigo-600 shrink-0" />}
+                              <span className="text-sm font-medium flex-1">{opt}</span>
+                              {selected && <CheckCircle className="w-5 h-5 text-indigo-600 shrink-0" strokeWidth={1.75} />}
                             </button>
                           );
                         })}
                     </div>
                   </QuestionPanelShell>
                 ) : currentQuestion?.type === 'CODING' ? (
-                  <div className="flex-1 min-h-0 flex flex-col rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
+                  <div className="flex-1 min-h-0 flex flex-col rounded-lg overflow-hidden border border-slate-200 shadow-sm">
                     <div className="flex flex-col h-full min-h-0 bg-[#f8f9fb] p-5 gap-4">
                     <QuestionMetaBar question={currentQuestion} questionIndex={currentQuestionIdx} />
-                    <div className="flex-1 min-h-0 flex flex-col lg:flex-row rounded-2xl overflow-hidden bg-[#0d1117]">
+                    <div className="flex-1 min-h-0 flex flex-col lg:flex-row rounded-lg overflow-hidden bg-[#0d1117]">
                     <div className="lg:hidden max-h-[40vh] shrink-0 border-b border-slate-700/50 overflow-hidden">
                       <CodingProblemPanel
                         title={currentQuestion.questionText}
@@ -1334,41 +1358,43 @@ export default function AssessmentApp() {
                       value={answers[currentQuestion.id] || ''}
                       onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
                       placeholder="Type your answer here..."
-                      className="flex-1 min-h-[280px] w-full p-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-sm leading-relaxed resize-y focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none font-medium"
+                      className="flex-1 min-h-[280px] w-full p-4 rounded-lg border border-slate-200 bg-slate-50 text-slate-900 text-sm leading-relaxed resize-y focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none"
                     />
                   </QuestionPanelShell>
                 ) : (
-                  <div className="h-full bg-slate-900/50 rounded-3xl flex flex-col items-center justify-center p-12 gap-8">
+                  <div className="h-full bg-white rounded-lg border border-slate-200/80 flex flex-col items-center justify-center p-10 gap-6 shadow-sm">
                      <div className="text-center">
-                        <div className={`w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center transition-all ${isRecording ? 'bg-rose-500 animate-pulse shadow-2xl shadow-rose-500/40' : 'bg-slate-800'}`}>
-                           <Video className={`w-10 h-10 ${isRecording ? 'text-white' : 'text-slate-500'}`} />
+                        <div className={`w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center transition-colors ${isRecording ? 'bg-rose-500 animate-pulse' : 'bg-slate-100 border border-slate-200'}`}>
+                           <Video className={`w-8 h-8 ${isRecording ? 'text-white' : 'text-slate-400'}`} strokeWidth={1.75} />
                         </div>
-                        <h4 className="text-white font-black uppercase tracking-widest mb-2">Video Response</h4>
-                        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Question {currentQuestionIdx + 1}</p>
+                        <h4 className="text-sm font-semibold text-slate-900 mb-1">Video response</h4>
+                        <p className="text-xs text-slate-500">Question {currentQuestionIdx + 1}</p>
                      </div>
 
-                     <div className="flex gap-4">
+                     <div className="flex gap-3">
                         {!isRecording ? (
-                          <button 
+                          <button
+                            type="button"
                             onClick={startRecording}
-                            className="px-10 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-xl shadow-indigo-500/20"
+                            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors"
                           >
-                            Start Recording
+                            Start recording
                           </button>
                         ) : (
-                          <button 
+                          <button
+                            type="button"
                             onClick={stopRecording}
-                            className="px-10 py-4 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-xl shadow-rose-500/20 animate-pulse"
+                            className="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-sm font-medium transition-colors animate-pulse"
                           >
-                            Stop Recording
+                            Stop recording
                           </button>
                         )}
                      </div>
 
                      {answers[currentQuestion.id] && !isRecording && (
-                       <div className="flex items-center gap-2 text-emerald-500 bg-emerald-500/10 px-4 py-2 rounded-xl">
-                          <CheckCircle className="w-4 h-4" />
-                          <span className="text-[10px] font-black uppercase tracking-widest">Answer Recorded</span>
+                       <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
+                          <CheckCircle className="w-4 h-4" strokeWidth={1.75} />
+                          <span className="text-xs font-medium">Answer recorded</span>
                        </div>
                      )}
                   </div>
@@ -1378,12 +1404,11 @@ export default function AssessmentApp() {
           </div>
         </main>
 
-        {/* Right panel collapse toggle */}
         <button
           type="button"
           onClick={() => setRightPanelOpen((open) => !open)}
-          className={`absolute top-1/2 -translate-y-1/2 z-30 w-6 h-14 bg-[#0d1117] hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition-all duration-300 ${
-            rightPanelOpen ? 'right-[316px] rounded-l-lg border-r-0' : 'right-0 rounded-l-lg'
+          className={`absolute top-1/2 -translate-y-1/2 z-30 w-6 h-14 bg-white hover:bg-slate-50 border border-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors ${
+            rightPanelOpen ? 'right-[316px] rounded-l-md border-r-0' : 'right-0 rounded-l-md'
           }`}
           title={rightPanelOpen ? 'Collapse panel' : 'Expand panel'}
           aria-expanded={rightPanelOpen}
@@ -1392,15 +1417,13 @@ export default function AssessmentApp() {
           {rightPanelOpen ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
 
-        {/* Right Sidebar: Questions & Proctoring — collapsible, fixed size all question types */}
         <aside
           className={`shrink-0 h-full flex flex-col min-h-0 z-20 overflow-hidden transition-[width,padding] duration-300 ease-in-out py-4 ${
             rightPanelOpen ? 'w-[316px] pr-4' : 'w-0 pr-0'
           }`}
         >
-          <div className="w-[300px] h-full min-h-0 flex flex-col rounded-2xl border border-slate-800 bg-[#0d1117] overflow-hidden">
-            {/* Top half — camera & monitoring */}
-            <div className="flex-1 basis-0 min-h-0 flex flex-col overflow-hidden border-b border-slate-800">
+          <div className="w-[300px] h-full min-h-0 flex flex-col rounded-lg border border-slate-200/80 bg-white overflow-hidden shadow-sm">
+            <div className="flex-1 basis-0 min-h-0 flex flex-col overflow-hidden border-b border-slate-100">
               <ProctoringConsole
                 videoRef={videoRef}
                 violations={violations}
@@ -1408,6 +1431,7 @@ export default function AssessmentApp() {
                 cameraLive={cameraLive}
                 borderless
                 compact
+                variant="light"
               />
               <div className="shrink-0 max-h-36 overflow-y-auto border-t border-slate-800 p-2">
                 <p className="mb-1.5 text-[8px] font-black uppercase tracking-widest text-slate-500">Violation Timeline</p>
@@ -1415,21 +1439,20 @@ export default function AssessmentApp() {
               </div>
             </div>
 
-            {/* Bottom half — questions */}
             <div className="flex-1 basis-0 min-h-0 flex flex-col p-3 overflow-hidden">
-              <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 shrink-0">Questions</h4>
+              <p className="text-xs font-medium text-slate-500 mb-2 shrink-0">Questions</p>
               <div className="flex-1 min-h-0 flex flex-wrap content-start gap-2 overflow-y-auto">
                 {assessment?.questions?.map((q, i) => (
                   <button
                     key={i}
                     type="button"
                     onClick={() => setCurrentQuestionIdx(i)}
-                    className={`w-9 h-9 rounded-lg flex items-center justify-center text-[10px] font-black transition-all ${
+                    className={`w-9 h-9 rounded-md flex items-center justify-center text-xs font-medium transition-colors ${
                       currentQuestionIdx === i
-                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30'
+                        ? 'bg-indigo-600 text-white'
                         : answers[q.id]
-                          ? 'bg-emerald-500/10 text-emerald-500'
-                          : 'bg-slate-800 text-slate-500 hover:bg-slate-700 hover:text-white'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                          : 'bg-slate-50 text-slate-500 border border-slate-200 hover:bg-slate-100'
                     }`}
                   >
                     {i + 1}
@@ -1441,7 +1464,7 @@ export default function AssessmentApp() {
                   type="button"
                   disabled={currentQuestionIdx === 0}
                   onClick={() => setCurrentQuestionIdx((v) => v - 1)}
-                  className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-xl transition-all flex items-center justify-center disabled:opacity-30"
+                  className="flex-1 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors flex items-center justify-center disabled:opacity-30 border border-slate-200"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -1449,7 +1472,7 @@ export default function AssessmentApp() {
                   type="button"
                   disabled={currentQuestionIdx === assessment?.questions?.length - 1}
                   onClick={() => setCurrentQuestionIdx((v) => v + 1)}
-                  className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-xl transition-all flex items-center justify-center disabled:opacity-30"
+                  className="flex-1 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors flex items-center justify-center disabled:opacity-30 border border-slate-200"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
@@ -1458,8 +1481,7 @@ export default function AssessmentApp() {
           </div>
         </aside>
       </div>
-      
-      {/* Hidden processing components */}
+
       <canvas ref={canvasRef} className="hidden" />
     </div>
   );

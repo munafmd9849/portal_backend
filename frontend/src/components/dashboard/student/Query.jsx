@@ -4,23 +4,16 @@ import {
   FaQuestionCircle, 
   FaChartLine, 
   FaCalendarAlt,
-  FaTimes,
   FaCheckCircle,
   FaFileUpload,
-  FaInfoCircle,
-  FaExclamationCircle,
-  FaHistory,
   FaChevronDown,
   FaChevronUp,
   FaClock,
-  FaCheck,
-  FaTimesCircle
+  FaListOl,
 } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import QueryErrorBoundary from '../../common/QueryErrorBoundary';
 import { getTargetedJobsForStudent } from '../../../services/jobs';
-import { FaBriefcase } from 'react-icons/fa';
 
 // Import query services (ES module syntax)
 import * as queryServices from '../../../services/queries.js';
@@ -124,11 +117,42 @@ const StudentQuerySystem = () => {
   }, [user?.id]);
 
   const queryTypes = [
-    { id: 'question', name: 'Ask a Question', icon: <FaQuestionCircle />, description: 'Get clarification on placement process', color: 'blue' },
-    { id: 'cgpa', name: 'Update CGPA', icon: <FaChartLine />, description: 'Submit updated marks with proof', color: 'green' },
-    { id: 'backlog', name: 'Update Backlogs', icon: <FaChartLine />, description: 'Submit updated backlogs count', color: 'orange' },
-    { id: 'calendar', name: 'Block Calendar', icon: <FaCalendarAlt />, description: 'Request specific time slots', color: 'purple' }
+    {
+      id: 'question',
+      name: 'Ask a Question',
+      icon: <FaQuestionCircle />,
+      idle: 'bg-indigo-50 text-indigo-700 border-indigo-100 hover:border-indigo-300',
+      active: 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-200/60',
+    },
+    {
+      id: 'cgpa',
+      name: 'Update CGPA',
+      icon: <FaChartLine />,
+      idle: 'bg-sky-50 text-sky-800 border-sky-100 hover:border-sky-300',
+      active: 'bg-sky-600 text-white border-sky-600 shadow-sm shadow-sky-200/60',
+    },
+    {
+      id: 'backlog',
+      name: 'Update Backlogs',
+      icon: <FaListOl />,
+      idle: 'bg-amber-50 text-amber-900 border-amber-100 hover:border-amber-300',
+      active: 'bg-amber-500 text-white border-amber-500 shadow-sm shadow-amber-200/60',
+    },
+    {
+      id: 'calendar',
+      name: 'Block Calendar',
+      icon: <FaCalendarAlt />,
+      idle: 'bg-violet-50 text-violet-800 border-violet-100 hover:border-violet-300',
+      active: 'bg-violet-600 text-white border-violet-600 shadow-sm shadow-violet-200/60',
+    },
   ];
+
+  const typeIconClass = {
+    question: 'text-indigo-600',
+    cgpa: 'text-sky-600',
+    backlog: 'text-amber-600',
+    calendar: 'text-violet-600',
+  };
 
   const timeSlots = [
     '9:00 AM - 10:00 AM',
@@ -453,19 +477,6 @@ const StudentQuerySystem = () => {
     setShowJobSelector(false);
   };
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'resolved':
-        return <FaCheck className="text-green-500" />;
-      case 'rejected':
-        return <FaTimesCircle className="text-red-500" />;
-      case 'under_review':
-        return <FaClock className="text-blue-500" />;
-      default:
-        return <FaClock className="text-gray-400" />;
-    }
-  };
-
   const getStatusText = (status) => {
     switch (status) {
       case 'resolved':
@@ -482,15 +493,20 @@ const StudentQuerySystem = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'resolved':
-        return 'bg-green-100 text-green-800';
+        return 'bg-emerald-50 text-emerald-800 border border-emerald-100';
       case 'rejected':
-        return 'bg-red-100 text-red-800';
+        return 'bg-rose-50 text-rose-800 border border-rose-100';
       case 'under_review':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-indigo-50 text-indigo-800 border border-indigo-100';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-slate-50 text-slate-700 border border-slate-200';
     }
   };
+
+  const fieldClass = (hasError) =>
+    `w-full px-3.5 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors ${
+      hasError ? 'border-rose-500' : 'border-slate-300'
+    }`;
 
   const toggleQueryExpand = (id) => {
     if (expandedQuery === id) {
@@ -502,36 +518,31 @@ const StudentQuerySystem = () => {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30 flex items-center justify-center p-3 sm:p-4 min-w-0 overflow-x-hidden pb-24 sm:pb-4">
-        <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-5 sm:p-8 max-w-md w-full border border-gray-200 min-w-0">
+      <div className="query-surface w-full max-w-full min-w-0 overflow-x-hidden flex items-center justify-center py-10 px-3 sm:px-4 pb-24 sm:pb-8">
+        <div className="bg-white rounded-xl shadow-sm p-6 sm:p-7 max-w-sm w-full border border-slate-200/80">
           <div className="text-center">
-            <div className="bg-green-100 w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
-              <FaCheckCircle className="text-green-600 text-2xl sm:text-3xl" />
+            <div className="bg-emerald-50 w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3 border border-emerald-100">
+              <FaCheckCircle className="text-emerald-600 text-xl" />
             </div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">Query Submitted!</h2>
-            <p className="text-gray-600 text-sm sm:text-base mb-4 sm:mb-6">
-              Your {queryTypes.find(t => t.id === formData.type).name.toLowerCase()} has been submitted. You’ll get a response within 24–48 hours.
-            </p>
-            <div className="bg-blue-50 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 text-left border border-blue-200">
-              <h3 className="font-medium text-blue-800 text-sm sm:text-base mb-1">Reference ID: #{referenceId}</h3>
-              <p className="text-xs sm:text-sm text-blue-600">Keep this for future communication.</p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3">
+            <h2 className="text-base font-semibold text-slate-900 mb-1">Submitted</h2>
+            <p className="text-sm text-slate-600 mb-4 font-mono">#{referenceId}</p>
+            <div className="flex flex-col sm:flex-row gap-2">
               <button
+                type="button"
                 onClick={() => {
                   setActiveView('history');
                   setSubmitted(false);
                 }}
-                className="min-h-[44px] px-4 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-all duration-200 flex-1 flex items-center justify-center"
+                className="min-h-[40px] px-4 py-2 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200 transition-colors flex-1"
               >
-                <FaHistory className="mr-2" />
-                View History
+                History
               </button>
               <button
+                type="button"
                 onClick={resetForm}
-                className="min-h-[44px] px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-md hover:shadow-lg flex-1"
+                className="min-h-[40px] px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors flex-1"
               >
-                Submit Another Query
+                New query
               </button>
             </div>
           </div>
@@ -541,617 +552,477 @@ const StudentQuerySystem = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30 p-3 py-5 md:p-4 md:py-8 min-w-0 overflow-x-hidden pb-24 sm:pb-8 md:pb-8">
-      <div className="max-w-6xl mx-auto min-w-0">
-        {/* View Toggle */}
-        <div className="flex justify-center mb-4 md:mb-8">
-          <div className="bg-white rounded-lg p-1 shadow-sm border border-gray-200 inline-flex w-full max-w-sm md:max-w-none md:w-auto">
-            <button
-              onClick={() => setActiveView('new')}
-              className={`flex-1 md:flex-none min-h-[44px] px-3 py-2.5 md:px-6 md:py-3 rounded-md font-medium transition-all duration-200 text-sm md:text-base touch-manipulation ${activeView === 'new' ? 'bg-yellow-200 text-black shadow-md' : 'text-gray-600 hover:text-gray-800'}`}
-            >
-              New Query
-            </button>
-            <button
-              onClick={() => setActiveView('history')}
-              className={`flex-1 md:flex-none min-h-[44px] px-3 py-2.5 md:px-6 md:py-3 rounded-md font-medium transition-all duration-200 flex items-center justify-center text-sm md:text-base touch-manipulation ${activeView === 'history' ? 'bg-yellow-500 text-white shadow-md' : 'text-gray-600 hover:text-gray-800'}`}
-            >
-              <FaHistory className="mr-1 md:mr-2 flex-shrink-0" />
-              Query History
-            </button>
-          </div>
-        </div>
+    <div className="query-surface w-full max-w-full min-w-0 overflow-x-hidden space-y-3 sm:space-y-4 pb-24 sm:pb-8">
+      <style>{`
+        .query-surface .query-row {
+          transition: border-color 150ms ease, background-color 150ms ease;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .query-surface .query-row { transition: none !important; }
+        }
+      `}</style>
 
-        {activeView === 'history' ? (
-          /* Query History View */
-          <div className="bg-white rounded-xl md:rounded-2xl shadow-lg overflow-hidden border border-gray-200 min-w-0">
-            <div className="p-4 md:p-6 border-b border-gray-200">
-              <h2 className="text-lg md:text-xl font-bold text-gray-800">Your Query History</h2>
-              <p className="text-gray-600 text-sm md:text-base">Track the status of your previous queries</p>
-            </div>
-            
-            <div className="p-4 md:p-6">
-              {loadingQueries ? (
-                <div className="text-center py-10">
-                  <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <FaClock className="text-blue-600 text-2xl animate-spin" />
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-700 mb-2">Loading your queries...</h3>
-                  <p className="text-gray-500">Please wait while we fetch your query history.</p>
-                </div>
-              ) : pastQueries.length === 0 ? (
-                <div className="text-center py-10">
-                  <div className="bg-gray-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <FaHistory className="text-gray-400 text-2xl" />
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-700 mb-2">No queries yet</h3>
-                  <p className="text-gray-500 mb-4">You haven't submitted any queries to the placement cell.</p>
-                  <button
-                    onClick={() => setActiveView('new')}
-                    className="min-h-[44px] px-4 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors font-medium"
-                  >
-                    Submit your first query
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {pastQueries.map(query => (
-                    <div key={query.id} className="border border-gray-200 rounded-xl overflow-hidden min-w-0">
-                      <div 
-                        className="p-4 sm:p-4 bg-gray-50 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 cursor-pointer hover:bg-gray-100 transition-colors min-h-[44px] touch-manipulation"
-                        onClick={() => toggleQueryExpand(query.id)}
-                      >
-                        <div className="flex items-start min-w-0 flex-1">
-                          <div className="mr-3 mt-0.5 flex-shrink-0">
-                            {query.type === 'question' && <FaQuestionCircle className="text-blue-500 text-lg sm:text-xl" />}
-                            {query.type === 'cgpa' && <FaChartLine className="text-green-500 text-lg sm:text-xl" />}
-                            {query.type === 'backlog' && <FaChartLine className="text-orange-500 text-lg sm:text-xl" />}
-                            {query.type === 'calendar' && <FaCalendarAlt className="text-purple-500 text-lg sm:text-xl" />}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <h3 className="font-medium text-gray-800 text-sm sm:text-base break-words">{query.subject || 'Query'}</h3>
-                            <p className="text-xs sm:text-sm text-gray-500 break-words mt-0.5">
-                              Submitted on {new Date(query.date || query.createdAt).toLocaleDateString()}
-                              {(query.responseDate || query.respondedAt) && <span className="block sm:inline"> • Responded on {new Date(query.responseDate || query.respondedAt).toLocaleDateString()}</span>}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center flex-shrink-0 gap-2">
-                          <span className={`px-2.5 sm:px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(query.status)} whitespace-nowrap`}>
-                            {getStatusText(query.status)}
-                          </span>
-                          {expandedQuery === query.id ? <FaChevronUp className="text-gray-400 w-4 h-4" /> : <FaChevronDown className="text-gray-400 w-4 h-4" />}
-                        </div>
-                      </div>
-                      
-                      {expandedQuery === query.id && (
-                        <div className="p-4 sm:p-4 bg-white border-t border-gray-200 min-w-0">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-4">
-                            <div>
-                              <h4 className="text-sm font-medium text-gray-500 mb-1">Query Type</h4>
-                              <p className="capitalize">{query.type}</p>
-                            </div>
-                            <div>
-                              <h4 className="text-sm font-medium text-gray-500 mb-1">Status</h4>
-                              <div className="flex items-center">
-                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(query.status)}`}>
-                                  {getStatusText(query.status)}
-                                </span>
-                              </div>
-                            </div>
-                            <div>
-                              <h4 className="text-sm font-medium text-gray-500 mb-1">Date Submitted</h4>
-                              <p>{new Date(query.date || query.createdAt).toLocaleDateString()}</p>
-                            </div>
-                          </div>
-                          
-                          {query.type === 'question' && (
-                            <div className="mb-4">
-                              {query.jobId && (
-                                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                  <h4 className="text-sm font-medium text-blue-800 mb-1">Job Posting</h4>
-                                  <p className="text-sm text-blue-700">
-                                    {query.subject.includes('about') ? query.subject.split('about')[1]?.trim() : query.subject}
-                                  </p>
-                                </div>
-                              )}
-                              <h4 className="text-sm font-medium text-gray-500 mb-1">Your Question</h4>
-                              <p className="text-gray-800">{query.message}</p>
-                            </div>
-                          )}
-                          
-                          {query.type === 'cgpa' && (
-                            <div className="mb-4">
-                              <h4 className="text-sm font-medium text-gray-500 mb-1">CGPA Submitted</h4>
-                              <p className="text-gray-800">{query.cgpa}</p>
-                            </div>
-                          )}
-                          
-                          {query.type === 'backlog' && (
-                            <div className="mb-4">
-                              <h4 className="text-sm font-medium text-gray-500 mb-1">Backlogs Submitted</h4>
-                              <p className="text-gray-800">{query.backlogs || query.metadata?.backlogs || 'N/A'}</p>
-                            </div>
-                          )}
-                          
-                          {query.type === 'calendar' && (
-                            <div className="mb-4">
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div>
-                                  <h4 className="text-sm font-medium text-gray-500 mb-1">From</h4>
-                                  <p className="text-gray-800">{new Date(query.startDate).toLocaleDateString()}</p>
-                                </div>
-                                <div>
-                                  <h4 className="text-sm font-medium text-gray-500 mb-1">To</h4>
-                                  <p className="text-gray-800">{new Date(query.endDate).toLocaleDateString()}</p>
-                                </div>
-                                <div>
-                                  <h4 className="text-sm font-medium text-gray-500 mb-1">Time Slot</h4>
-                                  <p className="text-gray-800">{query.timeSlot}</p>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                          
-                          {(query.adminResponse || query.response) && (
-                            <div className="pt-4 border-t border-gray-200">
-                              <h4 className="text-sm font-medium text-gray-500 mb-2">Admin Response</h4>
-                              <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
-                                <p className="text-blue-800">{query.adminResponse || query.response}</p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          /* New Query Form View */
-          <div className="bg-white rounded-xl md:rounded-2xl shadow-lg overflow-hidden border border-gray-200 min-w-0">
-            {/* Query Type Selection */}
-            <div className="border-b border-gray-200 bg-gray-50/50 overflow-hidden">
-              <div className="flex overflow-x-auto justify-start md:justify-center px-2 md:px-6 scrollbar-hide gap-0 pb-1 -mb-px overflow-y-hidden min-w-0" style={{ WebkitOverflowScrolling: 'touch' }}>
-                {queryTypes.map((type) => (
-                  <button
-                    key={type.id}
-                    onClick={() => {
-                      setActiveTab(type.id);
-                      setFormData({...formData, type: type.id});
-                      setShowJobSelector(false);
-                    }}
-                    className={`px-3 py-3 md:px-5 md:py-4 flex flex-col items-center min-w-[88px] sm:min-w-[100px] md:min-w-[140px] border-b-2 transition-all duration-200 touch-manipulation flex-shrink-0 min-h-[44px] ${
-                      activeTab === type.id
-                        ? `border-${type.color}-500 text-${type.color}-600 bg-white shadow-sm`
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    <span className={`text-base md:text-lg mb-1 md:mb-2 ${activeTab === type.id ? `text-${type.color}-500` : 'text-gray-400'}`}>
-                      {type.icon}
-                    </span>
-                    <span className="font-medium text-xs md:text-sm">{type.name}</span>
-                    <span className="text-[10px] md:text-xs mt-0.5 md:mt-1 text-gray-400 hidden sm:block">{type.description}</span>
-                  </button>
-                ))}
+      <div className="inline-flex w-full sm:w-auto rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+        <button
+          type="button"
+          onClick={() => setActiveView('new')}
+          className={`flex-1 sm:flex-none min-h-[36px] px-3.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            activeView === 'new'
+              ? 'bg-white text-slate-900 shadow-sm'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          New
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveView('history')}
+          className={`flex-1 sm:flex-none min-h-[36px] px-3.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            activeView === 'history'
+              ? 'bg-white text-slate-900 shadow-sm'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          History
+        </button>
+      </div>
+
+      {activeView === 'history' ? (
+        <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden min-w-0">
+          <div className="p-3 sm:p-4">
+            {loadingQueries ? (
+              <div className="flex items-center justify-center py-12 text-sm text-slate-500 gap-2">
+                <FaClock className="text-indigo-500 animate-spin" />
+                Loading…
               </div>
-            </div>
-
-            {/* Query Form */}
-            <form onSubmit={handleSubmit} className="p-4 md:p-6 min-w-0">
-              {/* Job Selection for Question Type */}
-              {activeTab === 'question' ? (
-                <div className="mb-6">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <FaBriefcase className="w-4 h-4 text-blue-600" />
-                    Select Job Posting <span className="text-red-500">*</span>
-                  </label>
-                  {loadingJobs ? (
-                    <div className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-gray-50 flex items-center justify-center">
-                      <FaClock className="animate-spin text-blue-500 mr-2" />
-                      <span className="text-gray-600">Loading jobs...</span>
-                    </div>
-                  ) : jobs.length === 0 ? (
-                    <div className="w-full px-4 py-3 border-2 border-yellow-300 rounded-lg bg-yellow-50">
-                      <p className="text-yellow-800 text-sm">No job postings available at the moment. Please check back later.</p>
-                    </div>
-                  ) : (
-                    <div className="relative min-w-0" ref={jobSelectorRef}>
-                      <button
-                        type="button"
-                        onClick={() => setShowJobSelector(!showJobSelector)}
-                        className={`w-full min-h-[44px] border-2 ${formErrors.selectedJobId ? 'border-red-500' : 'border-gray-300'} rounded-lg px-4 py-3 text-sm text-left flex items-center justify-between gap-2 transition-all duration-200 bg-white hover:border-blue-500 hover:bg-blue-50/30 hover:shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer min-w-0 touch-manipulation`}
-                      >
-                        <span className="truncate flex-1 text-gray-900">
-                          {formData.selectedJobId ? (() => {
-                            const selectedJob = jobs.find(j => j.id === formData.selectedJobId);
-                            return selectedJob ? `${selectedJob.jobTitle} - ${selectedJob.companyName || selectedJob.company}` : 'Select a job posting';
-                          })() : 'Select a job posting to ask a question about'}
-                        </span>
-                        <FaChevronDown className={`w-3 h-3 text-gray-500 flex-shrink-0 transition-transform duration-200 ${showJobSelector ? 'rotate-180' : ''}`} />
-                      </button>
-                      
-                      {showJobSelector && (
-                        <div className="absolute z-20 w-full bg-white border-2 border-gray-300 rounded-lg shadow-lg mt-1 max-h-96 overflow-y-auto">
-                          <div className="p-2 space-y-2">
-                            {jobs.map((job) => {
-                              const isSelected = formData.selectedJobId === job.id;
-                              return (
-                                <div
-                                  key={job.id}
-                                  onClick={() => {
-                                    setFormData({ ...formData, selectedJobId: job.id });
-                                    setShowJobSelector(false);
-                                    if (formErrors.selectedJobId) {
-                                      setFormErrors({ ...formErrors, selectedJobId: '' });
-                                    }
-                                  }}
-                                  className={`p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
-                                    isSelected 
-                                      ? 'border-blue-500 bg-blue-50 shadow-md' 
-                                      : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/50'
-                                  }`}
-                                >
-                                  <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                      <h4 className={`font-semibold text-sm mb-1 ${isSelected ? 'text-blue-800' : 'text-gray-800'}`}>
-                                        {job.jobTitle}
-                                      </h4>
-                                      <p className={`text-xs mb-2 ${isSelected ? 'text-blue-700' : 'text-gray-600'}`}>
-                                        {job.companyName || job.company}
-                                        {job.companyLocation && ` • ${job.companyLocation}`}
-                                      </p>
-                                      <div className="flex flex-wrap gap-2 mt-2">
-                                        {job.jobType && (
-                                          <span className={`px-2 py-1 text-xs rounded ${isSelected ? 'bg-blue-200 text-blue-800' : 'bg-gray-100 text-gray-700'}`}>
-                                            {job.jobType}
-                                          </span>
-                                        )}
-                                        {job.workMode && (
-                                          <span className={`px-2 py-1 text-xs rounded ${isSelected ? 'bg-blue-200 text-blue-800' : 'bg-gray-100 text-gray-700'}`}>
-                                            {job.workMode}
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-                                    {isSelected && (
-                                      <FaCheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 ml-2" />
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {formErrors.selectedJobId && <p className="text-red-500 text-sm mt-1">{formErrors.selectedJobId}</p>}
-                </div>
-              ) : (
-                <div className="mb-6">
-                  <label className="block text-gray-700 font-medium mb-2">Subject</label>
-                  <input
-                    type="text"
-                    name="subject"
-                    value={formData.subject}
-                    onChange={handleInputChange}
-                    placeholder="Brief description of your query"
-                    className={`w-full px-4 py-3 border ${formErrors.subject ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-100`}
-                    required
-                  />
-                  {formErrors.subject && <p className="text-red-500 text-sm mt-1">{formErrors.subject}</p>}
-                </div>
-              )}
-
-              {/* Question-specific fields */}
-              {activeTab === 'question' && (
-                <div className="mb-6">
-                  <label className="block text-gray-700 font-medium mb-2">Your Question</label>
-                  <textarea
-                    name="message"
-                    value={formData.message}
-                    onChange={handleInputChange}
-                    placeholder="Please provide details about your question or concern..."
-                    rows={4}
-                    className={`w-full px-4 py-3 border min-h-[120px] max-h-[300px] resize-y ${formErrors.message ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-                    required
-                  />
-                  {formErrors.message && <p className="text-red-500 text-sm mt-1">{formErrors.message}</p>}
-                </div>
-              )}
-
-              {/* CGPA Update fields */}
-              {activeTab === 'cgpa' && (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div>
-                      <label className="text-gray-700 font-medium mb-2 flex items-center">
-                        Updated CGPA
-                        <span className="text-red-500 ml-1">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        name="cgpa"
-                        value={formData.cgpa}
-                        onChange={handleInputChange}
-                        onBlur={(e) => {
-                          // On blur, ensure exactly 2 decimal places if value exists
-                          const value = e.target.value.trim();
-                          if (value && !value.includes('.')) {
-                            // If user entered integer (e.g., 9), format to 9.00
-                            setFormData({
-                              ...formData,
-                              cgpa: value + '.00'
-                            });
-                          } else if (value && value.includes('.')) {
-                            const parts = value.split('.');
-                            if (parts[1] && parts[1].length < 2) {
-                              // If user entered 9.0 or 9.5, pad to 2 decimals
-                              setFormData({
-                                ...formData,
-                                cgpa: parts[0] + '.' + parts[1].padEnd(2, '0')
-                              });
-                            }
-                          }
-                        }}
-                        placeholder="Enter CGPA (e.g., 9.00, 8.75)"
-                        pattern="^(10\.00|[0-9]\.[0-9]{2})$"
-                        maxLength="5"
-                        className={`w-full px-4 py-3 border ${formErrors.cgpa ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200`}
-                        required
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Format: Must have exactly 2 decimals (e.g., 9.00, 8.75). Values like 9 or 9.0 are not accepted.</p>
-                      {formErrors.cgpa && <p className="text-red-500 text-sm mt-1">{formErrors.cgpa}</p>}
-                    </div>
-                    <div>
-                      <label className="text-gray-700 font-medium mb-2 flex items-center">
-                        Proof Document
-                        <span className="text-red-500 ml-1">*</span>
-                        <FaExclamationCircle className="text-amber-500 ml-2 text-sm" title="Required for verification" />
-                      </label>
-                      <div className={`relative border ${formErrors.proof ? 'border-red-500' : 'border-gray-300'} rounded-xl p-4 text-center hover:border-green-400 transition-colors duration-200 group`}>
-                        <input
-                          type="file"
-                          onChange={handleFileChange}
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          required
-                        />
-                        <FaFileUpload className="text-gray-400 text-2xl mx-auto mb-2 group-hover:text-green-500 transition-colors" />
-                        <p className="text-sm text-gray-600">
-                          {formData.proof ? formData.proof.name : 'Upload marksheet or transcript'}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1">PDF, JPG, or PNG (Max 5MB)</p>
-                      </div>
-                      {formErrors.proof && <p className="text-red-500 text-sm mt-1">{formErrors.proof}</p>}
-                    </div>
-                  </div>
-                  <div className="bg-green-50 rounded-xl p-4 mb-6 border border-green-200 min-w-0">
-                    <div className="flex items-start gap-3">
-                      <FaInfoCircle className="text-green-600 mt-0.5 flex-shrink-0" />
-                      <p className="text-sm text-green-700 break-words min-w-0">
-                        Please ensure your document is clear and shows your name, university seal, and the updated CGPA clearly. 
-                        Documents must be officially issued by your institution.
-                      </p>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Backlog Update fields */}
-              {activeTab === 'backlog' && (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div>
-                      <label className="text-gray-700 font-medium mb-2 flex items-center">
-                        Updated Backlogs Count
-                        <span className="text-red-500 ml-1">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        name="backlogs"
-                        value={formData.backlogs}
-                        onChange={handleInputChange}
-                        placeholder="Enter backlogs count (e.g., 0, 1, 2, 3+)"
-                        pattern="^(\d+|\d+\+)$"
-                        maxLength="10"
-                        className={`w-full px-4 py-3 border ${formErrors.backlogs ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200`}
-                        required
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Format: Non-negative integer (e.g., 0, 1, 2, 3+). Use "+" for 3 or more.</p>
-                      {formErrors.backlogs && <p className="text-red-500 text-sm mt-1">{formErrors.backlogs}</p>}
-                    </div>
-                    <div>
-                      <label className="text-gray-700 font-medium mb-2 flex items-center">
-                        Proof Document
-                        <span className="text-red-500 ml-1">*</span>
-                        <FaExclamationCircle className="text-amber-500 ml-2 text-sm" title="Required for verification" />
-                      </label>
-                      <div className={`relative border ${formErrors.proof ? 'border-red-500' : 'border-gray-300'} rounded-xl p-4 text-center hover:border-orange-400 transition-colors duration-200 group`}>
-                        <input
-                          type="file"
-                          onChange={handleFileChange}
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          required
-                        />
-                        <FaFileUpload className="text-gray-400 text-2xl mx-auto mb-2 group-hover:text-orange-500 transition-colors" />
-                        <p className="text-sm text-gray-600">
-                          {formData.proof ? formData.proof.name : 'Upload marksheet or transcript'}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1">PDF, JPG, or PNG (Max 5MB)</p>
-                      </div>
-                      {formErrors.proof && <p className="text-red-500 text-sm mt-1">{formErrors.proof}</p>}
-                    </div>
-                  </div>
-                  <div className="bg-orange-50 rounded-xl p-4 mb-6 border border-orange-200 min-w-0">
-                    <div className="flex items-start gap-3">
-                      <FaInfoCircle className="text-orange-600 mt-0.5 flex-shrink-0" />
-                      <p className="text-sm text-orange-700 break-words min-w-0">
-                        Please ensure your document is clear and shows your name, university seal, and the updated backlogs count clearly. 
-                        Documents must be officially issued by your institution.
-                      </p>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Calendar Blocking fields */}
-              {activeTab === 'calendar' && (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div>
-                      <label className="block text-gray-700 font-medium mb-2">Start Date</label>
-                      <input
-                        type="date"
-                        name="startDate"
-                        value={formData.startDate}
-                        onChange={handleInputChange}
-                        min={new Date().toISOString().split('T')[0]}
-                        className={`w-full px-4 py-3 border ${formErrors.startDate ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200`}
-                        required
-                      />
-                      {formErrors.startDate && <p className="text-red-500 text-sm mt-1">{formErrors.startDate}</p>}
-                    </div>
-                    <div>
-                      <label className="block text-gray-700 font-medium mb-2">End Date</label>
-                      <input
-                        type="date"
-                        name="endDate"
-                        value={formData.endDate}
-                        onChange={handleInputChange}
-                        min={formData.startDate || new Date().toISOString().split('T')[0]}
-                        className={`w-full px-4 py-3 border ${formErrors.endDate ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200`}
-                        required
-                      />
-                      {formErrors.endDate && <p className="text-red-500 text-sm mt-1">{formErrors.endDate}</p>}
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div>
-                      <label className="block text-gray-700 font-medium mb-2">Preferred Time Slot</label>
-                      <div className="relative">
-                        <select
-                          name="timeSlot"
-                          value={formData.timeSlot}
-                          onChange={handleInputChange}
-                          className={`w-full px-4 py-3 border ${formErrors.timeSlot ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 appearance-none transition-all duration-200`}
-                          required
-                        >
-                          <option value="">Select a time slot</option>
-                          {timeSlots.map(slot => (
-                            <option key={slot} value={slot}>{slot}</option>
-                          ))}
-                        </select>
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </div>
-                      </div>
-                      {formErrors.timeSlot && <p className="text-red-500 text-sm mt-1">{formErrors.timeSlot}</p>}
-                    </div>
-                    
-                    <div>
-                      <label className="block text-gray-700 font-medium mb-2">Reason for Blocking</label>
-                      <div className="relative">
-                        <select
-                          name="reason"
-                          value={formData.reason}
-                          onChange={handleInputChange}
-                          className={`w-full px-4 py-3 border ${formErrors.reason ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 appearance-none transition-all duration-200`}
-                          required
-                        >
-                          <option value="">Select a reason</option>
-                          <option value="interview">Company Interview</option>
-                          <option value="exam">University Exam</option>
-                          <option value="personal">Personal Reason</option>
-                          <option value="other">Other</option>
-                        </select>
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </div>
-                      </div>
-                      {formErrors.reason && <p className="text-red-500 text-sm mt-1">{formErrors.reason}</p>}
-                    </div>
-                  </div>
-                  
-                  {formData.reason === 'other' && (
-                    <div className="mb-6">
-                      <label className="block text-gray-700 font-medium mb-2">Please specify</label>
-                      <input
-                        type="text"
-                        name="message"
-                        value={formData.message}
-                        onChange={handleInputChange}
-                        placeholder="Please specify your reason"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                        required
-                      />
-                    </div>
-                  )}
-                  
-                  <div className="bg-purple-50 rounded-xl p-4 mb-6 border border-purple-200 min-w-0">
-                    <div className="flex items-start gap-3">
-                      <FaInfoCircle className="text-purple-600 mt-0.5 flex-shrink-0" />
-                      <p className="text-sm text-purple-700 break-words min-w-0">
-                        Please note that calendar blocking requests require at least 24 hours advance notice and are subject to approval by the placement cell.
-                      </p>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Error Display */}
-              {formErrors.submit && (
-                <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl min-w-0">
-                  <div className="flex items-start gap-3">
-                    <FaExclamationCircle className="text-red-500 mt-0.5 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-red-800 font-medium mb-1">Submission Failed</h4>
-                      <p className="text-red-700 text-sm break-words">{formErrors.submit}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex flex-col-reverse sm:flex-row sm:justify-between sm:items-center gap-4 mt-8 sm:mt-10 pt-6 border-t border-gray-100">
-                <p className="text-xs sm:text-sm text-gray-500 flex items-center">
-                  <FaInfoCircle className="mr-2 text-blue-400 flex-shrink-0" />
-                  Typically responds within 24–48 hours
-                </p>
+            ) : pastQueries.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-sm text-slate-600 mb-3">No queries yet</p>
                 <button
-                  type="submit"
-                  disabled={submitting}
-                  className={`w-full sm:w-auto min-h-[44px] px-6 py-3 rounded-xl font-medium transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center bg-gradient-to-r ${
-                    submitting 
-                      ? 'from-gray-400 to-gray-500 text-gray-700 cursor-not-allowed' 
-                      : 'from-blue-600 to-blue-800 text-white hover:from-blue-700 hover:to-blue-900'
-                  }`}
+                  type="button"
+                  onClick={() => setActiveView('new')}
+                  className="min-h-[36px] px-3.5 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors font-medium"
                 >
-                  {submitting ? (
-                    <>
-                      <FaClock className="mr-2 animate-spin flex-shrink-0" />
-                      Submitting...
-                    </>
-                  ) : (
-                    <>
-                      <FaPaperPlane className="mr-2 flex-shrink-0" />
-                      Submit Query
-                    </>
-                  )}
+                  New query
                 </button>
               </div>
-            </form>
+            ) : (
+              <div className="divide-y divide-slate-100 -mx-3 sm:-mx-4">
+                {pastQueries.map((query) => (
+                  <div key={query.id} className="query-row min-w-0">
+                    <button
+                      type="button"
+                      className="w-full px-3 sm:px-4 py-3 flex items-center justify-between gap-3 text-left hover:bg-slate-50/80 transition-colors"
+                      onClick={() => toggleQueryExpand(query.id)}
+                    >
+                      <div className="flex items-center min-w-0 flex-1 gap-2.5">
+                        <span className={`flex-shrink-0 ${typeIconClass[query.type] || 'text-slate-400'}`}>
+                          {query.type === 'question' && <FaQuestionCircle />}
+                          {query.type === 'cgpa' && <FaChartLine />}
+                          {query.type === 'backlog' && <FaListOl />}
+                          {query.type === 'calendar' && <FaCalendarAlt />}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-slate-900 text-sm truncate">{query.subject || 'Query'}</p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {new Date(query.date || query.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center flex-shrink-0 gap-2">
+                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${getStatusColor(query.status)}`}>
+                          {getStatusText(query.status)}
+                        </span>
+                        {expandedQuery === query.id
+                          ? <FaChevronUp className="text-slate-400 w-3 h-3" />
+                          : <FaChevronDown className="text-slate-400 w-3 h-3" />}
+                      </div>
+                    </button>
+
+                    {expandedQuery === query.id && (
+                      <div className="px-3 sm:px-4 pb-3.5 pt-0 space-y-2.5 text-sm">
+                        {query.type === 'question' && query.message && (
+                          <p className="text-slate-700 whitespace-pre-wrap">{query.message}</p>
+                        )}
+                        {query.type === 'cgpa' && (
+                          <p className="text-slate-700">CGPA: {query.cgpa}</p>
+                        )}
+                        {query.type === 'backlog' && (
+                          <p className="text-slate-700">Backlogs: {query.backlogs || query.metadata?.backlogs || 'N/A'}</p>
+                        )}
+                        {query.type === 'calendar' && (
+                          <p className="text-slate-700">
+                            {new Date(query.startDate).toLocaleDateString()} – {new Date(query.endDate).toLocaleDateString()}
+                            {query.timeSlot ? ` · ${query.timeSlot}` : ''}
+                          </p>
+                        )}
+                        {(query.adminResponse || query.response) && (
+                          <div className="rounded-lg bg-slate-50 border border-slate-200/80 p-3">
+                            <p className="text-slate-800">{query.adminResponse || query.response}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden min-w-0">
+          <div className="border-b border-slate-100 px-3 sm:px-5 py-3.5 sm:py-4">
+            <div className="flex flex-wrap justify-center gap-2 sm:gap-2.5">
+              {queryTypes.map((type) => {
+                const isActive = activeTab === type.id;
+                return (
+                  <button
+                    key={type.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(type.id);
+                      setFormData({ ...formData, type: type.id });
+                      setShowJobSelector(false);
+                    }}
+                    className={`inline-flex items-center justify-center gap-2 min-h-[40px] px-3.5 sm:px-4 py-2 rounded-xl border text-sm font-medium transition-[color,background-color,border-color,box-shadow,transform] duration-150 ${
+                      isActive ? type.active : type.idle
+                    }`}
+                  >
+                    <span className={`text-base ${isActive ? 'text-white' : ''}`}>{type.icon}</span>
+                    <span className="whitespace-nowrap">{type.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-4 min-w-0">
+            {activeTab === 'question' ? (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Job <span className="text-rose-500">*</span>
+                </label>
+                {loadingJobs ? (
+                  <div className="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-slate-50 flex items-center text-sm text-slate-500 gap-2">
+                    <FaClock className="animate-spin text-indigo-500" />
+                    Loading…
+                  </div>
+                ) : jobs.length === 0 ? (
+                  <p className="text-sm text-slate-500 py-2">No job postings available.</p>
+                ) : (
+                  <div className="relative min-w-0" ref={jobSelectorRef}>
+                    <button
+                      type="button"
+                      onClick={() => setShowJobSelector(!showJobSelector)}
+                      className={`w-full min-h-[40px] border ${formErrors.selectedJobId ? 'border-rose-500' : 'border-slate-300'} rounded-lg px-3 py-2 text-sm text-left flex items-center justify-between gap-2 bg-white hover:border-indigo-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-colors`}
+                    >
+                      <span className="truncate flex-1 text-slate-900">
+                        {formData.selectedJobId
+                          ? (() => {
+                              const selectedJob = jobs.find((j) => j.id === formData.selectedJobId);
+                              return selectedJob
+                                ? `${selectedJob.jobTitle} — ${selectedJob.companyName || selectedJob.company}`
+                                : 'Select job';
+                            })()
+                          : 'Select job'}
+                      </span>
+                      <FaChevronDown className={`w-3 h-3 text-slate-400 flex-shrink-0 transition-transform ${showJobSelector ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {showJobSelector && (
+                      <div className="absolute z-20 w-full bg-white border border-slate-200 rounded-lg shadow-md mt-1 max-h-72 overflow-y-auto">
+                        <div className="py-1">
+                          {jobs.map((job) => {
+                            const isSelected = formData.selectedJobId === job.id;
+                            return (
+                              <button
+                                key={job.id}
+                                type="button"
+                                onClick={() => {
+                                  setFormData({ ...formData, selectedJobId: job.id });
+                                  setShowJobSelector(false);
+                                  if (formErrors.selectedJobId) {
+                                    setFormErrors({ ...formErrors, selectedJobId: '' });
+                                  }
+                                }}
+                                className={`w-full text-left px-3 py-2.5 transition-colors ${
+                                  isSelected ? 'bg-indigo-50' : 'hover:bg-slate-50'
+                                }`}
+                              >
+                                <p className={`text-sm font-medium ${isSelected ? 'text-indigo-900' : 'text-slate-900'}`}>
+                                  {job.jobTitle}
+                                </p>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                  {job.companyName || job.company}
+                                  {job.companyLocation ? ` · ${job.companyLocation}` : ''}
+                                </p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {formErrors.selectedJobId && <p className="text-rose-500 text-xs mt-1">{formErrors.selectedJobId}</p>}
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Subject</label>
+                <input
+                  type="text"
+                  name="subject"
+                  value={formData.subject}
+                  onChange={handleInputChange}
+                  placeholder="Subject"
+                  className={fieldClass(formErrors.subject)}
+                  required
+                />
+                {formErrors.subject && <p className="text-rose-500 text-xs mt-1">{formErrors.subject}</p>}
+              </div>
+            )}
+
+            {activeTab === 'question' && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Question</label>
+                <textarea
+                  name="message"
+                  value={formData.message}
+                  onChange={handleInputChange}
+                  placeholder="Your question"
+                  rows={4}
+                  className={`${fieldClass(formErrors.message)} min-h-[100px] max-h-[280px] resize-y`}
+                  required
+                />
+                {formErrors.message && <p className="text-rose-500 text-xs mt-1">{formErrors.message}</p>}
+              </div>
+            )}
+
+            {activeTab === 'cgpa' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+                    CGPA <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="cgpa"
+                    value={formData.cgpa}
+                    onChange={handleInputChange}
+                    onBlur={(e) => {
+                      const value = e.target.value.trim();
+                      if (value && !value.includes('.')) {
+                        setFormData({ ...formData, cgpa: value + '.00' });
+                      } else if (value && value.includes('.')) {
+                        const parts = value.split('.');
+                        if (parts[1] && parts[1].length < 2) {
+                          setFormData({
+                            ...formData,
+                            cgpa: parts[0] + '.' + parts[1].padEnd(2, '0'),
+                          });
+                        }
+                      }
+                    }}
+                    placeholder="9.00"
+                    pattern="^(10\.00|[0-9]\.[0-9]{2})$"
+                    maxLength="5"
+                    className={fieldClass(formErrors.cgpa)}
+                    required
+                  />
+                  {formErrors.cgpa && <p className="text-rose-500 text-xs mt-1">{formErrors.cgpa}</p>}
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+                    Proof <span className="text-rose-500">*</span>
+                  </label>
+                  <div className={`relative border ${formErrors.proof ? 'border-rose-500' : 'border-slate-300'} rounded-lg p-3.5 text-center hover:border-indigo-400 transition-colors group`}>
+                    <input
+                      type="file"
+                      onChange={handleFileChange}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      required
+                    />
+                    <FaFileUpload className="text-slate-400 text-lg mx-auto mb-1.5 group-hover:text-indigo-600 transition-colors" />
+                    <p className="text-sm text-slate-600 truncate px-2">
+                      {formData.proof ? formData.proof.name : 'Upload file'}
+                    </p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">PDF, JPG, PNG · 5MB</p>
+                  </div>
+                  {formErrors.proof && <p className="text-rose-500 text-xs mt-1">{formErrors.proof}</p>}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'backlog' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+                    Count <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="backlogs"
+                    value={formData.backlogs}
+                    onChange={handleInputChange}
+                    placeholder="0"
+                    pattern="^(\d+|\d+\+)$"
+                    maxLength="10"
+                    className={fieldClass(formErrors.backlogs)}
+                    required
+                  />
+                  {formErrors.backlogs && <p className="text-rose-500 text-xs mt-1">{formErrors.backlogs}</p>}
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+                    Proof <span className="text-rose-500">*</span>
+                  </label>
+                  <div className={`relative border ${formErrors.proof ? 'border-rose-500' : 'border-slate-300'} rounded-lg p-3.5 text-center hover:border-indigo-400 transition-colors group`}>
+                    <input
+                      type="file"
+                      onChange={handleFileChange}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      required
+                    />
+                    <FaFileUpload className="text-slate-400 text-lg mx-auto mb-1.5 group-hover:text-indigo-600 transition-colors" />
+                    <p className="text-sm text-slate-600 truncate px-2">
+                      {formData.proof ? formData.proof.name : 'Upload file'}
+                    </p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">PDF, JPG, PNG · 5MB</p>
+                  </div>
+                  {formErrors.proof && <p className="text-rose-500 text-xs mt-1">{formErrors.proof}</p>}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'calendar' && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Start</label>
+                    <input
+                      type="date"
+                      name="startDate"
+                      value={formData.startDate}
+                      onChange={handleInputChange}
+                      min={new Date().toISOString().split('T')[0]}
+                      className={fieldClass(formErrors.startDate)}
+                      required
+                    />
+                    {formErrors.startDate && <p className="text-rose-500 text-xs mt-1">{formErrors.startDate}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">End</label>
+                    <input
+                      type="date"
+                      name="endDate"
+                      value={formData.endDate}
+                      onChange={handleInputChange}
+                      min={formData.startDate || new Date().toISOString().split('T')[0]}
+                      className={fieldClass(formErrors.endDate)}
+                      required
+                    />
+                    {formErrors.endDate && <p className="text-rose-500 text-xs mt-1">{formErrors.endDate}</p>}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Time slot</label>
+                    <div className="relative">
+                      <select
+                        name="timeSlot"
+                        value={formData.timeSlot}
+                        onChange={handleInputChange}
+                        className={`${fieldClass(formErrors.timeSlot)} appearance-none pr-10`}
+                        required
+                      >
+                        <option value="">Select</option>
+                        {timeSlots.map((slot) => (
+                          <option key={slot} value={slot}>{slot}</option>
+                        ))}
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+                        <FaChevronDown className="w-3 h-3" />
+                      </div>
+                    </div>
+                    {formErrors.timeSlot && <p className="text-rose-500 text-xs mt-1">{formErrors.timeSlot}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Reason</label>
+                    <div className="relative">
+                      <select
+                        name="reason"
+                        value={formData.reason}
+                        onChange={handleInputChange}
+                        className={`${fieldClass(formErrors.reason)} appearance-none pr-10`}
+                        required
+                      >
+                        <option value="">Select</option>
+                        <option value="interview">Company Interview</option>
+                        <option value="exam">University Exam</option>
+                        <option value="personal">Personal</option>
+                        <option value="other">Other</option>
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+                        <FaChevronDown className="w-3 h-3" />
+                      </div>
+                    </div>
+                    {formErrors.reason && <p className="text-rose-500 text-xs mt-1">{formErrors.reason}</p>}
+                  </div>
+                </div>
+
+                {formData.reason === 'other' && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Details</label>
+                    <input
+                      type="text"
+                      name="message"
+                      value={formData.message}
+                      onChange={handleInputChange}
+                      placeholder="Reason"
+                      className={fieldClass(false)}
+                      required
+                    />
+                  </div>
+                )}
+              </>
+            )}
+
+            {formErrors.submit && (
+              <div className="p-3 bg-rose-50 border border-rose-100 rounded-lg">
+                <p className="text-rose-700 text-sm break-words">{formErrors.submit}</p>
+              </div>
+            )}
+
+            <div className="flex justify-end pt-1">
+              <button
+                type="submit"
+                disabled={submitting}
+                className={`min-h-[40px] px-4 py-2 rounded-lg text-sm font-medium transition-colors inline-flex items-center justify-center gap-2 ${
+                  submitting
+                    ? 'bg-slate-300 text-slate-600 cursor-not-allowed'
+                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                }`}
+              >
+                {submitting ? (
+                  <>
+                    <FaClock className="animate-spin" />
+                    Submitting…
+                  </>
+                ) : (
+                  <>
+                    <FaPaperPlane className="w-3.5 h-3.5" />
+                    Submit
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 };

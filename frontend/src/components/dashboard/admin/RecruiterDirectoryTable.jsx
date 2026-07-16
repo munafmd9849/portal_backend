@@ -73,7 +73,7 @@ function cellContent(row, col) {
   }
   const val = row[col.key];
   return (
-    <span className="text-sm text-gray-600 truncate block max-w-[220px]" title={val || ''}>
+    <span className="text-sm text-gray-600 truncate block w-full min-w-0" title={val || ''}>
       {val || '—'}
     </span>
   );
@@ -155,15 +155,27 @@ export default function RecruiterDirectoryTable({
   onBlock,
   onHistory,
 }) {
+  const tableMinWidth =
+    SR_WIDTH +
+    COMPANY_WIDTH +
+    ACTIONS_WIDTH +
+    SCROLL_COLUMNS.reduce((sum, col) => sum + col.minW, 0);
+
   const stickyShadow = 'shadow-[3px_0_6px_-2px_rgba(0,0,0,0.04)]';
   const stickyHeaderCell =
-    'sticky z-20 bg-gray-50 border-r border-gray-200 text-gray-500 font-medium text-xs';
+    'sticky z-30 bg-gray-50 border-r border-gray-200 text-gray-500 font-medium text-xs overflow-hidden';
   const stickyBodyCell =
-    'sticky z-20 bg-white group-hover:bg-sky-50/40 border-r border-gray-100 overflow-hidden align-middle';
+    'sticky z-20 bg-white group-hover:bg-sky-50 border-r border-gray-100 overflow-hidden align-middle';
   const scrollHeaderCell =
-    'px-4 py-2.5 text-xs font-medium whitespace-nowrap border-r border-gray-200 last:border-r-0 bg-gray-50 text-gray-500';
+    'px-3 py-2.5 text-xs font-medium whitespace-nowrap border-r border-gray-200 last:border-r-0 bg-gray-50 text-gray-500 overflow-hidden';
   const scrollBodyCell =
-    'relative z-0 px-4 py-3 border-r border-gray-100 align-middle bg-white group-hover:bg-sky-50/40 text-gray-600';
+    'relative z-0 px-3 py-3 border-r border-gray-100 align-middle bg-white group-hover:bg-sky-50 text-gray-600 overflow-hidden max-w-0';
+
+  const colStyle = (width) => ({
+    width,
+    minWidth: width,
+    maxWidth: width,
+  });
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -185,19 +197,22 @@ export default function RecruiterDirectoryTable({
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-left" style={{ minWidth: 1000 }}>
+      <div className="relative overflow-x-auto">
+        <table
+          className="w-full border-collapse table-fixed text-left"
+          style={{ width: tableMinWidth, minWidth: tableMinWidth }}
+        >
           <thead>
             <tr className="border-b border-gray-200">
               <th
                 className={`${stickyHeaderCell} left-0 px-3 py-2.5 text-center`}
-                style={{ width: SR_WIDTH, minWidth: SR_WIDTH }}
+                style={colStyle(SR_WIDTH)}
               >
                 #
               </th>
               <th
                 className={`${stickyHeaderCell} px-4 py-2.5 ${stickyShadow}`}
-                style={{ left: SR_WIDTH, width: COMPANY_WIDTH, minWidth: COMPANY_WIDTH }}
+                style={{ ...colStyle(COMPANY_WIDTH), left: SR_WIDTH }}
               >
                 Company
               </th>
@@ -205,14 +220,14 @@ export default function RecruiterDirectoryTable({
                 <th
                   key={col.key}
                   className={scrollHeaderCell}
-                  style={{ minWidth: col.minW }}
+                  style={colStyle(col.minW)}
                 >
-                  {col.label}
+                  <span className="block truncate" title={col.label}>{col.label}</span>
                 </th>
               ))}
               <th
-                className="sticky right-0 z-20 bg-gray-50 px-4 py-2.5 text-xs font-medium text-gray-500 border-l border-gray-200 text-center shadow-[-3px_0_6px_-2px_rgba(0,0,0,0.04)]"
-                style={{ width: ACTIONS_WIDTH, minWidth: ACTIONS_WIDTH }}
+                className="sticky right-0 z-30 bg-gray-50 px-3 py-2.5 text-xs font-medium text-gray-500 border-l border-gray-200 text-center shadow-[-3px_0_6px_-2px_rgba(0,0,0,0.04)] overflow-hidden"
+                style={colStyle(ACTIONS_WIDTH)}
               >
                 Actions
               </th>
@@ -223,19 +238,19 @@ export default function RecruiterDirectoryTable({
               <tr key={row.id} className="group">
                 <td
                   className={`${stickyBodyCell} left-0 px-3 py-3 text-sm text-gray-400 text-center tabular-nums`}
-                  style={{ width: SR_WIDTH, minWidth: SR_WIDTH }}
+                  style={colStyle(SR_WIDTH)}
                 >
                   {formatSrNo(row.srNo)}
                 </td>
                 <td
                   className={`${stickyBodyCell} px-4 py-3 ${stickyShadow}`}
-                  style={{ left: SR_WIDTH, width: COMPANY_WIDTH, minWidth: COMPANY_WIDTH }}
+                  style={{ ...colStyle(COMPANY_WIDTH), left: SR_WIDTH }}
                 >
                   <div className="flex min-w-0 items-center gap-2.5">
                     <div className="w-8 h-8 rounded-md bg-sky-50 text-sky-700 border border-sky-100 flex items-center justify-center font-semibold text-xs shrink-0">
                       {getInitials(row.companyName || row.recruiterName)}
                     </div>
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 overflow-hidden">
                       <p
                         className="font-medium text-gray-900 text-sm truncate"
                         title={row.companyName}
@@ -244,19 +259,23 @@ export default function RecruiterDirectoryTable({
                       </p>
                       <span className="text-xs text-gray-400 flex items-center gap-1 truncate">
                         <Briefcase className="w-3 h-3 shrink-0" />
-                        {row.totalJobPostings ?? 0} jobs
+                        <span className="truncate">{row.totalJobPostings ?? 0} jobs</span>
                       </span>
                     </div>
                   </div>
                 </td>
                 {SCROLL_COLUMNS.map((col) => (
-                  <td key={col.key} className={scrollBodyCell} style={{ minWidth: col.minW }}>
+                  <td
+                    key={col.key}
+                    className={scrollBodyCell}
+                    style={colStyle(col.minW)}
+                  >
                     {cellContent(row, col)}
                   </td>
                 ))}
                 <td
-                  className={`${stickyBodyCell} right-0 px-3 py-3 border-l border-gray-100 text-center shadow-[-3px_0_6px_-2px_rgba(0,0,0,0.04)]`}
-                  style={{ width: ACTIONS_WIDTH, minWidth: ACTIONS_WIDTH }}
+                  className={`${stickyBodyCell} right-0 z-20 px-3 py-3 border-l border-gray-100 text-center shadow-[-3px_0_6px_-2px_rgba(0,0,0,0.04)]`}
+                  style={colStyle(ACTIONS_WIDTH)}
                 >
                   <RowActions
                     row={row}

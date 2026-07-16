@@ -117,9 +117,9 @@ export default function StudentApplicationTracker({ application, onApplicationUp
 
   return (
     <div className="space-y-5">
-      <div className={`rounded-xl border p-4 sm:p-5 ${isFinal ? (primary.variant === 'success' ? 'border-emerald-100 bg-gradient-to-br from-emerald-50 to-white' : 'border-red-100 bg-gradient-to-br from-red-50 to-white') : 'border-indigo-100 bg-gradient-to-br from-indigo-50 to-white'}`}>
-        <p className={`text-[10px] font-bold uppercase tracking-widest mb-2 ${isFinal ? (primary.variant === 'success' ? 'text-emerald-600' : 'text-red-600') : 'text-indigo-500'}`}>
-          {isFinal ? 'Final Outcome' : 'Current Status'}
+      <div className={`rounded-xl border p-4 sm:p-5 ${isFinal ? (primary.variant === 'success' ? 'border-emerald-100 bg-emerald-50/60' : 'border-rose-100 bg-rose-50/60') : 'border-indigo-100 bg-indigo-50/50'}`}>
+        <p className={`text-xs font-medium mb-2 ${isFinal ? (primary.variant === 'success' ? 'text-emerald-700' : 'text-rose-700') : 'text-indigo-700'}`}>
+          {isFinal ? 'Final outcome' : 'Current status'}
         </p>
         <span
           className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-bold border ${getPrimaryStatusColorClass(primary.variant)}`}
@@ -222,7 +222,7 @@ export default function StudentApplicationTracker({ application, onApplicationUp
         ))}
         {details.rejectionReason && primary.variant === 'danger' && (
           <div className="sm:col-span-2 rounded-lg border border-red-100 bg-red-50 p-3">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-red-500">Rejection reason</p>
+            <p className="text-xs font-medium text-rose-600">Rejection reason</p>
             <p className="text-sm text-red-800 mt-1">{details.rejectionReason}</p>
           </div>
         )}
@@ -230,8 +230,8 @@ export default function StudentApplicationTracker({ application, onApplicationUp
 
       {timeline.length > 0 && (
         <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-4">
-            Application Timeline
+          <p className="text-xs font-medium text-slate-600 mb-4">
+            Application timeline
           </p>
           <ol className="space-y-3">
             {timeline.map((step) => (

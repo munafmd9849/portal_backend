@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ExternalLink, Edit2, Plus } from 'lucide-react';
+import { ExternalLink, SquarePen, Plus, Github, LayoutTemplate } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 import {
   addProjectArray,
@@ -8,6 +8,39 @@ import {
   getStudentProfile,
   generateProjectContent
 } from '../../../services/students';
+
+/** Soft light header bands — restrained, not neon */
+const PROJECT_HEADER_TONES = [
+  { band: 'bg-sky-50', icon: 'text-sky-600/70' },
+  { band: 'bg-teal-50', icon: 'text-teal-700/65' },
+  { band: 'bg-indigo-50', icon: 'text-indigo-600/65' },
+  { band: 'bg-amber-50', icon: 'text-amber-700/65' },
+];
+
+const addBtnClass = (active, disabled) => {
+  if (disabled) return 'rounded-full p-2 shadow bg-gray-400 cursor-not-allowed opacity-60';
+  if (active) return 'rounded-full p-2 shadow bg-[#5e9ad6] hover:bg-[#4a7bb8] transition';
+  return 'rounded-full p-2 shadow bg-[#8ec5ff] hover:bg-[#5e9ad6] transition';
+};
+
+const editBtnClass = (disabled) =>
+  disabled
+    ? 'p-1.5 rounded-md text-gray-300 cursor-not-allowed'
+    : 'p-1.5 rounded-md text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors';
+
+function parseTechStack(project) {
+  const raw = project?.techStack ?? project?.technologies ?? [];
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.filter(Boolean);
+    } catch {
+      return raw.split(',').map((t) => t.trim()).filter(Boolean);
+    }
+  }
+  return [];
+}
 
 const ProjectsSection = ({ studentId, isAdminView = false, initialProjects = null }) => {
   const { user } = useAuth();
@@ -313,372 +346,132 @@ const ProjectsSection = ({ studentId, isAdminView = false, initialProjects = nul
     if (editingIndex !== null && editedProject.title.trim() && editedProject.description.trim()) {
       const timer = setTimeout(() => {
         triggerAIGeneration();
-      }, 1000); // Debounce 1 second
+      }, 1000);
       return () => clearTimeout(timer);
     }
   }, [editedProject.title, editedProject.description, techStackInput]);
 
   return (
     <div className="w-full relative min-w-0">
-      <fieldset className="bg-white rounded-lg border-2 border-[#8ec5ff] pt-1 pb-3 px-3 md:pb-4 md:px-6 transition-all duration-200 shadow-lg min-w-0 overflow-hidden">
-        <legend className="text-base md:text-lg md:text-xl font-bold bg-gradient-to-r from-[#211868] to-[#b5369d] rounded-full text-transparent bg-clip-text px-2">
+      <fieldset className="bg-white rounded-xl border-2 border-[#8ec5ff] pt-1 pb-3 md:pb-4 px-3 md:px-6 transition-all duration-200 shadow-lg hover:shadow-xl min-w-0 overflow-hidden">
+        <legend className="text-base md:text-xl font-bold px-2 bg-gradient-to-r from-[#211868] to-[#b5369d] rounded-full text-transparent bg-clip-text select-none">
           Projects
         </legend>
 
-        <div className="flex justify-end mb-2 md:mb-3 mr-0 md:mr-[-1%]">
+        <div className="flex items-center justify-end mb-2 md:mb-3 mr-0 md:mr-[-1%]">
           <button
+            type="button"
             onClick={addNewProject}
             disabled={loading || isAdminView}
             aria-label="Add new project"
-            className={`rounded-full p-1.5 md:p-2 shadow transition touch-manipulation ${
-              isAdminView 
-                ? 'bg-gray-400 cursor-not-allowed opacity-60' 
-                : isAddButtonActive 
-                ? 'bg-[#5e9ad6] hover:bg-[#4a7bb8]' 
-                : 'bg-[#8ec5ff] hover:bg-[#5e9ad6]'
-            }`}
-            title={isAdminView ? 'Admin view - cannot add projects' : 'Add new project'}
+            className={addBtnClass(isAddButtonActive, loading || isAdminView)}
+            title={isAdminView ? 'Admin view - cannot add projects' : 'Add project'}
           >
             <Plus size={18} className="text-white" />
           </button>
         </div>
 
-        {/* Error and Success Messages */}
         {error && (
-          <div className="mb-3 md:mb-4 p-2.5 md:p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-xs md:text-sm break-words">
-            {error}
-          </div>
+          <div className="mb-3 p-2.5 bg-red-50 border border-red-200 rounded-md text-red-700 text-xs md:text-sm break-words">{error}</div>
         )}
         {success && (
-          <div className="mb-3 md:mb-4 p-2.5 md:p-3 bg-green-50 border border-green-200 rounded-md text-green-700 text-xs md:text-sm">
-            {success}
+          <div className="mb-3 p-2.5 bg-green-50 border border-green-200 rounded-md text-green-700 text-xs md:text-sm">{success}</div>
+        )}
+
+        {editingIndex === projects.length && (
+          <div ref={formRef} className="mb-4 rounded-lg px-3 md:px-4 py-3 bg-gradient-to-r from-[#f0f8fa] to-[#e6f3f8]">
+            <label className="text-xs md:text-sm font-semibold text-black mb-1 block">Project Title <span className="text-red-500">*</span></label>
+            <input type="text" value={editedProject.title} onChange={(e) => handleChange('title', e.target.value)} placeholder="Enter project title" required className="w-full mb-2 px-2 py-1.5 text-sm border border-gray-300 rounded min-w-0" />
+            <label className="text-xs md:text-sm font-semibold text-black mb-1 block">Project Description <span className="text-red-500">*</span></label>
+            <textarea value={editedProject.description} onChange={(e) => handleChange('description', e.target.value)} placeholder="Enter project description" required rows={2} className="w-full mb-2 px-2 py-1.5 text-sm border border-gray-300 rounded resize-none min-w-0" />
+            <label className="text-xs md:text-sm font-semibold text-black mb-1 block">Project URL <span className="text-red-500">*</span></label>
+            <input type="url" value={editedProject.liveUrl} onChange={(e) => handleChange('liveUrl', e.target.value)} placeholder="https://example.com" required className="w-full mb-2 px-2 py-1.5 text-sm border border-gray-300 rounded min-w-0" />
+            <label className="text-xs md:text-sm font-semibold text-black mb-1 block">Tech Stack</label>
+            <input type="text" value={techStackInput} onChange={(e) => setTechStackInput(e.target.value)} onBlur={() => handleChange('techStack', techStackInput.split(',').map((t) => t.trim()).filter(Boolean))} placeholder="React, Node.js, MongoDB" className="w-full mb-2 px-2 py-1.5 text-sm border border-gray-300 rounded min-w-0" />
+            <label className="text-xs md:text-sm font-semibold text-black mb-1 block">GitHub URL</label>
+            <input type="url" value={editedProject.githubUrl} onChange={(e) => handleChange('githubUrl', e.target.value)} placeholder="https://github.com/username/repo" className="w-full mb-2 px-2 py-1.5 text-sm border border-gray-300 rounded min-w-0" />
+            {generating && <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">Generating AI content…</div>}
+            {aiGenerated && !generating && (
+              <div className="mb-2 p-3 bg-green-50 border border-green-200 rounded text-sm text-gray-700">
+                <strong className="text-green-800">AI summary:</strong> {aiGenerated.summary}
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2 justify-end">
+              <button type="button" onClick={saveProject} className="px-2.5 py-1.5 text-sm rounded bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50" disabled={loading || generating}>{loading ? 'Saving...' : 'Save'}</button>
+              <button type="button" onClick={cancelEditing} className="px-2.5 py-1.5 text-sm rounded bg-gray-300 hover:bg-gray-400 text-gray-800">Cancel</button>
+            </div>
           </div>
         )}
 
-        <div className="my-1 md:my-2">
-          {/* CRITICAL: Log rendering state */}
-          {console.log('🎨 [ProjectsSection] Rendering with:', {
-            projectsCount: projects.length,
-            loading,
-            projectsArray: projects,
-            isArray: Array.isArray(projects),
-          })}
-          
-          <div className="space-y-2 pr-1 md:pr-2 custom-scrollbar overflow-y-auto" style={{ maxHeight: 'min(350px, 60vh)' }}>
-            <style>{`
-              .custom-scrollbar::-webkit-scrollbar {
-                width: 8px;
-                height: 8px;
-              }
-              .custom-scrollbar::-webkit-scrollbar-track {
-                background: #f3f4f6;
-                border-radius: 4px;
-                margin: 4px 0;
-              }
-              .custom-scrollbar::-webkit-scrollbar-thumb {
-                background: #3c80a7;
-                border-radius: 4px;
-                transition: background 0.3s ease;
-                border: 2px solid transparent;
-                background-clip: content-box;
-              }
-              .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-                background: #2f6786;
-              }
-              .custom-scrollbar {
-                scrollbar-width: thin;
-                scrollbar-color: #3c80a7 #f3f4f6;
-                padding-right: 4px;
-              }
-            `}</style>
-            {/* Add new project form when editingIndex equals projects.length */}
-            {editingIndex === projects.length && (
-              <div ref={formRef} className="rounded-lg px-3 md:px-4 py-2.5 md:py-3 bg-gradient-to-r from-[#f0f8fa] to-[#e6f3f8]">
-                <label className="text-xs md:text-sm font-semibold text-black mb-0.5 md:mb-1 block">Project Title <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={editedProject.title}
-                  onChange={(e) => handleChange('title', e.target.value)}
-                  placeholder="Enter project title"
-                  required
-                  className="w-full mb-1.5 md:mb-2 px-2 py-1.5 md:py-1 text-sm md:text-base border border-gray-300 rounded min-w-0"
-                />
-                <label className="text-xs md:text-sm font-semibold text-black mb-0.5 md:mb-1 block">Project Description <span className="text-red-500">*</span></label>
-                <textarea
-                  value={editedProject.description}
-                  onChange={(e) => handleChange('description', e.target.value)}
-                  placeholder="Enter project description"
-                  required
-                  rows={2}
-                  className="w-full mb-1.5 md:mb-2 px-2 py-1.5 md:py-1 text-sm md:text-base border border-gray-300 rounded resize-none min-w-0"
-                />
-                <label className="text-xs md:text-sm font-semibold text-black mb-0.5 md:mb-1 block">Project URL <span className="text-red-500">*</span></label>
-                <input
-                  type="url"
-                  value={editedProject.liveUrl}
-                  onChange={(e) => handleChange('liveUrl', e.target.value)}
-                  placeholder="https://example.com"
-                  required
-                  className="w-full mb-1.5 md:mb-2 px-2 py-1.5 md:py-1 text-sm md:text-base border border-gray-300 rounded min-w-0"
-                />
-                <label className="text-xs md:text-sm font-semibold text-black mb-0.5 md:mb-1 block">Tech Stack</label>
-                <input
-                  type="text"
-                  value={techStackInput}
-                  onChange={(e) => setTechStackInput(e.target.value)}
-                  onBlur={() => {
-                    const techStack = techStackInput.split(',').map(t => t.trim()).filter(t => t);
-                    handleChange('techStack', techStack);
-                  }}
-                  placeholder="React, Node.js, MongoDB"
-                  className="w-full mb-1.5 md:mb-2 px-2 py-1.5 md:py-1 text-sm md:text-base border border-gray-300 rounded min-w-0"
-                />
-                <label className="text-xs md:text-sm font-semibold text-black mb-0.5 md:mb-1 block">GitHub URL</label>
-                <input
-                  type="url"
-                  value={editedProject.githubUrl}
-                  onChange={(e) => handleChange('githubUrl', e.target.value)}
-                  placeholder="https://github.com/username/repo"
-                  className="w-full mb-1.5 md:mb-2 px-2 py-1.5 md:py-1 text-sm md:text-base border border-gray-300 rounded min-w-0"
-                />
-                
-                {/* AI Generated Content */}
-                {generating && (
-                  <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
-                    🤖 Generating AI content...
-                  </div>
-                )}
-                {aiGenerated && !generating && (
-                  <div className="mb-2 p-3 bg-green-50 border border-green-200 rounded">
-                    <div className="text-sm font-semibold text-green-800 mb-2">✨ AI-Generated Content:</div>
-                    <div className="text-sm text-gray-700 mb-2">
-                      <strong>Summary:</strong> {aiGenerated.summary}
-                    </div>
-                    {aiGenerated.bullets && aiGenerated.bullets.length > 0 && (
-                      <div className="text-sm text-gray-700 mb-2">
-                        <strong>Bullet Points:</strong>
-                        <ul className="list-disc list-inside ml-2">
-                          {aiGenerated.bullets.map((bullet, idx) => (
-                            <li key={idx}>{bullet}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {aiGenerated.skills && aiGenerated.skills.length > 0 && (
-                      <div className="text-sm text-gray-700">
-                        <strong>Extracted Skills:</strong> {aiGenerated.skills.join(', ')}
-                      </div>
-                    )}
-                  </div>
-                )}
-                
-                <div className="flex flex-wrap gap-2 justify-end">
-                  <button
-                    onClick={saveProject}
-                    className="px-2.5 py-1.5 md:px-3 md:py-1 text-sm rounded bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 touch-manipulation"
-                    disabled={loading || generating}
-                  >
-                    {loading ? 'Saving...' : 'Save'}
-                  </button>
-                  <button
-                    onClick={cancelEditing}
-                    className="px-2.5 py-1.5 md:px-3 md:py-1 text-sm rounded bg-gray-300 hover:bg-gray-400 text-gray-800 touch-manipulation"
-                  >
-                    Cancel
-                  </button>
-                 </div>
-              </div>
-            )}
+        {Array.isArray(projects) && projects.length === 0 && editingIndex !== projects.length && (
+          <p className="text-sm text-gray-500 py-6 text-center">No projects yet. Click + to add one.</p>
+        )}
 
-            {/* SAFE: Always render if projects is an array, even if empty */}
-            {Array.isArray(projects) && projects.map((project, index) => (
-              editingIndex === index ? (
-                <div
-                  key={index}
-                  className="rounded-lg px-3 md:px-4 py-2.5 md:py-3 bg-gradient-to-r from-[#f0f8fa] to-[#e6f3f8]"
-                >
-                  <label className="text-xs md:text-sm font-semibold text-black mb-0.5 md:mb-1 block">Project Title <span className="text-red-500">*</span></label>
-                  <input
-                    type="text"
-                    value={editedProject.title}
-                    onChange={(e) => handleChange('title', e.target.value)}
-                    placeholder="Enter project title"
-                    required
-                    className="w-full mb-1.5 md:mb-2 px-2 py-1.5 md:py-1 text-sm md:text-base border border-gray-300 rounded min-w-0"
-                  />
-                  <label className="text-xs md:text-sm font-semibold text-black mb-0.5 md:mb-1 block">Project Description <span className="text-red-500">*</span></label>
-                  <textarea
-                    value={editedProject.description}
-                    onChange={(e) => handleChange('description', e.target.value)}
-                    placeholder="Enter project description"
-                    required
-                    rows={2}
-                    className="w-full mb-1.5 md:mb-2 px-2 py-1.5 md:py-1 text-sm md:text-base border border-gray-300 rounded resize-none min-w-0"
-                  />
-                  <label className="text-xs md:text-sm font-semibold text-black mb-0.5 md:mb-1 block">Project URL <span className="text-red-500">*</span></label>
-                  <input
-                    type="url"
-                    value={editedProject.liveUrl}
-                    onChange={(e) => handleChange('liveUrl', e.target.value)}
-                    placeholder="https://example.com"
-                    required
-                    className="w-full mb-1.5 md:mb-2 px-2 py-1.5 md:py-1 text-sm md:text-base border border-gray-300 rounded min-w-0"
-                  />
-                  <label className="text-xs md:text-sm font-semibold text-black mb-0.5 md:mb-1 block">Tech Stack</label>
-                  <input
-                    type="text"
-                    value={techStackInput}
-                    onChange={(e) => setTechStackInput(e.target.value)}
-                    onBlur={() => {
-                      const techStack = techStackInput.split(',').map(t => t.trim()).filter(t => t);
-                      handleChange('techStack', techStack);
-                    }}
-                    placeholder="React, Node.js, MongoDB"
-                    className="w-full mb-1.5 md:mb-2 px-2 py-1.5 md:py-1 text-sm md:text-base border border-gray-300 rounded min-w-0"
-                  />
-                  <label className="text-xs md:text-sm font-semibold text-black mb-0.5 md:mb-1 block">GitHub URL</label>
-                  <input
-                    type="url"
-                    value={editedProject.githubUrl}
-                    onChange={(e) => handleChange('githubUrl', e.target.value)}
-                    placeholder="https://github.com/username/repo"
-                    className="w-full mb-1.5 md:mb-2 px-2 py-1.5 md:py-1 text-sm md:text-base border border-gray-300 rounded min-w-0"
-                  />
-                  
-                  {/* AI Generated Content */}
-                  {generating && (
-                    <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
-                      🤖 Generating AI content...
-                    </div>
-                  )}
-                  {aiGenerated && !generating && (
-                    <div className="mb-2 p-3 bg-green-50 border border-green-200 rounded">
-                      <div className="text-sm font-semibold text-green-800 mb-2">✨ AI-Generated Content:</div>
-                      <div className="text-sm text-gray-700 mb-2">
-                        <strong>Summary:</strong> {aiGenerated.summary}
-                      </div>
-                      {aiGenerated.bullets && aiGenerated.bullets.length > 0 && (
-                        <div className="text-sm text-gray-700 mb-2">
-                          <strong>Bullet Points:</strong>
-                          <ul className="list-disc list-inside ml-2">
-                            {aiGenerated.bullets.map((bullet, idx) => (
-                              <li key={idx}>{bullet}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      {aiGenerated.skills && aiGenerated.skills.length > 0 && (
-                        <div className="text-sm text-gray-700">
-                          <strong>Extracted Skills:</strong> {aiGenerated.skills.join(', ')}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  
-                  <div className="flex flex-wrap gap-2 justify-end">
-                    <button
-                      onClick={saveProject}
-                      className="px-2.5 py-1.5 md:px-3 md:py-1 text-sm rounded bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 touch-manipulation"
-                      disabled={loading || generating}
-                    >
-                      {loading ? 'Saving...' : 'Save'}
-                    </button>
-                    <button
-                      onClick={cancelEditing}
-                      className="px-2.5 py-1.5 md:px-3 md:py-1 text-sm rounded bg-gray-300 hover:bg-gray-400 text-gray-800 touch-manipulation"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={() => handleDeleteProject(index)}
-                      className="px-3 py-1 rounded bg-red-500 hover:bg-red-600 text-white disabled:opacity-50"
-                      disabled={loading}
-                    >
-                      Delete
-                    </button>
-                  </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
+          {Array.isArray(projects) && projects.map((project, index) =>
+            editingIndex === index ? (
+              <div key={`edit-${index}`} className="sm:col-span-2 xl:col-span-3 rounded-lg px-3 md:px-4 py-3 bg-gradient-to-r from-[#f0f8fa] to-[#e6f3f8]">
+                <label className="text-xs font-semibold text-black mb-1 block">Project Title <span className="text-red-500">*</span></label>
+                <input type="text" value={editedProject.title} onChange={(e) => handleChange('title', e.target.value)} className="w-full mb-2 px-2 py-1.5 text-sm border border-gray-300 rounded" />
+                <label className="text-xs font-semibold text-black mb-1 block">Project Description <span className="text-red-500">*</span></label>
+                <textarea value={editedProject.description} onChange={(e) => handleChange('description', e.target.value)} rows={2} className="w-full mb-2 px-2 py-1.5 text-sm border border-gray-300 rounded resize-none" />
+                <label className="text-xs font-semibold text-black mb-1 block">Project URL <span className="text-red-500">*</span></label>
+                <input type="url" value={editedProject.liveUrl} onChange={(e) => handleChange('liveUrl', e.target.value)} className="w-full mb-2 px-2 py-1.5 text-sm border border-gray-300 rounded" />
+                <label className="text-xs font-semibold text-black mb-1 block">Tech Stack</label>
+                <input type="text" value={techStackInput} onChange={(e) => setTechStackInput(e.target.value)} onBlur={() => handleChange('techStack', techStackInput.split(',').map((t) => t.trim()).filter(Boolean))} className="w-full mb-2 px-2 py-1.5 text-sm border border-gray-300 rounded" />
+                <label className="text-xs font-semibold text-black mb-1 block">GitHub URL</label>
+                <input type="url" value={editedProject.githubUrl} onChange={(e) => handleChange('githubUrl', e.target.value)} className="w-full mb-2 px-2 py-1.5 text-sm border border-gray-300 rounded" />
+                <div className="flex flex-wrap gap-2 justify-end">
+                  <button type="button" onClick={saveProject} className="px-2.5 py-1.5 text-sm rounded bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50" disabled={loading || generating}>{loading ? 'Saving...' : 'Save'}</button>
+                  <button type="button" onClick={cancelEditing} className="px-2.5 py-1.5 text-sm rounded bg-gray-300 hover:bg-gray-400 text-gray-800">Cancel</button>
+                  <button type="button" onClick={() => handleDeleteProject(index)} className="px-2.5 py-1.5 text-sm rounded bg-red-500 hover:bg-red-600 text-white" disabled={loading}>Delete</button>
                 </div>
-              ) : (
-                <div
-                  key={index}
-                  className={`group/proj-row rounded-lg md:rounded-xl px-3 py-3 md:px-5 md:py-4 transition-all duration-300 hover:shadow-lg border-2 border-gray-200 hover:border-[#3c80a7] bg-gradient-to-r min-w-0 ${
-                    index % 2 !== 0 ? 'from-gray-50 to-gray-100' : 'from-[#f0f8fa] to-[#e6f3f8]'
-                  }`}
-                >
-                  <div className="flex justify-between items-start mb-1.5 md:mb-2 gap-2">
-                    <h4 className="text-sm md:text-base md:text-xl font-bold text-gray-900 flex-1 min-w-0 break-words truncate" title={project.title}>{project.title}</h4>
-                    <div className="flex gap-2 flex-shrink-0">
-                      <button
-                        onClick={() => startEditing(index)}
-                        aria-label={`Edit project ${project.title}`}
-                        className={`text-gray-600 transition touch-manipulation p-1 ${
-                          isAdminView ? 'cursor-not-allowed' : 'hover:text-blue-600'
-                        } ${loading ? 'opacity-50' : ''}`}
-                        disabled={loading || isAdminView}
-                        title={isAdminView ? 'Admin view - cannot edit projects' : `Edit project ${project.title}`}
-                      >
-                        <Edit2 size={15} />
-                      </button>
+              </div>
+            ) : (
+              <article key={project.id || index} className="group flex flex-col rounded-xl border-2 border-gray-200 bg-white overflow-hidden hover:border-[#3c80a7] hover:shadow-lg transition-all duration-200 min-w-0">
+                {(() => {
+                  const tone = PROJECT_HEADER_TONES[index % PROJECT_HEADER_TONES.length];
+                  return (
+                    <div className={`h-20 md:h-24 flex items-center justify-center border-b border-gray-100 ${tone.band}`}>
+                      <LayoutTemplate className={`h-7 w-7 ${tone.icon}`} strokeWidth={1.5} aria-hidden />
                     </div>
-                  </div>
-                  
-                  <p className="text-sm sm:text-base text-gray-700 pl-0 sm:pl-3">
-                    <span className="font-semibold text-black text-sm sm:text-base">Description: </span>
-                    <span className="break-words">{project.description}</span>
-                  </p>
-                  
-                  {project.liveUrl && (
-                    <div className="mt-2 text-sm sm:text-base text-gray-700 flex flex-wrap items-center gap-1 pl-0 sm:pl-3">
-                      <span className="font-semibold text-black text-xs sm:text-sm">Project URL:</span>
-                      <a
-                        href={project.liveUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 inline-flex items-center break-all touch-manipulation"
-                      >
-                        <ExternalLink size={14} className="mr-1 flex-shrink-0" />
-                        <span className="text-xs sm:text-sm">View Project</span>
-                      </a>
-                    </div>
-                  )}
-                  
-                  {/* Tech Stack and GitHub URL - Hidden by default, shown on hover */}
-                  <div className="overflow-hidden max-h-0 group-hover/proj-row:max-h-20 transition-all duration-300 ease-in-out mt-2 pl-0 sm:pl-3">
-                    {project.technologies && (() => {
-                      let techStack = [];
-                      try {
-                        techStack = typeof project.technologies === 'string' 
-                          ? JSON.parse(project.technologies) 
-                          : project.technologies;
-                      } catch (e) {
-                        techStack = [];
-                      }
-                      return techStack.length > 0 ? (
-                        <div className="text-sm text-gray-700 mb-1">
-                          <span className="font-semibold text-black text-xs sm:text-sm">Tech Stack: </span>
-                          <span className="text-xs sm:text-sm">{techStack.join(', ')}</span>
-                        </div>
-                      ) : null;
-                    })()}
-                    {project.githubUrl && (
-                      <div className="text-sm text-gray-700 flex flex-wrap items-center gap-1">
-                        <span className="font-semibold text-black text-xs sm:text-sm">GitHub URL:</span>
-                        <a
-                          href={project.githubUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 inline-flex items-center break-all touch-manipulation"
-                        >
-                          <ExternalLink size={12} className="mr-1 flex-shrink-0" />
-                          <span className="text-xs sm:text-sm">View Repository</span>
+                  );
+                })()}
+                <div className="flex flex-1 flex-col p-3.5 md:p-4">
+                  <h4 className="text-base font-bold text-gray-900 leading-snug line-clamp-2" title={project.title} style={{ textWrap: 'balance' }}>{project.title}</h4>
+                  {project.description ? <p className="mt-1.5 text-sm text-gray-700 line-clamp-3 leading-relaxed">{project.description}</p> : null}
+                  {(() => {
+                    const tech = parseTechStack(project);
+                    if (!tech.length) return null;
+                    return (
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {tech.slice(0, 6).map((t) => (
+                          <span key={`${index}-${t}`} className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-700">{t}</span>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                  <div className="mt-auto pt-3.5 flex items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2 min-w-0">
+                      {project.liveUrl ? (
+                        <a href={project.liveUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">
+                          View Live <ExternalLink className="h-3 w-3" />
                         </a>
-                      </div>
-                    )}
+                      ) : null}
+                      {project.githubUrl ? (
+                        <a href={project.githubUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-blue-700">
+                          <Github className="h-3.5 w-3.5" /> Source
+                        </a>
+                      ) : null}
+                    </div>
+                    <button type="button" onClick={() => startEditing(index)} aria-label={`Edit project ${project.title}`} className={editBtnClass(loading || isAdminView)} disabled={loading || isAdminView} title={isAdminView ? 'Admin view - cannot edit' : 'Edit project'}>
+                      <SquarePen className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 </div>
-              )
-            ))}
-          </div>
+              </article>
+            )
+          )}
         </div>
       </fieldset>
     </div>

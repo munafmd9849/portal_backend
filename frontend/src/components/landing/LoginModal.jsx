@@ -619,10 +619,14 @@ function LoginModal({ isOpen, onClose, defaultRole = 'Student' }) {
                   } catch (err) {
                     console.error('Authentication error:', err);
                     
-                    // Enhanced error messages based on Firebase error codes
+                    // Prefer short auth errors; never surface ORM/stack dumps
                     let errorMessage = err?.message || 'Authentication failed';
-                    
-                    if (err?.code) {
+                    if (
+                      /prisma\.|invalid `?prisma|invocation:|sessionVersion/i.test(errorMessage) ||
+                      errorMessage.length > 180
+                    ) {
+                      errorMessage = 'Login failed. Please try again.';
+                    } else if (err?.code) {
                       switch (err.code) {
                         case 'auth/user-not-found':
                           errorMessage = 'No account found with this email address.';
@@ -652,7 +656,7 @@ function LoginModal({ isOpen, onClose, defaultRole = 'Student' }) {
                           errorMessage = err.message || 'Authentication failed. Please try again.';
                       }
                     }
-                    
+
                     showError(errorMessage);
                   } finally { setBusy(false); }
               }}>

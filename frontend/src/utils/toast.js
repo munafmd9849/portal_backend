@@ -160,16 +160,31 @@ export function clearAllToasts() {
 /**
  * Handle API error and show appropriate toast
  */
+function sanitizeClientErrorMessage(raw, fallback = 'An error occurred') {
+  const message = String(raw || '').trim();
+  if (!message) return fallback;
+  // Hide Prisma / DB internals from end users
+  if (
+    /prisma\.|invalid `?prisma|invocation:|\\\n|sessionVersion|\\\\n/i.test(message) ||
+    message.length > 220
+  ) {
+    return fallback;
+  }
+  return message;
+}
+
 export function handleApiError(error, defaultMessage = 'An error occurred') {
   let message = defaultMessage;
 
-  if (error?.response?.data?.message) {
-    message = error.response.data.message;
-  } else if (error?.response?.data?.error) {
+  if (error?.response?.data?.error) {
     message = error.response.data.error;
+  } else if (error?.response?.data?.message) {
+    message = error.response.data.message;
   } else if (error?.message) {
     message = error.message;
   }
+
+  message = sanitizeClientErrorMessage(message, defaultMessage);
 
   // Network errors - use exact error message from API client
   if (error?.isNetworkError) {

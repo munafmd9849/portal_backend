@@ -16,7 +16,7 @@ function AiInterviewResultStudentComponent() {
   const [result, setResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
 
-  const backPath = '/student/guided-ai-interviews';
+  const backPath = '/student?tab=guidedAiInterviews';
 
   const fetchResults = useCallback(async () => {
     try {
@@ -44,54 +44,51 @@ function AiInterviewResultStudentComponent() {
 
   if (loading && !result) {
     return (
-      <div className="h-screen bg-slate-50 flex flex-col items-center justify-center gap-4">
-        <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
-        <p className="text-slate-400 font-bold text-xs uppercase tracking-widest animate-pulse">
-          Loading AI interview report
-        </p>
+      <div className="h-screen bg-slate-50 flex flex-col items-center justify-center gap-3">
+        <div className="w-10 h-10 border-2 border-slate-200 border-t-indigo-600 rounded-full animate-spin" />
+        <p className="text-sm text-slate-500">Loading report…</p>
       </div>
     );
   }
 
   if (errorMsg && !result) {
     return (
-      <div className="h-screen bg-white flex flex-col items-center justify-center p-8">
-        <AlertTriangle className="w-8 h-8 text-rose-500 mb-4" />
-        <h2 className="text-xl font-bold text-slate-900 mb-2">Report unavailable</h2>
+      <div className="h-screen bg-slate-50 flex flex-col items-center justify-center p-8">
+        <AlertTriangle className="w-7 h-7 text-rose-500 mb-3" strokeWidth={1.75} />
+        <h2 className="text-lg font-semibold text-slate-900 mb-2">Report unavailable</h2>
         <p className="text-slate-500 text-sm mb-6 text-center max-w-md">{errorMsg}</p>
         <button
           type="button"
-          onClick={() => navigate(backPath)}
-          className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-600/20 active:scale-95"
+          onClick={() => navigate('/student?tab=guidedAiInterviews')}
+          className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors"
         >
-          Back to interviews
+          Back to Guided AI
         </button>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 animate-in fade-in duration-700">
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className={`${CONTENT_WIDTH} h-16 flex items-center justify-between`}>
-          <div className="flex items-center gap-4">
+    <div className="min-h-screen bg-slate-50 pb-16">
+      <div className="bg-white border-b border-slate-200/80 sticky top-0 z-50">
+        <div className={`${CONTENT_WIDTH} h-14 flex items-center justify-between`}>
+          <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
               onClick={() => navigate(backPath)}
-              className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-slate-900 bg-slate-50 rounded-lg border border-slate-200"
+              className="w-9 h-9 flex items-center justify-center text-slate-500 hover:text-slate-900 bg-slate-50 rounded-lg border border-slate-200 shrink-0"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
-            <h1 className="text-sm font-bold text-slate-900">
-              AI Interview Report:{' '}
-              <span className="text-indigo-600">{result?.interview?.title}</span>
+            <h1 className="text-sm font-semibold text-slate-900 truncate">
+              {result?.interview?.title}
             </h1>
           </div>
           {result?.aiInsight?.status === 'PENDING' && (
             <button
               type="button"
               onClick={fetchResults}
-              className="flex items-center gap-2 text-xs font-bold text-indigo-600 hover:text-indigo-800"
+              className="flex items-center gap-2 text-xs font-medium text-indigo-600 hover:text-indigo-800"
             >
               <RefreshCw className="w-3.5 h-3.5" /> Refresh
             </button>
@@ -109,8 +106,8 @@ function AiInterviewResultStudentComponent() {
         />
 
         {result?.humanReview?.comments && (
-          <div className="mt-8 bg-white rounded-3xl border border-slate-200 p-8 shadow-sm">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">
+          <div className="mt-8 bg-white rounded-lg border border-slate-200/80 p-5 sm:p-6 shadow-sm">
+            <h3 className="text-sm font-semibold text-slate-900 mb-3">
               Placement team review
             </h3>
             {result.humanReview.overallRating != null && (

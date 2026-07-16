@@ -1026,8 +1026,8 @@ const ResumeBuilder = () => {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <Loader className="animate-spin mx-auto mb-4 text-blue-600" size={48} />
-          <p className="text-gray-600">Loading your profile...</p>
+          <Loader className="animate-spin mx-auto mb-4 text-indigo-600" size={48} />
+          <p className="text-slate-600">Loading your profile...</p>
         </div>
       </div>
     );
@@ -1036,7 +1036,7 @@ const ResumeBuilder = () => {
   const renderTemplate = () => {
     if (!student) {
       return (
-        <div className="text-center py-8 text-gray-500">
+        <div className="text-center py-8 text-slate-500">
           <FileText className="mx-auto mb-2" size={32} />
           <p>Complete your profile to see preview</p>
         </div>
@@ -1076,14 +1076,21 @@ const ResumeBuilder = () => {
         <div className="text-center py-8 text-red-500">
           <AlertTriangle className="mx-auto mb-2" size={24} />
           <p>Error rendering preview. Please try again.</p>
-          <p className="text-sm text-gray-500 mt-2">{error.message}</p>
+          <p className="text-sm text-slate-500 mt-2">{error.message}</p>
         </div>
       );
     }
   };
 
+  const modeTabClass = (active) =>
+    `flex-1 min-w-0 sm:min-w-[160px] flex items-center justify-center gap-1.5 sm:gap-2.5 px-2 sm:px-5 py-2.5 sm:py-3 rounded-lg transition-colors duration-200 font-medium cursor-pointer text-xs sm:text-sm ${
+      active
+        ? 'bg-indigo-50 text-indigo-700 border border-indigo-100 shadow-sm'
+        : 'bg-white text-slate-600 hover:bg-indigo-50/70 hover:text-indigo-700 border border-slate-200/80'
+    }`;
+
   return (
-    <div className="w-full max-w-full overflow-x-clip space-y-4 sm:space-y-6">
+    <div className="w-full max-w-full overflow-x-clip space-y-4 sm:space-y-5">
       <style>{`
         .resume-ai-glare {
           position: relative;
@@ -1099,10 +1106,10 @@ const ResumeBuilder = () => {
           background: linear-gradient(
             105deg,
             transparent 42%,
-            rgba(255, 255, 255, 0.4) 50%,
+            rgba(255, 255, 255, 0.35) 50%,
             transparent 58%
           );
-          animation: resumeAiGlare 2.8s ease-in-out infinite;
+          animation: resumeAiGlare 2.8s ease-out infinite;
           pointer-events: none;
         }
         @keyframes resumeAiGlare {
@@ -1111,80 +1118,81 @@ const ResumeBuilder = () => {
           50% { left: 120%; opacity: 1; }
           85% { opacity: 0; }
         }
+        @media (prefers-reduced-motion: reduce) {
+          .resume-ai-glare::after { animation: none; display: none; }
+        }
       `}</style>
 
+      <div className="w-full">
       {/* Success/Error Messages */}
       {success && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-2">
-          <CheckCircle2 className="text-green-600" size={20} />
-          <p className="text-green-800">{success}</p>
+        <div className="mb-3 bg-emerald-50 border border-emerald-100 rounded-lg p-3.5 flex items-center gap-2">
+          <CheckCircle2 className="text-emerald-600 shrink-0" size={18} />
+          <p className="text-emerald-800 text-sm">{success}</p>
         </div>
       )}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-2">
-          <AlertTriangle className="text-red-600" size={20} />
-          <p className="text-red-800">{error}</p>
+        <div className="mb-3 bg-rose-50 border border-rose-100 rounded-lg p-3.5 flex items-center gap-2">
+          <AlertTriangle className="text-rose-600 shrink-0" size={18} />
+          <p className="text-rose-800 text-sm">{error}</p>
         </div>
       )}
 
-      {/* Main Mode Navigation - compact pill segment on mobile, full buttons on desktop */}
-      <div className="bg-white rounded-xl border-2 border-gray-200 p-2 sm:p-3 shadow-sm">
-        <div className="flex flex-wrap gap-1.5 sm:gap-3">
+      {/* Main Mode Navigation */}
+      <div className="rounded-lg bg-slate-50/90 p-1 sm:p-1.5">
+        <div className="flex flex-wrap gap-1 sm:gap-1.5" role="tablist" aria-label="Resume modes">
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeMode === 'buildResume'}
             onClick={() => {
               setActiveMode('buildResume');
               setActiveSection('personal');
             }}
-            className={`flex-1 min-w-0 sm:min-w-[180px] flex items-center justify-center gap-1.5 sm:gap-3 px-2 sm:px-6 py-2.5 sm:py-4 rounded-lg sm:rounded-xl transition-all font-semibold cursor-pointer text-xs sm:text-base ${
-              activeMode === 'buildResume'
-                ? 'bg-blue-600 text-white shadow-lg'
-                : 'bg-gray-50 text-gray-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 border border-gray-200'
-            }`}
+            className={modeTabClass(activeMode === 'buildResume')}
           >
-            <FileText size={isMobile ? 18 : 22} />
+            <FileText size={isMobile ? 16 : 18} strokeWidth={1.75} />
             <span>{isMobile ? 'Build' : 'Build Resume'}</span>
           </button>
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeMode === 'uploadResume'}
             onClick={() => setActiveMode('uploadResume')}
-            className={`flex-1 min-w-0 sm:min-w-[180px] flex items-center justify-center gap-1.5 sm:gap-3 px-2 sm:px-6 py-2.5 sm:py-4 rounded-lg sm:rounded-xl transition-all font-semibold cursor-pointer text-xs sm:text-base ${
-              activeMode === 'uploadResume'
-                ? 'bg-blue-600 text-white shadow-lg'
-                : 'bg-gray-50 text-gray-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 border border-gray-200'
-            }`}
+            className={modeTabClass(activeMode === 'uploadResume')}
           >
-            <Upload size={isMobile ? 18 : 22} />
+            <Upload size={isMobile ? 16 : 18} strokeWidth={1.75} />
             <span>{isMobile ? 'Upload' : 'Upload Resume'}</span>
           </button>
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeMode === 'atsFriendly'}
             onClick={() => setActiveMode('atsFriendly')}
-            className={`flex-1 min-w-0 sm:min-w-[160px] flex items-center justify-center gap-1.5 sm:gap-3 px-2 sm:px-6 py-2.5 sm:py-4 rounded-lg sm:rounded-xl transition-all font-semibold cursor-pointer text-xs sm:text-base ${
-              activeMode === 'atsFriendly'
-                ? 'bg-blue-600 text-white shadow-lg'
-                : 'bg-gray-50 text-gray-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 border border-gray-200'
-            }`}
+            className={modeTabClass(activeMode === 'atsFriendly')}
           >
-            <BarChart3 size={isMobile ? 18 : 22} />
+            <BarChart3 size={isMobile ? 16 : 18} strokeWidth={1.75} />
             <span>{isMobile ? 'ATS' : 'ATS Check'}</span>
           </button>
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeMode === 'optimize'}
             onClick={() => { setActiveMode('optimize'); setOptimizeResult(null); setOptimizeError(''); }}
-            className={`resume-ai-glare flex-1 min-w-0 sm:min-w-[160px] flex items-center justify-center gap-1.5 sm:gap-3 px-2 sm:px-6 py-2.5 sm:py-4 rounded-lg sm:rounded-xl transition-all font-semibold cursor-pointer text-xs sm:text-base ${
-              activeMode === 'optimize'
-                ? 'bg-blue-600 text-white shadow-lg'
-                : 'bg-gray-50 text-gray-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 border border-gray-200'
-            }`}
+            className={`resume-ai-glare ${modeTabClass(activeMode === 'optimize')}`}
           >
-            <span className="relative z-10 flex items-center justify-center gap-1.5 sm:gap-3">
-              <Zap size={isMobile ? 18 : 22} />
+            <span className="relative z-10 flex items-center justify-center gap-1.5 sm:gap-2.5">
+              <Zap size={isMobile ? 16 : 18} strokeWidth={1.75} />
               <span>{isMobile ? 'AI Opt' : 'AI Optimize'}</span>
             </span>
           </button>
         </div>
       </div>
+      </div>
 
       {/* Build Resume Mode - Section navigation: dropdown on mobile, tabs on desktop */}
       {activeMode === 'buildResume' && (
-        <div className="bg-white rounded-xl border-2 border-gray-200 p-2 sm:p-3 shadow-sm overflow-x-auto">
+        <div className="bg-white rounded-xl border border-slate-200 p-2 sm:p-3 shadow-sm overflow-x-auto">
           <div className="flex gap-2 items-center min-w-0">
             {/* Mobile: custom section dropdown */}
             {isMobile ? (
@@ -1195,7 +1203,7 @@ const ResumeBuilder = () => {
                   onChange={(v) => setActiveSection(v)}
                   placeholder="Choose section"
                   icon={Layout}
-                  iconColor="text-blue-600"
+                  iconColor="text-indigo-600"
                 />
               </div>
             ) : (
@@ -1207,10 +1215,10 @@ const ResumeBuilder = () => {
                     <button
                       key={section.id}
                       onClick={() => setActiveSection(section.id)}
-                      className={`flex-shrink-0 flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg transition-all text-xs sm:text-sm font-medium cursor-pointer whitespace-nowrap ${
+                      className={`flex-shrink-0 flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg transition-colors text-xs sm:text-sm font-medium cursor-pointer whitespace-nowrap ${
                         isActive
-                          ? 'bg-blue-600 text-white shadow-md'
-                          : 'bg-gray-50 text-gray-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 border border-gray-200'
+                          ? 'bg-indigo-50 text-indigo-700 border border-indigo-100 shadow-sm'
+                          : 'bg-white text-slate-600 hover:bg-indigo-50/80 hover:text-indigo-700 border border-slate-200'
                       }`}
                     >
                       <Icon size={14} />
@@ -1225,14 +1233,14 @@ const ResumeBuilder = () => {
                 loadResumes();
                 setShowResumesModal(true);
               }}
-              className="flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium shadow-md hover:shadow-lg text-sm"
+              className="flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium shadow-sm text-sm"
               title="View Saved Resumes"
             >
               <FileText size={18} />
               <span className="hidden sm:inline">View Saved Resumes</span>
               <span className="sm:hidden">Resumes</span>
               {resumes.length > 0 && (
-                <span className="bg-white text-green-600 text-xs font-bold px-2 py-0.5 rounded-full">
+                <span className="bg-white text-emerald-600 text-xs font-bold px-2 py-0.5 rounded-full">
                   {resumes.length}
                 </span>
               )}
@@ -1249,26 +1257,26 @@ const ResumeBuilder = () => {
           {activeSection !== 'preview' && (
             <div className={`grid gap-4 sm:gap-6 min-w-0 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2'}`}>
               {/* Left Side - Form Section (on mobile this is the only column) */}
-              <div className="bg-white rounded-xl border-2 border-gray-200 p-4 sm:p-6 lg:p-8 shadow-sm min-w-0 overflow-x-hidden">
+              <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 lg:p-8 shadow-sm min-w-0 overflow-x-hidden">
         {/* Personal Info */}
         {activeSection === 'personal' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-gray-200 pb-4">
-              <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
-                <div className="bg-blue-100 p-2 rounded-lg">
-                  <User size={24} className="text-blue-600" />
+            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+              <h3 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
+                <div className="bg-indigo-100 p-2 rounded-lg">
+                  <User size={24} className="text-indigo-600" />
                 </div>
                 Personal Information
               </h3>
-              <div className="text-sm text-gray-500 bg-gray-50 px-3 py-1 rounded-lg">
+              <div className="text-sm text-slate-500 bg-slate-50 px-3 py-1 rounded-lg">
                 <span className="text-red-500">*</span> Required fields
               </div>
             </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4 mb-4">
               <div className="flex items-start gap-3">
-                <Info size={20} className="text-blue-600 mt-0.5 flex-shrink-0" />
-                <div className="text-sm text-blue-800">
-                  <p className="font-semibold mb-1">💡 Quick Tip:</p>
+                <Info size={20} className="text-indigo-600 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-indigo-800">
+                  <p className="font-semibold mb-1">Tip</p>
                   <p>Fill in your basic contact information. This will appear at the top of your resume.</p>
                 </div>
               </div>
@@ -1276,90 +1284,90 @@ const ResumeBuilder = () => {
 
             <div className="space-y-5">
               <div className="space-y-1">
-                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <User size={16} className="text-gray-500" />
+                <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                  <User size={16} className="text-slate-500" />
                   Full Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={personalInfo.fullName}
                   onChange={(e) => setPersonalInfo({...personalInfo, fullName: e.target.value})}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all cursor-text"
+                  className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 focus:outline-none transition-all cursor-text"
                   placeholder="John Doe"
                 />
               </div>
               <div className="space-y-1">
-                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <Mail size={16} className="text-gray-500" />
+                <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                  <Mail size={16} className="text-slate-500" />
                   Email <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="email"
                   value={personalInfo.email}
                   onChange={(e) => setPersonalInfo({...personalInfo, email: e.target.value})}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all cursor-text"
+                  className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 focus:outline-none transition-all cursor-text"
                   placeholder="john.doe@example.com"
                 />
               </div>
               <div className="space-y-1">
-                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <Phone size={16} className="text-gray-500" />
+                <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                  <Phone size={16} className="text-slate-500" />
                   Phone <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="tel"
                   value={personalInfo.phone}
                   onChange={(e) => setPersonalInfo({...personalInfo, phone: e.target.value})}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all cursor-text"
+                  className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 focus:outline-none transition-all cursor-text"
                   placeholder="+1 (555) 123-4567"
                 />
               </div>
               <div className="space-y-1">
-                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <Linkedin size={16} className="text-blue-600" />
+                <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                  <Linkedin size={16} className="text-indigo-600" />
                   LinkedIn
                 </label>
                 <input
                   type="url"
                   value={personalInfo.linkedin}
                   onChange={(e) => setPersonalInfo({...personalInfo, linkedin: e.target.value})}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all cursor-text"
+                  className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 focus:outline-none transition-all cursor-text"
                   placeholder="https://linkedin.com/in/yourprofile"
                 />
               </div>
               <div className="space-y-1">
-                <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <Github size={16} className="text-gray-700" />
+                <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                  <Github size={16} className="text-slate-700" />
                   GitHub
                 </label>
                 <input
                   type="url"
                   value={personalInfo.githubUrl}
                   onChange={(e) => setPersonalInfo({...personalInfo, githubUrl: e.target.value})}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all cursor-text"
+                  className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 focus:outline-none transition-all cursor-text"
                   placeholder="https://github.com/yourusername"
                 />
               </div>
             </div>
             <div className="space-y-1">
-              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                <FileText size={16} className="text-gray-500" />
+              <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                <FileText size={16} className="text-slate-500" />
                 Professional Summary
               </label>
               <textarea
                 value={personalInfo.summary}
                 onChange={(e) => setPersonalInfo({...personalInfo, summary: e.target.value})}
                 rows={4}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all resize-none cursor-text"
+                className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 focus:outline-none transition-all resize-none cursor-text"
                 placeholder="Write a brief professional summary highlighting your key skills and experience (2-3 sentences recommended)"
               />
-              <p className="text-xs text-gray-500 mt-1">This summary will appear at the top of your resume</p>
+              <p className="text-xs text-slate-500 mt-1">This summary will appear at the top of your resume</p>
             </div>
             <div className="flex justify-end pt-4 border-t border-gray-200">
               <button
                 onClick={handleSavePersonal}
                 disabled={saving}
-                className="flex items-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-semibold shadow-md hover:shadow-lg transition-all"
+                className="flex items-center gap-2 bg-indigo-600 text-white px-8 py-3 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-semibold shadow-md hover:shadow-lg transition-all"
               >
                 {saving ? <Loader className="animate-spin" size={18} /> : <Save size={18} />}
                 Save Personal Info
@@ -1371,36 +1379,36 @@ const ResumeBuilder = () => {
         {/* Education */}
         {activeSection === 'education' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-gray-200 pb-4">
-              <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
-                <div className="bg-purple-100 p-2 rounded-lg">
-                  <GraduationCap size={24} className="text-purple-600" />
+            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+              <h3 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
+                <div className="bg-violet-100 p-2 rounded-lg">
+                  <GraduationCap size={24} className="text-violet-600" />
                 </div>
                 Education
               </h3>
-              <div className="text-sm text-gray-500 bg-gray-50 px-3 py-1 rounded-lg">
+              <div className="text-sm text-slate-500 bg-slate-50 px-3 py-1 rounded-lg">
                 {student?.education?.length || 0} entries
               </div>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <Info size={20} className="text-blue-600 mt-0.5 flex-shrink-0" />
-                <div className="text-sm text-blue-800">
-                  <p className="font-semibold mb-1">💡 Quick Tip:</p>
+                <Info size={20} className="text-indigo-600 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-indigo-800">
+                  <p className="font-semibold mb-1">Tip</p>
                   <p>Add any type of education: Degree, Diploma, Certificate, High School, Training, Online Course, etc. Include your most recent and relevant qualifications first.</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl p-6 border-2 border-dashed border-gray-300">
+            <div className="bg-gradient-to-br from-slate-50 to-indigo-50 rounded-xl p-6 border-2 border-dashed border-slate-200">
               <h4 className="font-bold text-lg mb-4 flex items-center gap-2">
-                <Plus size={20} className="text-blue-600" />
+                <Plus size={20} className="text-indigo-600" />
                 Add New Education
               </h4>
               <div className="space-y-6">
                 <div className="space-y-1">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Qualification/Education Type <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -1408,11 +1416,11 @@ const ResumeBuilder = () => {
                     placeholder="e.g., B.Tech, Diploma, Certificate"
                     value={newEducation.degree}
                     onChange={(e) => setNewEducation({...newEducation, degree: e.target.value})}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all cursor-text"
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 focus:outline-none transition-all cursor-text"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Institution <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -1420,38 +1428,38 @@ const ResumeBuilder = () => {
                     placeholder="University or Institution name"
                     value={newEducation.institution}
                     onChange={(e) => setNewEducation({...newEducation, institution: e.target.value})}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all cursor-text"
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 focus:outline-none transition-all cursor-text"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Start Year</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Start Year</label>
                   <input
                     type="number"
                     placeholder="YYYY"
                     value={newEducation.startYear}
                     onChange={(e) => setNewEducation({...newEducation, startYear: e.target.value})}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all cursor-text"
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 focus:outline-none transition-all cursor-text"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">End Year</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">End Year</label>
                   <input
                     type="number"
                     placeholder="YYYY (leave empty if ongoing)"
                     value={newEducation.endYear}
                     onChange={(e) => setNewEducation({...newEducation, endYear: e.target.value})}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all cursor-text"
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 focus:outline-none transition-all cursor-text"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">CGPA</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">CGPA</label>
                   <input
                     type="text"
                     inputMode="decimal"
                     placeholder="e.g., 8.45"
                     value={newEducation.cgpa}
                     onChange={(e) => setNewEducation({ ...newEducation, cgpa: sanitizeScoreInput(e.target.value, 'CGPA') })}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all cursor-text"
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 focus:outline-none transition-all cursor-text"
                   />
                 </div>
               </div>
@@ -1459,7 +1467,7 @@ const ResumeBuilder = () => {
                 <button
                   onClick={handleAddEducation}
                   disabled={saving}
-                  className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-semibold shadow-md hover:shadow-lg transition-all"
+                  className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-semibold shadow-md hover:shadow-lg transition-all"
                 >
                   <Plus size={18} />
                   Add Education
@@ -1470,10 +1478,10 @@ const ResumeBuilder = () => {
             <div className="space-y-3">
               {student?.education?.map((edu) => (
                 editingEducation?.id === edu.id ? (
-                  <div key={edu.id} className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                  <div key={edu.id} className="bg-indigo-50 rounded-lg p-4 border border-indigo-100">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
                           Qualification/Education Type <span className="text-red-500">*</span>
                         </label>
                         <input
@@ -1481,11 +1489,11 @@ const ResumeBuilder = () => {
                           placeholder="e.g., B.Tech, Diploma, Certificate"
                           value={editingEducation.degree}
                           onChange={(e) => setEditingEducation({...editingEducation, degree: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
                           Institution <span className="text-red-500">*</span>
                         </label>
                         <input
@@ -1493,49 +1501,49 @@ const ResumeBuilder = () => {
                           placeholder="Institution name"
                           value={editingEducation.institution}
                           onChange={(e) => setEditingEducation({...editingEducation, institution: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg"
                         />
                       </div>
                       <input
                         type="number"
                         value={editingEducation.startYear}
                         onChange={(e) => setEditingEducation({...editingEducation, startYear: e.target.value})}
-                        className="px-3 py-2 border border-gray-300 rounded-lg cursor-text"
+                        className="px-3 py-2 border border-slate-200 rounded-lg cursor-text"
                       />
                       <input
                         type="number"
                         value={editingEducation.endYear}
                         onChange={(e) => setEditingEducation({...editingEducation, endYear: e.target.value})}
-                        className="px-3 py-2 border border-gray-300 rounded-lg cursor-text"
+                        className="px-3 py-2 border border-slate-200 rounded-lg cursor-text"
                       />
                     </div>
                     <div className="flex gap-2 mt-3">
                       <button
                         onClick={() => handleUpdateEducation(edu.id)}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 hover:shadow-md transition-all cursor-pointer"
+                        className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 hover:shadow-md transition-all cursor-pointer"
                       >
                         Save
                       </button>
                       <button
                         onClick={() => setEditingEducation(null)}
-                        className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400 hover:shadow-md transition-all cursor-pointer"
+                        className="bg-gray-300 text-slate-800 px-4 py-2 rounded-lg hover:bg-gray-400 hover:shadow-md transition-all cursor-pointer"
                       >
                         Cancel
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div key={edu.id} className="bg-gray-50 rounded-lg p-4 flex justify-between items-start">
+                  <div key={edu.id} className="bg-slate-50 rounded-lg p-4 flex justify-between items-start">
                     <div>
                       <h4 className="font-semibold">{edu.degree} - {edu.institution}</h4>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-slate-600">
                         {edu.startYear} - {edu.endYear || 'Present'} {edu.cgpa && `• CGPA: ${!Number.isNaN(parseFloat(String(edu.cgpa))) ? parseFloat(String(edu.cgpa)).toFixed(1) : edu.cgpa}`}
                       </p>
                     </div>
                     <div className="flex gap-2">
                       <button
                         onClick={() => setEditingEducation(edu)}
-                        className="text-blue-600 hover:text-blue-800 hover:scale-110 transition-all cursor-pointer"
+                        className="text-indigo-600 hover:text-indigo-800 hover:scale-110 transition-all cursor-pointer"
                       >
                         <Edit2 size={18} />
                       </button>
@@ -1556,36 +1564,36 @@ const ResumeBuilder = () => {
         {/* Experience */}
         {activeSection === 'experience' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-gray-200 pb-4">
-              <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+              <h3 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
                 <div className="bg-indigo-100 p-2 rounded-lg">
                   <Briefcase size={24} className="text-indigo-600" />
                 </div>
                 Work Experience
               </h3>
-              <div className="text-sm text-gray-500 bg-gray-50 px-3 py-1 rounded-lg">
+              <div className="text-sm text-slate-500 bg-slate-50 px-3 py-1 rounded-lg">
                 {student?.experiences?.length || 0} entries
               </div>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <Info size={20} className="text-blue-600 mt-0.5 flex-shrink-0" />
-                <div className="text-sm text-blue-800">
-                  <p className="font-semibold mb-1">💡 Quick Tip:</p>
+                <Info size={20} className="text-indigo-600 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-indigo-800">
+                  <p className="font-semibold mb-1">Tip</p>
                   <p>List your work experience in reverse chronological order (most recent first). Include internships, part-time jobs, and relevant volunteer work.</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-gray-50 to-indigo-50 rounded-xl p-6 border-2 border-dashed border-gray-300">
+            <div className="bg-gradient-to-br from-gray-50 to-indigo-50 rounded-xl p-6 border-2 border-dashed border-slate-200">
               <h4 className="font-bold text-lg mb-4 flex items-center gap-2">
                 <Plus size={20} className="text-indigo-600" />
                 Add New Experience
               </h4>
               <div className="space-y-6">
                 <div className="space-y-1">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Job Title <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -1593,11 +1601,11 @@ const ResumeBuilder = () => {
                     placeholder="e.g., Software Engineer, Intern"
                     value={newExperience.title}
                     onChange={(e) => setNewExperience({...newExperience, title: e.target.value})}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all cursor-text"
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 focus:outline-none transition-all cursor-text"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Company <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -1605,44 +1613,44 @@ const ResumeBuilder = () => {
                     placeholder="Company name"
                     value={newExperience.company}
                     onChange={(e) => setNewExperience({...newExperience, company: e.target.value})}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all cursor-text"
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 focus:outline-none transition-all cursor-text"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Start Date</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Start Date</label>
                   <input
                     type="text"
                     placeholder="e.g., Jan 2023 or 2023"
                     value={newExperience.start}
                     onChange={(e) => setNewExperience({...newExperience, start: e.target.value})}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all cursor-text"
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 focus:outline-none transition-all cursor-text"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">End Date</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">End Date</label>
                   <input
                     type="text"
                     placeholder="e.g., Dec 2024 or leave blank if current"
                     value={newExperience.end}
                     onChange={(e) => setNewExperience({...newExperience, end: e.target.value})}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all cursor-text"
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 focus:outline-none transition-all cursor-text"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Job Description</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Job Description</label>
                   <textarea
                     placeholder="Describe your responsibilities and achievements. Use bullet points or short paragraphs."
                     value={newExperience.description}
                     onChange={(e) => setNewExperience({...newExperience, description: e.target.value})}
                     rows={4}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all resize-none cursor-text"
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 focus:outline-none transition-all resize-none cursor-text"
                   />
                 </div>
                 <div className="flex justify-end mt-6">
                   <button
                     onClick={handleAddExperience}
                     disabled={saving}
-                    className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-semibold shadow-md hover:shadow-lg transition-all"
+                    className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-semibold shadow-md hover:shadow-lg transition-all"
                   >
                     <Plus size={18} />
                     Add Experience
@@ -1654,67 +1662,67 @@ const ResumeBuilder = () => {
             <div className="space-y-3">
               {student?.experiences?.map((exp) => (
                 editingExperience?.id === exp.id ? (
-                  <div key={exp.id} className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                  <div key={exp.id} className="bg-indigo-50 rounded-lg p-4 border border-indigo-100">
                     <div className="space-y-3">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <input
                           type="text"
                           value={editingExperience.title}
                           onChange={(e) => setEditingExperience({...editingExperience, title: e.target.value})}
-                          className="px-3 py-2 border border-gray-300 rounded-lg cursor-text"
+                          className="px-3 py-2 border border-slate-200 rounded-lg cursor-text"
                         />
                         <input
                           type="text"
                           value={editingExperience.company}
                           onChange={(e) => setEditingExperience({...editingExperience, company: e.target.value})}
-                          className="px-3 py-2 border border-gray-300 rounded-lg cursor-text"
+                          className="px-3 py-2 border border-slate-200 rounded-lg cursor-text"
                         />
                         <input
                           type="text"
                           value={editingExperience.start}
                           onChange={(e) => setEditingExperience({...editingExperience, start: e.target.value})}
-                          className="px-3 py-2 border border-gray-300 rounded-lg cursor-text"
+                          className="px-3 py-2 border border-slate-200 rounded-lg cursor-text"
                         />
                         <input
                           type="text"
                           value={editingExperience.end}
                           onChange={(e) => setEditingExperience({...editingExperience, end: e.target.value})}
-                          className="px-3 py-2 border border-gray-300 rounded-lg cursor-text"
+                          className="px-3 py-2 border border-slate-200 rounded-lg cursor-text"
                         />
                       </div>
                       <textarea
                         value={editingExperience.description}
                         onChange={(e) => setEditingExperience({...editingExperience, description: e.target.value})}
                         rows={3}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg"
                       />
                     </div>
                     <div className="flex gap-2 mt-3">
                       <button
                         onClick={() => handleUpdateExperience(exp.id)}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 hover:shadow-md transition-all cursor-pointer"
+                        className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 hover:shadow-md transition-all cursor-pointer"
                       >
                         Save
                       </button>
                       <button
                         onClick={() => setEditingExperience(null)}
-                        className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400 hover:shadow-md transition-all cursor-pointer"
+                        className="bg-gray-300 text-slate-800 px-4 py-2 rounded-lg hover:bg-gray-400 hover:shadow-md transition-all cursor-pointer"
                       >
                         Cancel
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div key={exp.id} className="bg-gray-50 rounded-lg p-4 flex justify-between items-start">
+                  <div key={exp.id} className="bg-slate-50 rounded-lg p-4 flex justify-between items-start">
                     <div>
                       <h4 className="font-semibold">{exp.title} at {exp.company}</h4>
-                      <p className="text-sm text-gray-600">{exp.start} - {exp.end || 'Present'}</p>
-                      {exp.description && <p className="text-sm text-gray-700 mt-1">{exp.description}</p>}
+                      <p className="text-sm text-slate-600">{exp.start} - {exp.end || 'Present'}</p>
+                      {exp.description && <p className="text-sm text-slate-700 mt-1">{exp.description}</p>}
                     </div>
                     <div className="flex gap-2">
                       <button
                         onClick={() => setEditingExperience(exp)}
-                        className="text-blue-600 hover:text-blue-800 hover:scale-110 transition-all cursor-pointer"
+                        className="text-indigo-600 hover:text-indigo-800 hover:scale-110 transition-all cursor-pointer"
                       >
                         <Edit2 size={18} />
                       </button>
@@ -1735,36 +1743,36 @@ const ResumeBuilder = () => {
         {/* Skills */}
         {activeSection === 'skills' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-gray-200 pb-4">
-              <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
-                <div className="bg-teal-100 p-2 rounded-lg">
-                  <Code size={24} className="text-teal-600" />
+            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+              <h3 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
+                <div className="bg-sky-100 p-2 rounded-lg">
+                  <Code size={24} className="text-sky-600" />
                 </div>
                 Skills
               </h3>
-              <div className="text-sm text-gray-500 bg-gray-50 px-3 py-1 rounded-lg">
+              <div className="text-sm text-slate-500 bg-slate-50 px-3 py-1 rounded-lg">
                 {student?.skills?.length || 0} skills
               </div>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <Info size={20} className="text-blue-600 mt-0.5 flex-shrink-0" />
-                <div className="text-sm text-blue-800">
-                  <p className="font-semibold mb-1">💡 Quick Tip:</p>
+                <Info size={20} className="text-indigo-600 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-indigo-800">
+                  <p className="font-semibold mb-1">Tip</p>
                   <p>Add both technical and soft skills. Rate your proficiency level honestly. Include programming languages, frameworks, tools, and soft skills like communication or leadership.</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-gray-50 to-teal-50 rounded-xl p-6 border-2 border-dashed border-gray-300">
+            <div className="bg-gradient-to-br from-gray-50 to-teal-50 rounded-xl p-6 border-2 border-dashed border-slate-200">
               <h4 className="font-bold text-lg mb-4 flex items-center gap-2">
-                <Plus size={20} className="text-teal-600" />
+                <Plus size={20} className="text-sky-600" />
                 Add New Skill
               </h4>
               <div className="space-y-6">
                 <div className="space-y-1">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Skill Name <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -1772,11 +1780,11 @@ const ResumeBuilder = () => {
                     placeholder="e.g., JavaScript, Python, Communication"
                     value={newSkill.skillName}
                     onChange={(e) => setNewSkill({...newSkill, skillName: e.target.value})}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all cursor-text"
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 focus:outline-none transition-all cursor-text"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Proficiency</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Proficiency</label>
                   <div className="relative">
                     <CustomDropdown
                       label=""
@@ -1797,7 +1805,7 @@ const ResumeBuilder = () => {
                   <button
                     onClick={handleAddSkill}
                     disabled={saving}
-                    className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-semibold shadow-md hover:shadow-lg transition-all"
+                    className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-semibold shadow-md hover:shadow-lg transition-all"
                   >
                     <Plus size={18} />
                     Add Skill
@@ -1808,10 +1816,10 @@ const ResumeBuilder = () => {
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {student?.skills?.map((skill) => (
-                <div key={skill.id} className="bg-gray-50 rounded-lg p-3 flex justify-between items-center">
+                <div key={skill.id} className="bg-slate-50 rounded-lg p-3 flex justify-between items-center">
                   <div>
                     <span className="font-medium">{skill.skillName}</span>
-                    <div className="text-xs text-gray-500">Rating: {skill.rating}/5</div>
+                    <div className="text-xs text-slate-500">Rating: {skill.rating}/5</div>
                   </div>
                   <button
                     onClick={() => handleDeleteSkill(skill.id)}
@@ -1828,36 +1836,36 @@ const ResumeBuilder = () => {
         {/* Projects */}
         {activeSection === 'projects' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-gray-200 pb-4">
-              <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+              <h3 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
                 <div className="bg-pink-100 p-2 rounded-lg">
                   <FolderKanban size={24} className="text-pink-600" />
                 </div>
-                Projects {generatingAI && <Loader className="animate-spin text-blue-600" size={20} />}
+                Projects {generatingAI && <Loader className="animate-spin text-indigo-600" size={20} />}
               </h3>
-              <div className="text-sm text-gray-500 bg-gray-50 px-3 py-1 rounded-lg">
+              <div className="text-sm text-slate-500 bg-slate-50 px-3 py-1 rounded-lg">
                 {student?.projects?.length || 0} projects
               </div>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <Info size={20} className="text-blue-600 mt-0.5 flex-shrink-0" />
-                <div className="text-sm text-blue-800">
-                  <p className="font-semibold mb-1">💡 Quick Tip:</p>
+                <Info size={20} className="text-indigo-600 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-indigo-800">
+                  <p className="font-semibold mb-1">Tip</p>
                   <p>Showcase your best projects with clear descriptions. Our AI can help enhance your project descriptions to make them more professional and impactful. Include links to GitHub and live demos when available.</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-gray-50 to-pink-50 rounded-xl p-6 border-2 border-dashed border-gray-300">
+            <div className="bg-gradient-to-br from-gray-50 to-pink-50 rounded-xl p-6 border-2 border-dashed border-slate-200">
               <h4 className="font-bold text-lg mb-4 flex items-center gap-2">
                 <Plus size={20} className="text-pink-600" />
                 Add New Project (AI-Enhanced)
               </h4>
               <div className="space-y-6">
                 <div className="space-y-1">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Project Title <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -1865,11 +1873,11 @@ const ResumeBuilder = () => {
                     placeholder="e.g., E-Commerce Platform, Task Management App"
                     value={newProject.title}
                     onChange={(e) => setNewProject({...newProject, title: e.target.value})}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all cursor-text"
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 focus:outline-none transition-all cursor-text"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Project Description <span className="text-red-500">*</span>
                   </label>
                   <textarea
@@ -1877,11 +1885,11 @@ const ResumeBuilder = () => {
                     value={newProject.description}
                     onChange={(e) => setNewProject({...newProject, description: e.target.value})}
                     rows={4}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all resize-none cursor-text"
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 focus:outline-none transition-all resize-none cursor-text"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Tech Stack</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Tech Stack</label>
                   <input
                     type="text"
                     placeholder="e.g., React, Node.js, MongoDB (comma-separated)"
@@ -1890,40 +1898,40 @@ const ResumeBuilder = () => {
                       const techStack = e.target.value.split(',').map(t => t.trim()).filter(t => t);
                       setNewProject({...newProject, techStack});
                     }}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all cursor-text"
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 focus:outline-none transition-all cursor-text"
                   />
                 </div>
                 <div className="space-y-6">
                   <div className="space-y-1">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">GitHub URL</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">GitHub URL</label>
                     <input
                       type="url"
                       placeholder="https://github.com/username/project"
                       value={newProject.githubUrl}
                       onChange={(e) => setNewProject({...newProject, githubUrl: e.target.value})}
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all cursor-text"
+                      className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 focus:outline-none transition-all cursor-text"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Project URL</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Project URL</label>
                     <input
                       type="url"
                       placeholder="https://yourproject.com"
                       value={newProject.liveUrl}
                       onChange={(e) => setNewProject({...newProject, liveUrl: e.target.value})}
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg hover:border-blue-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all cursor-text"
+                      className="w-full px-4 py-3 border-2 border-slate-200 rounded-lg hover:border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 focus:outline-none transition-all cursor-text"
                     />
                   </div>
                 </div>
                 {aiGenerated && (
-                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg p-4">
-                    <div className="text-sm font-bold text-green-800 mb-2 flex items-center gap-2">
-                      <Sparkles size={18} className="text-green-600" />
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-emerald-200 rounded-lg p-4">
+                    <div className="text-sm font-bold text-emerald-800 mb-2 flex items-center gap-2">
+                      <Sparkles size={18} className="text-emerald-600" />
                       AI-Generated Content:
                     </div>
-                    <div className="text-sm text-gray-700 mb-2"><strong>Summary:</strong> {aiGenerated.summary}</div>
+                    <div className="text-sm text-slate-700 mb-2"><strong>Summary:</strong> {aiGenerated.summary}</div>
                     {aiGenerated.bullets && aiGenerated.bullets.length > 0 && (
-                      <div className="text-sm text-gray-700">
+                      <div className="text-sm text-slate-700">
                         <strong>Bullets:</strong>
                         <ul className="list-disc list-inside ml-2 space-y-1">
                           {aiGenerated.bullets.map((bullet, idx) => (
@@ -1938,7 +1946,7 @@ const ResumeBuilder = () => {
                   <button
                     onClick={handleAddProject}
                     disabled={saving || generatingAI}
-                    className="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-semibold shadow-md hover:shadow-lg transition-all"
+                    className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-semibold shadow-md hover:shadow-lg transition-all"
                   >
                     <Plus size={18} />
                     Add Project {generatingAI && '(Generating AI...)'}
@@ -1954,15 +1962,15 @@ const ResumeBuilder = () => {
                   techStack = project.technologies ? (typeof project.technologies === 'string' ? JSON.parse(project.technologies) : project.technologies) : [];
                 } catch (e) {}
                 return (
-                  <div key={project.id} className="bg-gray-50 rounded-lg p-4">
+                  <div key={project.id} className="bg-slate-50 rounded-lg p-4">
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <h4 className="font-semibold">{project.title}</h4>
                         {techStack.length > 0 && (
-                          <p className="text-sm text-gray-600">Tech: {techStack.join(', ')}</p>
+                          <p className="text-sm text-slate-600">Tech: {techStack.join(', ')}</p>
                         )}
                         {project.ai_summary && (
-                          <p className="text-sm text-gray-700 mt-1">{project.ai_summary}</p>
+                          <p className="text-sm text-slate-700 mt-1">{project.ai_summary}</p>
                         )}
                       </div>
                       <div className="flex gap-2">
@@ -1977,7 +1985,7 @@ const ResumeBuilder = () => {
                               liveUrl: project.liveUrl || ''
                             });
                           }}
-                          className="text-blue-600 hover:text-blue-800 hover:scale-110 transition-all cursor-pointer"
+                          className="text-indigo-600 hover:text-indigo-800 hover:scale-110 transition-all cursor-pointer"
                         >
                           <Edit2 size={18} />
                         </button>
@@ -1999,18 +2007,18 @@ const ResumeBuilder = () => {
 
               {/* Right Side - Live Preview (hidden on mobile: use section dropdown to open "Preview" for full-screen preview) */}
               {!isMobile && (
-              <div className="bg-white rounded-xl border-2 border-gray-200 p-4 sm:p-6 shadow-sm lg:sticky lg:top-6 lg:h-[95vh] flex flex-col min-h-[320px] lg:min-h-0 min-w-0">
-                <div className="flex items-center justify-between mb-3 sm:mb-4 border-b border-gray-200 pb-3">
-                  <h3 className="text-base sm:text-lg font-bold text-gray-800 flex items-center gap-2">
-                    <Eye size={18} className="text-blue-600 sm:w-5 sm:h-5" />
+              <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 shadow-sm lg:sticky lg:top-6 lg:h-[95vh] flex flex-col min-h-[320px] lg:min-h-0 min-w-0">
+                <div className="flex items-center justify-between mb-3 sm:mb-4 border-b border-slate-200 pb-3">
+                  <h3 className="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <Eye size={18} className="text-indigo-600 sm:w-5 sm:h-5" />
                     Live Preview
                   </h3>
                 </div>
                 {/* Template Selector for Live Preview */}
                 <div className="mb-3 sm:mb-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <Layout size={16} className="text-blue-600 flex-shrink-0" />
-                    <span className="text-xs sm:text-sm font-semibold text-gray-700">Template</span>
+                    <Layout size={16} className="text-indigo-600 flex-shrink-0" />
+                    <span className="text-xs sm:text-sm font-semibold text-slate-700">Template</span>
                   </div>
                   <div className="flex gap-1.5 sm:gap-2">
                     {templates.map((template) => (
@@ -2019,18 +2027,18 @@ const ResumeBuilder = () => {
                         onClick={() => setSelectedTemplate(template.id)}
                         className={`flex-1 min-w-0 flex flex-col items-center justify-center p-1.5 sm:p-2 rounded-lg border-2 transition-all cursor-pointer ${
                           selectedTemplate === template.id
-                            ? 'border-blue-500 bg-blue-50 shadow-md'
-                            : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+                            ? 'border-indigo-400 bg-indigo-50 shadow-md'
+                            : 'border-gray-200 hover:border-indigo-200 hover:bg-slate-50'
                         }`}
                         title={template.description}
                       >
                         <span className="text-base sm:text-lg mb-0.5 sm:mb-1">{template.icon}</span>
-                        <span className="text-[10px] sm:text-xs font-medium text-gray-800 truncate w-full text-center">{template.name}</span>
+                        <span className="text-[10px] sm:text-xs font-medium text-slate-800 truncate w-full text-center">{template.name}</span>
                       </button>
                     ))}
                   </div>
                 </div>
-                <div className="border-2 border-gray-300 rounded-lg overflow-hidden bg-gray-50 flex-1 min-h-0 flex flex-col">
+                <div className="border-2 border-slate-200 rounded-lg overflow-hidden bg-slate-50 flex-1 min-h-0 flex flex-col">
                   <div id="resume-preview-sidebar" className="bg-white shadow-lg w-full min-w-0 flex-1 overflow-auto">
                     <div className="p-3 sm:p-4 lg:p-6 max-w-full">
                       <ErrorBoundary>
@@ -2042,7 +2050,7 @@ const ResumeBuilder = () => {
                 <div className="mt-4 text-center pt-4 border-t border-gray-200">
                   <button
                     onClick={() => setActiveSection('preview')}
-                    className="text-sm text-blue-600 hover:text-blue-800 font-medium cursor-pointer hover:underline hover:scale-105 transition-all"
+                    className="text-sm text-indigo-600 hover:text-indigo-800 font-medium cursor-pointer hover:underline hover:scale-[1.01] transition-all"
                   >
                     View Full Preview & Export →
                   </button>
@@ -2056,10 +2064,10 @@ const ResumeBuilder = () => {
         {activeSection === 'preview' && (
           <div className={`space-y-6 ${isMobile ? 'pb-28' : ''}`}>
             {/* Template Selector - compact on mobile */}
-            <div className="bg-white rounded-xl border-2 border-gray-200 p-3 sm:p-4 shadow-sm">
+            <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 shadow-sm">
               <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                <Layout size={18} className="text-blue-600 flex-shrink-0" />
-                <h3 className="text-sm sm:text-base font-semibold text-gray-800">Choose Template</h3>
+                <Layout size={18} className="text-indigo-600 flex-shrink-0" />
+                <h3 className="text-sm sm:text-base font-semibold text-slate-800">Choose Template</h3>
               </div>
               <div className={`grid gap-2 sm:gap-4 ${isMobile ? 'grid-cols-3' : 'grid-cols-1 md:grid-cols-3'}`}>
                 {templates.map((template) => (
@@ -2068,24 +2076,24 @@ const ResumeBuilder = () => {
                     onClick={() => setSelectedTemplate(template.id)}
                     className={`p-2 sm:p-3 rounded-lg border-2 transition-all cursor-pointer text-center ${
                       selectedTemplate === template.id
-                        ? 'border-blue-500 bg-blue-50 shadow-md'
-                        : 'border-gray-200 hover:border-blue-500 hover:shadow-md'
+                        ? 'border-indigo-400 bg-indigo-50 shadow-md'
+                        : 'border-gray-200 hover:border-indigo-400 hover:shadow-md'
                     }`}
                   >
                     <div className="text-xl sm:text-2xl mb-1 sm:mb-1.5">{template.icon}</div>
-                    <div className="font-semibold text-xs sm:text-sm text-gray-800">{template.name}</div>
-                    {!isMobile && <div className="text-xs text-gray-600 mt-1">{template.description}</div>}
+                    <div className="font-semibold text-xs sm:text-sm text-slate-800">{template.name}</div>
+                    {!isMobile && <div className="text-xs text-slate-600 mt-1">{template.description}</div>}
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="bg-white rounded-xl border-2 border-gray-200 p-4 sm:p-5 shadow-sm min-w-0 overflow-hidden">
+            <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm min-w-0 overflow-hidden">
               {/* Desktop: title + actions in header. Mobile: title only (actions in sticky bar) */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-200 pb-3 mb-4">
-                <h3 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2 sm:gap-3">
-                  <div className="bg-green-100 p-1.5 rounded-lg flex-shrink-0">
-                    <Eye size={18} className="text-green-600 sm:w-5 sm:h-5" />
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 pb-3 mb-4">
+                <h3 className="text-xl sm:text-2xl font-bold text-slate-800 flex items-center gap-2 sm:gap-3">
+                  <div className="bg-emerald-100 p-1.5 rounded-lg flex-shrink-0">
+                    <Eye size={18} className="text-emerald-600 sm:w-5 sm:h-5" />
                   </div>
                   Resume Preview
                 </h3>
@@ -2112,7 +2120,7 @@ const ResumeBuilder = () => {
                   <button
                     onClick={handleGeneratePDFAndSave}
                     disabled={generatingAndSaving || exporting}
-                    className="flex items-center justify-center gap-1.5 sm:gap-2 bg-green-600 text-white px-3 sm:px-5 py-2 sm:py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-semibold shadow-md hover:shadow-lg transition-all text-sm sm:text-base"
+                    className="flex items-center justify-center gap-1.5 sm:gap-2 bg-emerald-600 text-white px-3 sm:px-5 py-2 sm:py-3 rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-semibold shadow-md hover:shadow-lg transition-all text-sm sm:text-base"
                     title="Generate PDF and save it to your resume manager for job applications"
                   >
                     {generatingAndSaving ? (
@@ -2130,7 +2138,7 @@ const ResumeBuilder = () => {
                   <button
                     onClick={handleExportPDF}
                     disabled={exporting || generatingAndSaving}
-                    className="flex items-center justify-center gap-1.5 sm:gap-2 bg-blue-600 text-white px-3 sm:px-6 py-2 sm:py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-semibold shadow-lg hover:shadow-xl transition-all text-sm sm:text-base"
+                    className="flex items-center justify-center gap-1.5 sm:gap-2 bg-indigo-600 text-white px-3 sm:px-6 py-2 sm:py-3 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-semibold shadow-lg hover:shadow-xl transition-all text-sm sm:text-base"
                     title="Download PDF to your computer"
                   >
                     {exporting ? (
@@ -2149,7 +2157,7 @@ const ResumeBuilder = () => {
                 )}
               </div>
 
-              <div className="border-2 border-gray-300 rounded-lg overflow-x-auto overflow-y-hidden bg-gray-50 w-full max-w-full">
+              <div className="border-2 border-slate-200 rounded-lg overflow-x-auto overflow-y-hidden bg-slate-50 w-full max-w-full">
                 <div id="resume-preview" className="bg-white shadow-2xl" style={{ transform: 'scale(0.8)', transformOrigin: 'top left', width: '125%' }}>
                   <div className="p-4 sm:p-6 lg:p-8">
                     <ErrorBoundary>
@@ -2165,7 +2173,7 @@ const ResumeBuilder = () => {
                   <button
                     type="button"
                     onClick={() => setActiveSection('personal')}
-                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg border-2 border-gray-300 text-gray-700 bg-gray-50 font-medium text-sm"
+                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg border-2 border-slate-200 text-slate-700 bg-slate-50 font-medium text-sm"
                   >
                     <Edit2 size={16} />
                     Back to edit
@@ -2181,7 +2189,7 @@ const ResumeBuilder = () => {
                   <button
                     onClick={handleGeneratePDFAndSave}
                     disabled={generatingAndSaving || exporting}
-                    className="flex items-center gap-1.5 px-3 py-2.5 bg-green-600 text-white rounded-lg font-medium text-sm disabled:opacity-50"
+                    className="flex items-center gap-1.5 px-3 py-2.5 bg-emerald-600 text-white rounded-lg font-medium text-sm disabled:opacity-50"
                   >
                     {generatingAndSaving ? <Loader size={16} className="animate-spin" /> : <Upload size={16} />}
                     Save PDF
@@ -2189,7 +2197,7 @@ const ResumeBuilder = () => {
                   <button
                     onClick={handleExportPDF}
                     disabled={exporting || generatingAndSaving}
-                    className="flex items-center gap-1.5 px-3 py-2.5 bg-blue-600 text-white rounded-lg font-medium text-sm disabled:opacity-50"
+                    className="flex items-center gap-1.5 px-3 py-2.5 bg-indigo-600 text-white rounded-lg font-medium text-sm disabled:opacity-50"
                   >
                     {exporting ? <Loader size={16} className="animate-spin" /> : <Download size={16} />}
                     Download
@@ -2197,11 +2205,11 @@ const ResumeBuilder = () => {
                 </div>
               )}
 
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-5 mt-6">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 mt-6">
                 <div className="flex items-start gap-3">
-                  <Info size={22} className="text-blue-600 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm text-blue-800">
-                    <p className="font-bold text-base mb-2">💡 Pro Tips:</p>
+                  <Info size={22} className="text-indigo-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-indigo-800">
+                    <p className="font-bold text-base mb-2">Tips</p>
                     <ul className="list-disc list-inside space-y-2 ml-2">
                       <li>All sections are ATS-friendly and optimized for job applications</li>
                       <li>AI-generated project content is automatically included in your resume</li>
@@ -2220,18 +2228,18 @@ const ResumeBuilder = () => {
 
       {/* Upload Resume Mode Content */}
       {activeMode === 'uploadResume' && (
-        <div className="bg-white rounded-xl border-2 border-gray-200 p-4 sm:p-5 shadow-sm min-w-0 overflow-x-hidden">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm min-w-0 overflow-x-hidden">
           <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-200 pb-4">
-              <h3 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2 sm:gap-3">
-                <div className="bg-blue-100 p-1.5 rounded-lg flex-shrink-0">
-                  <Upload size={18} className="text-blue-600 sm:w-5 sm:h-5" />
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 pb-4">
+              <h3 className="text-xl sm:text-2xl font-bold text-slate-800 flex items-center gap-2 sm:gap-3">
+                <div className="bg-indigo-100 p-1.5 rounded-lg flex-shrink-0">
+                  <Upload size={18} className="text-indigo-600 sm:w-5 sm:h-5" />
                 </div>
                 Upload Resume
               </h3>
             </div>
 
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-600">
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm text-slate-600">
               <ul className="space-y-1.5">
                 <li>Upload your resume as a PDF (max 10 MB) for the best compatibility.</li>
                 <li>You can store multiple versions and analyze them in ATS Check.</li>
@@ -2241,18 +2249,18 @@ const ResumeBuilder = () => {
             {/* List of uploaded resumes */}
             {resumes.length > 0 && (
               <div className="space-y-3 mb-6">
-                <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <FileText size={20} className="text-blue-600" />
+                <h4 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                  <FileText size={20} className="text-indigo-600" />
                   Uploaded Resumes ({resumes.length})
                 </h4>
                 {resumes.map((resume) => (
-                  <div key={resume.id} className="bg-white border-2 border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-all">
+                  <div key={resume.id} className="bg-white border border-slate-200 rounded-lg p-4 hover:border-indigo-200 transition-all">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 flex-1">
-                        <FileText className="h-6 w-6 text-blue-600 flex-shrink-0" />
+                        <FileText className="h-6 w-6 text-indigo-600 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 truncate">{resume.fileName}</p>
-                          <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
+                          <p className="font-medium text-slate-900 truncate">{resume.fileName}</p>
+                          <div className="flex items-center gap-2 text-sm text-slate-600 mt-1">
                             {resume.fileSize && <span>{formatFileSize(resume.fileSize)}</span>}
                             {resume.fileSize && resume.uploadedAt && <span>•</span>}
                             {resume.uploadedAt && (
@@ -2265,7 +2273,7 @@ const ResumeBuilder = () => {
                         <button
                           type="button"
                           onClick={() => handleViewResume(resume)}
-                          className="flex items-center gap-1 px-3 py-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-all cursor-pointer text-sm font-medium"
+                          className="flex items-center gap-1 px-3 py-1.5 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-all cursor-pointer text-sm font-medium"
                         >
                           <Eye size={16} />
                           View
@@ -2275,7 +2283,7 @@ const ResumeBuilder = () => {
                           download={resume.fileName || resume.title || 'resume.pdf'}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-1 px-3 py-1.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all cursor-pointer text-sm font-medium"
+                          className="flex items-center gap-1 px-3 py-1.5 text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all cursor-pointer text-sm font-medium"
                         >
                           <Download size={16} />
                           Download
@@ -2283,7 +2291,7 @@ const ResumeBuilder = () => {
                         <button
                           onClick={() => handleDeleteResume(resume.id)}
                           disabled={saving}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-medium shadow-md hover:shadow-lg transition-all text-sm"
+                          className="flex items-center gap-1 px-3 py-1.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-medium shadow-sm transition-colors text-sm"
                         >
                           <Trash2 size={16} />
                           Delete
@@ -2299,8 +2307,8 @@ const ResumeBuilder = () => {
             <div
               className={`border-2 border-dashed rounded-xl p-12 transition-all ${
                   isDragging 
-                    ? 'border-blue-500 bg-blue-50 shadow-lg scale-105' 
-                    : 'border-gray-300 bg-gradient-to-br from-gray-50 to-blue-50 hover:border-blue-500 hover:shadow-lg'
+                    ? 'border-indigo-400 bg-indigo-50 shadow-lg scale-[1.01]' 
+                    : 'border-slate-200 bg-gradient-to-br from-slate-50 to-indigo-50 hover:border-indigo-400 hover:shadow-lg'
                 }`}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -2308,14 +2316,14 @@ const ResumeBuilder = () => {
               >
                 <div className="text-center">
                   <div className={`mx-auto h-16 w-16 rounded-full flex items-center justify-center mb-4 transition-all ${
-                    isDragging ? 'bg-blue-100' : 'bg-gray-100'
+                    isDragging ? 'bg-indigo-100' : 'bg-slate-100'
                   }`}>
-                    <Upload className={`h-8 w-8 ${isDragging ? 'text-blue-600' : 'text-gray-400'}`} />
+                    <Upload className={`h-8 w-8 ${isDragging ? 'text-indigo-600' : 'text-slate-400'}`} />
                   </div>
-                  <h4 className="text-xl font-bold text-gray-900 mb-2">
+                  <h4 className="text-xl font-bold text-slate-900 mb-2">
                     {isDragging ? 'Drop your resume here' : 'Upload Your Resume'}
                   </h4>
-                  <p className="text-sm text-gray-600 mb-6">
+                  <p className="text-sm text-slate-600 mb-6">
                     Drag and drop a PDF file here, or click to browse. You can upload multiple resumes.
                   </p>
                   <input
@@ -2327,48 +2335,48 @@ const ResumeBuilder = () => {
                   />
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                   >
                     Choose File
                   </button>
-                  <p className="text-xs text-gray-500 mt-3">
+                  <p className="text-xs text-slate-500 mt-3">
                     Maximum file size: 10MB • PDF format only
                   </p>
                 </div>
               </div>
 
             {resumeFile && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <FileText className="h-6 w-6 text-blue-600" />
+                    <FileText className="h-6 w-6 text-indigo-600" />
                     <div>
-                      <p className="font-medium text-gray-900">{resumeFile.name}</p>
-                      <p className="text-sm text-gray-600">{formatFileSize(resumeFile.size)}</p>
+                      <p className="font-medium text-slate-900">{resumeFile.name}</p>
+                      <p className="text-sm text-slate-600">{formatFileSize(resumeFile.size)}</p>
                     </div>
                   </div>
                   <button
                     onClick={() => setResumeFile(null)}
-                    className="text-gray-400 hover:text-gray-600"
+                    className="text-slate-400 hover:text-slate-600"
                   >
                     <X size={20} />
                   </button>
                 </div>
                 {uploadProgress > 0 && uploadProgress < 100 && (
                   <div className="mb-3">
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full bg-slate-200 rounded-full h-2">
                       <div
-                        className="bg-blue-600 h-2 rounded-full transition-all"
+                        className="bg-indigo-600 h-2 rounded-full transition-all"
                         style={{ width: `${uploadProgress}%` }}
                       ></div>
                     </div>
-                    <p className="text-xs text-gray-600 mt-1">Uploading... {uploadProgress}%</p>
+                    <p className="text-xs text-slate-600 mt-1">Uploading... {uploadProgress}%</p>
                   </div>
                 )}
                 <button
                   onClick={handleFileUpload}
                   disabled={uploading}
-                  className="w-full flex items-center justify-center gap-2 bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 disabled:opacity-50"
                 >
                   {uploading ? (
                     <>
@@ -2391,18 +2399,18 @@ const ResumeBuilder = () => {
 
       {/* ATS Friendly Mode Content */}
       {activeMode === 'atsFriendly' && (
-        <div className="bg-white rounded-xl border-2 border-gray-200 p-5 shadow-sm">
+        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
           <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-gray-200 pb-4">
-              <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
-                <div className="bg-orange-100 p-1.5 rounded-lg">
-                  <BarChart3 size={20} className="text-orange-600" />
+            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+              <h3 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
+                <div className="bg-amber-100 p-1.5 rounded-lg">
+                  <BarChart3 size={20} className="text-amber-700" />
                 </div>
                 ATS Resume Analyzer
               </h3>
             </div>
 
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-600">
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm text-slate-600">
               <ul className="space-y-1.5">
                 <li>Run an ATS check on an uploaded resume or your built resume to review compatibility and keyword coverage.</li>
                 <li>Use the suggested improvements before applying to jobs.</li>
@@ -2432,17 +2440,17 @@ const ResumeBuilder = () => {
 
       {/* AI Optimize Mode */}
       {activeMode === 'optimize' && (
-        <div className="bg-white rounded-xl border-2 border-gray-200 p-5 shadow-sm space-y-6">
+        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-6">
           {/* Header */}
-          <div className="flex items-center gap-3 border-b border-gray-200 pb-4">
-            <div className="bg-blue-100 p-1.5 rounded-lg">
-              <Zap size={20} className="text-blue-600" />
+          <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
+            <div className="bg-indigo-100 p-1.5 rounded-lg">
+              <Zap size={20} className="text-indigo-600" />
             </div>
-            <h3 className="text-xl font-bold text-gray-800">AI Resume Optimizer</h3>
+            <h3 className="text-xl font-bold text-slate-800">AI Resume Optimizer</h3>
           </div>
 
           {/* Guidance */}
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-600">
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm text-slate-600">
             <ul className="space-y-1.5">
               <li>Select a posted job, then run Optimize to tailor your summary, skills, and experience to that role.</li>
               <li>Review the suggestions and apply them in Build Resume before downloading.</li>
@@ -2451,7 +2459,7 @@ const ResumeBuilder = () => {
 
           {/* Job Picker */}
           <div className="relative z-20 overflow-visible">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Select Target Job</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Select Target Job</label>
             <JobPickerDropdown selectedJob={optimizeJob} onSelect={setOptimizeJob} placeholder="Pick a job to optimize your resume for" />
           </div>
 
@@ -2472,7 +2480,7 @@ const ResumeBuilder = () => {
               }
             }}
             disabled={!optimizeJob || optimizing}
-            className="resume-ai-glare w-full flex items-center justify-center gap-2 py-3 px-6 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
+            className="resume-ai-glare w-full flex items-center justify-center gap-2 py-3 px-6 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
           >
             <span className="relative z-10 flex items-center justify-center gap-2">
             {optimizing ? (
@@ -2494,46 +2502,46 @@ const ResumeBuilder = () => {
           {/* Results */}
           {optimizeResult && (
             <div className="space-y-5">
-              <div className="flex items-center gap-2 text-green-700 bg-green-50 border border-green-200 rounded-xl p-3">
+              <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl p-3">
                 <CheckCircle2 size={18} />
                 <span className="text-sm font-medium">Optimized for <strong>{optimizeResult.jobTitle}</strong>{optimizeResult.companyName ? ` at ${optimizeResult.companyName}` : ''}</span>
               </div>
 
               {/* Optimized Summary */}
               {optimizeResult.optimized?.summary && (
-                <div className="border border-purple-200 rounded-xl overflow-hidden">
-                  <div className="bg-purple-50 px-4 py-2 flex items-center gap-2">
-                    <User size={14} className="text-purple-600" />
-                    <span className="text-sm font-semibold text-purple-700">AI-Optimized Summary</span>
+                <div className="border border-violet-100 rounded-xl overflow-hidden">
+                  <div className="bg-violet-50 px-4 py-2 flex items-center gap-2">
+                    <User size={14} className="text-violet-600" />
+                    <span className="text-sm font-semibold text-violet-700">AI-Optimized Summary</span>
                   </div>
                   <div className="p-4">
-                    <p className="text-sm text-gray-700 leading-relaxed bg-green-50 border border-green-200 rounded-lg p-3">{optimizeResult.optimized.summary}</p>
-                    <p className="text-xs text-gray-500 mt-2">Copy this into your Summary section in Build Resume.</p>
+                    <p className="text-sm text-slate-700 leading-relaxed bg-emerald-50 border border-emerald-200 rounded-lg p-3">{optimizeResult.optimized.summary}</p>
+                    <p className="text-xs text-slate-500 mt-2">Copy this into your Summary section in Build Resume.</p>
                   </div>
                 </div>
               )}
 
               {/* Optimized Skills */}
               {optimizeResult.optimized?.skills && (
-                <div className="border border-purple-200 rounded-xl overflow-hidden">
-                  <div className="bg-purple-50 px-4 py-2 flex items-center gap-2">
-                    <Code size={14} className="text-purple-600" />
-                    <span className="text-sm font-semibold text-purple-700">Prioritized Skills</span>
+                <div className="border border-violet-100 rounded-xl overflow-hidden">
+                  <div className="bg-violet-50 px-4 py-2 flex items-center gap-2">
+                    <Code size={14} className="text-violet-600" />
+                    <span className="text-sm font-semibold text-violet-700">Prioritized Skills</span>
                   </div>
                   <div className="p-4 space-y-2">
                     {optimizeResult.optimized.skills.technical?.length > 0 && (
                       <div>
-                        <p className="text-xs font-semibold text-gray-500 mb-1">Technical</p>
+                        <p className="text-xs font-semibold text-slate-500 mb-1">Technical</p>
                         <div className="flex flex-wrap gap-1.5">
                           {optimizeResult.optimized.skills.technical.map((s, i) => (
-                            <span key={i} className="px-2.5 py-1 bg-blue-50 text-blue-700 text-xs rounded-full border border-blue-200">{s}</span>
+                            <span key={i} className="px-2.5 py-1 bg-indigo-50 text-indigo-700 text-xs rounded-full border border-indigo-100">{s}</span>
                           ))}
                         </div>
                       </div>
                     )}
                     {optimizeResult.optimized.skills.tools?.length > 0 && (
                       <div>
-                        <p className="text-xs font-semibold text-gray-500 mb-1">Tools & Platforms</p>
+                        <p className="text-xs font-semibold text-slate-500 mb-1">Tools & Platforms</p>
                         <div className="flex flex-wrap gap-1.5">
                           {optimizeResult.optimized.skills.tools.map((s, i) => (
                             <span key={i} className="px-2.5 py-1 bg-indigo-50 text-indigo-700 text-xs rounded-full border border-indigo-200">{s}</span>
@@ -2547,19 +2555,19 @@ const ResumeBuilder = () => {
 
               {/* Optimized Experience Bullets */}
               {optimizeResult.optimized?.experience?.length > 0 && (
-                <div className="border border-purple-200 rounded-xl overflow-hidden">
-                  <div className="bg-purple-50 px-4 py-2 flex items-center gap-2">
-                    <Briefcase size={14} className="text-purple-600" />
-                    <span className="text-sm font-semibold text-purple-700">Optimized Experience Bullets</span>
+                <div className="border border-violet-100 rounded-xl overflow-hidden">
+                  <div className="bg-violet-50 px-4 py-2 flex items-center gap-2">
+                    <Briefcase size={14} className="text-violet-600" />
+                    <span className="text-sm font-semibold text-violet-700">Optimized Experience Bullets</span>
                   </div>
                   <div className="p-4 space-y-4">
                     {optimizeResult.optimized.experience.map((exp, i) => (
                       <div key={i}>
-                        <p className="text-xs font-semibold text-gray-600 mb-2">{exp.originalTitle} @ {exp.originalCompany}</p>
+                        <p className="text-xs font-semibold text-slate-600 mb-2">{exp.originalTitle} @ {exp.originalCompany}</p>
                         <ul className="space-y-1.5">
                           {exp.optimizedBullets.map((bullet, j) => (
-                            <li key={j} className="flex items-start gap-2 text-sm text-gray-700 bg-green-50 border border-green-100 rounded-lg px-3 py-2">
-                              <span className="text-green-500 mt-0.5 flex-shrink-0">✓</span>
+                            <li key={j} className="flex items-start gap-2 text-sm text-slate-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
+                              <span className="text-emerald-500 mt-0.5 flex-shrink-0">✓</span>
                               {bullet}
                             </li>
                           ))}
@@ -2572,19 +2580,19 @@ const ResumeBuilder = () => {
 
               {/* Optimized Project Bullets */}
               {optimizeResult.optimized?.projects?.length > 0 && (
-                <div className="border border-purple-200 rounded-xl overflow-hidden">
-                  <div className="bg-purple-50 px-4 py-2 flex items-center gap-2">
-                    <FolderKanban size={14} className="text-purple-600" />
-                    <span className="text-sm font-semibold text-purple-700">Optimized Project Bullets</span>
+                <div className="border border-violet-100 rounded-xl overflow-hidden">
+                  <div className="bg-violet-50 px-4 py-2 flex items-center gap-2">
+                    <FolderKanban size={14} className="text-violet-600" />
+                    <span className="text-sm font-semibold text-violet-700">Optimized Project Bullets</span>
                   </div>
                   <div className="p-4 space-y-4">
                     {optimizeResult.optimized.projects.map((proj, i) => (
                       <div key={i}>
-                        <p className="text-xs font-semibold text-gray-600 mb-2">{proj.originalTitle}</p>
+                        <p className="text-xs font-semibold text-slate-600 mb-2">{proj.originalTitle}</p>
                         <ul className="space-y-1.5">
                           {proj.optimizedBullets.map((bullet, j) => (
-                            <li key={j} className="flex items-start gap-2 text-sm text-gray-700 bg-green-50 border border-green-100 rounded-lg px-3 py-2">
-                              <span className="text-green-500 mt-0.5 flex-shrink-0">✓</span>
+                            <li key={j} className="flex items-start gap-2 text-sm text-slate-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
+                              <span className="text-emerald-500 mt-0.5 flex-shrink-0">✓</span>
                               {bullet}
                             </li>
                           ))}
@@ -2609,7 +2617,7 @@ const ResumeBuilder = () => {
 
               <button
                 onClick={handleApplyOptimizedAI}
-                className="w-full mt-4 flex items-center justify-center gap-2 py-4 px-6 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-200"
+                className="w-full mt-4 flex items-center justify-center gap-2 py-4 px-6 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100"
               >
                 <CheckCircle2 size={20} />
                 Apply to Resume & Preview PDF
@@ -2621,35 +2629,35 @@ const ResumeBuilder = () => {
 
       {/* View Saved Resumes Modal */}
       {showResumesModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4" onClick={() => setShowResumesModal(false)}>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-2 sm:p-4" onClick={() => setShowResumesModal(false)}>
           <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-w-full max-h-[90vh] overflow-y-auto overflow-x-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 sm:p-6 flex items-center justify-between z-10">
-              <h3 className="text-lg sm:text-2xl font-bold text-gray-800 flex items-center gap-2 sm:gap-3 min-w-0">
-                <div className="bg-blue-100 p-2 rounded-lg">
-                  <FileText size={24} className="text-blue-600" />
+            <div className="sticky top-0 bg-white border-b border-slate-200 p-4 sm:p-6 flex items-center justify-between z-10">
+              <h3 className="text-lg sm:text-2xl font-bold text-slate-800 flex items-center gap-2 sm:gap-3 min-w-0">
+                <div className="bg-indigo-100 p-2 rounded-lg">
+                  <FileText size={24} className="text-indigo-600" />
                 </div>
                 Saved Resumes ({resumes.length})
               </h3>
               <button
                 onClick={() => setShowResumesModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
                 title="Close"
               >
-                <X size={24} className="text-gray-600" />
+                <X size={24} className="text-slate-600" />
               </button>
             </div>
             <div className="p-6">
               {resumes.length === 0 ? (
                 <div className="text-center py-12">
-                  <FileX size={64} className="mx-auto text-gray-400 mb-4" />
-                  <p className="text-gray-600 text-lg mb-2">No resumes saved yet</p>
-                  <p className="text-gray-500 text-sm mb-6">Upload a resume to get started</p>
+                  <FileX size={64} className="mx-auto text-slate-400 mb-4" />
+                  <p className="text-slate-600 text-lg mb-2">No resumes saved yet</p>
+                  <p className="text-slate-500 text-sm mb-6">Upload a resume to get started</p>
                   <button
                     onClick={() => {
                       setShowResumesModal(false);
                       setActiveMode('uploadResume');
                     }}
-                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                    className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
                   >
                     Upload Resume
                   </button>
@@ -2657,15 +2665,15 @@ const ResumeBuilder = () => {
               ) : (
                 <div className="space-y-4 p-4 sm:p-6">
                   {resumes.map((resume) => (
-                    <div key={resume.id} className="bg-gray-50 border-2 border-gray-200 rounded-lg p-4 sm:p-5 hover:border-blue-300 transition-all">
+                    <div key={resume.id} className="bg-slate-50 border border-slate-200 rounded-lg p-4 sm:p-5 hover:border-indigo-200 transition-all">
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-                          <div className="bg-blue-100 p-3 rounded-lg flex-shrink-0">
-                            <FileText size={24} className="text-blue-600" />
+                          <div className="bg-indigo-100 p-3 rounded-lg flex-shrink-0">
+                            <FileText size={24} className="text-indigo-600" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-gray-900 text-lg mb-1 truncate">{resume.fileName || 'Resume'}</h4>
-                            <div className="flex items-center gap-3 text-sm text-gray-600 flex-wrap">
+                            <h4 className="font-semibold text-slate-900 text-lg mb-1 truncate">{resume.fileName || 'Resume'}</h4>
+                            <div className="flex items-center gap-3 text-sm text-slate-600 flex-wrap">
                               {resume.fileSize && (
                                 <span className="flex items-center gap-1">
                                   <FileText size={14} />
@@ -2679,13 +2687,13 @@ const ResumeBuilder = () => {
                                 </span>
                               )}
                               {resume.isDefault && (
-                                <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-medium">
+                                <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs font-medium">
                                   Default
                                 </span>
                               )}
                             </div>
                             {resume.title && (
-                              <p className="text-sm text-gray-700 mt-1">{resume.title}</p>
+                              <p className="text-sm text-slate-700 mt-1">{resume.title}</p>
                             )}
                           </div>
                         </div>
@@ -2693,7 +2701,7 @@ const ResumeBuilder = () => {
                           <button
                             type="button"
                             onClick={() => handleViewResume(resume)}
-                            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium shadow-md hover:shadow-lg text-sm"
+                            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all font-medium shadow-md hover:shadow-lg text-sm"
                           >
                             <Eye size={16} className="sm:w-[18px] sm:h-[18px]" />
                             View
@@ -2703,7 +2711,7 @@ const ResumeBuilder = () => {
                             download={resume.fileName || resume.title || 'resume.pdf'}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-all font-medium shadow-md hover:shadow-lg text-sm"
+                            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-slate-100 text-slate-800 rounded-lg hover:bg-slate-200 transition-all font-medium shadow-md hover:shadow-lg text-sm"
                           >
                             <Download size={16} className="sm:w-[18px] sm:h-[18px]" />
                             Download
@@ -2716,7 +2724,7 @@ const ResumeBuilder = () => {
                               }
                             }}
                             disabled={saving}
-                            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium shadow-md hover:shadow-lg text-sm"
+                            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium shadow-sm text-sm"
                           >
                             <Trash2 size={16} className="sm:w-[18px] sm:h-[18px]" />
                             Delete

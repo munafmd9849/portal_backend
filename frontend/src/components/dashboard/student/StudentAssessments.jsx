@@ -1,29 +1,72 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { 
-  Shield, Clock, Calendar, ChevronRight, 
-  CheckCircle, AlertCircle, PlayCircle, 
-  Camera, Users, FileText, Activity,
-  Lock, ArrowRight, Star, Terminal, BookOpen, Layers
+import {
+  Clock,
+  PlayCircle,
+  FileText,
+  Lock,
+  ArrowRight,
+  Activity,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../services/api';
 import { getAssessmentEntryStatus, formatAssessmentWindow } from '../../../utils/assessmentEntryWindow';
-import { au } from '../../assessment/assessmentUi';
 import { useToast } from '../../ui/Toast';
 
-const STAT_ICON_BOX = {
-  blue: 'bg-indigo-50 border-indigo-100',
-  emerald: 'bg-emerald-50 border-emerald-100',
-  amber: 'bg-amber-50 border-amber-100',
-  slate: 'bg-gray-50 border-gray-200',
+const STAT_STYLES = {
+  pending: {
+    box: 'bg-indigo-50 border-indigo-100',
+    icon: 'text-indigo-600',
+    value: 'text-indigo-700',
+  },
+  ongoing: {
+    box: 'bg-amber-50 border-amber-100',
+    icon: 'text-amber-600',
+    value: 'text-amber-700',
+  },
+  completed: {
+    box: 'bg-emerald-50 border-emerald-100',
+    icon: 'text-emerald-600',
+    value: 'text-emerald-700',
+  },
+  total: {
+    box: 'bg-slate-50 border-slate-200',
+    icon: 'text-slate-600',
+    value: 'text-slate-900',
+  },
 };
 
-const STAT_ICON_COLOR = {
-  blue: 'text-indigo-600',
-  emerald: 'text-emerald-600',
-  amber: 'text-amber-600',
-  slate: 'text-gray-600',
-};
+function statusMeta(status) {
+  switch (status) {
+    case 'COMPLETED':
+      return {
+        label: 'Completed',
+        chip: 'bg-emerald-50 text-emerald-800 border-emerald-100',
+      };
+    case 'IN_PROGRESS':
+      return {
+        label: 'In progress',
+        chip: 'bg-amber-50 text-amber-800 border-amber-100',
+      };
+    default:
+      return {
+        label: 'Not started',
+        chip: 'bg-slate-100 text-slate-600 border-slate-200',
+      };
+  }
+}
+
+function typeLabel(type) {
+  switch (type) {
+    case 'MOCK_TEST':
+      return 'Test';
+    case 'MOCK_INTERVIEW_AUTO':
+      return 'AI interview';
+    case 'MOCK_INTERVIEW_LIVE':
+      return 'Live interview';
+    default:
+      return 'Assessment';
+  }
+}
 
 export default function StudentAssessments() {
   const [assessments, setAssessments] = useState([]);
@@ -35,8 +78,8 @@ export default function StudentAssessments() {
     try {
       setLoading(true);
       const data = await api.getStudentAssessments();
-      setAssessments(data);
-    } catch (e) {
+      setAssessments(Array.isArray(data) ? data : []);
+    } catch {
       toast?.error('Failed to load your assessments');
     } finally {
       setLoading(false);
@@ -48,200 +91,178 @@ export default function StudentAssessments() {
   }, [fetchAssessments]);
 
   const stats = useMemo(() => {
-    const sessionOf = (a) => a.sessions?.[0];
-    const pending = assessments.filter((a) => !sessionOf(a)).length;
-    const ongoing = assessments.filter((a) => sessionOf(a)?.status === 'IN_PROGRESS').length;
+    const pending = assessments.filter((a) => !a.sessions?.length).length;
     const completed = assessments.filter((a) => {
-      const status = sessionOf(a)?.status;
+      const status = a.sessions?.[0]?.status;
       return status === 'COMPLETED' || status === 'PENDING_REVIEW';
     }).length;
-    const scoredSessions = assessments
-      .map(sessionOf)
-      .filter((s) => (s?.status === 'COMPLETED' || s?.status === 'PENDING_REVIEW') && typeof s.score === 'number');
-    const avgScore = scoredSessions.length
-      ? Math.round(scoredSessions.reduce((sum, s) => sum + s.score, 0) / scoredSessions.length)
-      : null;
-
-    return { pending, ongoing, completed, avgScore };
+    const ongoing = assessments.filter((a) => a.sessions?.[0]?.status === 'IN_PROGRESS').length;
+    return [
+      { key: 'pending', label: 'Pending', val: pending },
+      { key: 'ongoing', label: 'In progress', val: ongoing },
+      { key: 'completed', label: 'Completed', val: completed },
+      { key: 'total', label: 'Total', val: assessments.length },
+    ];
   }, [assessments]);
-
-  const isFinishedSession = (status) => status === 'COMPLETED' || status === 'PENDING_REVIEW';
-
-  const getStatusConfig = (status) => {
-    switch (status) {
-      case 'COMPLETED':
-        return { color: 'text-emerald-700 bg-emerald-50 border-emerald-100', label: 'Completed' };
-      case 'IN_PROGRESS':
-        return { color: 'text-amber-700 bg-amber-50 border-amber-100', label: 'In Progress' };
-      default:
-        return { color: 'text-indigo-700 bg-indigo-50 border-indigo-100', label: 'Not Started' };
-    }
-  };
-
-  const getTypeIcon = (type) => {
-    switch (type) {
-      case 'MOCK_TEST': return <FileText className="w-5 h-5" />;
-      case 'CODING_TEST': return <Terminal className="w-5 h-5" />;
-      case 'DESCRIPTIVE': return <BookOpen className="w-5 h-5" />;
-      case 'MIXED': return <Layers className="w-5 h-5" />;
-      case 'MOCK_INTERVIEW_AUTO': return <Camera className="w-5 h-5" />;
-      case 'MOCK_INTERVIEW_LIVE': return <Users className="w-5 h-5" />;
-      default: return <Activity className="w-5 h-5" />;
-    }
-  };
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 space-y-3">
-        <div className={au.spinner} />
-        <p className="text-sm text-gray-500">Loading assessments...</p>
+      <div className="flex flex-col items-center justify-center py-24 gap-3">
+        <div className="w-9 h-9 border-2 border-slate-200 border-t-indigo-600 rounded-full animate-spin" />
+        <p className="text-sm text-slate-500">Loading assessments…</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-[1400px] mx-auto space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Pending', val: pendingCount, color: 'blue' },
-          { label: 'Completed', val: completedCount, color: 'emerald' },
-          { label: 'In Progress', val: ongoingCount, color: 'amber' },
-          { label: 'Total', val: assessments.length, color: 'slate' },
-        ].map((stat, i) => (
-          <div
-            key={i}
-            className={`${au.statCard} flex items-center justify-between`}
-          >
-            <div>
-              <p className={au.statLabel}>{stat.label}</p>
-              <p className={`text-xl ${au.statValue}`}>{stat.val}</p>
-            </div>
-            <div
-              className={`w-8 h-8 rounded-lg border flex items-center justify-center ${STAT_ICON_BOX[stat.color]}`}
-            >
-              <Activity className={`w-4 h-4 ${STAT_ICON_COLOR[stat.color]}`} />
-            </div>
+    <div className="max-w-[1100px] mx-auto">
+      <style>{`
+        .assess-surface .assess-row {
+          transition: border-color 160ms ease, box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1), transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .assess-surface .assess-row:hover {
+          border-color: rgb(199 210 254);
+          box-shadow: 0 10px 28px rgba(79, 70, 229, 0.06);
+          transform: translateY(-1px);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .assess-surface .assess-row:hover { transform: none; }
+        }
+      `}</style>
+
+      <div className="assess-surface space-y-5">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {stats.map((s) => {
+            const style = STAT_STYLES[s.key];
+            return (
+              <div
+                key={s.key}
+                className="bg-white rounded-lg border border-slate-200/80 shadow-sm px-3.5 py-3.5 flex items-center justify-between gap-3"
+              >
+                <div className="min-w-0">
+                  <p className="text-[11px] font-medium text-slate-500">{s.label}</p>
+                  <p className={`text-2xl font-semibold tabular-nums mt-0.5 leading-none ${style.value}`}>
+                    {s.val}
+                  </p>
+                </div>
+                <div
+                  className={`w-9 h-9 rounded-lg border flex items-center justify-center shrink-0 ${style.box}`}
+                >
+                  <Activity className={`w-4 h-4 ${style.icon}`} strokeWidth={1.75} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {assessments.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-slate-200 bg-white/60 py-16 px-6 text-center">
+            <FileText className="w-5 h-5 text-slate-400 mx-auto mb-3" strokeWidth={1.75} />
+            <p className="text-sm text-slate-600">No assessments assigned yet.</p>
           </div>
-        ))}
-      </div>
+        ) : (
+          <div className="space-y-2.5">
+            {assessments.map((item) => {
+              const session = item.sessions?.[0];
+              const isCompleted = session?.status === 'COMPLETED';
+              const assignment =
+                item.assignments?.find((a) => a.scheduledAt) ||
+                item.assignments?.find((a) => a.studentId) ||
+                item.assignments?.[0];
+              const scheduledAt = assignment?.scheduledAt;
+              const status = statusMeta(session?.status);
+              const entry = getAssessmentEntryStatus(item);
+              const canJoin =
+                !isCompleted &&
+                (entry.status === 'ALLOWED' || entry.status === 'UNSCHEDULED');
+              const isEarly = entry.status === 'TOO_EARLY';
+              const isLate = entry.status === 'TOO_LATE';
+              const when =
+                item.startTime
+                  ? formatAssessmentWindow(item.startTime)
+                  : scheduledAt
+                    ? new Date(scheduledAt).toLocaleString([], {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
+                    : null;
 
-      {/* Main Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-        {assessments.map((item) => {
-          const session = item.sessions?.[0];
-          const isCompleted = isFinishedSession(session?.status);
-          const assignment =
-            item.assignments?.find((a) => a.scheduledAt) ||
-            item.assignments?.find((a) => a.studentId) ||
-            item.assignments?.[0];
-          const scheduledAt = assignment?.scheduledAt;
-          const status = getStatusConfig(session?.status);
-          const entry = getAssessmentEntryStatus(item);
-          const canJoin =
-            !isCompleted &&
-            (entry.status === 'ALLOWED' || entry.status === 'UNSCHEDULED');
-          const isEarly = entry.status === 'TOO_EARLY';
-          const isLate = entry.status === 'TOO_LATE';
-
-          return (
-            <div
-              key={item.id}
-              className={`${au.panel} p-5 hover:shadow-md transition-shadow flex flex-col h-full`}
-            >
-              <div className="flex justify-between items-start mb-6">
-                <div className={`p-3 rounded-xl ${status.color} border shadow-sm`}>
-                  {getTypeIcon(item.type)}
-                </div>
-                <div className={`px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider border ${status.color}`}>
-                  {status.label}
-                </div>
-              </div>
-
-              <div className="flex-1 space-y-2">
-                <h3 className="text-lg font-bold text-slate-900 leading-snug group-hover:text-indigo-600 transition-colors">
-                  {item.title}
-                </h3>
-                <p className="text-sm text-slate-500 line-clamp-2 leading-relaxed font-medium">
-                  {item.description || 'Institutional assessment for performance evaluation.'}
-                </p>
-              </div>
-
-              <div className="mt-8 pt-6 border-t border-slate-100">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400">
-                    <Clock className="w-4 h-4" />
-                    <span className="uppercase">{item.duration} Mins</span>
-                  </div>
-                  {(item.startTime || scheduledAt) && (
-                    <div className="flex items-center gap-1.5 text-indigo-700 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100">
-                      <Calendar className="w-3.5 h-3.5" />
-                      <span className="text-[10px] font-bold uppercase">
-                        {item.startTime
-                          ? formatAssessmentWindow(item.startTime)
-                          : new Date(scheduledAt).toLocaleString([], {
-                              month: 'short',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                      </span>
+              return (
+                <article
+                  key={item.id}
+                  className="assess-row bg-white rounded-lg border border-slate-200/80 px-4 py-4 sm:px-5 sm:py-4"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium border ${status.chip}`}>
+                          {status.label}
+                        </span>
+                        <span className="text-[11px] text-slate-400">{typeLabel(item.type)}</span>
+                      </div>
+                      <h3 className="text-[15px] font-semibold text-slate-900 leading-snug text-balance">
+                        {item.title}
+                      </h3>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                        <span className="inline-flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-slate-400" strokeWidth={1.75} />
+                          {item.duration} min
+                        </span>
+                        {when && <span className="tabular-nums">{when}</span>}
+                        {isCompleted && typeof session.score === 'number' && (
+                          <span className="text-emerald-700 font-medium tabular-nums">
+                            {session.score}%
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
 
-                {isCompleted ? (
-                  <div className="space-y-3">
-                     <div className="flex items-center justify-between px-1">
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-tight">Performance Score</span>
-                        <span className="text-sm font-bold text-emerald-600">{session.score}%</span>
-                     </div>
-                     <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${session.score}%` }} />
-                     </div>
-                     <button 
-                       onClick={() => navigate(`/assessment/results/${session.id}`)}
-                       className="w-full mt-4 py-3 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 active:scale-95"
-                     >
-                       <FileText className="w-4 h-4" /> View Detailed Analytics
-                     </button>
+                    <div className="sm:shrink-0">
+                      {isCompleted ? (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/assessment/results/${session.id}`)}
+                          className="inline-flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 transition-colors"
+                        >
+                          View results
+                          <ArrowRight className="w-4 h-4" strokeWidth={1.75} />
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => canJoin && navigate(`/assessment/${item.id}`)}
+                          disabled={isEarly || isLate}
+                          className={`inline-flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                            isEarly || isLate
+                              ? 'bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed'
+                              : 'bg-indigo-600 text-white hover:bg-indigo-500'
+                          }`}
+                        >
+                          {isEarly ? (
+                            <>
+                              <Lock className="w-4 h-4" strokeWidth={1.75} />
+                              Opens {formatAssessmentWindow(entry.entryOpensAt)}
+                            </>
+                          ) : isLate ? (
+                            <>
+                              <Lock className="w-4 h-4" strokeWidth={1.75} />
+                              Entry closed
+                            </>
+                          ) : (
+                            <>
+                              <PlayCircle className="w-4 h-4" strokeWidth={1.75} />
+                              {item.type?.includes('INTERVIEW') ? 'Join' : 'Start'}
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                ) : (
-                  <button
-                    onClick={() => canJoin && navigate(`/assessment/${item.id}`)}
-                    disabled={isEarly || isLate}
-                    className={`w-full py-3.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 active:scale-95 ${
-                      isEarly || isLate
-                        ? 'bg-slate-50 text-slate-400 border border-slate-200 cursor-not-allowed'
-                        : 'bg-slate-900 text-white shadow-lg shadow-slate-900/10 hover:bg-indigo-600 hover:shadow-indigo-500/20'
-                    }`}
-                  >
-                    {isEarly ? (
-                      <>
-                        <Lock className="w-4 h-4" />
-                        Opens {formatAssessmentWindow(entry.entryOpensAt)}
-                      </>
-                    ) : isLate ? (
-                      <>
-                        <Lock className="w-4 h-4" />
-                        Entry closed
-                      </>
-                    ) : (
-                      <>
-                        <PlayCircle className="w-4 h-4" />
-                        {item.type?.includes('INTERVIEW') ? 'Join Session' : 'Start Mock Test'}
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })}
-
-        {assessments.length === 0 && (
-          <div className="col-span-full py-40 flex flex-col items-center justify-center text-slate-600">
-             <Shield className="w-16 h-16 mb-4 opacity-10" />
-             <p className="font-bold text-sm">No pending assessments at the moment.</p>
+                </article>
+              );
+            })}
           </div>
         )}
       </div>

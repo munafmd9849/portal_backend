@@ -1,49 +1,42 @@
 import React from 'react';
-import { Briefcase, AlertCircle, CheckCircle, TrendingUp } from 'lucide-react';
+import { Briefcase, ListChecks, MessagesSquare, Trophy } from 'lucide-react';
 
 const DashboardStatsSection = ({ studentData }) => {
   const stats = studentData?.stats;
 
+  // Soft semantic tints — status color without heavy saturated blocks
   const statsData = [
     {
       label: 'Applied',
       count: stats?.applied || 0,
-      bgFrom: 'from-white',
-      bgTo: 'to-red-100',
-      textColor: 'text-red-700',
-      iconBgColor: 'bg-red-600',
-      iconColor: 'text-white',
+      surface: 'bg-rose-50/70 border-rose-100',
+      labelColor: 'text-rose-700/80',
+      iconWrap: 'bg-rose-100/80 text-rose-600',
       icon: Briefcase,
     },
     {
       label: 'Shortlisted',
       count: stats?.shortlisted || 0,
-      bgFrom: 'from-white',
-      bgTo: 'to-blue-200',
-      textColor: 'text-blue-700',
-      iconBgColor: 'bg-blue-600',
-      iconColor: 'text-white',
-      icon: AlertCircle,
+      surface: 'bg-sky-50/70 border-sky-100',
+      labelColor: 'text-sky-700/80',
+      iconWrap: 'bg-sky-100/80 text-sky-600',
+      icon: ListChecks,
     },
     {
       label: 'Interviewed',
       count: stats?.interviewed || 0,
-      bgFrom: 'from-white',
-      bgTo: 'to-green-200',
-      textColor: 'text-green-700',
-      iconBgColor: 'bg-green-600',
-      iconColor: 'text-white',
-      icon: CheckCircle,
+      surface: 'bg-emerald-50/70 border-emerald-100',
+      labelColor: 'text-emerald-700/80',
+      iconWrap: 'bg-emerald-100/80 text-emerald-600',
+      icon: MessagesSquare,
     },
     {
       label: 'Offers',
       count: stats?.offers || 0,
-      bgFrom: 'from-white',
-      bgTo: 'to-purple-200',
-      textColor: 'text-purple-700',
-      iconBgColor: 'bg-purple-600',
-      iconColor: 'text-white',
-      icon: TrendingUp,
+      surface: 'bg-violet-50/70 border-violet-100',
+      labelColor: 'text-violet-700/80',
+      iconWrap: 'bg-violet-100/80 text-violet-600',
+      icon: Trophy,
     },
   ];
 
@@ -55,24 +48,31 @@ const DashboardStatsSection = ({ studentData }) => {
         </legend>
 
         <div className="mb-1 mt-1">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
-            {statsData.map((stat, index) => {
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+            {statsData.map((stat) => {
               const Icon = stat.icon;
               const displayValue = stat.count;
 
               return (
                 <div
-                  key={index}
-                  className={`bg-gradient-to-br ${stat.bgFrom} ${stat.bgTo} p-2 sm:p-3 lg:p-4 rounded-lg border-2 border-gray-200 hover:shadow-lg transition-all duration-300 min-h-[56px] sm:min-h-[64px] lg:min-h-[80px] flex flex-col justify-between group`}
+                  key={stat.label}
+                  className={`rounded-xl border p-3 sm:p-3.5 min-h-[64px] sm:min-h-[72px] flex items-center gap-2.5 sm:gap-3 ${stat.surface}`}
                 >
-                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                    <div className={`p-1 sm:p-1.5 flex items-center justify-center shadow-md rounded-md flex-shrink-0 ${stat.iconBgColor} group-hover:scale-105 transition-transform duration-300`}>
-                      <Icon className={`h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 ${stat.iconColor}`} />
-                    </div>
-                    <div className="flex-1 min-w-0 overflow-hidden">
-                      <p className={`text-xs sm:text-sm font-bold uppercase tracking-wide ${stat.textColor} mb-0 truncate`}>{stat.label}</p>
-                      <p className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 truncate" title={String(displayValue)}>{displayValue}</p>
-                    </div>
+                  <div
+                    className={`h-9 w-9 sm:h-10 sm:w-10 rounded-lg flex items-center justify-center shrink-0 ${stat.iconWrap}`}
+                  >
+                    <Icon className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-xs font-medium ${stat.labelColor} truncate`}>
+                      {stat.label}
+                    </p>
+                    <p
+                      className="text-xl sm:text-2xl font-semibold text-slate-900 tabular-nums leading-tight truncate"
+                      title={String(displayValue)}
+                    >
+                      {displayValue}
+                    </p>
                   </div>
                 </div>
               );
