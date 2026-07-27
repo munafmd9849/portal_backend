@@ -18,7 +18,7 @@ import rateLimit from 'express-rate-limit';
 import http from 'http';
 
 import { initSocket } from './config/socket.js';
-import prisma from './config/database.js';
+import prisma, { isRetryableDatabaseError } from './config/database.js';
 
 // Routes
 import authRoutes from './routes/auth.js';
@@ -401,12 +401,17 @@ async function start() {
         break;
       }
 
-      // For connection errors (P1001, P1017), retry (database might be sleeping)
-      if (errorCode === 'P1001' || errorCode === 'P1017' || errorCode === 'P2024' ||
+      // Retry transient connection issues, but allow startup to continue in degraded mode
+      if (
+        errorCode === 'P1001' ||
+        errorCode === 'P1017' ||
+        errorCode === 'P2024' ||
         errorMessage.includes("Can't reach database") ||
         errorMessage.includes('Server has closed the connection') ||
         errorMessage.includes('connection pool') ||
-        errorMessage.includes('Timed out')) {
+        errorMessage.includes('Timed out') ||
+        isRetryableDatabaseError(dbErr)
+      ) {
         if (attempt < maxRetries) {
           console.warn(`⚠️  Database connection failed (attempt ${attempt}/${maxRetries}):`);
           console.warn(`   ${errorMessage.substring(0, 100)}...`);
@@ -415,28 +420,20 @@ async function start() {
           console.warn(`   ⏳ Retrying in ${retryDelay / 1000} seconds...`);
           await new Promise(resolve => setTimeout(resolve, retryDelay));
           continue;
-        } else {
-          // Final attempt failed
-          console.error('\n❌ CRITICAL: Failed to connect to database after all retries.');
-          console.error(`   Error: ${errorMessage}`);
-          console.error(`   Code: ${errorCode}`);
-          console.error('\n💡 Troubleshooting steps:');
-          console.error('   1. Check Render dashboard - database may be paused/stopped');
-          console.error('   2. Render free tier databases spin down after ~90s inactivity');
-          console.error('   3. Database needs 30-60 seconds to wake up (first query triggers wake-up)');
-          console.error('   4. Verify DATABASE_URL in .env file is correct');
-          console.error('   5. Try accessing database from Render dashboard to wake it up');
-          console.error('   6. Check network connectivity');
-          console.error('   7. If using free tier, consider upgrading or using a different database');
-          process.exit(1);
         }
-      } else {
-        // For other errors, fail fast
-        console.error('❌ CRITICAL: Failed to connect to database. Server will not start.');
-        console.error(`   Error: ${errorMessage}`);
-        console.error(`   Code: ${errorCode}`);
-        process.exit(1);
+
+        console.warn('\n⚠️  Database remained unavailable after retries. Starting server in degraded mode.');
+        console.warn(`   Error: ${errorMessage}`);
+        console.warn(`   Code: ${errorCode}`);
+        console.warn('   Some API routes will fail until the database becomes reachable again.');
+        break;
       }
+
+      // For other errors, fail fast
+      console.error('❌ CRITICAL: Failed to connect to database. Server will not start.');
+      console.error(`   Error: ${errorMessage}`);
+      console.error(`   Code: ${errorCode}`);
+      process.exit(1);
     }
   }
 
@@ -445,7 +442,7 @@ async function start() {
     server.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Server running on port ${PORT}`);
       if (!dbConnected) {
-        console.log(`   ⚠️  Database quota exceeded - limited functionality until quota resets`);
+        console.log('   ⚠️  Database unavailable - limited functionality until connectivity is restored');
       }
       console.log(`📡 Socket.IO enabled`);
       console.log(`🌐 CORS origin: ${process.env.CORS_ORIGIN || 'NOT SET (CRITICAL)'}`);
