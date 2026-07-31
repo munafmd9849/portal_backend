@@ -1,12 +1,13 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { LoadingPage, BrandSpinner } from './ui/loading';
 
 export default function ProtectedRoute({ allowRoles }) {
   const { user, role, loading } = useAuth();
 
   if (loading) {
-    return <div className="w-full h-screen flex items-center justify-center">Loading...</div>;
+    return <LoadingPage />;
   }
 
   if (!user) {
@@ -64,7 +65,7 @@ export default function ProtectedRoute({ allowRoles }) {
     if (!shouldRedirect) {
       return (
         <div className="h-screen flex flex-col items-center justify-center bg-slate-900 text-white p-8">
-          <div className="w-16 h-16 border-4 border-rose-500/20 border-t-rose-500 rounded-full animate-spin mb-8" />
+          <BrandSpinner size="lg" tone="muted" className="mb-8" />
           <h2 className="text-xl font-black mb-4 uppercase tracking-tighter">Diagnostic Hold</h2>
           <p className="text-slate-400 font-bold max-w-md text-center">
             ProtectedRoute is about to redirect you to <span className="text-rose-400">"{redirectPath}"</span> because it thinks you are unauthorized.

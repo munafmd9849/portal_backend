@@ -62,7 +62,7 @@ export const au = {
   tabIdle:
     'px-3 py-1.5 rounded-md text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors',
 
-  spinner: 'w-10 h-10 border-2 border-slate-200 border-t-indigo-600 rounded-full animate-spin',
+  spinner: 'inline-block h-9 w-9 shrink-0 rounded-full animate-spin border-2 border-slate-200 border-t-indigo-600',
   emptyState: 'py-16 text-center text-slate-500 text-sm',
 
   searchInput:

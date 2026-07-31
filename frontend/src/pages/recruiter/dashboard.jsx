@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { SkeletonStatsGrid, SkeletonCard } from '../../components/ui/loading';
 import { Doughnut, Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -145,10 +146,11 @@ const RecruiterDashboard = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[320px]">
-        <div className="text-center">
-          <div className="inline-block w-10 h-10 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mb-3" />
-          <p className="text-gray-600">Loading dashboard...</p>
+      <div className="space-y-6">
+        <SkeletonStatsGrid count={4} columns="grid-cols-1 md:grid-cols-2 lg:grid-cols-4" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <SkeletonCard showHeader bodyLines={0} className="md:col-span-2 lg:col-span-2 min-h-[320px]" />
+          <SkeletonCard showHeader bodyLines={4} className="min-h-[320px]" />
         </div>
       </div>
     );

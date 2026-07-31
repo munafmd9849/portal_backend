@@ -2,7 +2,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../../services/api';
 import { deleteJob, subscribeJobs, postJob, updateJob } from '../../../services/jobs';
-import { Loader, Trash2, Share2, Building2, Calendar, GraduationCap, View, Users, User, Briefcase, ChevronDown, CheckCircle, Clock, PlayCircle, CheckSquare, XCircle, AlertTriangle, MapPin, Edit, FilePlus2 } from 'lucide-react';
+import { Trash2, Share2, Building2, Calendar, GraduationCap, View, Users, User, Briefcase, ChevronDown, CheckCircle, Clock, PlayCircle, CheckSquare, XCircle, AlertTriangle, MapPin, Edit, FilePlus2 } from 'lucide-react';
+import { Spinner, SkeletonJobCardList } from '../../ui/loading';
 import { useToast } from '../../ui/Toast';
 import { showInfo } from '../../../utils/toast';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -850,15 +851,17 @@ export default function ManageJobs() {
           <h2 className="text-sm font-semibold text-slate-900">
             {activeFilter === 'in_review' ? 'Under Review' : 'Posted'} ({totalJobs})
           </h2>
-          {loading && (
+          {loading && allManageJobs.length > 0 && (
             <div className="inline-flex items-center gap-2 text-xs text-slate-500">
-              <Loader className="w-3.5 h-3.5 animate-spin" /> Loading…
+              <Spinner size="sm" /> Refreshing…
             </div>
           )}
         </div>
 
         <div className="py-3">
-          {!loading && allManageJobs.length === 0 && (
+          {loading && allManageJobs.length === 0 ? (
+            <SkeletonJobCardList count={4} />
+          ) : !loading && allManageJobs.length === 0 ? (
             <div className="mx-3 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
               <Briefcase className="mx-auto h-8 w-8 text-slate-300" />
               <h3 className="mt-2 text-sm font-semibold text-slate-900">
@@ -880,8 +883,8 @@ export default function ManageJobs() {
                 </button>
               )}
             </div>
-          )}
-
+          ) : (
+            <>
           {allManageJobs.map((job, index) => {
             const isPosted = isJobPosted(job);
             const jobStatus = isPosted ? getJobStatus(job) : {
@@ -1168,7 +1171,7 @@ export default function ManageJobs() {
                       }`}
                     >
                       {postingJobs.has(job.id) ? (
-                        <Loader className="w-4 h-4 animate-spin" />
+                        <Spinner size="sm" />
                       ) : (
                         <CheckCircle className="w-4 h-4" />
                       )}
@@ -1265,6 +1268,8 @@ export default function ManageJobs() {
                     </div>
                   ) : null;
                 })()}
+            </>
+          )}
         </div>
       </div>
 
@@ -1397,7 +1402,7 @@ export default function ManageJobs() {
                 className="flex-[1.5] py-3.5 bg-blue-600 text-white rounded-2xl text-xs font-bold shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-3 uppercase tracking-widest disabled:opacity-50"
               >
                 {savingDates ? (
-                  <Loader className="w-4 h-4 animate-spin" />
+                  <Spinner size="sm" />
                 ) : (
                   <CheckCircle className="w-4 h-4" />
                 )}

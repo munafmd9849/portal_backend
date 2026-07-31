@@ -7,6 +7,7 @@ import {
   ArrowRight,
   Activity,
 } from 'lucide-react';
+import { SkeletonStatsGrid, SkeletonList } from '../../ui/loading';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../services/api';
 import { getAssessmentEntryStatus, formatAssessmentWindow } from '../../../utils/assessmentEntryWindow';
@@ -107,9 +108,9 @@ export default function StudentAssessments() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 gap-3">
-        <div className="w-9 h-9 border-2 border-slate-200 border-t-indigo-600 rounded-full animate-spin" />
-        <p className="text-sm text-slate-500">Loading assessments…</p>
+      <div className="max-w-[1100px] mx-auto space-y-5">
+        <SkeletonStatsGrid count={4} columns="grid-cols-2 md:grid-cols-4" />
+        <SkeletonList rows={5} className="rounded-xl border border-slate-200/80 overflow-hidden" />
       </div>
     );
   }

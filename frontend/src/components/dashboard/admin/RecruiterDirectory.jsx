@@ -9,7 +9,6 @@ import {
   FaEye,
   FaFilter,
   FaMapMarkerAlt,
-  FaSpinner,
   FaTimes,
 } from 'react-icons/fa';
 import { TbHistoryToggle } from 'react-icons/tb';
@@ -26,7 +25,7 @@ import CustomDropdown from '../../common/CustomDropdown';
 import BlockModal from '../../common/BlockModal';
 import JobInfoDisplay from '../../common/JobInfoDisplay';
 import RecruiterDirectoryTable from './RecruiterDirectoryTable';
-import DirectoryLoadingPanel from './DirectoryLoading';
+import { Spinner, SkeletonDirectoryPage, SkeletonTable, SkeletonCard, SkeletonJobCardList } from '../../ui/loading';
 
 export default function RecruiterDirectory() {
   const location = useLocation();
@@ -357,9 +356,9 @@ export default function RecruiterDirectory() {
 
     if (historyLoading) {
       return (
-        <div className="bg-white p-4 rounded-lg shadow-inner flex items-center justify-center">
-          <FaSpinner className="animate-spin text-blue-600 mr-2" />
-          <span className="text-gray-600">Loading recruiter history...</span>
+        <div className="bg-white p-4 rounded-lg shadow-inner space-y-3">
+          <SkeletonCard bodyLines={2} />
+          <SkeletonCard bodyLines={3} />
         </div>
       );
     }
@@ -510,10 +509,7 @@ export default function RecruiterDirectory() {
   if (loading && recruiters.length === 0) {
     return (
       <div className="space-y-6">
-        <DirectoryLoadingPanel
-          title="Loading recruiters..."
-          subtitle="Please wait while we fetch the data"
-        />
+        <SkeletonDirectoryPage statsCount={4} filterFields={4} tableColumns={7} />
       </div>
     );
   }
@@ -625,10 +621,7 @@ export default function RecruiterDirectory() {
 
       <div>
         {loading ? (
-          <DirectoryLoadingPanel
-            title="Loading recruiters..."
-            subtitle="Please wait while we fetch the data"
-          />
+          <SkeletonTable rows={10} columns={7} minWidth="min-w-[900px]" />
         ) : filteredRecruiters.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-4">
             <div className="bg-white rounded-lg p-8 max-w-md w-full border border-gray-200">
@@ -834,10 +827,7 @@ const JobDescriptionModal = ({ isOpen, recruiter, onClose }) => {
         {/* Modal Content */}
         <div className="p-6 overflow-y-auto max-h-[calc(85vh-140px)]">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <FaSpinner className="animate-spin text-purple-600 mr-3" />
-              <span className="text-gray-600">Loading job descriptions...</span>
-            </div>
+            <SkeletonJobCardList count={4} className="px-0" />
           ) : error ? (
             <div className="text-center py-8">
               <div className="text-red-600 mb-2">{error}</div>
@@ -1169,7 +1159,7 @@ const MailModal = ({ isModalOpen, closeMailModal, emailData, setEmailData, handl
               >
                 {emailSending ? (
                   <>
-                    <FaSpinner className="animate-spin w-4 h-4" />
+                    <Spinner size="sm" />
                     <span>Sending...</span>
                   </>
                 ) : (

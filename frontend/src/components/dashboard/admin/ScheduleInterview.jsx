@@ -2,7 +2,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { subscribeJobs } from '../../../services/jobs';
 import api from '../../../services/api';
-import { Loader, Building2, Calendar, GraduationCap, View, Users, Briefcase, MapPin, PlayCircle, XCircle, AlertTriangle, Clock, CheckSquare, CheckCircle, Lock } from 'lucide-react';
+import { Building2, Calendar, GraduationCap, View, Users, Briefcase, MapPin, PlayCircle, XCircle, AlertTriangle, Clock, CheckSquare, CheckCircle, Lock } from 'lucide-react';
+import { SkeletonJobCardList, Spinner } from '../../ui/loading';
 import { useToast } from '../../ui/Toast';
 
 export default function ScheduleInterview() {
@@ -172,10 +173,7 @@ export default function ScheduleInterview() {
       {/* Jobs list */}
       <div>
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader className="h-6 w-6 animate-spin text-blue-600 mr-2" />
-            <span className="text-slate-600">Loading posted jobs...</span>
-          </div>
+          <SkeletonJobCardList count={4} />
         ) : postedJobs.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-slate-500">No posted jobs available for interview scheduling</p>
@@ -288,7 +286,7 @@ export default function ScheduleInterview() {
                         >
                           {startingInterview.has(job.id) ? (
                             <>
-                              <Loader className="w-4 h-4 animate-spin" />
+                              <Spinner size="sm" tone="primary" />
                               <span>Starting...</span>
                             </>
                           ) : !canStartInterview ? (

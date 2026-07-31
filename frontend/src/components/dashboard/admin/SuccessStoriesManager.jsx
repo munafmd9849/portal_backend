@@ -5,7 +5,6 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Loader2,
   Plus,
   Pencil,
   Trash2,
@@ -18,6 +17,7 @@ import {
   Eye,
   EyeOff,
 } from 'lucide-react';
+import { SkeletonMediaRowList, Spinner } from '../../ui/loading';
 import CustomDropdown from '../../common/CustomDropdown';
 import {
   listStories,
@@ -304,9 +304,7 @@ export default function SuccessStoriesManager() {
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-16">
-            <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
-          </div>
+          <SkeletonMediaRowList rows={5} />
         ) : items.length === 0 ? (
           <p className="text-center py-14 text-sm text-slate-500">
             No stories yet. Create a Student Success or Company Hiring story to show on the landing page.
@@ -559,7 +557,7 @@ export default function SuccessStoriesManager() {
                   ))}
                 </div>
                 <label className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
-                  {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                  {uploading ? <Spinner size="sm" /> : <Upload className="w-4 h-4" />}
                   Upload image
                   <input type="file" accept="image/*" className="hidden" onChange={handleUpload} disabled={uploading} />
                 </label>
@@ -580,7 +578,7 @@ export default function SuccessStoriesManager() {
                 disabled={saving}
                 className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
               >
-                {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                {saving && <Spinner size="sm" />}
                 Save story
               </button>
             </div>

@@ -14,13 +14,13 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { FaGoogle, FaCalendar, FaCheckCircle, FaSpinner, FaTimes, FaExclamationTriangle } from 'react-icons/fa';
+import { FaGoogle, FaCalendar, FaCheckCircle, FaTimes, FaExclamationTriangle } from 'react-icons/fa';
+import { SkeletonCard, SkeletonList, Spinner } from '../components/ui/loading';
 import api from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../components/ui/Toast';
 import CustomCalendar from '../components/calendar/CustomCalendar';
 import EventCreationModal from '../components/calendar/EventCreationModal';
-import DirectoryLoadingPanel from '../components/dashboard/admin/DirectoryLoading';
 import {
   consumeCalendarOAuthResult,
   isAllowedCalendarOAuthOrigin,
@@ -429,11 +429,7 @@ const ConnectGoogleCalendar = () => {
   if (authLoading || connected === null) {
     return connectGateShell(
       <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
-        <FaSpinner className="mx-auto mb-4 h-9 w-9 animate-spin text-indigo-600" />
-        <h2 className="font-outfit text-xl font-bold text-slate-900">Checking calendar</h2>
-        <p className="mt-2 text-sm text-slate-500">
-          {authLoading ? 'Signing you in…' : 'Please wait a moment…'}
-        </p>
+        <SkeletonCard showHeader={false} bodyLines={2} />
       </div>,
     );
   }
@@ -477,9 +473,9 @@ const ConnectGoogleCalendar = () => {
 
           {connecting ? (
             <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-center">
-              <FaSpinner className="mx-auto h-5 w-5 animate-spin text-indigo-600" />
-              <p className="mt-2 text-sm font-semibold text-slate-800">Connecting to Google…</p>
-              <p className="mt-1 text-xs text-slate-600">Complete sign-in in the popup window.</p>
+              <Spinner size="md" tone="primary" className="mx-auto mb-2" />
+              <p className="text-sm font-medium text-slate-700">Connecting to Google…</p>
+              <p className="text-xs text-slate-500 mt-1">Complete sign-in in the popup window.</p>
             </div>
           ) : (
             <button
@@ -597,7 +593,7 @@ const ConnectGoogleCalendar = () => {
                   >
                     {loadingEvents ? (
                       <>
-                        <FaSpinner className="animate-spin" />
+                        <Spinner size="sm" tone="white" />
                         <span>Loading...</span>
                       </>
                     ) : (
@@ -612,7 +608,7 @@ const ConnectGoogleCalendar = () => {
                   >
                     {disconnecting ? (
                       <>
-                        <FaSpinner className="animate-spin" />
+                        <Spinner size="sm" />
                         <span>Disconnecting...</span>
                       </>
                     ) : (
@@ -625,10 +621,9 @@ const ConnectGoogleCalendar = () => {
         </div>
 
         {loadingEvents && events.length === 0 ? (
-          <DirectoryLoadingPanel
-            title="Loading your calendar..."
-            subtitle="Fetching events from Google Calendar"
-          />
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <SkeletonList rows={5} />
+          </div>
         ) : (
         <CustomCalendar
           events={events}

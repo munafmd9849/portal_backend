@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import {
-  Loader2,
   Search,
   Briefcase,
   Pencil,
@@ -9,6 +8,7 @@ import {
   Building2,
   Calendar,
 } from 'lucide-react';
+import { Spinner, SkeletonTable } from '../../ui/loading';
 import { fetchPlacements, updatePlacementCompensation } from '../../../services/placements';
 import { useToast } from '../../ui/Toast';
 import CustomDropdown from '../../common/CustomDropdown';
@@ -322,10 +322,10 @@ export default function PlacementsRegistry() {
                 placeholder="Sort by"
               />
             </div>
-            {loading && (
-              <div className="inline-flex items-center gap-2 text-sm text-gray-500">
-                <Loader2 className="w-4 h-4 animate-spin text-blue-800" />
-                Loading…
+            {loading && placements.length > 0 && (
+              <div className="inline-flex items-center gap-2 text-sm text-slate-500">
+                <Spinner size="sm" />
+                Refreshing…
               </div>
             )}
           </div>
@@ -376,9 +376,7 @@ export default function PlacementsRegistry() {
         </div>
 
         {loading && placements.length === 0 ? (
-          <div className="flex justify-center py-16">
-            <Loader2 className="w-8 h-8 text-blue-800 animate-spin" />
-          </div>
+          <SkeletonTable rows={8} columns={5} minWidth="min-w-[720px]" />
         ) : sortedPlacements.length === 0 ? (
           <div className="py-16 text-center px-4">
             <Briefcase className="w-10 h-10 text-gray-300 mx-auto mb-3" />

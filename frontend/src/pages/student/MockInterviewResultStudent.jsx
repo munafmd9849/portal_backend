@@ -4,6 +4,7 @@ import { ChevronLeft, AlertTriangle } from 'lucide-react';
 import api from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
 import { ErrorBoundary } from '../../components/ui/ErrorBoundary';
+import { LoadingPage } from '../../components/ui/loading';
 import MockInterviewResultBody from '../../components/mockInterview/MockInterviewResultBody';
 
 const MOCK_INTERVIEWS_HOME = '/student?tab=liveMockInterviews';
@@ -36,11 +37,8 @@ function MockInterviewResultStudentComponent() {
 
   if (loading) {
     return (
-      <div className="h-screen bg-slate-50 flex flex-col items-center justify-center gap-4">
-        <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
-        <p className="text-slate-400 font-bold text-xs uppercase tracking-widest animate-pulse">
-          Loading interviewer feedback
-        </p>
+      <div className="h-screen bg-slate-50">
+        <LoadingPage title="Loading interviewer feedback" />
       </div>
     );
   }

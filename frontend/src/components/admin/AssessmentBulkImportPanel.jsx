@@ -4,7 +4,6 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Loader2,
   Download,
   Upload,
   CheckCircle2,
@@ -15,6 +14,7 @@ import {
   ChevronUp,
   FileSpreadsheet,
 } from 'lucide-react';
+import { Spinner, SkeletonList } from '../../components/ui/loading';
 import {
   downloadTemplate,
   previewImport,
@@ -187,7 +187,7 @@ export default function AssessmentBulkImportPanel({ assessmentId }) {
               disabled={loading || !file}
               className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              {loading ? <Spinner size="sm" /> : null}
               Validate preview
             </button>
           </div>
@@ -252,7 +252,7 @@ export default function AssessmentBulkImportPanel({ assessmentId }) {
                 disabled={loading}
                 className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
               >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                {loading ? <Spinner size="sm" /> : <CheckCircle2 className="w-4 h-4" />}
                 Commit import
               </button>
               <button
@@ -273,9 +273,7 @@ export default function AssessmentBulkImportPanel({ assessmentId }) {
               Import history
             </h4>
             {historyLoading ? (
-              <div className="flex items-center gap-2 text-sm text-slate-500 py-4">
-                <Loader2 className="w-4 h-4 animate-spin" /> Loading…
-              </div>
+              <SkeletonList rows={4} className="rounded-lg border border-slate-200 overflow-hidden" />
             ) : history.length === 0 ? (
               <p className="text-xs text-slate-500 py-2">No import batches yet.</p>
             ) : (

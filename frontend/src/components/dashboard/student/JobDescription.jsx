@@ -17,7 +17,7 @@ import {
   FaTimes
 } from "react-icons/fa";
 import { GoChecklist } from "react-icons/go";
-import { Loader } from "lucide-react";
+import JobDescriptionSkeleton from "./JobDescriptionSkeleton";
 import { getJob } from '../../../services/jobs';
 
 // Default timeline steps (fallback when no job-specific data)
@@ -419,11 +419,8 @@ const JobDescription = ({ job, isOpen, onClose }) => {
       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-6xl h-[90vh] overflow-hidden flex flex-col">
         {/* Loading State */}
         {loading && (
-          <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10">
-            <div className="flex flex-col items-center">
-              <Loader className="h-8 w-8 animate-spin text-blue-600 mb-2" />
-              <span className="text-gray-600">Loading job details...</span>
-            </div>
+          <div className="absolute inset-0 bg-white z-10 overflow-hidden">
+            <JobDescriptionSkeleton />
           </div>
         )}
         

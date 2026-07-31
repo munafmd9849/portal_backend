@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { Upload, Download, FileSpreadsheet, X, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Upload, Download, FileSpreadsheet, X, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Spinner } from '../ui/loading';
 import { au } from '../assessment/assessmentUi';
 import {
   downloadAssessmentQuestionTemplate,
@@ -104,7 +105,7 @@ export default function AssessmentQuestionExcelUpload({ onImport, disabled = fal
           className={au.btnPrimary}
         >
           {loading ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <Spinner size="sm" />
           ) : (
             <Upload className="w-4 h-4" />
           )}

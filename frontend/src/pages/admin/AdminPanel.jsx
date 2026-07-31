@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { listUsersByRole, updateUser, getUser } from '../../services/users';
+import { LoadingPage } from '../../components/ui/loading';
 
 export default function AdminPanel() {
   const [students, setStudents] = useState([]);
@@ -34,7 +35,7 @@ export default function AdminPanel() {
     try { await updateUser(uid, { recruiterVerified: true }); alert('Recruiter verified'); } catch {}
   };
 
-  if (loading) return <div className="p-6">Loading...</div>;
+  if (loading) return <LoadingPage title="Loading users…" />;
   if (error) return <div className="p-6 text-red-600">{error}</div>;
 
   return (

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { X, FileSpreadsheet, Loader } from 'lucide-react';
+import { X, FileSpreadsheet } from 'lucide-react';
+import { SkeletonCard, Spinner } from '../../ui/loading';
 import api from '../../../services/api';
 
 export default function GoogleSheetsConfigModal({ isOpen, onClose, onSaved }) {
@@ -77,10 +78,7 @@ export default function GoogleSheetsConfigModal({ isOpen, onClose, onSaved }) {
           </p>
 
           {loading ? (
-            <div className="flex items-center gap-2 text-sm text-slate-500">
-              <Loader className="w-4 h-4 animate-spin" />
-              Loading settings...
-            </div>
+            <SkeletonCard bodyLines={3} />
           ) : (
             <>
               <div>
@@ -130,9 +128,14 @@ export default function GoogleSheetsConfigModal({ isOpen, onClose, onSaved }) {
             type="button"
             onClick={handleSave}
             disabled={loading || saving || !spreadsheetUrl.trim()}
-            className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-xl"
+            className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-xl inline-flex items-center gap-2"
           >
-            {saving ? 'Saving...' : 'Save'}
+            {saving ? (
+              <>
+                <Spinner size="sm" tone="white" />
+                Saving...
+              </>
+            ) : 'Save'}
           </button>
         </div>
       </div>

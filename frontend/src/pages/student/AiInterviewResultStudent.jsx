@@ -4,6 +4,7 @@ import { ChevronLeft, AlertTriangle, RefreshCw } from 'lucide-react';
 import api from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
 import { ErrorBoundary } from '../../components/ui/ErrorBoundary';
+import { LoadingPage } from '../../components/ui/loading';
 import AiInterviewResultBody from '../../components/mockInterview/AiInterviewResultBody';
 
 const CONTENT_WIDTH = 'w-full lg:w-[75%] max-w-full mx-auto px-4 sm:px-6';
@@ -43,12 +44,7 @@ function AiInterviewResultStudentComponent() {
   }, [result?.aiInsight?.status, fetchResults]);
 
   if (loading && !result) {
-    return (
-      <div className="h-screen bg-slate-50 flex flex-col items-center justify-center gap-3">
-        <div className="w-10 h-10 border-2 border-slate-200 border-t-indigo-600 rounded-full animate-spin" />
-        <p className="text-sm text-slate-500">Loading report…</p>
-      </div>
-    );
+    return <LoadingPage title="Loading report…" />;
   }
 
   if (errorMsg && !result) {

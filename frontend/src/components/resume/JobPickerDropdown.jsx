@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Briefcase, ChevronDown, X, Search, Building2, Loader2 } from 'lucide-react';
+import { Briefcase, ChevronDown, X, Search, Building2 } from 'lucide-react';
+import { Spinner } from '../ui/loading';
 import api from '../../services/api';
 
 /**
@@ -121,7 +122,7 @@ export default function JobPickerDropdown({
             <div className="max-h-64 overflow-y-auto">
               {loading ? (
                 <div className="flex items-center justify-center py-8 gap-2 text-slate-500">
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Spinner size="sm" />
                   <span className="text-sm">Loading jobs...</span>
                 </div>
               ) : error ? (

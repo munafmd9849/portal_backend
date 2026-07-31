@@ -26,6 +26,7 @@ import {
 import { getAdminPanelData, exportReportCSV, downloadDataCSV, subscribeToAdminPanelData } from '../../../services/adminPanelService';
 import api from '../../../services/api';
 import { useAuth } from '../../../hooks/useAuth';
+import { Spinner } from '../../ui/loading';
 // TODO: Replace Firebase operations with API calls
 
 // Register Chart.js components
@@ -460,7 +461,7 @@ const AdminPanel = () => {
               <h2 className="text-sm font-medium text-gray-900">Filters & Controls</h2>
               {loading && (
                 <div className="flex items-center gap-1.5 text-sky-600">
-                  <FaSync className="w-3.5 h-3.5 animate-spin" />
+                  <Spinner size="sm" />
                   <span className="text-xs">Loading...</span>
                 </div>
               )}

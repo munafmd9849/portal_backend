@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import Editor from '@monaco-editor/react';
-import { Play, Loader2, Send, Terminal, AlertCircle, CheckCircle2, FlaskConical } from 'lucide-react';
+import { Play, Send, Terminal, AlertCircle, CheckCircle2, FlaskConical } from 'lucide-react';
+import { Spinner } from '../components/ui/loading';
 import { CODING_LANGUAGES, DEFAULT_STARTERS, RUN_DEBOUNCE_MS } from './constants';
 import { runCode, evaluateCode } from './api';
 import { parseTestCases } from './testCaseUtils';
@@ -174,7 +175,7 @@ export default function CodingWorkspace({
             disabled={running || !code}
             className="h-8 px-3 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white text-[10px] font-bold uppercase rounded-lg flex items-center gap-1.5"
           >
-            {running ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+            {running ? <Spinner size="sm" tone="white" /> : <Play className="w-3.5 h-3.5" />}
             Run
           </button>
           {!readOnly && parsedCases.length > 0 && (
@@ -185,7 +186,7 @@ export default function CodingWorkspace({
               className="h-8 px-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-[10px] font-bold uppercase rounded-lg flex items-center gap-1.5"
             >
               {evaluating ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <Spinner size="sm" tone="white" />
               ) : (
                 <FlaskConical className="w-3.5 h-3.5" />
               )}
@@ -199,7 +200,7 @@ export default function CodingWorkspace({
               disabled={evaluating}
               className="h-8 px-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-[10px] font-bold uppercase rounded-lg flex items-center gap-1.5"
             >
-              {evaluating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+              {evaluating ? <Spinner size="sm" tone="white" /> : <Send className="w-3.5 h-3.5" />}
               Submit
             </button>
           )}

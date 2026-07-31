@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Filter, Grid3x3, List, Loader2, Radio, TriangleAlert, Video, X, ZoomIn } from 'lucide-react';
+import { ArrowLeft, Filter, Grid3x3, List, Radio, TriangleAlert, Video, X, ZoomIn } from 'lucide-react';
 import api from '../../services/api';
 import { initSocket, subscribeProctoringMonitor } from '../../services/socket';
 import { ProctoringViewer } from '../../proctoring-engine/liveProctoringRtc';
+import { Spinner, Skeleton, SkeletonMediaRowList } from '../../components/ui/loading';
 
 function formatTime(ts) {
   if (!ts) return '—';
@@ -278,7 +279,7 @@ export default function AdminAssessmentLiveMonitor() {
             <p className="text-sm text-gray-500">
               <span className="font-semibold text-gray-900 tabular-nums">{sessions.length}</span> active
             </p>
-            {loading && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
+            {loading && <Spinner size="sm" tone="muted" />}
           </div>
 
           <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
@@ -341,7 +342,7 @@ export default function AdminAssessmentLiveMonitor() {
                 {selectedRow ? selectedRow.studentName : 'Select a candidate'}
               </div>
             </div>
-            {detailLoading && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
+            {detailLoading && <Spinner size="sm" tone="muted" />}
           </div>
 
           {!selectedSessionId ? (
@@ -403,9 +404,14 @@ export default function AdminAssessmentLiveMonitor() {
               </div>
 
               {detailLoading && !details ? (
-                <div className="py-12 text-center text-slate-500 flex items-center justify-center gap-2">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Loading evidence timeline…
+                <div className="space-y-4">
+                  <Skeleton className="w-full h-[200px] rounded-lg" />
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {Array.from({ length: 4 }).map((_, idx) => (
+                      <Skeleton key={idx} className="h-16 rounded-md" />
+                    ))}
+                  </div>
+                  <SkeletonMediaRowList rows={5} className="rounded-lg border border-slate-200 overflow-hidden" />
                 </div>
               ) : (
               <>

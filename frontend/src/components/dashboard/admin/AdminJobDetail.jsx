@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getJob } from '../../../services/jobs';
 import api from '../../../services/api';
+import { SkeletonCard, Spinner } from '../../ui/loading';
 import { 
   FaBriefcase, 
   FaMapMarkerAlt, 
@@ -143,10 +144,11 @@ export default function AdminJobDetail() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-50 -m-8">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600 mx-auto mb-6"></div>
-          <span className="text-slate-600 font-medium">Loading job description...</span>
+      <div className="py-20 min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-50 -m-8 px-8">
+        <div className="max-w-5xl mx-auto space-y-6">
+          <SkeletonCard bodyLines={2} />
+          <SkeletonCard bodyLines={6} />
+          <SkeletonCard bodyLines={4} />
         </div>
       </div>
     );
@@ -588,9 +590,10 @@ export default function AdminJobDetail() {
           </div>
           
           {loadingScreening ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-2"></div>
-              <span className="text-sm text-gray-600">Loading screening data...</span>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {Array.from({ length: 5 }).map((_, idx) => (
+                <SkeletonCard key={idx} bodyLines={1} />
+              ))}
             </div>
           ) : (
             <div className="space-y-6">
@@ -1209,7 +1212,7 @@ export default function AdminJobDetail() {
               >
                 {savingDates ? (
                   <>
-                    <FaClock className="w-4 h-4 animate-spin" />
+                    <Spinner size="sm" tone="white" />
                     <span>Saving...</span>
                   </>
                 ) : (

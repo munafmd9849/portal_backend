@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Calendar,
-  Loader2,
   MapPin,
   Clock,
   ChevronRight,
   Building2,
   Video,
 } from 'lucide-react';
+import { SkeletonList, Spinner } from '../../ui/loading';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../../services/api';
 
@@ -167,18 +167,16 @@ export default function PlacementCalendar() {
           <h3 className="font-semibold text-gray-900">
             {filter === 'all' ? 'All Placement Events' : activeTabMeta.label} ({filtered.length})
           </h3>
-          {loading && (
-            <div className="inline-flex items-center gap-2 text-sm text-gray-500 shrink-0">
-              <Loader2 className="w-4 h-4 animate-spin text-blue-800" />
-              Loading events...
+          {loading && filtered.length > 0 && (
+            <div className="inline-flex items-center gap-2 text-sm text-slate-500 shrink-0">
+              <Spinner size="sm" />
+              Refreshing…
             </div>
           )}
         </div>
 
         {loading && filtered.length === 0 ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="w-8 h-8 text-blue-800 animate-spin" />
-          </div>
+          <SkeletonList rows={5} />
         ) : grouped.length === 0 ? (
           <div className="px-4 py-16 text-center">
             <Calendar className="w-10 h-10 text-gray-300 mx-auto mb-3" />

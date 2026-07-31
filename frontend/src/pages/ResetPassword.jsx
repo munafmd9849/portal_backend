@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { X, Mail, Lock, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { Spinner } from '../components/ui/loading';
 import api from '../services/api';
 
 export default function ResetPassword() {
@@ -204,7 +205,12 @@ export default function ResetPassword() {
               disabled={busy || !email}
               className="w-full bg-black/80 text-white py-3 rounded-lg font-semibold hover:bg-black/85 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-black/85"
             >
-              {busy ? 'Sending...' : 'Send Reset Code'}
+              {busy ? (
+                <span className="inline-flex items-center justify-center gap-2">
+                  <Spinner size="sm" tone="white" />
+                  Sending...
+                </span>
+              ) : 'Send Reset Code'}
             </button>
 
             <div className="text-center">
@@ -319,7 +325,12 @@ export default function ResetPassword() {
                 disabled={busy || otp.length !== 6}
                 className="w-full bg-black/80 text-white py-3 rounded-lg font-semibold hover:bg-black/85 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-black/85"
               >
-                {busy ? 'Verifying...' : 'Verify Code'}
+                {busy ? (
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <Spinner size="sm" tone="white" />
+                    Verifying...
+                  </span>
+                ) : 'Verify Code'}
               </button>
 
               <div className="flex items-center justify-between text-sm">
@@ -397,7 +408,12 @@ export default function ResetPassword() {
               disabled={busy || !password || !confirmPassword}
               className="w-full bg-black/80 text-white py-3 rounded-lg font-semibold hover:bg-black/85 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-black/85"
             >
-              {busy ? 'Updating...' : 'Update Password'}
+              {busy ? (
+                <span className="inline-flex items-center justify-center gap-2">
+                  <Spinner size="sm" tone="white" />
+                  Updating...
+                </span>
+              ) : 'Update Password'}
             </button>
 
             <div className="text-center">

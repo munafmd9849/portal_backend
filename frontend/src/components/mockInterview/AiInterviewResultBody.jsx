@@ -1,5 +1,6 @@
 import React from 'react';
-import { Trophy, Clock, CheckCircle2, Sparkles, Star, MessageSquare, Loader2, AlertTriangle } from 'lucide-react';
+import { Trophy, Clock, CheckCircle2, Sparkles, Star, MessageSquare, AlertTriangle } from 'lucide-react';
+import { Skeleton, SkeletonCard } from '../ui/loading';
 
 function formatDuration(seconds) {
   if (seconds == null) return 'N/A';
@@ -34,12 +35,33 @@ export default function AiInterviewResultBody({
 
   if (insightStatus === 'PENDING') {
     return (
-      <div className="bg-white rounded-3xl border border-slate-200 p-12 shadow-sm flex flex-col items-center text-center gap-4">
-        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
-        <h2 className="text-lg font-bold text-slate-900">Generating your AI report</h2>
-        <p className="text-sm text-slate-500 max-w-md">
-          We are analyzing your interview responses. This usually takes a minute — refresh this page shortly.
-        </p>
+      <div className="space-y-8" aria-busy="true" aria-label="Generating report">
+        <div className="bg-slate-900 rounded-[32px] p-8 sm:p-12 relative overflow-hidden shadow-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+            <div className="space-y-6">
+              <Skeleton className="h-5 w-48 rounded-full opacity-20" />
+              <Skeleton className="h-10 w-40 opacity-20" />
+              <Skeleton className="h-4 w-full max-w-md opacity-20" />
+              <div className="flex gap-6 pt-4 border-t border-white/5">
+                <Skeleton className="h-12 w-24 opacity-20" />
+                <Skeleton className="h-12 w-24 opacity-20" />
+              </div>
+            </div>
+            <div className="flex justify-center md:justify-end">
+              <Skeleton className="w-48 h-48 rounded-full opacity-20" />
+            </div>
+          </div>
+        </div>
+        <SkeletonCard className="rounded-3xl p-8" bodyLines={0}>
+          <Skeleton className="h-4 w-32 mb-6" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {Array.from({ length: 7 }).map((_, idx) => (
+              <Skeleton key={idx} className="h-20 rounded-2xl" />
+            ))}
+          </div>
+        </SkeletonCard>
+        <SkeletonCard className="rounded-3xl p-8" bodyLines={4} showHeader={false} />
+        <SkeletonCard className="rounded-3xl p-8" bodyLines={4} showHeader={false} />
       </div>
     );
   }

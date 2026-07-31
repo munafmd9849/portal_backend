@@ -9,8 +9,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../services/api';
 import { showError } from '../utils/toast';
+import { LoadingPage } from '../components/ui/loading';
 import { 
-  Loader, 
   Mail, 
   Phone, 
   MapPin, 
@@ -28,7 +28,6 @@ import {
   Building2,
   Globe,
   Trophy,
-  Sparkles,
   User,
 } from 'lucide-react';
 
@@ -74,16 +73,8 @@ export default function PublicProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="relative">
-            <Loader className="h-16 w-16 text-indigo-600 animate-spin mx-auto mb-4" />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Sparkles className="h-8 w-8 text-indigo-400 animate-pulse" />
-            </div>
-          </div>
-          <p className="text-gray-600 text-lg font-medium mt-4">Loading profile...</p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+        <LoadingPage title="Loading profile…" />
       </div>
     );
   }

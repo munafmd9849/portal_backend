@@ -8,7 +8,6 @@ import {
   Send,
   ImagePlus,
   Link as LinkIcon,
-  Loader2,
   CheckCircle,
   Calendar,
   ExternalLink,
@@ -20,6 +19,7 @@ import {
   MapPin,
   Megaphone,
 } from 'lucide-react';
+import { SkeletonMediaRowList, Spinner } from '../../ui/loading';
 
 const HISTORY_PER_PAGE = 8;
 
@@ -444,7 +444,7 @@ export default function AdminAnnouncements() {
             >
               {sending ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Spinner size="sm" />
                   Sending
                 </>
               ) : (
@@ -507,9 +507,7 @@ export default function AdminAnnouncements() {
           </div>
 
           {loadingList ? (
-            <div className="bg-white rounded-lg border border-gray-200 p-12 flex items-center justify-center">
-              <Loader2 className="w-7 h-7 animate-spin text-sky-600" />
-            </div>
+            <SkeletonMediaRowList rows={5} />
           ) : filteredHistory.length === 0 ? (
             <div className="bg-white rounded-lg border border-dashed border-gray-200 p-12 text-center">
               <Megaphone className="w-8 h-8 text-gray-300 mx-auto mb-2" />

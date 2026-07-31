@@ -4,6 +4,7 @@ import { getJob } from '../../services/jobs';
 import { applyToJob } from '../../services/applications';
 import { useAuth } from '../../hooks/useAuth';
 import { formatApplicationSuccessMessage } from '../../utils/applicationMessages';
+import { LoadingPage, Spinner } from '../../components/ui/loading';
 
 export default function JobDetail() {
   const { jobId } = useParams();
@@ -81,7 +82,7 @@ export default function JobDetail() {
     }
   };
 
-  if (loading) return <div className="p-6">Loading...</div>;
+  if (loading) return <LoadingPage title="Loading job…" />;
   if (error || !job) return <div className="p-6 text-red-600">{error || 'Job not found'}</div>;
 
   const formatCtc = (val) => {
@@ -108,14 +109,19 @@ export default function JobDetail() {
         <button 
           onClick={onApply} 
           disabled={applyLoading || isDeadlinePassed()} 
-          className={`px-4 py-2 rounded disabled:opacity-60 ${
+          className={`inline-flex items-center gap-2 px-4 py-2 rounded disabled:opacity-60 ${
             isDeadlinePassed() 
               ? 'bg-gray-400 text-white cursor-not-allowed' 
               : 'bg-black text-white hover:bg-gray-800'
           }`}
           title={isDeadlinePassed() ? 'Application deadline has passed' : ''}
         >
-          {applyLoading ? 'Applying...' : isDeadlinePassed() ? 'Deadline Passed' : 'Apply now'}
+          {applyLoading ? (
+            <>
+              <Spinner size="sm" tone="white" className="inline" />
+              Applying…
+            </>
+          ) : isDeadlinePassed() ? 'Deadline Passed' : 'Apply now'}
         </button>
         {applyMsg && <p className={`mt-2 text-sm ${isDeadlinePassed() || applyMsg.includes('deadline') ? 'text-red-600' : ''}`}>{applyMsg}</p>}
       </div>

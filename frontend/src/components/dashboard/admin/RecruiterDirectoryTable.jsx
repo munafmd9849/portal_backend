@@ -3,12 +3,12 @@ import {
   Briefcase,
   Eye,
   History,
-  Loader,
   Mail,
   Search,
   ShieldAlert,
   ShieldOff,
 } from 'lucide-react';
+import { Spinner } from '../../ui/loading';
 
 const ACTIONS_WIDTH = 168;
 const SR_WIDTH = 56;
@@ -122,7 +122,7 @@ function RowActions({
         title={isBlocked ? 'Unblock recruiter' : 'Block recruiter (Super Admin only)'}
       >
         {blockLoading ? (
-          <Loader className="w-4 h-4 animate-spin" />
+          <Spinner size="sm" />
         ) : isBlocked ? (
           <ShieldOff className="w-4 h-4" strokeWidth={2} />
         ) : (

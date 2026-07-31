@@ -27,7 +27,8 @@ import PlacementCalendar from '../../components/dashboard/admin/PlacementCalenda
 import PlacementsRegistry from '../../components/dashboard/admin/PlacementsRegistry';
 import LandingCmsManager from '../../components/dashboard/admin/LandingCmsManager';
 import SuccessStoriesManager from '../../components/dashboard/admin/SuccessStoriesManager';
-import { Home, FilePlus2, Briefcase, GripVertical, LogOut, Users, Settings, User, Calendar, Megaphone, X, Loader2, UserPlus, History, BarChart3, ShieldCheck, Video, UserCheck, Layout, Sparkles } from 'lucide-react';
+import { Home, FilePlus2, Briefcase, GripVertical, LogOut, Users, Settings, User, Calendar, Megaphone, X, UserPlus, History, BarChart3, ShieldCheck, Video, UserCheck, Layout, Sparkles } from 'lucide-react';
+import { LoadingPage, Spinner } from '../../components/ui/loading';
 import { useAuth } from '../../hooks/useAuth';
 import showLogoutConfirm from '../../utils/logoutConfirm';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
@@ -229,22 +230,15 @@ export default function AdminDashboard() {
 
   // Show loading state instead of blank screen while checking auth
   if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
-          <p className="text-slate-600">Loading...</p>
-        </div>
-      </div>
-    );
+    return <LoadingPage />;
   }
 
   if (!user || !allowedRoles.includes(userRole)) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
-          <p className="text-slate-600">Redirecting...</p>
+          <Spinner size="lg" tone="muted" />
+          <p className="text-sm font-medium text-slate-600">Redirecting…</p>
         </div>
       </div>
     );

@@ -5,7 +5,8 @@ import api from '../services/api';
 import { showError, showSuccess } from '../utils/toast';
 import CustomDropdown from '../components/common/CustomDropdown';
 import { FaGraduationCap, FaMapMarkerAlt, FaUsers } from 'react-icons/fa';
-import { CheckCircle2, ChevronRight, Loader2 } from 'lucide-react';
+import { CheckCircle2, ChevronRight } from 'lucide-react';
+import { LoadingPage, Spinner } from '../components/ui/loading';
 
 export default function StudentOnboarding() {
     const { user, profileCompleted } = useAuth();
@@ -166,8 +167,8 @@ export default function StudentOnboarding() {
 
     if (loadingInitial) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+            <div className="min-h-screen bg-gray-50">
+                <LoadingPage title="Loading profile…" />
             </div>
         );
     }
@@ -361,7 +362,7 @@ export default function StudentOnboarding() {
                             >
                                 {saving ? (
                                     <>
-                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        <Spinner size="sm" />
                                         <span>Saving...</span>
                                     </>
                                 ) : (

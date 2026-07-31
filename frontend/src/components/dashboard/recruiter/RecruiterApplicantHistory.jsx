@@ -11,17 +11,18 @@ import { Search, Users, ExternalLink, Briefcase, Filter, ChevronLeft, ChevronRig
 import CustomDropdown from '../../common/CustomDropdown';
 import { useAuth } from '../../../hooks/useAuth';
 import { useToast } from '../../ui/Toast';
+import { Skeleton } from '../../ui/loading';
 
 function SkeletonRow() {
   return (
-    <tr className="animate-pulse">
-      <td className="px-6 py-4"><div className="h-4 w-40 bg-slate-200 rounded" /></td>
-      <td className="px-6 py-4"><div className="h-4 w-56 bg-slate-200 rounded" /></td>
-      <td className="px-6 py-4"><div className="h-4 w-36 bg-slate-200 rounded" /></td>
-      <td className="px-6 py-4"><div className="h-4 w-24 bg-slate-200 rounded" /></td>
-      <td className="px-6 py-4"><div className="h-4 w-24 bg-slate-200 rounded" /></td>
-      <td className="px-6 py-4"><div className="h-4 w-20 bg-slate-200 rounded" /></td>
-      <td className="px-6 py-4"><div className="h-8 w-24 bg-slate-200 rounded" /></td>
+    <tr>
+      <td className="px-6 py-4"><Skeleton className="h-4 w-40" /></td>
+      <td className="px-6 py-4"><Skeleton className="h-4 w-56" /></td>
+      <td className="px-6 py-4"><Skeleton className="h-4 w-36" /></td>
+      <td className="px-6 py-4"><Skeleton className="h-4 w-24" /></td>
+      <td className="px-6 py-4"><Skeleton className="h-4 w-24" /></td>
+      <td className="px-6 py-4"><Skeleton className="h-4 w-20" /></td>
+      <td className="px-6 py-4"><Skeleton className="h-8 w-24" /></td>
     </tr>
   );
 }
@@ -345,7 +346,7 @@ export default function RecruiterApplicantHistory() {
       <div className="bg-white/90 backdrop-blur-sm border border-slate-200 rounded-2xl p-5 shadow-sm">
         <label className="block text-xs font-medium text-slate-600 mb-2">Select Job</label>
         {loadingJobs ? (
-          <div className="h-10 bg-slate-200 rounded-lg animate-pulse" />
+          <Skeleton className="h-10 w-full rounded-lg" />
         ) : jobs.length === 0 ? (
           <div className="text-center py-4 text-slate-500">
             <Briefcase className="mx-auto mb-2 text-slate-400" size={24} />
@@ -476,7 +477,7 @@ export default function RecruiterApplicantHistory() {
               </div>
             ) : loading ? (
               <div className="p-6">
-                <div className="h-5 w-56 bg-slate-200 rounded animate-pulse mb-4" />
+                <Skeleton className="h-5 w-56 mb-4" />
                 <div className="overflow-x-auto">
                   <table className="min-w-full">
                     <thead>

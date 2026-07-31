@@ -2,11 +2,12 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Shield, AlertTriangle, Clock, ChevronRight, ChevronLeft, 
-  CheckCircle, XCircle, Loader2, Video, Code, FileText,
+  CheckCircle, XCircle, Video, Code, FileText,
   Maximize2, Terminal, AlertCircle, Save, Send, Ban, ScanFace
 } from 'lucide-react';
 import api from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
+import { LoadingPage, Spinner } from '../../components/ui/loading';
 import {
   CodingWorkspace,
   parseCodingAnswer,
@@ -776,9 +777,8 @@ export default function AssessmentApp() {
 
   if (loading) {
     return (
-      <div className="h-screen bg-slate-50 flex flex-col items-center justify-center gap-3">
-        <Loader2 className="w-7 h-7 animate-spin text-indigo-600" />
-        <p className="text-sm text-slate-500">Preparing assessment…</p>
+      <div className="h-screen bg-slate-50">
+        <LoadingPage title="Preparing assessment…" />
       </div>
     );
   }
@@ -973,7 +973,7 @@ export default function AssessmentApp() {
             >
               {starting ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Spinner size="sm" />
                   Starting…
                 </>
               ) : (
@@ -1056,7 +1056,7 @@ export default function AssessmentApp() {
                             <p className="text-[11px] text-slate-500 truncate">{check.hint}</p>
                           </div>
                           {statusLoading ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                            <Spinner size="sm" />
                           ) : statusPass ? (
                             <CheckCircle className="w-3.5 h-3.5 text-emerald-600" strokeWidth={1.75} />
                           ) : (

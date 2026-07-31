@@ -1,7 +1,8 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
-import { Calendar, Info, Plus, X, Loader, ChevronsUp, ChevronsDown, ChevronDown, Upload, FileText, CheckCircle, AlertCircle, Building2, Globe, Linkedin, Briefcase, MapPin, Users, GraduationCap, Code2, Award, Mail, Phone, Hash, Clock, User, Archive, Trash2, ArrowRight, HelpCircle } from 'lucide-react';
+import { Calendar, Info, Plus, X, ChevronsUp, ChevronsDown, ChevronDown, Upload, FileText, CheckCircle, AlertCircle, Building2, Globe, Linkedin, Briefcase, MapPin, Users, GraduationCap, Code2, Award, Mail, Phone, Hash, Clock, User, Archive, Trash2, ArrowRight, HelpCircle } from 'lucide-react';
+import { SkeletonCard, Spinner } from '../../ui/loading';
 import CustomDropdown from '../../common/CustomDropdown';
 import { FaBriefcase, FaLaptop, FaMapMarkerAlt, FaClock, FaExclamationTriangle, FaCalendarAlt, FaDollarSign } from 'react-icons/fa';
 import DatePicker from 'react-datepicker';
@@ -1821,9 +1822,10 @@ export default function CreateJob({ onCreated }) {
 
       {/* Loading state when editing */}
       {loadingJob && (
-        <div className="bg-white rounded-lg border border-slate-200 p-8 text-center">
-          <Loader className="w-7 h-7 animate-spin text-blue-600 mx-auto mb-3" />
-          <p className="text-sm text-slate-600">Loading job…</p>
+        <div className="bg-white rounded-lg border border-slate-200 p-6 space-y-6">
+          <SkeletonCard bodyLines={4} />
+          <SkeletonCard bodyLines={3} />
+          <SkeletonCard bodyLines={5} />
         </div>
       )}
 
@@ -3136,7 +3138,7 @@ export default function CreateJob({ onCreated }) {
                     : 'bg-blue-600 hover:bg-blue-700'
                   }`}
               >
-                {posting ? <Loader className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                {posting ? <Spinner size="sm" /> : <CheckCircle className="w-4 h-4" />}
                 {isEditing ? 'Save changes' : 'Submit for review'}
                 {!posting && <ArrowRight className="w-4 h-4" />}
               </button>
@@ -3149,7 +3151,7 @@ export default function CreateJob({ onCreated }) {
                     : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
                   }`}
               >
-                {isSaving ? <Loader className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                {isSaving ? <Spinner size="sm" /> : <FileText className="w-4 h-4" />}
                 Save draft
               </button>
               <button
@@ -3161,7 +3163,7 @@ export default function CreateJob({ onCreated }) {
                     : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
                   }`}
               >
-                {isSaving ? <Loader className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                {isSaving ? <Spinner size="sm" /> : <Plus className="w-4 h-4" />}
                 Add another role
               </button>
               <button
@@ -3204,10 +3206,7 @@ const JDUploadForm = ({
         />
 
         {isUploading ? (
-          <div className="flex flex-col items-center justify-center space-y-3">
-            <Loader className="w-12 h-12 text-blue-600 animate-spin" />
-            <p className="text-gray-700">Analyzing your JD...</p>
-          </div>
+          <SkeletonCard bodyLines={3} className="p-8 border-dashed" />
         ) : parseResult ? (
           <div className="flex flex-col items-center justify-center space-y-3">
             <CheckCircle className="w-12 h-12 text-green-600" />

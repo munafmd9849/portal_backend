@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { showError } from '../../utils/toast';
+import { Spinner } from '../ui/loading';
 
 export default function LoginForm({ onSuccess, enableGoogle = false, defaultRole = 'student' }) {
   const { login, loginWithGoogle } = useAuth();
@@ -101,7 +102,12 @@ export default function LoginForm({ onSuccess, enableGoogle = false, defaultRole
         disabled={loading}
         className={`w-full bg-black text-white py-2 rounded ${loading ? 'cursor-not-allowed disabled:opacity-60' : 'cursor-pointer'}`}
       >
-        {loading ? 'Signing in...' : 'Sign in'}
+        {loading ? (
+          <span className="inline-flex items-center justify-center gap-2">
+            <Spinner size="sm" tone="white" />
+            Signing in...
+          </span>
+        ) : 'Sign in'}
       </button>
 
       {/* Google Login (if enabled) */}
@@ -112,7 +118,12 @@ export default function LoginForm({ onSuccess, enableGoogle = false, defaultRole
           disabled={loading}
           className={`w-full bg-white border mt-2 py-2 rounded ${loading ? 'cursor-not-allowed disabled:opacity-60' : 'cursor-pointer'}`}
         >
-          {loading ? 'Please wait...' : 'Continue with Google'}
+          {loading ? (
+            <span className="inline-flex items-center justify-center gap-2">
+              <Spinner size="sm" />
+              Please wait...
+            </span>
+          ) : 'Continue with Google'}
         </button>
       )}
     </form>

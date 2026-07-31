@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Bell } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { listNotificationsForUser, markNotificationRead } from '../services/notifications';
+import { SkeletonMediaRowList } from './ui/loading';
 
 const DASHBOARD_ROUTE_PATTERN = /^\/(student|admin|super-admin|recruiter)(\/|$)/;
 const ADMIN_DASHBOARD_PATTERN = /^\/(admin|super-admin)(\/|$)/;
@@ -132,7 +133,7 @@ const NotificationModal = () => {
             </div>
 
             {loading ? (
-              <div className="text-center py-8 text-gray-500">Loading notifications...</div>
+              <SkeletonMediaRowList rows={4} className="py-2" />
             ) : notifications.length === 0 ? (
               <div className="text-center py-8 text-gray-500">No notifications yet</div>
             ) : (

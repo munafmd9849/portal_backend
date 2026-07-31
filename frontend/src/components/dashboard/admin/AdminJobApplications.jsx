@@ -3,6 +3,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import api from '../../../services/api';
 import { Search, Users, ExternalLink, ArrowLeft, ChevronLeft, ChevronRight, GraduationCap, Building2, Briefcase, X } from 'lucide-react';
 import CustomDropdown from '../../common/CustomDropdown';
+import { Skeleton } from '../../ui/loading';
 
 const STAGE_OPTIONS = [
   { label: 'All stages', value: '' },
@@ -24,12 +25,12 @@ const FINAL_STATUS_OPTIONS = [
 
 function SkeletonRow() {
   return (
-    <tr className="animate-pulse">
-      <td className="px-6 py-4"><div className="h-4 w-40 bg-gray-200 rounded" /></td>
-      <td className="px-6 py-4"><div className="h-4 w-48 bg-gray-200 rounded" /></td>
-      <td className="px-6 py-4"><div className="h-5 w-20 bg-gray-200 rounded" /></td>
-      <td className="px-6 py-4"><div className="h-5 w-16 bg-gray-200 rounded mx-auto" /></td>
-      <td className="px-6 py-4"><div className="h-9 w-28 bg-gray-200 rounded-md ml-auto" /></td>
+    <tr>
+      <td className="px-6 py-4"><Skeleton className="h-4 w-40" /></td>
+      <td className="px-6 py-4"><Skeleton className="h-4 w-48" /></td>
+      <td className="px-6 py-4"><Skeleton className="h-5 w-20" /></td>
+      <td className="px-6 py-4"><Skeleton className="h-5 w-16 mx-auto" /></td>
+      <td className="px-6 py-4"><Skeleton className="h-9 w-28 rounded-md ml-auto" /></td>
     </tr>
   );
 }

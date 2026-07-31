@@ -14,6 +14,7 @@ import { FaGraduationCap, FaMapMarkerAlt, FaUsers } from 'react-icons/fa';
 import api from '../../services/api';
 import { getAllStudents } from '../../services/students';
 import CustomDropdown from '../common/CustomDropdown';
+import { SkeletonList } from '../ui/loading';
 import { filterActiveAcademicRecords } from '../../utils/academicOptions';
 
 const BASE_LOCATION_OPTIONS = [
@@ -593,7 +594,7 @@ const EventCreationModal = ({ isOpen, onClose, onSuccess, userRole, selectedDate
                     {/* Students List */}
                     <div className="overflow-y-auto flex-1 scrollbar-hide overscroll-contain">
                       {loadingStudents ? (
-                        <div className="p-4 text-center text-gray-500">Loading students...</div>
+                        <SkeletonList rows={6} className="border-0" />
                       ) : filteredStudents.length === 0 ? (
                         <div className="p-4 text-center text-gray-500">
                           {studentSearch ? 'No students found' : 'No students available'}

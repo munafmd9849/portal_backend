@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Loader2, Search, Download, Info } from 'lucide-react';
+import { Search, Download, Info } from 'lucide-react';
+import { SkeletonFunnelRow, SkeletonTableCard } from '../../ui/loading';
 import CustomDropdown from '../../common/CustomDropdown';
 import { fetchPlacementSummary, fetchStudentsWithScores } from '../../../services/adminReadiness';
 import { fetchAcademicOptions, buildStandardFilterOptions } from '../../../utils/academicOptions';
@@ -254,8 +255,18 @@ export default function PlacementAnalytics() {
         </div>
 
         {loadingSummary ? (
-          <div className="flex justify-center py-20">
-            <Loader2 className="w-9 h-9 animate-spin text-blue-600" />
+          <div className="space-y-6">
+            <section>
+              <SectionTitle>Overview</SectionTitle>
+              <SkeletonFunnelRow count={8} />
+            </section>
+            <section>
+              <SkeletonFunnelRow count={7} />
+            </section>
+            <section>
+              <SectionTitle>School-wise overview</SectionTitle>
+              <SkeletonFunnelRow count={5} />
+            </section>
           </div>
         ) : (
           <>
@@ -391,9 +402,7 @@ export default function PlacementAnalytics() {
           </div>
 
           {loadingTable ? (
-            <div className="flex justify-center py-16">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-            </div>
+            <SkeletonTableCard rows={8} className="border-0 rounded-none shadow-none" />
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm border-collapse">

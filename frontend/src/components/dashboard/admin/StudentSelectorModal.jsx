@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X, Search, Check, GraduationCap, Users, MapPin,
-  Loader2, ChevronDown,
+  ChevronDown,
 } from 'lucide-react';
+import { SkeletonCard } from '../../ui/loading';
 import api from '../../../services/api';
 
 const CustomDropdown = ({ label, value, options, onChange, icon: Icon }) => {
@@ -258,9 +259,10 @@ const StudentSelectorModal = ({
 
         <div className="flex-1 overflow-y-auto p-6 bg-white">
           {loading ? (
-            <div className="h-full flex flex-col items-center justify-center gap-3">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-800" />
-              <p className="text-gray-500 text-sm">Loading student directory…</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {Array.from({ length: 8 }).map((_, idx) => (
+                <SkeletonCard key={idx} bodyLines={2} className="p-3" />
+              ))}
             </div>
           ) : filteredStudents.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-gray-500 gap-2 text-center">

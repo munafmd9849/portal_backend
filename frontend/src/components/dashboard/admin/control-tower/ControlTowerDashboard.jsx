@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { SkeletonStatsGrid, SkeletonTable } from '../../../ui/loading';
 import { fetchControlTowerAll } from '../../../../services/controlTower';
 import ControlTowerFilters from './ControlTowerFilters';
 import JobOpportunitiesTab from './tabs/JobOpportunitiesTab';
@@ -83,8 +83,9 @@ export default function ControlTowerDashboard({ embedded = false }) {
 
         <div className="pt-4 md:pt-5">
           {loading ? (
-            <div className="flex justify-center py-20">
-              <Loader2 className="w-9 h-9 animate-spin text-indigo-600" />
+            <div className="space-y-4">
+              <SkeletonStatsGrid count={4} />
+              <SkeletonTable rows={8} columns={6} />
             </div>
           ) : error ? (
             <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Trash2, Save, AlertTriangle } from 'lucide-react';
+import { Spinner } from '../../ui/loading';
 import api from '../../../services/api';
 import { useToast } from '../../ui/Toast';
 import AssessmentModal from '../../assessment/AssessmentModal';
@@ -79,7 +80,7 @@ export default function AssessmentSettingsModal({ assessment, onClose, onUpdate 
           </button>
           <button type="button" onClick={handleSave} disabled={loading} className={au.btnPrimary}>
             {loading ? (
-              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <Spinner size="sm" tone="white" />
             ) : (
               <Save className="w-4 h-4" />
             )}

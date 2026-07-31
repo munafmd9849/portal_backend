@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { Upload, FileText, X, Loader, Check } from 'lucide-react';
+import { Upload, FileText, X, Check } from 'lucide-react';
+import { SkeletonCard } from '../../ui/loading';
 import { handleFileUpload } from '../../../utils/fileParser';
 
 const PDFUploader = ({ onFileProcessed, onBack }) => {
@@ -67,10 +68,8 @@ const PDFUploader = ({ onFileProcessed, onBack }) => {
 
   if (isUploading) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-center">
-        <Loader className="w-12 h-12 text-blue-500 animate-spin mb-4" />
-        <h3 className="text-lg font-medium text-gray-800 mb-1">Processing PDF</h3>
-        <p className="text-gray-500">Extracting job details from your PDF...</p>
+      <div className="p-12">
+        <SkeletonCard bodyLines={3} className="max-w-md mx-auto" />
       </div>
     );
   }

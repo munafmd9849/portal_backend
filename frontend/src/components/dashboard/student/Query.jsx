@@ -11,6 +11,7 @@ import {
   FaClock,
   FaListOl,
 } from 'react-icons/fa';
+import { SkeletonList, Spinner } from '../../ui/loading';
 import { useAuth } from '../../../hooks/useAuth';
 import QueryErrorBoundary from '../../common/QueryErrorBoundary';
 import { getTargetedJobsForStudent } from '../../../services/jobs';
@@ -591,10 +592,7 @@ const StudentQuerySystem = () => {
         <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden min-w-0">
           <div className="p-3 sm:p-4">
             {loadingQueries ? (
-              <div className="flex items-center justify-center py-12 text-sm text-slate-500 gap-2">
-                <FaClock className="text-indigo-500 animate-spin" />
-                Loading…
-              </div>
+              <SkeletonList rows={4} />
             ) : pastQueries.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-sm text-slate-600 mb-3">No queries yet</p>
@@ -704,7 +702,7 @@ const StudentQuerySystem = () => {
                 </label>
                 {loadingJobs ? (
                   <div className="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-slate-50 flex items-center text-sm text-slate-500 gap-2">
-                    <FaClock className="animate-spin text-indigo-500" />
+                    <Spinner size="sm" />
                     Loading…
                   </div>
                 ) : jobs.length === 0 ? (
@@ -1009,7 +1007,7 @@ const StudentQuerySystem = () => {
               >
                 {submitting ? (
                   <>
-                    <FaClock className="animate-spin" />
+                    <Spinner size="sm" tone="muted" />
                     Submitting…
                   </>
                 ) : (

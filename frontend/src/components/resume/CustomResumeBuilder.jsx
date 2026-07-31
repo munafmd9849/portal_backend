@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Save, Download, Eye, Edit3, Plus, Trash2, Palette, Type, Layout,
   FileText, User, Briefcase, GraduationCap, Award, Code, Languages, Heart,
-  Loader, CheckCircle, AlertCircle, ChevronUp, ChevronDown, Mail, FileUp
+  CheckCircle, AlertCircle, ChevronUp, ChevronDown, Mail, FileUp
 } from 'lucide-react';
+import { SkeletonCard, Spinner } from '../ui/loading';
 import ResumePreview from './ResumePreview';
 import { saveResumeData, getResumeData } from '../../services/resumeData';
 import { ExperienceForm, EducationForm } from './SectionForms';
@@ -349,10 +350,7 @@ export default function CustomResumeBuilder({ userId }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader className="h-8 w-8 animate-spin text-blue-600" />
-        <span className="ml-2 text-gray-600">Loading your resume...</span>
-      </div>
+      <SkeletonCard bodyLines={5} className="min-h-[256px]" />
     );
   }
 
@@ -385,7 +383,7 @@ export default function CustomResumeBuilder({ userId }) {
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
             >
               {saving ? (
-                <Loader className="h-4 w-4 mr-2 animate-spin" />
+                <Spinner size="sm" className="mr-2" />
               ) : (
                 <Save className="h-4 w-4 mr-2" />
               )}
@@ -399,7 +397,7 @@ export default function CustomResumeBuilder({ userId }) {
             >
               {generatingPDF ? (
                 <>
-                  <Loader className="h-4 w-4 mr-2 animate-spin" />
+                  <Spinner size="sm" className="mr-2" />
                   Generating...
                 </>
               ) : (

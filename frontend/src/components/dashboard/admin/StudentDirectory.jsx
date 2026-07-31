@@ -3,14 +3,14 @@ import { createPortal } from 'react-dom';
 import { ImEye } from 'react-icons/im';
 import { FaSearch, FaFilter, FaChevronLeft, FaChevronRight, FaTimes, FaEdit, FaUser, FaEnvelope, FaPhone, FaGraduationCap, FaMapMarkerAlt, FaCalendarAlt, FaIdCard, FaInfoCircle, FaCheckCircle, FaUsers, FaChartLine, FaExternalLinkAlt } from 'react-icons/fa';
 import { MdBlock } from 'react-icons/md';
-import { Loader, Download, Upload, SquarePen, User, Activity, TrendingUp, GraduationCap, BarChart2, Phone, CheckCircle2, MessageSquare, Briefcase, Code, X, Tag, Folder, ExternalLink, Check, ClipboardList, FileText } from 'lucide-react';
+import { Download, Upload, SquarePen, User, Activity, TrendingUp, GraduationCap, BarChart2, Phone, CheckCircle2, MessageSquare, Briefcase, Code, X, Tag, Folder, ExternalLink, Check, ClipboardList, FileText } from 'lucide-react';
+import { Spinner, SkeletonDirectoryPage, SkeletonTable, SkeletonCard } from '../../ui/loading';
 import PWIOILOGO from '../../../assets/images/brand_logo.webp';
 import { getAllStudents, updateStudentProfile } from '../../../services/students';
 import { fetchStudentsWithScores } from '../../../services/adminReadiness';
 import { fetchStudentDirectory, exportStudentDirectory, fetchStudentPanelExtras, fetchStudentResumeViewUrl } from '../../../services/studentDirectory';
 import { scoreStudentResumeAts, batchScoreResumeAts } from '../../../services/adminResumeAts';
 import StudentDirectoryTable from './StudentDirectoryTable';
-import DirectoryLoadingPanel from './DirectoryLoading';
 import { useAuth } from '../../../hooks/useAuth';
 import api from '../../../services/api';
 import { resolveBackendPath } from '../../../config/api';
@@ -356,7 +356,7 @@ const EditStudentModal = ({ isOpen, onClose, student, onSave }) => {
               disabled={loading}
               className="px-5 py-2 bg-blue-800 text-white rounded-md text-sm font-medium hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center transition-colors"
             >
-              {loading && <Loader className="h-4 w-4 animate-spin mr-2" />}
+              {loading && <Spinner size="sm" className="mr-2" />}
               {loading ? 'Saving…' : 'Save changes'}
             </button>
           </div>
@@ -568,7 +568,7 @@ const EditCGPAModal = ({ isOpen, onClose, student, onSave }) => {
               disabled={loading}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
             >
-              {loading && <Loader className="h-4 w-4 animate-spin mr-2" />}
+              {loading && <Spinner size="sm" className="mr-2" />}
               {loading ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
@@ -1303,15 +1303,9 @@ export default function StudentDirectory() {
   // Calculate statistics from ALL students (not filtered) - must be before conditional returns to follow Rules of Hooks
   const stats = studentSummary;
 
-  if (loading) {
+  if (loading && students.length === 0) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-12">
-        <div className="flex flex-col items-center py-8">
-          <Loader className="h-8 w-8 animate-spin text-sky-600 mb-3" />
-          <span className="text-gray-700 font-medium">Loading students…</span>
-          <p className="text-gray-500 text-sm mt-1">Fetching directory data</p>
-        </div>
-      </div>
+      <SkeletonDirectoryPage statsCount={3} filterFields={8} tableColumns={8} />
     );
   }
 
@@ -1493,10 +1487,7 @@ export default function StudentDirectory() {
       {/* Students Table */}
       <div>
         {loading ? (
-          <DirectoryLoadingPanel
-            title="Loading students..."
-            subtitle="Please wait while we fetch the data"
-          />
+          <SkeletonTable rows={10} columns={8} minWidth="min-w-[900px]" />
         ) : students.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-4">
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-8 max-w-md w-full border-2 border-blue-200 shadow-lg">
@@ -2023,9 +2014,10 @@ const StudentDashboardPanel = ({ isOpen, onClose, student, dashboardData, onScor
         {/* Scrollable Body */}
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6 space-y-6 custom-scrollbar">
           {dashboardData.loading ? (
-            <div className="flex flex-col items-center justify-center min-h-[300px]">
-              <Loader className="h-8 w-8 animate-spin text-indigo-600 mb-2" />
-              <span className="text-slate-500 text-sm font-medium">Fetching details...</span>
+            <div className="space-y-4">
+              <SkeletonCard bodyLines={2} />
+              <SkeletonCard bodyLines={3} />
+              <SkeletonCard bodyLines={4} />
             </div>
           ) : dashboardData.error ? (
             <div className="bg-rose-50 border border-rose-100 rounded-2xl p-4 text-center">

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Phone, MapPin, Globe, Linkedin, Github, Loader, AlertCircle } from 'lucide-react';
+import { Mail, Phone, MapPin, Globe, Linkedin, Github, AlertCircle } from 'lucide-react';
+import { Skeleton, SkeletonCard } from '../ui/loading';
 import { getResumeData } from '../../services/resumeData.js';
 
 const TEMPLATES = {
@@ -68,10 +69,9 @@ export default function ResumePreview({ resumeUrl, resumeData, scale = 1 }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <Loader className="h-8 w-8 animate-spin text-blue-600" />
-        <span className="ml-2 text-gray-600">Loading resume...</span>
-      </div>
+      <SkeletonCard bodyLines={0} showHeader={false} className="h-full min-h-[400px]">
+        <Skeleton className="h-full min-h-[360px] rounded-md" />
+      </SkeletonCard>
     );
   }
 

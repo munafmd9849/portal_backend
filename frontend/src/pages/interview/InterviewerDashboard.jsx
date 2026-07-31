@@ -7,8 +7,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
-import { Loader, Building2, Briefcase, AlertCircle, CheckCircle, Clock, Lock, PlayCircle, ArrowRight, Download } from 'lucide-react';
-import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import { Building2, Briefcase, AlertCircle, CheckCircle, Clock, Lock, PlayCircle, ArrowRight, Download } from 'lucide-react';
+import { SkeletonStatsGrid, SkeletonCard, Spinner } from '../../components/ui/loading';
 
 // Helper to decode JWT token
 const decodeJWT = (token) => {
@@ -196,19 +196,11 @@ const InterviewerDashboard = () => {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white transition-opacity duration-500 ease-in-out">
-        <div className="flex flex-col items-center justify-center">
-          <div className="w-64 h-64 flex items-center justify-center mb-4">
-            <DotLottieReact
-              src="https://lottie.host/6f32e72e-0e51-4de6-be26-7a66a512856b/KR5Pp47lfD.json"
-              loop
-              autoplay
-              className="w-full h-full"
-            />
-          </div>
-          <p className="text-gray-600 text-lg font-medium animate-pulse">
-            Loading...
-          </p>
+      <div className="fixed inset-0 z-50 bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-50 overflow-y-auto">
+        <div className="max-w-5xl mx-auto p-6 space-y-6">
+          <SkeletonStatsGrid count={3} columns="grid-cols-1 sm:grid-cols-3" />
+          <SkeletonCard showHeader bodyLines={4} />
+          <SkeletonCard showHeader bodyLines={3} />
         </div>
       </div>
     );
@@ -320,7 +312,7 @@ const InterviewerDashboard = () => {
                   className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg font-semibold shadow-md hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {endingSession ? (
-                    <Loader className="w-5 h-5 animate-spin" />
+                    <Spinner size="md" />
                   ) : (
                     <CheckCircle className="w-5 h-5" />
                   )}
@@ -334,7 +326,7 @@ const InterviewerDashboard = () => {
                   className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg font-semibold shadow-md hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {downloading ? (
-                    <Loader className="w-5 h-5 animate-spin" />
+                    <Spinner size="md" />
                   ) : (
                     <Download className="w-5 h-5" />
                   )}

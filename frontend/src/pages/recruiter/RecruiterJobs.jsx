@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { listJobs, deleteJob } from '../../services/jobs';
 import JobForm from './JobForm';
 import { useAuth } from '../../hooks/useAuth';
+import { SkeletonList } from '../../components/ui/loading';
 
 export default function RecruiterJobs() {
   const { user } = useAuth();
@@ -41,7 +42,7 @@ export default function RecruiterJobs() {
       </div>
       {showForm && <div className="mt-4"><JobForm onSaved={() => { setShowForm(false); refresh(); }} /></div>}
       {loading ? (
-        <div className="mt-4">Loading...</div>
+        <SkeletonList rows={4} className="mt-4 rounded-lg border border-gray-200 overflow-hidden" />
       ) : error ? (
         <div className="mt-4 text-red-600">{error}</div>
       ) : (

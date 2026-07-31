@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { showError, showSuccess } from '../../utils/toast';
+import { Spinner } from '../ui/loading';
 
 export default function ResetPasswordForm({ onSuccess }) {
   const { resetPassword } = useAuth();
@@ -24,7 +25,14 @@ export default function ResetPasswordForm({ onSuccess }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <input className="w-full border px-3 py-2 rounded" placeholder="Email" type="email" value={email} onChange={(e)=>setEmail(e.target.value)} />
-      <button disabled={loading} className="w-full bg-black text-white py-2 rounded disabled:opacity-60">{loading ? 'Sending...' : 'Send reset link'}</button>
+      <button disabled={loading} className="w-full bg-black text-white py-2 rounded disabled:opacity-60 inline-flex items-center justify-center gap-2">
+        {loading ? (
+          <>
+            <Spinner size="sm" tone="white" />
+            Sending...
+          </>
+        ) : 'Send reset link'}
+      </button>
     </form>
   );
 }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FaTimes, FaUser, FaEnvelope, FaPhone, FaGraduationCap, FaMapMarkerAlt, FaCalendarAlt, FaIdCard } from 'react-icons/fa';
-import { Loader } from 'lucide-react';
+import { SkeletonCard } from '../ui/loading';
 import { getEducationalBackground, getStudentSkills } from '../../services/students';
 
 const StudentDetailsModal = ({ isOpen, onClose, student }) => {
@@ -63,11 +63,10 @@ const StudentDetailsModal = ({ isOpen, onClose, student }) => {
         {/* Content */}
         <div className="p-6 overflow-y-auto flex-1 bg-gray-50">
           {loading && (
-            <div className="flex items-center justify-center py-12">
-              <div className="flex flex-col items-center">
-                <Loader className="h-8 w-8 animate-spin text-blue-600 mb-3" />
-                <span className="text-gray-600 font-medium">Loading student details...</span>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              {Array.from({ length: 4 }).map((_, idx) => (
+                <SkeletonCard key={idx} bodyLines={4} />
+              ))}
             </div>
           )}
 

@@ -3,7 +3,6 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import api from '../services/api';
 import { 
-  Loader, 
   X, 
   Download, 
   Send, 
@@ -17,6 +16,7 @@ import {
   Users,
   Video
 } from 'lucide-react';
+import { LoadingPage, SkeletonStatsGrid, SkeletonCardGrid } from '../components/ui/loading';
 import DashboardHome from '../components/dashboard/student/DashboardHome';
 import { getStudentProfile, getEducationalBackground, getStudentSkills } from '../services/students';
 import { getTargetedJobsForStudent } from '../services/jobs';
@@ -271,11 +271,8 @@ const Assessment = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading assessment...</p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-50">
+        <LoadingPage title="Loading assessment…" />
       </div>
     );
   }
@@ -735,8 +732,9 @@ const StudentDashboardPanel = ({ isOpen, onClose, student, dashboardData }) => {
         <div className="h-[calc(100%-5rem)] overflow-y-auto">
           <div className="p-4 lg:p-6">
             {dashboardData.loading ? (
-              <div className="flex items-center justify-center h-full min-h-[400px]">
-                <Loader className="h-8 w-8 animate-spin text-blue-600 mb-4" />
+              <div className="space-y-4">
+                <SkeletonStatsGrid count={4} />
+                <SkeletonCardGrid count={3} columns="grid-cols-1 md:grid-cols-2 xl:grid-cols-3" />
               </div>
             ) : dashboardData.error ? (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">

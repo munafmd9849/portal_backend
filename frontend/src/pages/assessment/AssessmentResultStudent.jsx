@@ -11,6 +11,7 @@ import {
 import api from '../../services/api';
 import { mcqAnswersMatch, resolveMcqOptionLabel } from '../../utils/mcqAnswers';
 import { useToast } from '../../components/ui/Toast';
+import { LoadingPage } from '../../components/ui/loading';
 import { ErrorBoundary } from '../../components/ui/ErrorBoundary';
 
 function formatDuration(seconds) {
@@ -65,12 +66,7 @@ function AssessmentResultStudentComponent() {
   }, [fetchResults]);
 
   if (loading) {
-    return (
-      <div className="h-screen bg-[#f7f8fa] flex flex-col items-center justify-center gap-3">
-        <div className="w-9 h-9 border-2 border-slate-200 border-t-indigo-600 rounded-full animate-spin" />
-        <p className="text-sm text-slate-500">Loading results…</p>
-      </div>
-    );
+    return <LoadingPage title="Loading results…" />;
   }
 
   if (errorMsg || !session) {

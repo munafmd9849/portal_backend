@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { CheckCircle, XCircle, Mail, AlertCircle } from 'lucide-react';
+import { Spinner } from '../components/ui/loading';
 import { unsubscribeUser, resubscribeUser } from '../services/emailNotifications';
 
 export default function Unsubscribe() {
@@ -84,8 +85,8 @@ export default function Unsubscribe() {
       case 'loading':
       default:
         return (
-          <div className="w-16 h-16 mx-auto mb-4 relative">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500"></div>
+          <div className="mx-auto mb-4 flex justify-center">
+            <Spinner size="lg" />
           </div>
         );
     }
@@ -159,7 +160,7 @@ export default function Unsubscribe() {
               >
                 {isResubscribing ? (
                   <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    <Spinner size="sm" tone="white" className="mr-2" />
                     Re-subscribing...
                   </>
                 ) : (

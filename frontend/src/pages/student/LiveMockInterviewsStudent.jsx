@@ -6,9 +6,9 @@ import { useToast } from '../../components/ui/Toast';
 import {
   PageShell,
   StatGrid,
-  LoadingBlock,
   feedbackScorePercent,
 } from './interviewStudentShared';
+import { SkeletonMediaRowList } from '../../components/ui/loading';
 
 function getStatusBadge(status) {
   switch (status) {
@@ -113,7 +113,7 @@ export default function LiveMockInterviewsStudent() {
         <StatGrid stats={stats} loading={loading} />
 
         {loading ? (
-          <LoadingBlock message="Loading sessions…" />
+          <SkeletonMediaRowList rows={4} className="bg-white rounded-lg border border-slate-200/80 shadow-sm" />
         ) : slots.length === 0 ? (
           <div className="bg-white rounded-lg border border-slate-200/80 p-10 sm:p-12 flex flex-col items-center text-center shadow-sm">
             <div className="w-12 h-12 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center mb-4">

@@ -5,6 +5,7 @@ import PWIOILOGO from '../../../assets/images/brand_logo.webp';
 import { useStudentMobileMenu } from '../../../contexts/StudentMobileMenuContext';
 import { User, SquarePen, Menu, BadgeCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Skeleton, SkeletonText } from '../../ui/loading';
 
 /** Format CGPA for display (avoids floating-point like 8.699999999999999 → "8.70") */
 function formatCgpaDisplay(val) {
@@ -285,7 +286,7 @@ export default function DashboardLayout({ children, studentProfile: profileProp 
             </div>
             <div className="flex items-center gap-1.5 min-w-0 flex-shrink-0 justify-end">
               <span className="truncate text-xs font-semibold text-slate-900 max-w-[7rem] sm:max-w-[9rem]">
-                {displayName}
+                {loading ? <SkeletonText className="w-20 sm:w-24" lineClassName="h-3.5" /> : displayName}
               </span>
               <div className="h-9 w-9 rounded-full bg-indigo-600 flex items-center justify-center overflow-hidden ring-2 ring-indigo-100 shrink-0">
                 {profileImageSrc ? (
@@ -339,7 +340,9 @@ export default function DashboardLayout({ children, studentProfile: profileProp 
 
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <h2 className="text-lg font-semibold text-slate-900 truncate">{displayName}</h2>
+                  <h2 className="text-lg font-semibold text-slate-900 truncate">
+                    {loading ? <SkeletonText className="w-36" lineClassName="h-5" /> : displayName}
+                  </h2>
                   <button
                     type="button"
                     onClick={() => {
@@ -364,14 +367,15 @@ export default function DashboardLayout({ children, studentProfile: profileProp 
                 ) : null}
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-xs text-slate-500">
                   <span className="truncate max-w-[12rem]" title={enrollmentLabel}>
-                    <span className="font-medium text-slate-600">ID</span> {loading ? '…' : enrollmentLabel}
+                    <span className="font-medium text-slate-600">ID</span>{' '}
+                    {loading ? <Skeleton className="inline-block h-3 w-14 align-middle" /> : enrollmentLabel}
                   </span>
                   <span className="text-slate-300" aria-hidden>
                     ·
                   </span>
                   <span className="truncate" title={cgpaLabel}>
                     <span className="font-medium text-slate-600">CGPA</span>{' '}
-                    {loading ? '…' : cgpaLabel}
+                    {loading ? <Skeleton className="inline-block h-3 w-10 align-middle" /> : cgpaLabel}
                   </span>
                 </div>
               </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ImEye } from 'react-icons/im';
 import { FaSearch, FaFilter, FaUser, FaEnvelope, FaPhone, FaGraduationCap, FaMapMarkerAlt, FaCalendarAlt, FaIdCard, FaTimes, FaCheckCircle } from 'react-icons/fa';
-import { Loader } from 'lucide-react';
+import { SkeletonTable, SkeletonCard } from '../../ui/loading';
 import { getAllStudents, getEducationalBackground, getStudentSkills } from '../../../services/students';
 import api from '../../../services/api';
 
@@ -59,10 +59,7 @@ const StudentDetailsModal = ({ isOpen, onClose, student }) => {
 
         <div className="p-6">
           {loading && (
-            <div className="flex items-center justify-center py-8">
-              <Loader className="h-6 w-6 animate-spin text-blue-600 mr-2" />
-              <span className="text-gray-600">Loading student details...</span>
-            </div>
+            <SkeletonCard bodyLines={6} className="mb-4" />
           )}
 
           {error && (
@@ -295,9 +292,8 @@ const Recommendations = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <Loader className="h-6 w-6 animate-spin text-blue-600 mr-2" />
-        <span className="text-gray-600">Loading recommendations...</span>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <SkeletonTable rows={8} columns={7} />
       </div>
     );
   }

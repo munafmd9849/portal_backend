@@ -15,9 +15,10 @@ import {
 } from 'chart.js';
 import { Bar, Line, Doughnut } from 'react-chartjs-2';
 import { 
-  FaFilter, FaSync, FaChartBar, FaChartLine, FaChartPie,
+  FaFilter, FaChartBar, FaChartLine, FaChartPie,
   FaUsers, FaUserTie, FaBuilding, FaBriefcase, FaHandshake
 } from 'react-icons/fa';
+import { Spinner, SkeletonStatsGrid, SkeletonCard } from '../../ui/loading';
 import CustomDropdown from '../../common/CustomDropdown';
 import api from '../../../services/api';
 import { filterActiveAcademicRecords, buildStandardFilterOptions } from '../../../utils/academicOptions';
@@ -253,7 +254,7 @@ const RecruiterAnalytics = () => {
             <h2 className="text-xl font-semibold text-gray-800">Filters & Controls</h2>
             {loading && (
               <div className="flex items-center gap-2 text-blue-600">
-                <FaSync className="w-4 h-4 animate-spin" />
+                <Spinner size="sm" />
                 <span className="text-sm">Loading...</span>
               </div>
             )}
@@ -290,12 +291,15 @@ const RecruiterAnalytics = () => {
         </div>
 
         {/* Statistics Cards */}
+        {loading ? (
+          <SkeletonStatsGrid count={4} />
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="bg-gradient-to-br from-blue-400/20 to-blue-500/25 backdrop-blur-xl border border-blue-300/30 rounded-xl shadow-lg p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-blue-700 text-sm font-medium">Total HRs</p>
-                <p className="text-3xl font-bold text-blue-800">{loading ? '...' : (statsData.totalHRs || 0)}</p>
+                <p className="text-3xl font-bold text-blue-800">{statsData.totalHRs || 0}</p>
               </div>
               <FaUsers className="text-4xl text-blue-500/70" />
             </div>
@@ -305,7 +309,7 @@ const RecruiterAnalytics = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-purple-700 text-sm font-medium">Total Managers</p>
-                <p className="text-3xl font-bold text-purple-800">{loading ? '...' : (statsData.totalManagers || 0)}</p>
+                <p className="text-3xl font-bold text-purple-800">{statsData.totalManagers || 0}</p>
               </div>
               <FaUserTie className="text-4xl text-purple-500/70" />
             </div>
@@ -315,7 +319,7 @@ const RecruiterAnalytics = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-green-700 text-sm font-medium">Drive Participation</p>
-                <p className="text-3xl font-bold text-green-800">{loading ? '...' : (statsData.totalDrives || 0)}</p>
+                <p className="text-3xl font-bold text-green-800">{statsData.totalDrives || 0}</p>
               </div>
               <FaHandshake className="text-4xl text-green-500/70" />
             </div>
@@ -325,14 +329,22 @@ const RecruiterAnalytics = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-orange-700 text-sm font-medium">Job Posting Frequency</p>
-                <p className="text-3xl font-bold text-orange-800">{loading ? '...' : (statsData.jobPostingFrequency || 0)}</p>
+                <p className="text-3xl font-bold text-orange-800">{statsData.jobPostingFrequency || 0}</p>
               </div>
               <FaBriefcase className="text-4xl text-orange-500/70" />
             </div>
           </div>
         </div>
+        )}
 
         {/* Charts Grid */}
+        {loading ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {[1, 2, 3, 4].map((i) => (
+              <SkeletonCard key={i} showHeader bodyLines={4} className="min-h-[280px]" />
+            ))}
+          </div>
+        ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* HR Distribution Chart */}
           <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
@@ -389,6 +401,7 @@ const RecruiterAnalytics = () => {
             </div>
           </div>
         </div>
+        )}
       </div>
     </div>
   );

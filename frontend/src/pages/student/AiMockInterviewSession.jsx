@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  Shield, AlertTriangle, Clock, ChevronRight, CheckCircle, XCircle, Loader2,
+  Shield, AlertTriangle, Clock, ChevronRight, CheckCircle, XCircle,
   Video, Maximize2, Send, RotateCcw, Volume2, Mic, Bot,
 } from 'lucide-react';
 import api from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
+import { LoadingPage, Spinner } from '../../components/ui/loading';
 import { useInterviewSpeech } from '../../hooks/useInterviewSpeech';
 import { ProctoringEngine } from '../../proctoring-engine/ProctoringEngine';
 import { defaultProctoringConfig } from '../../proctoring-engine/constants';
@@ -423,9 +424,8 @@ export default function AiMockInterviewSession() {
 
   if (phase === PHASE.LOAD) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-3">
-        <Loader2 className="w-7 h-7 animate-spin text-indigo-600" />
-        <p className="text-sm text-slate-500">Loading interview…</p>
+      <div className="min-h-screen bg-slate-50">
+        <LoadingPage title="Loading interview…" />
       </div>
     );
   }
@@ -513,7 +513,7 @@ export default function AiMockInterviewSession() {
           >
             {starting ? (
               <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <Spinner size="sm" />
                 <span className="hidden sm:inline">Starting…</span>
               </>
             ) : (

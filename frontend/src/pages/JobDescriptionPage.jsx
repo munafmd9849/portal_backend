@@ -5,7 +5,8 @@
 
 import React, { useState, useCallback, useEffect, Suspense, lazy } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader, FileText, FilePlus, X, CheckCircle } from 'lucide-react';
+import { ArrowLeft, FileText, FilePlus, X, CheckCircle } from 'lucide-react';
+import { SkeletonList } from '../components/ui/loading';
 import { useJobDetails } from '../hooks/useJobDetails';
 import { useAuth } from '../hooks/useAuth';
 import { applyToJob, withdrawApplication, getStudentApplications } from '../services/applications';
@@ -486,10 +487,7 @@ const JobDescriptionPage = () => {
             </p>
 
             {loadingResumes ? (
-              <div className="flex justify-center items-center py-8">
-                <Loader className="animate-spin text-blue-600" size={24} />
-                <span className="ml-2 text-gray-600">Loading resumes...</span>
-              </div>
+              <SkeletonList rows={3} className="rounded-lg border border-gray-200 overflow-hidden" />
             ) : (
               <div className="space-y-3">
                 {resumes.length > 0 && (

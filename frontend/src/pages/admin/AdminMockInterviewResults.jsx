@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, Search, Loader2 } from 'lucide-react';
+import { ChevronLeft, Search } from 'lucide-react';
 import api from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
 import { ErrorBoundary } from '../../components/ui/ErrorBoundary';
+import { SkeletonTable, SkeletonStatsGrid } from '../../components/ui/loading';
 import MockInterviewResultBody from '../../components/mockInterview/MockInterviewResultBody';
 
 function formatSessionTime(ts) {
@@ -80,9 +81,9 @@ function AdminMockInterviewResultsComponent() {
 
   if (loading) {
     return (
-      <div className="py-20 flex flex-col items-center gap-3">
-        <Loader2 className="w-7 h-7 animate-spin text-sky-600" />
-        <p className="text-sm text-gray-500">Loading results…</p>
+      <div className="space-y-3 pb-8">
+        <SkeletonStatsGrid count={3} columns="grid-cols-3" />
+        <SkeletonTable rows={8} columns={5} />
       </div>
     );
   }

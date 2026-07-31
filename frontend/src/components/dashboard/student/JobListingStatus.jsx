@@ -1,4 +1,5 @@
-import { Briefcase, CheckCircle, Loader, XCircle } from 'lucide-react';
+import { Briefcase, CheckCircle, XCircle } from 'lucide-react';
+import { Spinner } from '../../ui/loading';
 
 /** Compact grid for dashboard home job preview (JobListingStatus pills). */
 export const JOB_LISTING_GRID_COLS =
@@ -40,7 +41,7 @@ export function JobListingStatus({
   if (isApplying) {
     return (
       <span className={`${statusPill} bg-blue-50 text-blue-700 border-blue-200`} title={title}>
-        <Loader className={`${iconCls} animate-spin`} />
+        <Spinner size="sm" className="flex-shrink-0 h-3 w-3" />
         <span className="whitespace-normal leading-tight">Applying</span>
       </span>
     );

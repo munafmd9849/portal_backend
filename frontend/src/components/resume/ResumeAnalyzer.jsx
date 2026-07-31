@@ -15,6 +15,7 @@ import {
   X,
   Zap,
 } from 'lucide-react';
+import { SkeletonCard } from '../ui/loading';
 import api from '../../services/api';
 import * as pdfjsLib from 'pdfjs-dist';
 import { formatFileSize } from '../../utils/resumeUtils';
@@ -477,12 +478,13 @@ export default function ResumeAnalyzer({ resumeInfo, userId, resumes = [], onRes
 
   if (loading) {
     return (
-      <div className="text-center py-8">
-        <div className="inline-flex items-center">
-          <RefreshCw className="h-6 w-6 animate-spin text-indigo-600 mr-2" />
-          <span className="text-slate-600">Analyzing your resume...</span>
+      <div className="space-y-6">
+        <SkeletonCard bodyLines={2} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <SkeletonCard bodyLines={4} />
+          <SkeletonCard bodyLines={4} />
         </div>
-        <p className="text-sm text-slate-500 mt-2">This may take a few moments</p>
+        <SkeletonCard bodyLines={3} />
       </div>
     );
   }

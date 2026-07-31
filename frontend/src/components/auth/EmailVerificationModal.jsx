@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { Mail, RefreshCw, CheckCircle, AlertCircle, X } from 'lucide-react';
+import { Mail, CheckCircle, AlertCircle, X } from 'lucide-react';
+import { Spinner } from '../ui/loading';
 import { showError } from '../../utils/toast';
 
 function EmailVerificationModal({ isOpen, onClose, userEmail }) {
@@ -159,7 +160,7 @@ function EmailVerificationModal({ isOpen, onClose, userEmail }) {
             >
               {isChecking ? (
                 <>
-                  <RefreshCw className="animate-spin mr-2" size={16} />
+                  <Spinner size="sm" className="mr-2" />
                   Checking...
                 </>
               ) : (
@@ -177,7 +178,7 @@ function EmailVerificationModal({ isOpen, onClose, userEmail }) {
             >
               {isResending ? (
                 <>
-                  <RefreshCw className="animate-spin mr-2" size={16} />
+                  <Spinner size="sm" className="mr-2" />
                   Sending...
                 </>
               ) : resendCooldown > 0 ? (

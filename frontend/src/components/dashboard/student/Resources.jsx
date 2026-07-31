@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { FaSearch } from 'react-icons/fa';
 import {
   Sparkles,
-  Loader2,
   Target,
   FileText,
   MessageSquare,
   Layers,
 } from 'lucide-react';
 import api from '../../../services/api';
+import { Spinner, SkeletonCard } from '../../ui/loading';
 
 const PURPOSE_CARDS = [
   {
@@ -255,7 +255,7 @@ export default function PlacementResources() {
           >
             {loading ? (
               <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Spinner size="sm" tone="white" />
                 <span className="hidden sm:inline">Working…</span>
               </>
             ) : (
@@ -290,9 +290,9 @@ export default function PlacementResources() {
         )}
 
         {!error && loading && (
-          <div className="mt-3 p-3 bg-indigo-50/70 border border-indigo-100 rounded-lg min-w-0 flex items-center gap-2">
-            <Loader2 className="h-4 w-4 text-indigo-600 animate-spin shrink-0" />
-            <p className="text-sm text-indigo-800 font-medium">Generating guidance…</p>
+          <div className="mt-3 space-y-3 min-w-0">
+            <SkeletonCard bodyLines={3} className="border-indigo-100 bg-indigo-50/70" />
+            <SkeletonCard bodyLines={4} className="border-indigo-100 bg-indigo-50/70" />
           </div>
         )}
       </section>

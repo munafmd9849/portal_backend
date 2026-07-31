@@ -12,13 +12,13 @@ import {
   Clock,
   XCircle,
   Star,
-  Loader,
   AlertCircle,
   Building2,
   Send,
   RefreshCw,
   Search,
 } from 'lucide-react';
+import { SkeletonList, Spinner } from '../../ui/loading';
 import { FaInfoCircle } from 'react-icons/fa';
 import api from '../../../services/api';
 
@@ -290,11 +290,8 @@ export default function EndorsementManagement({ onEndorsementUpdate }) {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl border border-slate-200/80 p-4 md:p-5 shadow-sm min-w-0">
-        <div className="flex items-center justify-center py-8">
-          <Loader className="w-5 h-5 animate-spin text-indigo-600" />
-          <span className="ml-2 text-sm text-slate-600">Loading endorsements...</span>
-        </div>
+      <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm min-w-0 overflow-hidden">
+        <SkeletonList rows={4} />
       </div>
     );
   }
@@ -517,7 +514,7 @@ export default function EndorsementManagement({ onEndorsementUpdate }) {
                 >
                   {requesting ? (
                     <>
-                      <Loader className="w-4 h-4 animate-spin" />
+                      <Spinner size="sm" />
                       Sending...
                     </>
                   ) : (
@@ -683,7 +680,7 @@ export default function EndorsementManagement({ onEndorsementUpdate }) {
                     title="Cancel request"
                   >
                     {deleting === request.id ? (
-                      <Loader className="w-4 h-4 animate-spin" />
+                      <Spinner size="sm" />
                     ) : (
                       <Trash2 className="w-4 h-4" />
                     )}
@@ -722,7 +719,7 @@ export default function EndorsementManagement({ onEndorsementUpdate }) {
                     title="Delete expired request"
                   >
                     {deleting === request.id ? (
-                      <Loader className="w-4 h-4 animate-spin" />
+                      <Spinner size="sm" />
                     ) : (
                       <Trash2 className="w-4 h-4" />
                     )}

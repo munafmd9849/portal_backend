@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { SkeletonList, Spinner } from '../../ui/loading';
 import { 
   FaPaperPlane, 
   FaQuestionCircle, 
@@ -252,13 +253,7 @@ const RecruiterQuery = () => {
             
             <div className="p-6">
               {loadingQueries ? (
-                <div className="text-center py-10">
-                  <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <FaClock className="text-blue-600 text-2xl animate-spin" />
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-700 mb-2">Loading your queries...</h3>
-                  <p className="text-gray-500">Please wait while we fetch your query history.</p>
-                </div>
+                <SkeletonList rows={5} className="rounded-lg border border-gray-100" />
               ) : pastQueries.length === 0 ? (
                 <div className="text-center py-10">
                   <div className="bg-gray-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -424,7 +419,7 @@ const RecruiterQuery = () => {
                 >
                   {submitting ? (
                     <>
-                      <FaClock className="animate-spin" />
+                      <Spinner size="sm" />
                       Submitting...
                     </>
                   ) : (

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { listJobs } from '../../services/jobs';
 import { Link } from 'react-router-dom';
+import { LoadingPage } from '../../components/ui/loading';
 
 export default function JobList() {
   const [jobs, setJobs] = useState([]);
@@ -39,7 +40,7 @@ export default function JobList() {
     };
   }, []);
 
-  if (loading) return <div className="p-6">Loading jobs...</div>;
+  if (loading) return <LoadingPage title="Loading jobs…" />;
   if (error) return <div className="p-6 text-red-600">{error}</div>;
 
   return (

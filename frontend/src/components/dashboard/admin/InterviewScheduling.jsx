@@ -5,7 +5,8 @@
 
 import React, { useEffect, useState } from 'react';
 import api from '../../../services/api';
-import { Loader, Building2, Briefcase, Users, User, Plus, X, Mail, Save, CheckCircle, AlertCircle, Lock, LockOpen, PlayCircle, Calendar, GraduationCap, MapPin, Settings, View, Clock, ChevronRight, Info, Video, Link2 } from 'lucide-react';
+import { Building2, Briefcase, Users, User, Plus, X, Mail, Save, CheckCircle, AlertCircle, Lock, LockOpen, PlayCircle, Calendar, GraduationCap, MapPin, Settings, View, Clock, ChevronRight, Info, Video, Link2 } from 'lucide-react';
+import { Skeleton, SkeletonCard, Spinner } from '../../ui/loading';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import { useToast } from '../../ui/Toast';
@@ -413,15 +414,15 @@ export default function InterviewScheduling() {
     return (
       <div className="space-y-4 p-4 sm:p-6 md:p-8">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="bg-white rounded-lg border border-gray-200 p-4 animate-pulse flex items-center gap-4">
-            <div className="w-10 h-10 bg-gray-100 rounded-md shrink-0" />
+          <SkeletonCard key={i} className="p-4 flex items-center gap-4 rounded-lg">
+            <Skeleton className="w-10 h-10 rounded-md shrink-0" />
             <div className="flex-1 space-y-2">
-              <div className="h-3 bg-gray-100 rounded w-1/4" />
-              <div className="h-4 bg-gray-100 rounded w-1/2" />
-              <div className="h-3 bg-gray-100 rounded w-1/3" />
+              <Skeleton className="h-3 w-1/4" />
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-3 w-1/3" />
             </div>
-            <div className="w-28 h-9 bg-gray-100 rounded-md shrink-0" />
-          </div>
+            <Skeleton className="w-28 h-9 rounded-md shrink-0" />
+          </SkeletonCard>
         ))}
       </div>
     );
@@ -609,9 +610,12 @@ export default function InterviewScheduling() {
             {/* Modal Content */}
             <div className="flex-1 overflow-y-auto p-8 bg-[#f8fafc] space-y-8">
               {loadingSession ? (
-                <div className="flex flex-col items-center justify-center py-20 gap-4">
-                  <Loader className="w-10 h-10 text-indigo-600 animate-spin" />
-                  <p className="font-bold text-slate-400 uppercase tracking-widest text-xs">Initializing Session...</p>
+                <div className="space-y-4">
+                  <SkeletonCard bodyLines={2} />
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <SkeletonCard bodyLines={3} />
+                    <SkeletonCard bodyLines={3} />
+                  </div>
                 </div>
               ) : session ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -717,7 +721,7 @@ export default function InterviewScheduling() {
 
                       {session.status === 'NOT_STARTED' && safeRounds.length > 0 && (
                         <button onClick={handleConfigureRounds} className="w-full mt-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-3">
-                          {configuringRounds ? <Loader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                          {configuringRounds ? <Spinner size="sm" /> : <Save className="w-4 h-4" />}
                           Finalize Rounds
                         </button>
                       )}
@@ -768,7 +772,7 @@ export default function InterviewScheduling() {
 
                       {safeInterviewerEmails.length > 0 && (
                         <button onClick={handleInviteInterviewers} className="w-full mt-8 py-4 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-100 hover:bg-emerald-700 transition-all flex items-center justify-center gap-3">
-                          {inviting ? <Loader className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                          {inviting ? <Spinner size="sm" /> : <Mail className="w-4 h-4" />}
                           Send Access Invites
                         </button>
                       )}
@@ -897,7 +901,7 @@ export default function InterviewScheduling() {
                           disabled={assigningSlot}
                           className="w-full py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-60 flex items-center justify-center gap-2"
                         >
-                          {assigningSlot ? <Loader className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                          {assigningSlot ? <Spinner size="sm" /> : <Plus className="w-4 h-4" />}
                           Save slot
                         </button>
                       </form>

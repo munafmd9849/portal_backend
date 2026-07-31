@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FaPlus, FaEdit, FaTrash, FaCheckCircle, FaTimesCircle, FaSpinner, FaGraduationCap, FaMapMarkerAlt, FaCalendarAlt } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaTrash, FaCheckCircle, FaTimesCircle, FaGraduationCap, FaMapMarkerAlt, FaCalendarAlt } from 'react-icons/fa';
+import { SkeletonTable, Spinner } from '../../ui/loading';
 import api from '../../../services/api';
 import { useToast } from '../../ui/Toast';
 
@@ -134,10 +135,7 @@ const AcademicStructureManager = () => {
 
   if (loading) {
     return (
-      <div className="py-20 flex flex-col items-center justify-center gap-3">
-        <div className="w-8 h-8 border-2 border-gray-200 border-t-sky-600 rounded-full animate-spin" />
-        <p className="text-gray-500 text-sm">Loading academic structure...</p>
-      </div>
+      <SkeletonTable rows={8} columns={4} />
     );
   }
 
@@ -382,7 +380,7 @@ const AcademicStructureManager = () => {
                   disabled={actionLoading}
                   className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {actionLoading ? <FaSpinner className="animate-spin" /> : (modal.type === 'add' ? 'Create' : 'Save')}
+                  {actionLoading ? <Spinner size="sm" tone="white" /> : (modal.type === 'add' ? 'Create' : 'Save')}
                 </button>
               </div>
             </form>

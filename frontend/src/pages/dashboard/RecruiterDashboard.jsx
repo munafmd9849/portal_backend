@@ -15,6 +15,7 @@ import InterviewScheduling from '../../components/dashboard/admin/InterviewSched
 import { useAuth } from '../../hooks/useAuth';
 import showLogoutConfirm from '../../utils/logoutConfirm';
 import api from '../../services/api';
+import { LoadingPage, SkeletonText } from '../../components/ui/loading';
 
 const RecruiterDashboard = () => {
   const [searchParams] = useSearchParams();
@@ -71,8 +72,9 @@ const RecruiterDashboard = () => {
     }
   }, [user, role, authLoading, navigate, location.pathname]);
 
-  // Don't render anything if unauthorized
-  if (authLoading) return null;
+  if (authLoading) {
+    return <LoadingPage />;
+  }
 
   const userRole = role?.toUpperCase() || user?.role?.toUpperCase() || '';
   const allowedRoles = ['RECRUITER', 'ADMIN'];
@@ -207,7 +209,11 @@ const RecruiterDashboard = () => {
               <div className="ml-4 space-y-0">
                 <div className="flex items-center">
                   <h2 className="text-2xl font-bold text-black flex items-center gap-2">
-                    {loading ? 'Loading...' : (recruiterProfile?.displayName || user?.displayName || user?.email?.split('@')[0] || 'Recruiter')}
+                    {loading ? (
+                      <SkeletonText className="w-40" lineClassName="h-7" />
+                    ) : (
+                      recruiterProfile?.displayName || user?.displayName || user?.email?.split('@')[0] || 'Recruiter'
+                    )}
                     <button
                       onClick={() => {
                         setActiveTab('profile');

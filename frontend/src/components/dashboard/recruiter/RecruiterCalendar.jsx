@@ -5,6 +5,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Calendar, Clock, Briefcase, AlertCircle, CheckCircle, MapPin, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
+import { SkeletonCard, SkeletonList } from '../../ui/loading';
 import api from '../../../services/api';
 
 const RecruiterCalendar = () => {
@@ -201,8 +202,9 @@ const RecruiterCalendar = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-gray-500">Loading calendar...</div>
+      <div className="space-y-6">
+        <SkeletonCard showHeader bodyLines={0} className="p-6 min-h-[360px]" />
+        <SkeletonList rows={3} className="rounded-lg border border-gray-200 overflow-hidden" />
       </div>
     );
   }

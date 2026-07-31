@@ -8,8 +8,8 @@ import {
   BookOpen,
   Terminal,
   Plus,
-  Loader2,
 } from 'lucide-react';
+import { Spinner } from '../../ui/loading';
 import api from '../../../services/api';
 import { useToast } from '../../ui/Toast';
 import { createCodingQuestion, parseCodingQuestions } from '../../../utils/mockInterviewQuestions';
@@ -261,7 +261,7 @@ export default function MockInterviewEditDriveModal({ drive, isOpen, onClose, on
             disabled={submitting}
             className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold uppercase flex items-center gap-2 disabled:opacity-50"
           >
-            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            {submitting ? <Spinner size="sm" /> : null}
             Save Changes
           </button>
         </div>

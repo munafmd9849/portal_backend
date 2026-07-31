@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { getAuditLogs } from '../../../services/auditLogs';
 import { useAuth } from '../../../hooks/useAuth';
+import { Skeleton } from '../../ui/loading';
 
 const ROLE_COLORS = {
     'STUDENT': 'bg-blue-100 text-blue-700 border-blue-200',
@@ -255,9 +256,9 @@ export default function AuditLogs() {
                         <tbody className="divide-y divide-gray-100">
                             {loading ? (
                                 Array.from({ length: 5 }).map((_, i) => (
-                                    <tr key={i} className="animate-pulse">
+                                    <tr key={i}>
                                         <td colSpan="5" className="px-4 py-2.5">
-                                            <div className="h-4 bg-gray-100 rounded w-full"></div>
+                                            <Skeleton className="h-4 w-full" />
                                         </td>
                                     </tr>
                                 ))

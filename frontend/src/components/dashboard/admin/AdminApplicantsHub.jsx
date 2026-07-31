@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../../services/api';
-import { Search, Users, Filter, X, Building2, FileText, Calendar, StickyNote, Pencil, Check, ChevronRight, Briefcase, Info, Loader } from 'lucide-react';
+import { Search, Users, Filter, X, Building2, FileText, Calendar, StickyNote, Pencil, Check, ChevronRight, Briefcase, Info } from 'lucide-react';
+import { SkeletonCardGrid, Spinner } from '../../ui/loading';
 import { useToast } from '../../ui/Toast';
 
 function CompanyFilterDropdown({ companies, value, onChange }) {
@@ -87,21 +88,6 @@ function CompanyFilterDropdown({ companies, value, onChange }) {
           </ul>
         </div>
       )}
-    </div>
-  );
-}
-
-function CompanyCardSkeleton() {
-  return (
-    <div className="animate-pulse bg-white rounded-lg border border-gray-200 p-5">
-      <div className="flex items-center gap-4 mb-4">
-        <div className="w-11 h-11 bg-gray-200 rounded-md" />
-        <div className="space-y-2 flex-1">
-          <div className="h-4 w-2/3 bg-gray-200 rounded" />
-          <div className="h-3 w-1/3 bg-gray-100 rounded" />
-        </div>
-      </div>
-      <div className="h-14 bg-gray-50 rounded-md" />
     </div>
   );
 }
@@ -269,9 +255,7 @@ export default function AdminApplicantsHub() {
           <p className="text-gray-600 text-sm mt-1 max-w-md mx-auto">{error}</p>
         </div>
       ) : loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {Array.from({ length: 6 }).map((_, idx) => <CompanyCardSkeleton key={idx} />)}
-        </div>
+        <SkeletonCardGrid count={6} columns="grid-cols-1 md:grid-cols-2 lg:grid-cols-3" className="gap-5" />
       ) : companies.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 p-16 text-center shadow-sm">
           <div className="w-16 h-16 bg-sky-50 text-sky-400 rounded-md flex items-center justify-center mx-auto mb-5">
@@ -552,7 +536,7 @@ export default function AdminApplicantsHub() {
                                   disabled={savingNote}
                                   className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-md disabled:opacity-50 inline-flex items-center gap-1.5 hover:bg-blue-700"
                                 >
-                                  {savingNote ? <Loader className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                                  {savingNote ? <Spinner size="sm" /> : <Check className="w-3 h-3" />}
                                   Save
                                 </button>
                                 <button

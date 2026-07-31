@@ -6,8 +6,8 @@ import {
   FaSearch,
   FaCheckCircle,
   FaFilter,
-  FaSpinner,
 } from 'react-icons/fa';
+import { SkeletonTable } from '../../ui/loading';
 import api from '../../../services/api';
 
 const CandidateAnalysisModal = ({ isOpen, jobId, jobTitle, onClose, onApplySelection }) => {
@@ -160,10 +160,7 @@ const CandidateAnalysisModal = ({ isOpen, jobId, jobTitle, onClose, onApplySelec
 
         <div className="flex-1 overflow-y-auto bg-white">
           {loading ? (
-            <div className="flex flex-col items-center justify-center h-full gap-3">
-              <FaSpinner className="w-8 h-8 text-blue-800 animate-spin" />
-              <p className="text-gray-500 text-sm">Loading candidate rankings…</p>
-            </div>
+            <SkeletonTable rows={8} columns={6} className="border-0 rounded-none" />
           ) : filteredCandidates.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-gray-500 gap-2 text-center px-6">
               <FaFilter className="w-10 h-10 text-gray-200" />

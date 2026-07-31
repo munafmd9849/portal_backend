@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { Download, Edit3, Eye, FileSpreadsheet, Loader, Search, ShieldAlert, ShieldOff, Sparkles } from 'lucide-react';
+import { Download, Edit3, Eye, FileSpreadsheet, Search, ShieldAlert, ShieldOff, Sparkles } from 'lucide-react';
+import { Spinner } from '../../ui/loading';
 
 const ACTIONS_WIDTH = 132;
 const SR_WIDTH = 56;
@@ -129,7 +130,7 @@ function cellContent(row, col, { onViewAtsDetails, onScoreAts, scoringStudentId,
               className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-50 shrink-0"
             >
               {scoringStudentId === row.id ? (
-                <Loader className="w-3 h-3 animate-spin shrink-0" />
+                <Spinner size="sm" className="h-3 w-3 shrink-0" />
               ) : (
                 <Sparkles className="w-3 h-3 shrink-0" />
               )}
@@ -196,7 +197,7 @@ function RowActions({
         title="Edit student"
       >
         {operationLoading ? (
-          <Loader className="w-4 h-4 animate-spin" />
+          <Spinner size="sm" />
         ) : (
           <Edit3 className="w-4 h-4" strokeWidth={2} />
         )}
@@ -213,7 +214,7 @@ function RowActions({
         title={blockTitle}
       >
         {operationLoading ? (
-          <Loader className="w-4 h-4 animate-spin" />
+          <Spinner size="sm" />
         ) : row.status === 'Blocked' ? (
           <ShieldOff className="w-4 h-4" strokeWidth={2} />
         ) : (
@@ -320,7 +321,7 @@ export default function StudentDirectoryTable({
             title="Score up to 15 unscored primary resumes"
           >
             {batchAtsRunning ? (
-              <Loader className="w-4 h-4 animate-spin" />
+              <Spinner size="sm" />
             ) : (
               <Sparkles className="w-4 h-4" />
             )}
@@ -334,7 +335,7 @@ export default function StudentDirectoryTable({
             title="Export to Google Sheets"
           >
             {sheetsExporting ? (
-              <Loader className="w-5 h-5 animate-spin" />
+              <Spinner size="md" />
             ) : (
               <FileSpreadsheet className="w-5 h-5" />
             )}

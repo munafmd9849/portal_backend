@@ -3,8 +3,8 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Loader2 } from 'lucide-react';
 import { listPublicStories } from '../../services/successStories';
+import { Skeleton, SkeletonCard } from '../ui/loading';
 
 export default function SuccessStoryCarousel() {
   const [stories, setStories] = useState([]);
@@ -45,9 +45,17 @@ export default function SuccessStoryCarousel() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-12">
-        <Loader2 className="w-7 h-7 animate-spin text-amber-700/60" />
-      </div>
+      <section className="px-4 sm:px-8 py-12 max-w-6xl mx-auto" aria-busy="true" aria-label="Loading success stories">
+        <div className="text-center mb-8 space-y-2">
+          <Skeleton className="h-8 w-64 mx-auto" />
+          <Skeleton className="h-4 w-80 max-w-full mx-auto" />
+        </div>
+        <div className="flex gap-4 overflow-hidden pb-2">
+          {[1, 2, 3].map((i) => (
+            <SkeletonCard key={i} className="shrink-0 w-[280px] sm:w-[300px]" bodyLines={4} showHeader={false} />
+          ))}
+        </div>
+      </section>
     );
   }
 

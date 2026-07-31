@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
 import api from '../../../services/api.js';
-import { Loader2, Star, Award, CheckCircle } from 'lucide-react';
+import { Star, Award, CheckCircle } from 'lucide-react';
+import { SkeletonCard } from '../../ui/loading';
 
 const parseRelatedSkills = (endorsement) => {
   if (Array.isArray(endorsement.relatedSkills)) {
@@ -327,8 +328,10 @@ const Endorsements = ({ isAdminView = false, studentId = null, profileData = nul
   if (loading) {
     return (
       <section className="bg-white rounded-xl border border-slate-200/80 p-4 sm:p-5 shadow-sm">
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
+        <div className="space-y-2 md:space-y-3">
+          {[1, 2, 3].map((i) => (
+            <SkeletonCard key={i} bodyLines={3} />
+          ))}
         </div>
       </section>
     );

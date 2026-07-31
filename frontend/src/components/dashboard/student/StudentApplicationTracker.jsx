@@ -10,6 +10,7 @@ import {
   isTerminalApplication,
 } from '../../../utils/applicationTrackerState';
 import { respondToOffer } from '../../../services/applications';
+import { Spinner } from '../../ui/loading';
 
 function TimelineIcon({ status }) {
   if (status === 'completed') {
@@ -137,16 +138,18 @@ export default function StudentApplicationTracker({ application, onApplicationUp
               type="button"
               disabled={offerLoading}
               onClick={() => handleOfferResponse('accept')}
-              className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
             >
+              {offerLoading ? <Spinner size="sm" tone="white" /> : null}
               Accept offer
             </button>
             <button
               type="button"
               disabled={offerLoading}
               onClick={() => handleOfferResponse('decline')}
-              className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50 disabled:opacity-60"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50 disabled:opacity-60"
             >
+              {offerLoading ? <Spinner size="sm" /> : null}
               Decline offer
             </button>
           </div>

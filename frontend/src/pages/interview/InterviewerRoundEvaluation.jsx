@@ -7,7 +7,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
 import { API_BASE_URL } from '../../config/api';
-import { Loader, AlertCircle, Save, CheckCircle, XCircle, Clock, ArrowLeft, User, FileText, ExternalLink, Users, Link as LinkIcon, ChevronDown } from 'lucide-react';
+import { AlertCircle, Save, CheckCircle, XCircle, Clock, ArrowLeft, User, FileText, ExternalLink, Users, Link as LinkIcon, ChevronDown } from 'lucide-react';
+import { SkeletonDirectoryPage, Spinner } from '../../components/ui/loading';
 import { showSuccess, showError, showWarning, showLoading, replaceLoadingToast, dismissToast } from '../../utils/toast';
 import ThankYouPopup from '../../components/common/ThankYouPopup';
 
@@ -241,10 +242,9 @@ const InterviewerRoundEvaluation = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader className="w-8 h-8 animate-spin mx-auto text-blue-600 mb-4" />
-          <p className="text-gray-600">Loading candidates...</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-50 p-6">
+        <div className="max-w-7xl mx-auto">
+          <SkeletonDirectoryPage statsCount={3} tableRows={8} tableColumns={5} />
         </div>
       </div>
     );
@@ -302,7 +302,7 @@ const InterviewerRoundEvaluation = () => {
               >
                 {endingRound ? (
                   <>
-                    <Loader className="w-5 h-5 animate-spin" />
+                    <Spinner size="sm" />
                     Ending...
                   </>
                 ) : (
@@ -523,7 +523,7 @@ const InterviewerRoundEvaluation = () => {
                             >
                               {isSaving ? (
                                 <>
-                                  <Loader className="w-4 h-4 animate-spin" />
+                                  <Spinner size="sm" />
                                   <span className="hidden sm:inline">Saving...</span>
                                 </>
                               ) : (

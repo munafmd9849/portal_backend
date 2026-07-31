@@ -4,8 +4,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FaUserPlus, FaBan, FaCheckCircle, FaSpinner, FaUsers } from 'react-icons/fa';
+import { FaUserPlus, FaBan, FaCheckCircle, FaUsers } from 'react-icons/fa';
 import { Settings, X, Briefcase, Users, Target, Activity, Clock, ChevronRight, Mail, User, Shield, Info, BarChart3, TrendingUp, History } from 'lucide-react';
+import { SkeletonTable, SkeletonStatsGrid, Spinner } from '../../ui/loading';
 import api from '../../../services/api';
 import { useToast } from '../../ui/Toast';
 import {
@@ -236,10 +237,7 @@ export default function CreateDisableAdmins() {
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           {loading ? (
-            <div className="p-12 text-center">
-              <FaSpinner className="animate-spin text-3xl text-sky-600 mx-auto mb-2" />
-              <p className="text-gray-500">Loading admin directory...</p>
-            </div>
+            <SkeletonTable rows={6} columns={5} />
           ) : admins.length === 0 ? (
             <div className="p-12 text-center text-gray-500">
               <FaUsers className="text-4xl text-gray-300 mx-auto mb-2" />
@@ -343,7 +341,7 @@ export default function CreateDisableAdmins() {
                                 className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                                 title="Disable"
                               >
-                                {actionLoading[a.id] ? <FaSpinner className="animate-spin w-4 h-4" /> : <FaBan className="w-4 h-4" />}
+                                {actionLoading[a.id] ? <Spinner size="sm" /> : <FaBan className="w-4 h-4" />}
                               </button>
                             ) : (
                               <button
@@ -352,7 +350,7 @@ export default function CreateDisableAdmins() {
                                 className="p-2 text-green-500 hover:bg-green-50 rounded-lg transition-colors"
                                 title="Enable"
                               >
-                                {actionLoading[a.id] ? <FaSpinner className="animate-spin w-4 h-4" /> : <FaCheckCircle className="w-4 h-4" />}
+                                {actionLoading[a.id] ? <Spinner size="sm" /> : <FaCheckCircle className="w-4 h-4" />}
                               </button>
                             )
                           )}
@@ -569,7 +567,7 @@ export default function CreateDisableAdmins() {
                   disabled={actionLoading.create || actionLoading.update}
                   className="px-8 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700  disabled:opacity-50 flex items-center gap-2 font-semibold transition-all"
                 >
-                  {(actionLoading.create || actionLoading.update) && <FaSpinner className="animate-spin" />}
+                  {(actionLoading.create || actionLoading.update) && <Spinner size="sm" />}
                   {createModal ? 'Create admin' : 'Save changes'}
                 </button>
               </div>
@@ -607,10 +605,7 @@ export default function CreateDisableAdmins() {
 
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {perfLoading ? (
-                <div className="py-16 flex flex-col items-center justify-center gap-3">
-                  <FaSpinner className="animate-spin text-2xl text-sky-600" />
-                  <p className="text-sm text-gray-500">Loading performance…</p>
-                </div>
+                <SkeletonStatsGrid count={4} columns="grid-cols-2 md:grid-cols-4" />
               ) : perfData ? (
                 <>
                   <div className="bg-white rounded-lg border border-gray-200 shadow-sm px-4 py-3.5">

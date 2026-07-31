@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
 import PWIOILOGO from '../../../assets/images/brand_logo.webp';
 import { User, SquarePen, Menu } from 'lucide-react';
+import { Spinner, SkeletonText } from '../../ui/loading';
 import { useAdminMobileMenu } from '../../../contexts/AdminMobileMenuContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../../services/api';
@@ -114,7 +115,7 @@ export default function AdminLayout({ children }) {
               style={{ width: '2.25rem', height: '2.25rem' }}
             >
               {loading ? (
-                <User className="text-white h-3.5 w-3.5" />
+                <Spinner size="sm" tone="white" />
               ) : adminProfile?.profilePhoto ? (
                 <img src={adminProfile.profilePhoto} alt="" className="w-full h-full object-cover" />
               ) : (
@@ -127,7 +128,7 @@ export default function AdminLayout({ children }) {
             <div className="flex items-center gap-3 min-w-0 flex-1 z-10">
               <div className="h-11 w-11 rounded-full bg-indigo-600 flex items-center justify-center overflow-hidden ring-2 ring-indigo-100 shrink-0">
                 {loading ? (
-                  <User className="text-white h-5 w-5" />
+                  <Spinner size="sm" tone="white" />
                 ) : adminProfile?.profilePhoto ? (
                   <img src={adminProfile.profilePhoto} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
@@ -136,7 +137,9 @@ export default function AdminLayout({ children }) {
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <h2 className="text-lg font-semibold text-slate-900 truncate">{displayName}</h2>
+                  <h2 className="text-lg font-semibold text-slate-900 truncate">
+                    {loading ? <SkeletonText className="w-36" lineClassName="h-5" /> : displayName}
+                  </h2>
                   <button
                     type="button"
                     onClick={() => {

@@ -5,7 +5,8 @@ import CrManagerCard from './CrManagerCard';
 import FunnelStatCard from './FunnelStatCard';
 import { fetchCrManagers } from '../../../services/jobOpportunities';
 import { PieChart } from 'react-minimal-pie-chart';
-import { Filter, TrendingUp, Users, Briefcase, MessageSquare, X, Loader2, MapPin, GraduationCap, Shield } from 'lucide-react';
+import { Filter, TrendingUp, Users, Briefcase, MessageSquare, X, MapPin, GraduationCap, Shield } from 'lucide-react';
+import { SkeletonStatsGrid, SkeletonFunnelRow, SkeletonList } from '../../ui/loading';
 import { FaMapMarkerAlt, FaGraduationCap, FaUsers, FaUserShield } from 'react-icons/fa';
 import CustomDropdown from '../../common/CustomDropdown';
 import { adminDashboardService } from '../../../services/adminDashboard';
@@ -240,17 +241,14 @@ export default function AdminHome({ embedded = false }) {
     return map[status] || status || '—';
   };
 
-  const renderStatCards = (items, loading) => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {loading ? (
-        Array.from({ length: 4 }).map((_, idx) => (
-          <div key={idx} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm animate-pulse">
-            <div className="h-4 bg-slate-200 rounded w-24 mb-3" />
-            <div className="h-8 bg-slate-200 rounded w-16" />
-          </div>
-        ))
-      ) : (
-        items.map((stat, idx) => {
+  const renderStatCards = (items, loading) => {
+    if (loading) {
+      return <SkeletonStatsGrid count={4} />;
+    }
+
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {items.map((stat, idx) => {
           const accent = STAT_ACCENTS[stat.borderColor] || STAT_ACCENTS['border-blue-200'];
           return (
             <div
@@ -279,10 +277,10 @@ export default function AdminHome({ embedded = false }) {
               </div>
             </div>
           );
-        })
-      )}
-    </div>
-  );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div className={`space-y-4 sm:space-y-6 p-4 sm:p-6 bg-gradient-to-br from-gray-50 to-blue-50/30 overflow-x-hidden ${embedded ? 'pb-0' : 'min-h-screen'}`}>
@@ -418,9 +416,7 @@ export default function AdminHome({ embedded = false }) {
         </div>
         <div className="relative p-4 bg-slate-50 min-h-[120px]">
           {isLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
-            </div>
+            <SkeletonFunnelRow count={5} />
           ) : (
             <div className="flex flex-wrap gap-2.5">
               {funnelStages.map((stage, i) => (
@@ -446,9 +442,7 @@ export default function AdminHome({ embedded = false }) {
         </div>
         <div className="bg-slate-50">
           {isLoading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
-            </div>
+            <SkeletonList rows={3} />
           ) : activeDrives.length === 0 ? (
             <p className="px-4 py-10 text-center text-sm text-slate-500">
               No active drives in your campus scope
@@ -496,7 +490,7 @@ export default function AdminHome({ embedded = false }) {
         </div>
         <div className="p-4 bg-slate-50">
           {loadingAdminOverview ? (
-            <Loader2 className="w-6 h-6 animate-spin mx-auto my-6 text-indigo-600" />
+            <SkeletonFunnelRow count={4} />
           ) : (
             <div className="flex flex-wrap gap-2.5">
               <CrManagerCard name="JDs Punched" value={adminOverview?.jdsPunched ?? 0} variant="jds" />

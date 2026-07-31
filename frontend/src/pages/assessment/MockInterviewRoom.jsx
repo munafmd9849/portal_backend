@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Video, Code, FileText, Save, Star, 
-  Loader2, User, Timer, X, ChevronRight,
+  User, Timer, X, ChevronRight,
   Maximize2, Minimize2, Settings, MessageSquare,
   ShieldCheck, Layout, ExternalLink, RefreshCcw,
   Info, ArrowLeft, MoreHorizontal, UserCheck, 
@@ -21,6 +21,7 @@ import {
 import { initSocket } from '../../services/socket';
 import { useMockInterviewCodeSync } from '../../hooks/useMockInterviewCodeSync';
 import MockInterviewTechBoard from '../../components/mock-interview/MockInterviewTechBoard';
+import { LoadingPage, Spinner } from '../../components/ui/loading';
 
 export default function MockInterviewRoom() {
   const { assessmentId: slotId } = useParams(); 
@@ -231,15 +232,8 @@ export default function MockInterviewRoom() {
   };
 
   if (loading) return (
-    <div className="h-screen bg-white flex flex-col items-center justify-center gap-6">
-      <div className="relative">
-        <div className="w-16 h-16 border-4 border-slate-100 border-t-teal-600 rounded-full animate-spin" />
-        <Video className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 text-teal-600" />
-      </div>
-      <div className="text-center">
-        <p className="text-sm font-bold text-slate-900 uppercase tracking-widest animate-pulse">Connecting room</p>
-        <p className="text-[10px] text-slate-500 mt-2 font-medium">Connecting video…</p>
-      </div>
+    <div className="h-screen bg-white">
+      <LoadingPage title="Connecting room" subtitle="Connecting video…" />
     </div>
   );
 
@@ -340,7 +334,7 @@ export default function MockInterviewRoom() {
 
               {videoStatus === 'loading' && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-slate-950/90 z-20">
-                  <Loader2 className="w-10 h-10 animate-spin text-teal-400" />
+                  <Spinner size="lg" tone="teal" />
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Starting video…</p>
                 </div>
               )}
@@ -570,7 +564,7 @@ export default function MockInterviewRoom() {
                      disabled={savingFeedback}
                      className="w-full py-4.5 bg-slate-900 hover:bg-slate-800 text-white font-bold uppercase tracking-widest rounded-xl shadow-xl shadow-slate-200 transition-all flex items-center justify-center gap-3 disabled:opacity-50 active:scale-95"
                    >
-                     {savingFeedback ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                     {savingFeedback ? <Spinner size="md" /> : <Save className="w-5 h-5" />}
                      Finalize & Submit
                    </button>
                 </div>

@@ -4,7 +4,6 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Loader2,
   Plus,
   Pencil,
   Trash2,
@@ -19,6 +18,7 @@ import {
   RefreshCw,
   AlertCircle,
 } from 'lucide-react';
+import { LoadingPage, Spinner } from '../../ui/loading';
 import {
   listSections,
   upsertSection,
@@ -257,12 +257,7 @@ export default function LandingCmsManager() {
   };
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 gap-3">
-        <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
-        <p className="text-slate-600 text-sm">Loading CMS…</p>
-      </div>
-    );
+    return <LoadingPage title="Loading CMS…" />;
   }
 
   return (
@@ -300,7 +295,7 @@ export default function LandingCmsManager() {
             disabled={saving}
             className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
           >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+            {saving ? <Spinner size="sm" /> : <Upload className="w-4 h-4" />}
             Publish Page
           </button>
           <button
@@ -468,7 +463,7 @@ export default function LandingCmsManager() {
               disabled={saving}
               className="inline-flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
             >
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+              {saving && <Spinner size="sm" />}
               Save section
             </button>
           </div>

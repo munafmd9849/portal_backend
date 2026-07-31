@@ -6,7 +6,6 @@ import {
   Download, 
   FilePlus,
   CheckCircle, 
-  Loader,
   AlertCircle,
   FileX,
   Plus, 
@@ -15,6 +14,7 @@ import {
   Check,
   X
 } from 'lucide-react';
+import { SkeletonCard, Spinner } from '../ui/loading';
 import { 
   validateResumeFile, 
   formatFileSize, 
@@ -462,7 +462,7 @@ export default function ResumeManager({ onResumeUpdate, userId }) {
               >
                 {deleting ? (
                   <>
-                    <Loader className="animate-spin h-4 w-4 mr-1.5" />
+                    <Spinner size="sm" className="mr-1.5" />
                     Deleting...
                   </>
                 ) : (
@@ -479,7 +479,7 @@ export default function ResumeManager({ onResumeUpdate, userId }) {
               >
                 {resumeInfo.isEnhancing ? (
                   <>
-                    <Loader className="animate-spin h-4 w-4 mr-1.5" />
+                    <Spinner size="sm" className="mr-1.5" />
                     Enhancing...
                   </>
                 ) : (
@@ -625,9 +625,7 @@ export default function ResumeManager({ onResumeUpdate, userId }) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader className="h-8 w-8 animate-spin text-blue-600" />
-      </div>
+      <SkeletonCard bodyLines={5} className="min-h-[256px]" />
     );
   }
 

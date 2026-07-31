@@ -18,18 +18,13 @@ import {
   FaClock,
   FaChevronDown,
   FaChevronUp,
-  FaSync,
-  FaSpinner,
   FaEnvelopeOpen,
   FaQuestionCircle,
   FaChartLine,
   FaCalendarAlt,
   FaReply
 } from 'react-icons/fa';
-import { 
-  QUERY_STATUS,
-  QUERY_TYPES
-} from '../../../services/queries';
+import { SkeletonMediaRowList, SkeletonList, Spinner } from '../../ui/loading';
 
 // Notification types constants (moved from queries service for compatibility)
 const NOTIFICATION_TYPES = {
@@ -715,10 +710,7 @@ const Notifications = () => {
 
           <div>
             {loadingNotifications ? (
-              <div className="text-center py-16">
-                <FaSpinner className="animate-spin text-2xl text-gray-300 mx-auto mb-3" />
-                <p className="text-sm text-gray-500">Loading notifications…</p>
-              </div>
+              <SkeletonMediaRowList rows={5} className="py-4" />
             ) : filteredNotifications.length === 0 ? (
               <div className="text-center py-16">
                 <div className={`text-4xl mb-3 ${activeTheme.empty}`}>
@@ -799,7 +791,7 @@ const Notifications = () => {
                               title={notification.isRead ? 'Mark as unread' : 'Mark as read'}
                             >
                               {actionLoading[notification.id] ? (
-                                <FaSpinner className="animate-spin text-[10px]" />
+                                <Spinner size="sm" tone="muted" className="h-2.5 w-2.5" />
                               ) : (
                                 <FaBell className={`text-[10px] ${notification.isRead ? '' : 'text-blue-400'}`} />
                               )}
@@ -812,7 +804,7 @@ const Notifications = () => {
                               title="Delete"
                             >
                               {actionLoading[notification.id] ? (
-                                <FaSpinner className="animate-spin text-[10px]" />
+                                <Spinner size="sm" tone="muted" className="h-2.5 w-2.5" />
                               ) : (
                                 <FaTrash className="text-[10px]" />
                               )}
@@ -841,7 +833,7 @@ const Notifications = () => {
                                   className="px-2 py-0.5 text-[11px] text-indigo-700 border border-indigo-200 bg-indigo-50 rounded-sm hover:bg-indigo-100 disabled:opacity-50"
                                 >
                                   {actionLoading[`admin_login_admit_${notification.id}`] ? (
-                                    <FaSync className="animate-spin text-[10px] inline" />
+                                    <Spinner size="sm" className="h-2.5 w-2.5 inline" />
                                   ) : (
                                     'Admit'
                                   )}
@@ -858,7 +850,7 @@ const Notifications = () => {
                                   className="px-2 py-0.5 text-[11px] text-gray-500 hover:text-gray-700 disabled:opacity-50"
                                 >
                                   {actionLoading[`admin_login_reject_${notification.id}`] ? (
-                                    <FaSync className="animate-spin text-[10px] inline" />
+                                    <Spinner size="sm" className="h-2.5 w-2.5 inline" />
                                   ) : (
                                     'Reject'
                                   )}
@@ -883,10 +875,7 @@ const Notifications = () => {
                         </p>
 
                         {loadingAdminRequests ? (
-                          <div className="text-center py-6">
-                            <FaSync className="animate-spin text-lg text-gray-200 mx-auto mb-2" />
-                            <p className="text-[11px] text-gray-400">Loading…</p>
-                          </div>
+                          <SkeletonList rows={3} />
                         ) : (
                           <div className="divide-y divide-gray-50">
                             {filteredAdminRequests.map((request) => (

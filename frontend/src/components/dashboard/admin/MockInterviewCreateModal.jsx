@@ -16,6 +16,7 @@ import {
   Search,
   AlertCircle,
 } from 'lucide-react';
+import { Spinner } from '../../ui/loading';
 import api from '../../../services/api';
 import { useToast } from '../../ui/Toast';
 import { au } from '../../assessment/assessmentUi';
@@ -503,7 +504,7 @@ export default function MockInterviewCreateModal({ isOpen, onClose, onSuccess })
                 </button>
                 <button type="button" onClick={handlePublish} disabled={submitting} className={au.btnPrimary}>
                   {submitting ? (
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <Spinner size="sm" tone="white" />
                   ) : null}
                   Publish drive
                 </button>

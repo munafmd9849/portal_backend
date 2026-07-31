@@ -38,6 +38,7 @@ import CalendarOAuthCallback from './pages/CalendarOAuthCallback'
 import StudentOnboarding from './pages/StudentOnboarding'
 import { useAuth } from './hooks/useAuth'
 import AuthRedirect from './components/AuthRedirect'
+import { LoadingPage } from './components/ui/loading'
 import { isAllowedCalendarOAuthOrigin } from './utils/calendarOAuth'
 import AssessmentApp from './pages/assessment/AssessmentApp'
 import AdminAssessments from './pages/admin/AdminAssessments'
@@ -208,11 +209,7 @@ function AppContent() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="w-full h-screen flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
-      </div>
-    );
+    return <LoadingPage />;
   }
 
   return (

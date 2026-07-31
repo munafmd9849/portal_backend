@@ -7,10 +7,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { LoadingPage, Spinner } from '../components/ui/loading';
 import { 
   CheckCircle, 
   XCircle, 
-  Loader2, 
   Star,
   Send,
   AlertCircle,
@@ -259,11 +259,8 @@ const EndorsementPage = () => {
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading endorsement request...</p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-50">
+        <LoadingPage title="Loading endorsement request..." />
       </div>
     );
   }
@@ -732,7 +729,7 @@ const EndorsementPage = () => {
             >
               {submitting ? (
                 <>
-                  <Loader2 className="w-6 h-6 animate-spin" />
+                  <Spinner size="md" />
                   <span>Submitting Endorsement...</span>
                 </>
               ) : (

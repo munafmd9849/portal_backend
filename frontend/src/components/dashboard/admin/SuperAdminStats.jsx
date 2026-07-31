@@ -3,8 +3,9 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Building2, GraduationCap, Users, Loader2 } from 'lucide-react';
+import { Building2, GraduationCap, Users } from 'lucide-react';
 import api from '../../../services/api';
+import { SkeletonStatsGrid, SkeletonTableCard } from '../../ui/loading';
 
 export default function SuperAdminStats() {
   const [stats, setStats] = useState(null);
@@ -31,9 +32,13 @@ export default function SuperAdminStats() {
 
   if (loading) {
     return (
-      <div className="py-20 flex flex-col items-center gap-3">
-        <Loader2 className="animate-spin w-7 h-7 text-sky-600" />
-        <p className="text-sm text-gray-500">Loading statistics…</p>
+      <div className="space-y-3">
+        <SkeletonStatsGrid count={4} columns="grid-cols-2 md:grid-cols-4" />
+        <div className="grid md:grid-cols-2 gap-3">
+          <SkeletonTableCard />
+          <SkeletonTableCard />
+        </div>
+        <SkeletonTableCard rows={6} />
       </div>
     );
   }

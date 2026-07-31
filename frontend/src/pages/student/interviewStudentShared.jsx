@@ -1,5 +1,6 @@
 import React from 'react';
 import { Activity } from 'lucide-react';
+import { SkeletonMediaRowList, SkeletonList } from '../../components/ui/loading';
 
 export const STAT_ICON_BOX = {
   indigo: 'bg-indigo-50 border-indigo-100',
@@ -101,13 +102,14 @@ export function StatGrid({ stats, loading }) {
   );
 }
 
-export function LoadingBlock({ message = 'Loading…', accent = 'teal' }) {
-  const ring =
-    accent === 'indigo' ? 'border-t-indigo-600' : accent === 'sky' ? 'border-t-sky-600' : 'border-t-teal-600';
+export function LoadingBlock({ message = 'Loading…', accent = 'teal', useList = false }) {
   return (
-    <div className="py-20 flex flex-col items-center justify-center gap-3 bg-white rounded-lg border border-slate-200/80 shadow-sm">
-      <div className={`w-10 h-10 border-[3px] border-slate-100 ${ring} rounded-full animate-spin`} />
-      <p className="text-sm text-slate-500">{message}</p>
+    <div className="bg-white rounded-lg border border-slate-200/80 shadow-sm overflow-hidden">
+      {useList ? (
+        <SkeletonList rows={4} />
+      ) : (
+        <SkeletonMediaRowList rows={4} />
+      )}
     </div>
   );
 }

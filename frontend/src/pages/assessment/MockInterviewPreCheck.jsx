@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Camera, Mic, Wifi, CheckCircle2,
-  AlertCircle,   ArrowRight, Loader2, Clock, ArrowLeft,
+  AlertCircle,   ArrowRight, Clock, ArrowLeft,
 } from 'lucide-react';
 import { useToast } from '../../components/ui/Toast';
+import { LoadingPage, Spinner } from '../../components/ui/loading';
 import api from '../../services/api';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -133,9 +134,8 @@ export default function MockInterviewPreCheck() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-3">
-        <Loader2 className="w-7 h-7 animate-spin text-teal-600" />
-        <p className="text-sm text-slate-500">Loading session…</p>
+      <div className="min-h-screen bg-slate-50">
+        <LoadingPage title="Loading session…" />
       </div>
     );
   }
@@ -220,7 +220,7 @@ export default function MockInterviewPreCheck() {
                     ) : status === 'failed' ? (
                       <AlertCircle className="w-4 h-4 text-rose-500" />
                     ) : (
-                      <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />
+                      <Spinner size="sm" tone="muted" />
                     )}
                   </div>
                 );

@@ -2,10 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, UserPlus, Search, Video, AlertCircle, X,
-  ChevronRight, Edit2, Loader2,
+  ChevronRight, Edit2,
 } from 'lucide-react';
 import api from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
+import { SkeletonDirectoryPage } from '../../components/ui/loading';
 import { toDatetimeLocalValue, datetimeLocalToISO } from '../../utils/datetimeLocal';
 
 function statusBadge(status) {
@@ -149,12 +150,7 @@ export default function MockInterviewSlots() {
   });
 
   if (loading && !drive) {
-    return (
-      <div className="py-16 flex flex-col items-center gap-3">
-        <Loader2 className="w-7 h-7 animate-spin text-sky-600" />
-        <p className="text-sm text-gray-500">Loading slots…</p>
-      </div>
-    );
+    return <SkeletonDirectoryPage statsCount={3} tableRows={10} tableColumns={7} />;
   }
 
   if (!drive) {

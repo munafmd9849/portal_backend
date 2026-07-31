@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Loader2, Plus, Edit, XCircle, Loader } from 'lucide-react';
+import { Plus, Edit, XCircle } from 'lucide-react';
 import CreateJob from '../../components/dashboard/admin/CreateJob.jsx';
+import { SkeletonTable, Spinner } from '../../components/ui/loading';
 import api from '../../services/api';
 import { updateJob } from '../../services/jobs';
 import { useToast } from '../../components/ui/Toast';
@@ -161,10 +162,7 @@ export default function JobPostings() {
       ) : (
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           {loading ? (
-            <div className="flex items-center justify-center py-12 text-gray-600">
-              <Loader2 className="w-5 h-5 animate-spin mr-2" />
-              Loading...
-            </div>
+            <SkeletonTable rows={8} columns={6} />
           ) : error ? (
             <div className="p-6 text-red-700 bg-red-50 border border-red-200 rounded-lg">
               {error}
@@ -322,8 +320,8 @@ export default function JobPostings() {
                 >
                   {savingDates ? (
                     <>
-                      <Loader className="w-4 h-4 animate-spin" />
-                      Saving...
+                      <Spinner size="sm" tone="white" />
+                      Saving…
                     </>
                   ) : (
                     'Save Dates'

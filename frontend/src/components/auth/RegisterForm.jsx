@@ -3,6 +3,7 @@ import { useAuth } from '../../hooks/useAuth';
 import CustomDropdown from '../common/CustomDropdown';
 import { FaUser } from 'react-icons/fa';
 import { showError } from '../../utils/toast';
+import { Spinner } from '../ui/loading';
 
 export default function RegisterForm({ onSuccess }) {
   const { registerWithEmail } = useAuth();
@@ -40,7 +41,14 @@ export default function RegisterForm({ onSuccess }) {
         onChange={(value) => setRole(value)}
         placeholder="Select Role"
       />
-      <button disabled={loading} className={`w-full bg-black text-white py-2 rounded ${loading ? 'cursor-not-allowed disabled:opacity-60' : 'cursor-pointer'}`}>{loading ? 'Creating account...' : 'Create account'}</button>
+      <button disabled={loading} className={`w-full bg-black text-white py-2 rounded inline-flex items-center justify-center gap-2 ${loading ? 'cursor-not-allowed disabled:opacity-60' : 'cursor-pointer'}`}>
+        {loading ? (
+          <>
+            <Spinner size="sm" tone="white" />
+            Creating account...
+          </>
+        ) : 'Create account'}
+      </button>
     </form>
   );
 }

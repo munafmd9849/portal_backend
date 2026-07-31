@@ -48,7 +48,6 @@ import {
   AlertCircle,
   CheckCircle,
   XCircle,
-  Loader,
   Star,
   Info,
   AlertTriangle,
@@ -78,6 +77,7 @@ import {
   Shield
 } from 'lucide-react';
 import ErrorBoundary from '../../components/common/ErrorBoundary';
+import { Spinner, SkeletonList, SkeletonCard } from '../../components/ui/loading';
 import ResumeBuilder from '../../components/resume/ResumeBuilder';
 import Query from '../../components/dashboard/student/Query';
 import Resources from '../../components/dashboard/student/Resources';
@@ -2499,10 +2499,7 @@ export default function StudentDashboard() {
                   </button>
                 </div>
               ) : loadingJobs ? (
-                <div className="flex justify-center items-center py-12">
-                  <Loader className="h-7 w-7 animate-spin text-indigo-600" />
-                  <span className="ml-2 text-slate-600 text-sm">Loading posted jobs...</span>
-                </div>
+                <SkeletonList rows={5} className="rounded-lg border border-slate-200 overflow-hidden" />
               ) : jobs.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-8">
@@ -2660,7 +2657,7 @@ export default function StudentDashboard() {
                                         </>
                                       ) : isApplying ? (
                                         <>
-                                          <Loader className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0 animate-spin" />
+                                          <Spinner size="sm" className="flex-shrink-0" />
                                           <span className="truncate">Applying...</span>
                                         </>
                                       ) : deadlinePassed ? (
@@ -2692,7 +2689,7 @@ export default function StudentDashboard() {
                                         title="Withdraw application"
                                       >
                                         {withdrawingApplicationId === jobApplication.id ? (
-                                          <Loader className="h-3.5 w-3.5 animate-spin" />
+                                          <Spinner size="sm" />
                                         ) : (
                                           <XCircle className="h-3.5 w-3.5" />
                                         )}
@@ -2766,7 +2763,7 @@ export default function StudentDashboard() {
                                         </>
                                       ) : isApplying ? (
                                         <>
-                                          <Loader className="h-3.5 w-3.5 flex-shrink-0 animate-spin" />
+                                          <Spinner size="sm" className="flex-shrink-0" />
                                           <span className="text-center">Applying</span>
                                         </>
                                       ) : deadlinePassed ? (
@@ -2798,7 +2795,7 @@ export default function StudentDashboard() {
                                         title="Withdraw application"
                                       >
                                         {withdrawingApplicationId === jobApplication.id ? (
-                                          <Loader className="h-3.5 w-3.5 animate-spin" />
+                                          <Spinner size="sm" />
                                         ) : (
                                           <XCircle className="h-3.5 w-3.5" />
                                         )}
@@ -3008,9 +3005,10 @@ export default function StudentDashboard() {
             {applicationsView === 'past' ? (
               <div className="space-y-3 sm:space-y-4">
                 {loadingInterviewHistory ? (
-                  <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-slate-200 px-4">
-                    <Loader className="animate-spin h-7 w-7 text-indigo-600 mb-3" />
-                    <span className="text-slate-500 text-sm">Loading history…</span>
+                  <div className="space-y-3 sm:space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <SkeletonCard key={i} bodyLines={3} />
+                    ))}
                   </div>
                 ) : pastRecords.length === 0 ? (
                   <div className="text-center py-16 bg-white rounded-xl border border-slate-200 px-4">
@@ -3248,9 +3246,10 @@ export default function StudentDashboard() {
             ) : (
               <div className="space-y-3 sm:space-y-4">
                 {loadingApplications ? (
-                  <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-slate-200 px-4">
-                    <Loader className="animate-spin h-7 w-7 text-indigo-600 mb-3" />
-                    <span className="text-slate-500 text-sm">Loading applications…</span>
+                  <div className="space-y-3 sm:space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <SkeletonCard key={i} bodyLines={3} />
+                    ))}
                   </div>
                 ) : !applications || applications.length === 0 ? (
                   <div className="text-center py-16 bg-white rounded-xl border border-slate-200 px-4">
@@ -3349,7 +3348,7 @@ export default function StudentDashboard() {
                                         title="Withdraw application"
                                       >
                                         {withdrawingApplicationId === application.id ? (
-                                          <Loader className="w-3.5 h-3.5 animate-spin" />
+                                          <Spinner size="sm" />
                                         ) : (
                                           <XCircle className="w-3.5 h-3.5" />
                                         )}
@@ -4536,7 +4535,7 @@ export default function StudentDashboard() {
                           >
                             {saving ? (
                               <span className="flex items-center gap-2">
-                                <Loader className="animate-spin" size={16} />
+                                <Spinner size="sm" tone="white" />
                                 Saving...
                               </span>
                             ) : (
@@ -4619,7 +4618,7 @@ export default function StudentDashboard() {
                           >
                             {loadingPublicProfile ? (
                               <>
-                                <Loader className="animate-spin" size={16} />
+                                <Spinner size="sm" tone="white" />
                                 Generating...
                               </>
                             ) : (
@@ -4740,7 +4739,7 @@ export default function StudentDashboard() {
                     >
                       {saving ? (
                         <span className="flex items-center justify-center gap-2">
-                          <Loader className="animate-spin" size={18} />
+                          <Spinner size="sm" tone="white" />
                           Saving...
                         </span>
                       ) : (
@@ -5134,10 +5133,7 @@ export default function StudentDashboard() {
             </p>
 
             {loadingResumes ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader className="animate-spin text-blue-600" size={24} />
-                <span className="ml-2 text-gray-600">Loading resumes...</span>
-              </div>
+              <SkeletonList rows={3} className="rounded-lg border border-gray-200 overflow-hidden" />
             ) : (
               <div className="space-y-3">
                 {/* Use Existing Resume Option */}

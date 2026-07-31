@@ -13,6 +13,7 @@ import {
   FaEdit, FaSave, FaTimesCircle, FaLock
 } from 'react-icons/fa';
 import api from '../services/api';
+import { LoadingPage } from '../components/ui/loading';
 
 // Helper function to decode JWT token (without verification)
 const decodeJWT = (token) => {
@@ -305,18 +306,12 @@ const InterviewSessionToken = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <div ref={animationContainerRef} className="flex justify-center mb-6">
-            {/* dotlottie-wc will be inserted here via useEffect if script loads */}
-            {!scriptLoaded && (
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-            )}
-          </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Loading Interview Session</h2>
-          <p className="text-gray-600">Please wait...</p>
+      <>
+        <div ref={animationContainerRef} className="sr-only" aria-hidden />
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+          <LoadingPage title="Loading Interview Session" subtitle="Please wait…" />
         </div>
-      </div>
+      </>
     );
   }
 

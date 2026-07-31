@@ -18,6 +18,7 @@ import {
   FileText,
   AlertCircle,
 } from 'lucide-react';
+import { LoadingPage } from '../../ui/loading';
 
 function StatusPill({ value }) {
   const v = String(value || '').toUpperCase();
@@ -229,8 +230,8 @@ export default function AdminJobApplicationDetail() {
 
   if (loading) {
     return (
-      <div className="p-8 min-h-screen bg-[#f8fafc] flex items-center justify-center">
-        <div className="animate-pulse text-slate-500 font-semibold">Loading candidate history…</div>
+      <div className="p-8 min-h-screen bg-[#f8fafc]">
+        <LoadingPage title="Loading candidate history…" />
       </div>
     );
   }

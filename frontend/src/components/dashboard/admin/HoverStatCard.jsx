@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Spinner } from '../../ui/loading';
 
 const VALUE_COLORS = {
   green: 'text-emerald-700',
@@ -99,7 +99,7 @@ export default function HoverStatCard({
         >
           {loading ? (
             <div className="flex items-center justify-center py-4">
-              <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+              <Spinner size="sm" />
             </div>
           ) : (
             (items || []).map((item, idx) => (

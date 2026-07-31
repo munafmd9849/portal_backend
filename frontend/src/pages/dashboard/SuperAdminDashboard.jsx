@@ -25,7 +25,7 @@ import PlacementsRegistry from '../../components/dashboard/admin/PlacementsRegis
 import { Home, FilePlus2, Briefcase, GripVertical, LogOut, Users, Settings, User, Calendar, UserPlus, BarChart3, X, History, Megaphone, ShieldCheck, Video, UserCheck } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import showLogoutConfirm from '../../utils/logoutConfirm';
-import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { LoadingPage } from '../../components/ui/loading';
 
 const BASE = '/super-admin';
 
@@ -105,7 +105,8 @@ export default function SuperAdminDashboard() {
   }, [navigate]);
 
   const userRole = (role || user?.role || '').toUpperCase();
-  if (loading || !user || userRole !== 'SUPER_ADMIN') return null;
+  if (loading) return <LoadingPage />;
+  if (!user || userRole !== 'SUPER_ADMIN') return null;
 
   const allTabs = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },

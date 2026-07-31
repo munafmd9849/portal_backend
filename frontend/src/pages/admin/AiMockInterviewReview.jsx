@@ -2,11 +2,12 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   ChevronLeft, Users, Trophy, AlertTriangle, Activity, Search, Sparkles,
-  Star, Shield, Video, Loader2,
+  Star, Shield, Video,
 } from 'lucide-react';
 import api from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
 import { ErrorBoundary } from '../../components/ui/ErrorBoundary';
+import { SkeletonTable, SkeletonCard, Spinner } from '../../components/ui/loading';
 
 const CONTENT_WIDTH = 'w-full lg:w-[75%] max-w-full mx-auto px-4 sm:px-6';
 
@@ -113,11 +114,11 @@ function AiMockInterviewReviewComponent() {
 
   if (loading) {
     return (
-      <div className="h-screen bg-slate-50 flex flex-col items-center justify-center gap-4">
-        <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
-        <p className="text-slate-400 font-bold text-xs uppercase tracking-widest animate-pulse">
-          Loading AI interview results
-        </p>
+      <div className="min-h-screen bg-slate-50 pb-20">
+        <div className={`${CONTENT_WIDTH} mt-8 space-y-8`}>
+          <SkeletonCard showHeader bodyLines={2} className="min-h-[200px]" />
+          <SkeletonTable rows={8} columns={5} />
+        </div>
       </div>
     );
   }
@@ -163,8 +164,9 @@ function AiMockInterviewReviewComponent() {
 
         <div className={`${CONTENT_WIDTH} mt-8 space-y-8`}>
           {detailLoading ? (
-            <div className="py-24 flex justify-center">
-              <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+            <div className="space-y-8">
+              <SkeletonCard showHeader bodyLines={4} />
+              <SkeletonCard showHeader bodyLines={6} />
             </div>
           ) : (
             <>
@@ -182,7 +184,7 @@ function AiMockInterviewReviewComponent() {
                     </span>
                     {detail.aiInsight.status === 'PENDING' ? (
                       <div className="flex items-center gap-3 text-slate-300">
-                        <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
+                        <Spinner size="md" tone="primary" />
                         <p className="text-sm">AI report is being generated from interview transcripts…</p>
                       </div>
                     ) : detail.aiInsight.status === 'FAILED' ? (

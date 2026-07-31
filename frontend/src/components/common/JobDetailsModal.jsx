@@ -4,8 +4,8 @@ import {
   FaTimesCircle, 
   FaCheckCircle, 
   FaArchive, 
-  FaSpinner 
 } from 'react-icons/fa';
+import { Spinner } from '../ui/loading';
 import JobInfoDisplay from './JobInfoDisplay';
 
 /**
@@ -72,7 +72,7 @@ const JobDetailsModal = ({
                   title="Approve Job"
                 >
                   {actionLoading[`approve_${job.id}`] ? (
-                    <FaSpinner className="w-5 h-5 animate-spin" />
+                    <Spinner size="md" tone="white" />
                   ) : (
                     <FaCheckCircle className="w-5 h-5" />
                   )}
@@ -88,7 +88,7 @@ const JobDetailsModal = ({
                 title="Archive Job"
               >
                 {actionLoading[`archive_${job.id}`] ? (
-                  <FaSpinner className="w-5 h-5 animate-spin" />
+                  <Spinner size="md" tone="white" />
                 ) : (
                   <FaArchive className="w-5 h-5" />
                 )}

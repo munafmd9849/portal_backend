@@ -12,6 +12,7 @@ import * as XLSX from 'xlsx';
 import api from '../../services/api';
 import { mcqAnswersMatch, resolveMcqOptionLabel } from '../../utils/mcqAnswers';
 import { useToast } from '../../components/ui/Toast';
+import { SkeletonTable, SkeletonStatsGrid } from '../../components/ui/loading';
 import { au } from '../../components/assessment/assessmentUi';
 
 function formatSessionTime(ts) {
@@ -264,9 +265,9 @@ function AdminAssessmentResultsComponent() {
 
   if (loading) {
     return (
-      <div className="py-20 flex flex-col items-center justify-center gap-3">
-        <div className="w-8 h-8 border-2 border-gray-200 border-t-sky-600 rounded-full animate-spin" />
-        <p className="text-gray-500 text-sm">Loading results…</p>
+      <div className="space-y-3 pb-8">
+        <SkeletonStatsGrid count={3} columns="grid-cols-3" />
+        <SkeletonTable rows={8} columns={6} />
       </div>
     );
   }

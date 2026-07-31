@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Loader2, Search, Download } from 'lucide-react';
+import { Search, Download } from 'lucide-react';
+import { SkeletonFunnelRow, SkeletonTableCard } from '../../ui/loading';
 import HoverStatCard from './HoverStatCard';
 import CrManagerCard from './CrManagerCard';
 import CustomDropdown from '../../common/CustomDropdown';
@@ -224,12 +225,14 @@ export function JobOpportunitiesSection({
         {/* Overview */}
         <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-visible">
           <SectionBar title="Overview" />
-          <div className="relative space-y-2.5 min-h-[200px] p-4 bg-slate-50">
-            {loadingOverview && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-b-xl bg-slate-50/80">
-                <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
-              </div>
-            )}
+          <div className="space-y-2.5 min-h-[200px] p-4 bg-slate-50">
+            {loadingOverview ? (
+              <>
+                <SkeletonFunnelRow count={5} />
+                <SkeletonFunnelRow count={6} />
+              </>
+            ) : (
+            <>
             <div className="flex flex-wrap gap-2.5">
               <HoverStatCard
                 embedded={embedded}
@@ -282,6 +285,8 @@ export function JobOpportunitiesSection({
               <StaticStatCard label="Learner Not Applied" value={r2.learnerNotApplied} />
               <StaticStatCard label="Not Deliverable" value={r2.notDeliverable} />
             </div>
+            </>
+            )}
           </div>
         </section>
 
@@ -291,7 +296,7 @@ export function JobOpportunitiesSection({
           <SectionBar title="Admins Overview" />
           <div className="p-4 bg-slate-50">
             {loadingOverview ? (
-              <Loader2 className="w-6 h-6 animate-spin mx-auto my-6 text-indigo-600" />
+              <SkeletonFunnelRow count={4} />
             ) : (
               <div className="flex flex-wrap gap-2.5">
                 <CrManagerCard
@@ -387,9 +392,7 @@ export function JobOpportunitiesSection({
             </div>
 
             {loadingTable ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
-              </div>
+              <SkeletonTableCard rows={8} />
             ) : (
               <div className="overflow-x-auto rounded-lg border border-slate-200">
                 <table className="min-w-full text-xs sm:text-sm border-collapse">

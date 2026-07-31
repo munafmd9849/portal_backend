@@ -10,7 +10,7 @@ import api from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
 import MockInterviewCreateModal from '../../components/dashboard/admin/MockInterviewCreateModal';
 import MockInterviewEditDriveModal from '../../components/dashboard/admin/MockInterviewEditDriveModal';
-import DirectoryLoadingPanel from '../../components/dashboard/admin/DirectoryLoading';
+import { SkeletonMediaRowList } from '../../components/ui/loading';
 
 function driveHasLiveSlots(drive) {
   return drive.slots?.some((s) => ['WAITING', 'LIVE'].includes(s.status));
@@ -401,14 +401,7 @@ const adminBase = location.pathname.startsWith('/super-admin') ? '/super-admin' 
           <div className="overflow-visible">
             {loading ? (
               <div className="p-4 sm:p-6">
-                <DirectoryLoadingPanel
-                  title={
-                    mainMode === 'live'
-                      ? 'Loading mock interview drives...'
-                      : 'Loading AI interviews...'
-                  }
-                  subtitle="Please wait while we fetch the data"
-                />
+                <SkeletonMediaRowList rows={5} />
               </div>
             ) : mainMode === 'live' ? (
               filteredDrives.length === 0 ? (

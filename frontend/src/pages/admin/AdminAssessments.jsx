@@ -13,7 +13,7 @@ import { useToast } from '../../components/ui/Toast';
 import AssessmentSettingsModal from '../../components/dashboard/admin/AssessmentSettingsModal';
 import { fromDatetimeLocalValue } from '../../utils/assessmentEntryWindow';
 import StudentSelectorModal from '../../components/dashboard/admin/StudentSelectorModal';
-import DirectoryLoadingPanel from '../../components/dashboard/admin/DirectoryLoading';
+import { SkeletonTable } from '../../components/ui/loading';
 import CodingQuestionEditor from '../../components/admin/CodingQuestionEditor';
 import AssessmentQuestionExcelUpload from '../../components/admin/AssessmentQuestionExcelUpload';
 import AssessmentBulkImportPanel from '../../components/admin/AssessmentBulkImportPanel';
@@ -458,7 +458,7 @@ export default function AdminAssessments() {
           <div>
             {loading ? (
               <div className="p-4">
-                <DirectoryLoadingPanel title="Loading assessments..." subtitle="Please wait while we fetch the data" />
+                <SkeletonTable rows={6} columns={5} />
               </div>
             ) : filteredAssessments.length === 0 ? (
               <div className="py-16 flex flex-col items-center justify-center gap-4 text-center">

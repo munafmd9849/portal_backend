@@ -11,6 +11,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { LoadingPage } from './ui/loading';
 
 export default function RequireRole({ children, allowedRoles, redirectTo = null }) {
   const { user, role, loading } = useAuth();
@@ -55,7 +56,7 @@ export default function RequireRole({ children, allowedRoles, redirectTo = null 
 
   // Show loading state while auth is loading
   if (loading) {
-    return null; // Don't render anything while loading
+    return <LoadingPage />;
   }
 
   // If no user, don't render children

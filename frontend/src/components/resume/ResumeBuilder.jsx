@@ -23,6 +23,7 @@ import ResumeTemplate1 from './ResumeTemplate1';
 import ResumeTemplate2 from './ResumeTemplate2';
 import ResumeTemplate3 from './ResumeTemplate3';
 import JobPickerDropdown from './JobPickerDropdown';
+import { SkeletonCard, Spinner } from '../ui/loading';
 import { 
   FileText, 
   Download, 
@@ -30,7 +31,6 @@ import {
   CheckCircle2,
   Sparkles,
   Layout,
-  Loader,
   Info,
   AlertTriangle,
   Plus,
@@ -1024,11 +1024,10 @@ const ResumeBuilder = () => {
 
   if (loading && !student) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <Loader className="animate-spin mx-auto mb-4 text-indigo-600" size={48} />
-          <p className="text-slate-600">Loading your profile...</p>
-        </div>
+      <div className="space-y-6">
+        <SkeletonCard bodyLines={2} />
+        <SkeletonCard bodyLines={4} />
+        <SkeletonCard bodyLines={3} />
       </div>
     );
   }
@@ -1369,7 +1368,7 @@ const ResumeBuilder = () => {
                 disabled={saving}
                 className="flex items-center gap-2 bg-indigo-600 text-white px-8 py-3 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-semibold shadow-md hover:shadow-lg transition-all"
               >
-                {saving ? <Loader className="animate-spin" size={18} /> : <Save size={18} />}
+                {saving ? <Spinner size="sm" /> : <Save size={18} />}
                 Save Personal Info
               </button>
             </div>
@@ -1841,7 +1840,7 @@ const ResumeBuilder = () => {
                 <div className="bg-pink-100 p-2 rounded-lg">
                   <FolderKanban size={24} className="text-pink-600" />
                 </div>
-                Projects {generatingAI && <Loader className="animate-spin text-indigo-600" size={20} />}
+                Projects {generatingAI && <Spinner size="md" />}
               </h3>
               <div className="text-sm text-slate-500 bg-slate-50 px-3 py-1 rounded-lg">
                 {student?.projects?.length || 0} projects
@@ -2107,7 +2106,7 @@ const ResumeBuilder = () => {
                   >
                     {saving ? (
                       <>
-                        <Loader className="animate-spin flex-shrink-0" size={18} />
+                        <Spinner size="sm" className="flex-shrink-0" />
                         <span>Saving...</span>
                       </>
                     ) : (
@@ -2125,7 +2124,7 @@ const ResumeBuilder = () => {
                   >
                     {generatingAndSaving ? (
                       <>
-                        <Loader className="animate-spin flex-shrink-0" size={18} />
+                        <Spinner size="sm" className="flex-shrink-0" />
                         <span>Generating...</span>
                       </>
                     ) : (
@@ -2143,7 +2142,7 @@ const ResumeBuilder = () => {
                   >
                     {exporting ? (
                       <>
-                        <Loader className="animate-spin flex-shrink-0" size={18} />
+                        <Spinner size="sm" className="flex-shrink-0" />
                         <span>Generating PDF...</span>
                       </>
                     ) : (
@@ -2183,7 +2182,7 @@ const ResumeBuilder = () => {
                     disabled={saving}
                     className="flex items-center gap-1.5 px-3 py-2.5 bg-gray-600 text-white rounded-lg font-medium text-sm disabled:opacity-50"
                   >
-                    {saving ? <Loader size={16} className="animate-spin" /> : <Save size={16} />}
+                    {saving ? <Spinner size="sm" /> : <Save size={16} />}
                     Save
                   </button>
                   <button
@@ -2191,7 +2190,7 @@ const ResumeBuilder = () => {
                     disabled={generatingAndSaving || exporting}
                     className="flex items-center gap-1.5 px-3 py-2.5 bg-emerald-600 text-white rounded-lg font-medium text-sm disabled:opacity-50"
                   >
-                    {generatingAndSaving ? <Loader size={16} className="animate-spin" /> : <Upload size={16} />}
+                    {generatingAndSaving ? <Spinner size="sm" /> : <Upload size={16} />}
                     Save PDF
                   </button>
                   <button
@@ -2199,7 +2198,7 @@ const ResumeBuilder = () => {
                     disabled={exporting || generatingAndSaving}
                     className="flex items-center gap-1.5 px-3 py-2.5 bg-indigo-600 text-white rounded-lg font-medium text-sm disabled:opacity-50"
                   >
-                    {exporting ? <Loader size={16} className="animate-spin" /> : <Download size={16} />}
+                    {exporting ? <Spinner size="sm" /> : <Download size={16} />}
                     Download
                   </button>
                 </div>
@@ -2380,7 +2379,7 @@ const ResumeBuilder = () => {
                 >
                   {uploading ? (
                     <>
-                      <Loader className="animate-spin" size={18} />
+                      <Spinner size="sm" />
                       Uploading...
                     </>
                   ) : (
@@ -2484,7 +2483,7 @@ const ResumeBuilder = () => {
           >
             <span className="relative z-10 flex items-center justify-center gap-2">
             {optimizing ? (
-              <><Loader size={18} className="animate-spin" /> Optimizing...</>
+              <><Spinner size="sm" /> Optimizing...</>
             ) : (
               <><Zap size={18} /> {optimizeJob ? `Optimize for ${optimizeJob.jobTitle}` : 'Select a job first'}</>
             )}
