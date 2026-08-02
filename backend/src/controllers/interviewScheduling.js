@@ -1200,6 +1200,13 @@ export const getRoundCandidates = async (req, res) => {
       };
     });
 
+    const totalRounds = await prisma.interviewRound.count({ where: { sessionId: round.sessionId } });
+    const maxRoundNumber = (await prisma.interviewRound.aggregate({
+      where: { sessionId: round.sessionId },
+      _max: { roundNumber: true },
+    }))._max.roundNumber;
+    const isLastRound = round.roundNumber === maxRoundNumber;
+
     res.json({
       round: {
         id: round.id,
@@ -1207,6 +1214,8 @@ export const getRoundCandidates = async (req, res) => {
         name: round.name,
         status: round.status,
         sessionId: round.sessionId,
+        totalRounds,
+        isLastRound,
       },
       candidates,
     });
@@ -1601,6 +1610,8 @@ export const endRound = async (req, res) => {
       return res.status(401).json({ error: 'Token required' });
     }
 
+    const shareResultsWithStudents = Boolean(req.body?.shareResultsWithStudents);
+
     // Validate token
     let decoded;
     try {
@@ -1826,6 +1837,8 @@ export const endRound = async (req, res) => {
           data: {
             status: 'COMPLETED',
             completedAt: new Date(),
+            shareResultsWithStudents,
+            shareResultsSetAt: shareResultsWithStudents ? new Date() : null,
           },
         });
 
@@ -2050,6 +2063,8 @@ export const endSession = async (req, res) => {
       return res.status(401).json({ error: 'Token required' });
     }
 
+    const shareResultsWithStudents = Boolean(req.body?.shareResultsWithStudents);
+
     // Validate token
     let decoded;
     try {
@@ -2110,6 +2125,8 @@ export const endSession = async (req, res) => {
       data: {
         status: 'COMPLETED',
         completedAt: new Date(),
+        shareResultsWithStudents,
+        shareResultsSetAt: shareResultsWithStudents ? new Date() : null,
       },
     });
 

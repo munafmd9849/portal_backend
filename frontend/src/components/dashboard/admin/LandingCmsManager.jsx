@@ -1,5 +1,6 @@
 /**
- * Super-admin Landing CMS manager — sections, publish, versions, media.
+ * Super-admin Landing CMS — sections, publish, versions, media.
+ * Visual vocabulary matches SuccessStoriesManager / admin content tools.
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -13,12 +14,12 @@ import {
   Eye,
   EyeOff,
   History,
-  Megaphone,
   ImagePlus,
   RefreshCw,
-  AlertCircle,
+  X,
 } from 'lucide-react';
-import { LoadingPage, Spinner } from '../../ui/loading';
+import { LoadingPage, SkeletonMediaRowList, Spinner } from '../../ui/loading';
+import CustomDropdown from '../../common/CustomDropdown';
 import {
   listSections,
   upsertSection,
@@ -48,6 +49,38 @@ const SECTION_KEYS = [
   'SUCCESS_HIGHLIGHT',
 ];
 
+const SECTION_LABELS = {
+  HERO: 'Hero',
+  STATS: 'Stats',
+  PARTNER_LOGO: 'Partner logos',
+  FEATURED_COMPANY: 'Featured company',
+  TESTIMONIAL: 'Testimonial',
+  FAQ: 'FAQ',
+  FOOTER: 'Footer',
+  CONTACT: 'Contact',
+  CTA: 'CTA',
+  EVENT: 'Event',
+  ANNOUNCEMENT: 'Announcement',
+  ALUMNI: 'Alumni',
+  SUCCESS_HIGHLIGHT: 'Success highlight',
+};
+
+const SECTION_FILTER_OPTIONS = [
+  { value: 'ALL', label: 'All sections' },
+  ...SECTION_KEYS.map((key) => ({ value: key, label: SECTION_LABELS[key] || key })),
+];
+
+const SECTION_TYPE_OPTIONS = SECTION_KEYS.map((key) => ({
+  value: key,
+  label: SECTION_LABELS[key] || key,
+}));
+
+const STATUS_FORM_OPTIONS = [
+  { value: 'DRAFT', label: 'Draft' },
+  { value: 'PUBLISHED', label: 'Published' },
+  { value: 'ARCHIVED', label: 'Archived' },
+];
+
 const EMPTY_FORM = {
   id: null,
   sectionKey: 'HERO',
@@ -62,6 +95,13 @@ const EMPTY_FORM = {
   status: 'DRAFT',
   sortOrder: 0,
 };
+
+const inputClass = 'w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500';
+const iconBtnClass = 'p-2 rounded-md border border-slate-200 hover:bg-white text-slate-600';
+
+function sectionLabel(key) {
+  return SECTION_LABELS[key] || String(key || '').replace(/_/g, ' ');
+}
 
 function statusBadge(status) {
   const map = {
@@ -135,10 +175,10 @@ export default function LandingCmsManager() {
     setShowForm(true);
   };
 
-  const handleSave = async (e) => {
-    e.preventDefault();
+  const handleSave = async () => {
     setSaving(true);
     setActionMsg('');
+    setError('');
     try {
       await upsertSection({
         ...form,
@@ -197,8 +237,12 @@ export default function LandingCmsManager() {
   const handlePublish = async () => {
     setSaving(true);
     setActionMsg('');
+    setError('');
     try {
-      const result = await publishPage({ pageSlug: 'landing', label: `Publish ${new Date().toLocaleString()}` });
+      const result = await publishPage({
+        pageSlug: 'landing',
+        label: `Publish ${new Date().toLocaleString()}`,
+      });
       setActionMsg(`Published v${result?.version ?? ''} (${result?.publishedCount ?? 0} sections)`);
       await load();
     } catch (err) {
@@ -211,6 +255,7 @@ export default function LandingCmsManager() {
   const handleRestore = async (version) => {
     if (!window.confirm(`Restore version ${version}? Current drafts will be overwritten.`)) return;
     setSaving(true);
+    setError('');
     try {
       await restoreVersion(version, 'landing');
       setActionMsg(`Restored version ${version}`);
@@ -226,6 +271,7 @@ export default function LandingCmsManager() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
+    setError('');
     try {
       const data = await uploadCmsMedia(file);
       setForm((prev) => ({
@@ -261,30 +307,27 @@ export default function LandingCmsManager() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="space-y-5 p-4 sm:p-6 max-w-[1200px] mx-auto">
+      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
-            <Megaphone className="w-5 h-5 text-indigo-600" />
-            Landing Page
-          </h2>
+          <h1 className="text-xl font-bold text-slate-900">Landing Page</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Control landing page sections (hero, stats, partner logos, FAQs, CTAs). Publish when ready; restore from version history if needed.
+            Edit public sections, then publish. Restore from version history if needed.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={togglePreview}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white hover:bg-slate-50"
           >
             {previewMode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            {previewMode ? 'Exit preview' : 'Preview published'}
+            {previewMode ? 'Hide preview' : 'Preview'}
           </button>
           <button
             type="button"
             onClick={load}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white hover:bg-slate-50"
           >
             <RefreshCw className="w-4 h-4" />
             Refresh
@@ -293,271 +336,195 @@ export default function LandingCmsManager() {
             type="button"
             onClick={handlePublish}
             disabled={saving}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white hover:bg-slate-50 disabled:opacity-50"
           >
             {saving ? <Spinner size="sm" /> : <Upload className="w-4 h-4" />}
-            Publish Page
+            Publish
           </button>
           <button
             type="button"
             onClick={openCreate}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg bg-slate-900 text-white hover:bg-slate-800"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
           >
             <Plus className="w-4 h-4" />
             New section
           </button>
         </div>
+      </header>
+
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
+          <CustomDropdown
+            label="Section type"
+            compact
+            options={SECTION_FILTER_OPTIONS}
+            value={filterKey}
+            onChange={setFilterKey}
+          />
+        </div>
       </div>
 
       {error && (
-        <div className="flex items-start gap-2 p-3 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 text-sm">
-          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 flex items-start justify-between gap-3">
           <span>{error}</span>
-          <button type="button" className="ml-auto text-rose-500 hover:underline" onClick={() => setError('')}>
+          <button type="button" className="text-rose-600 hover:underline shrink-0" onClick={() => setError('')}>
             Dismiss
           </button>
         </div>
       )}
       {actionMsg && (
-        <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm">{actionMsg}</div>
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 flex items-start justify-between gap-3">
+          <span>{actionMsg}</span>
+          <button type="button" className="text-emerald-700 hover:underline shrink-0" onClick={() => setActionMsg('')}>
+            Dismiss
+          </button>
+        </div>
       )}
 
       {previewMode && previewData && (
-        <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4">
-          <p className="text-sm font-medium text-indigo-800 mb-2">
-            Published preview — v{previewData.version ?? '—'} ({previewData.sections?.length || 0} sections)
-          </p>
-          <pre className="text-xs text-slate-700 overflow-auto max-h-64 bg-white rounded-lg border border-slate-200 p-3">
+        <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-900">
+              Published snapshot
+              <span className="text-slate-400 font-normal ml-1">
+                v{previewData.version ?? '—'} · {previewData.sections?.length || 0} sections
+              </span>
+            </h2>
+            <button
+              type="button"
+              onClick={() => setPreviewMode(false)}
+              className="p-1.5 rounded-md hover:bg-slate-100 text-slate-500"
+              aria-label="Close preview"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <pre className="text-xs text-slate-600 overflow-auto max-h-56 p-4 bg-slate-50 font-mono leading-relaxed">
             {JSON.stringify(previewData, null, 2)}
           </pre>
-        </div>
+        </section>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setFilterKey('ALL')}
-          className={`px-2.5 py-1 text-xs rounded-md border ${
-            filterKey === 'ALL'
-              ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-          }`}
-        >
-          All
-        </button>
-        {SECTION_KEYS.map((key) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setFilterKey(key)}
-            className={`px-2.5 py-1 text-xs rounded-md border ${
-              filterKey === key
-                ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            {key.replace(/_/g, ' ')}
-          </button>
-        ))}
-      </div>
-
-      {showForm && (
-        <form onSubmit={handleSave} className="rounded-xl border border-slate-200 bg-white p-5 space-y-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-slate-900">{form.id ? 'Edit section' : 'Create section'}</h3>
-            <button type="button" onClick={() => setShowForm(false)} className="text-sm text-slate-500 hover:text-slate-800">
-              Cancel
-            </button>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <label className="block text-sm">
-              <span className="text-slate-600 font-medium">Section key</span>
-              <select
-                value={form.sectionKey}
-                onChange={(e) => setForm((p) => ({ ...p, sectionKey: e.target.value }))}
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                required
-              >
-                {SECTION_KEYS.map((k) => (
-                  <option key={k} value={k}>
-                    {k}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block text-sm">
-              <span className="text-slate-600 font-medium">Status</span>
-              <select
-                value={form.status}
-                onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-              >
-                <option value="DRAFT">Draft</option>
-                <option value="PUBLISHED">Published</option>
-                <option value="ARCHIVED">Archived</option>
-              </select>
-            </label>
-            <label className="block text-sm sm:col-span-2">
-              <span className="text-slate-600 font-medium">Title</span>
-              <input
-                value={form.title}
-                onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="block text-sm sm:col-span-2">
-              <span className="text-slate-600 font-medium">Subtitle</span>
-              <input
-                value={form.subtitle}
-                onChange={(e) => setForm((p) => ({ ...p, subtitle: e.target.value }))}
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="block text-sm sm:col-span-2">
-              <span className="text-slate-600 font-medium">Body</span>
-              <textarea
-                value={form.body}
-                onChange={(e) => setForm((p) => ({ ...p, body: e.target.value }))}
-                rows={4}
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="block text-sm">
-              <span className="text-slate-600 font-medium">CTA label</span>
-              <input
-                value={form.ctaLabel}
-                onChange={(e) => setForm((p) => ({ ...p, ctaLabel: e.target.value }))}
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="block text-sm">
-              <span className="text-slate-600 font-medium">CTA URL</span>
-              <input
-                value={form.ctaUrl}
-                onChange={(e) => setForm((p) => ({ ...p, ctaUrl: e.target.value }))}
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-              />
-            </label>
-            <div className="sm:col-span-2 space-y-2">
-              <span className="text-sm text-slate-600 font-medium">Media</span>
-              <div className="flex flex-wrap items-center gap-3">
-                <label className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-slate-200 bg-slate-50 cursor-pointer hover:bg-slate-100">
-                  <ImagePlus className="w-4 h-4 text-indigo-600" />
-                  {uploading ? 'Uploading…' : 'Upload image'}
-                  <input type="file" accept="image/*,video/mp4,video/webm" className="hidden" onChange={handleMediaUpload} disabled={uploading} />
-                </label>
-                {form.mediaUrl && (
-                  <a href={form.mediaUrl} target="_blank" rel="noreferrer" className="text-xs text-indigo-600 hover:underline truncate max-w-xs">
-                    {form.mediaUrl}
-                  </a>
-                )}
-              </div>
-              {form.mediaUrl && form.mediaType !== 'VIDEO' && (
-                <img src={form.mediaUrl} alt="" className="h-20 rounded-lg border border-slate-200 object-cover" />
-              )}
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="submit"
-              disabled={saving}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
-            >
-              {saving && <Spinner size="sm" />}
-              Save section
-            </button>
-          </div>
-        </form>
-      )}
-
-      {filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 py-16 text-center">
-          <p className="text-slate-600 font-medium">No sections yet</p>
-          <p className="text-sm text-slate-500 mt-1">Create a section or clear the type filter.</p>
+      <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-slate-900">
+            Sections{' '}
+            <span className="text-slate-400 font-normal">({filtered.length})</span>
+          </h2>
         </div>
-      ) : (
-        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden divide-y divide-slate-100">
-          {filtered.map((section, idx) => (
-            <div key={section.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 hover:bg-slate-50/80">
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => moveSection(idx, -1)}
-                  className="p-1.5 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
-                  title="Move up"
-                >
-                  <ChevronUp className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => moveSection(idx, 1)}
-                  className="p-1.5 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
-                  title="Move down"
-                >
-                  <ChevronDown className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-indigo-600">{section.sectionKey}</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded border ${statusBadge(section.status)}`}>{section.status}</span>
+
+        {filtered.length === 0 ? (
+          <p className="text-center py-14 text-sm text-slate-500">
+            No sections yet. Create a hero, stats, or FAQ block, then publish the page.
+          </p>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {filtered.map((section, idx) => (
+              <li
+                key={section.id}
+                className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 hover:bg-slate-50/80"
+              >
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => moveSection(idx, -1)}
+                    className={iconBtnClass}
+                    title="Move up"
+                    disabled={idx === 0}
+                  >
+                    <ChevronUp className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveSection(idx, 1)}
+                    className={iconBtnClass}
+                    title="Move down"
+                    disabled={idx === filtered.length - 1}
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
                 </div>
-                <p className="text-sm font-medium text-slate-900 truncate mt-0.5">{section.title || '(untitled)'}</p>
-                {section.subtitle && <p className="text-xs text-slate-500 truncate">{section.subtitle}</p>}
-              </div>
-              <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                {section.status !== 'PUBLISHED' && (
-                  <button
-                    type="button"
-                    onClick={() => handleStatus(section.id, 'PUBLISHED')}
-                    className="px-2 py-1 text-xs rounded-md border border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                  >
-                    Publish
-                  </button>
-                )}
-                {section.status !== 'DRAFT' && (
-                  <button
-                    type="button"
-                    onClick={() => handleStatus(section.id, 'DRAFT')}
-                    className="px-2 py-1 text-xs rounded-md border border-amber-200 text-amber-700 hover:bg-amber-50"
-                  >
-                    Draft
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => openEdit(section)}
-                  className="p-1.5 rounded-md text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
-                >
-                  <Pencil className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(section.id)}
-                  className="p-1.5 rounded-md text-slate-500 hover:text-rose-600 hover:bg-rose-50"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
 
-      <div className="rounded-xl border border-slate-200 bg-white p-5">
-        <h3 className="font-semibold text-slate-900 flex items-center gap-2 mb-3">
-          <History className="w-4 h-4 text-indigo-600" />
-          Version history
-        </h3>
+                {section.mediaUrl && section.mediaType !== 'VIDEO' ? (
+                  <div className="w-14 h-14 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden shrink-0">
+                    <img src={section.mediaUrl} alt="" className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="w-14 h-14 rounded-lg bg-slate-100 border border-slate-200 shrink-0 flex items-center justify-center">
+                    <ImagePlus className="w-5 h-5 text-slate-300" />
+                  </div>
+                )}
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold text-slate-900 truncate">
+                      {section.title || '(untitled)'}
+                    </p>
+                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${statusBadge(section.status)}`}>
+                      {section.status}
+                    </span>
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-50 text-slate-600 border border-slate-200">
+                      {sectionLabel(section.sectionKey)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5 truncate">
+                    {section.subtitle || section.body || 'No details yet'}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    title={section.status === 'PUBLISHED' ? 'Move to draft' : 'Publish section'}
+                    onClick={() =>
+                      handleStatus(section.id, section.status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED')
+                    }
+                    className={iconBtnClass}
+                  >
+                    {section.status === 'PUBLISHED' ? (
+                      <EyeOff className="w-4 h-4 text-slate-500" />
+                    ) : (
+                      <Eye className="w-4 h-4 text-emerald-600" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    title="Edit"
+                    onClick={() => openEdit(section)}
+                    className={iconBtnClass}
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    title="Delete"
+                    onClick={() => handleDelete(section.id)}
+                    className={iconBtnClass}
+                  >
+                    <Trash2 className="w-4 h-4 text-rose-500" />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-200 flex items-center gap-2">
+          <History className="w-4 h-4 text-slate-500" />
+          <h2 className="text-sm font-semibold text-slate-900">Version history</h2>
+        </div>
         {versions.length === 0 ? (
-          <p className="text-sm text-slate-500">No published versions yet.</p>
+          <p className="px-4 py-8 text-center text-sm text-slate-500">No published versions yet.</p>
         ) : (
           <ul className="divide-y divide-slate-100">
             {versions.map((v) => (
-              <li key={v.id || v.version} className="flex items-center justify-between py-2.5 gap-3">
-                <div>
-                  <p className="text-sm font-medium text-slate-800">
-                    v{v.version} {v.label ? `— ${v.label}` : ''}
+              <li key={v.id || v.version} className="flex items-center justify-between gap-3 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-slate-900 truncate">
+                    v{v.version}
+                    {v.label ? ` — ${v.label}` : ''}
                   </p>
                   <p className="text-xs text-slate-500">
                     {v.createdAt ? new Date(v.createdAt).toLocaleString() : ''}
@@ -566,7 +533,8 @@ export default function LandingCmsManager() {
                 <button
                   type="button"
                   onClick={() => handleRestore(v.version)}
-                  className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50"
+                  disabled={saving}
+                  className="px-2.5 py-1.5 text-xs font-medium border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                 >
                   Restore
                 </button>
@@ -574,7 +542,136 @@ export default function LandingCmsManager() {
             ))}
           </ul>
         )}
-      </div>
+      </section>
+
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 p-0 sm:p-4">
+          <div className="bg-white w-full sm:max-w-xl sm:rounded-xl shadow-xl max-h-[92vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-900">
+                {form.id ? 'Edit section' : 'New section'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                className="p-1.5 rounded-md hover:bg-slate-100"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <CustomDropdown
+                  label="Section type"
+                  compact
+                  options={SECTION_TYPE_OPTIONS}
+                  value={form.sectionKey}
+                  onChange={(v) => setForm((p) => ({ ...p, sectionKey: v }))}
+                />
+                <CustomDropdown
+                  label="Status"
+                  compact
+                  options={STATUS_FORM_OPTIONS}
+                  value={form.status}
+                  onChange={(v) => setForm((p) => ({ ...p, status: v }))}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Title</label>
+                <input
+                  className={inputClass}
+                  value={form.title}
+                  onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+                  placeholder="Section headline"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Subtitle</label>
+                <input
+                  className={inputClass}
+                  value={form.subtitle}
+                  onChange={(e) => setForm((p) => ({ ...p, subtitle: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Body</label>
+                <textarea
+                  rows={4}
+                  className={inputClass}
+                  value={form.body}
+                  onChange={(e) => setForm((p) => ({ ...p, body: e.target.value }))}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">CTA label</label>
+                  <input
+                    className={inputClass}
+                    value={form.ctaLabel}
+                    onChange={(e) => setForm((p) => ({ ...p, ctaLabel: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">CTA URL</label>
+                  <input
+                    className={inputClass}
+                    value={form.ctaUrl}
+                    onChange={(e) => setForm((p) => ({ ...p, ctaUrl: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Media</label>
+                {form.mediaUrl && form.mediaType !== 'VIDEO' && (
+                  <div className="mb-2 w-20 h-20 rounded-md overflow-hidden border border-slate-200">
+                    <img src={form.mediaUrl} alt="" className="w-full h-full object-cover" />
+                  </div>
+                )}
+                {form.mediaUrl && (
+                  <p className="text-xs text-slate-500 truncate mb-2" title={form.mediaUrl}>
+                    {form.mediaUrl}
+                  </p>
+                )}
+                <label className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+                  {uploading ? <Spinner size="sm" /> : <Upload className="w-4 h-4" />}
+                  Upload image
+                  <input
+                    type="file"
+                    accept="image/*,video/mp4,video/webm"
+                    className="hidden"
+                    onChange={handleMediaUpload}
+                    disabled={uploading}
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 bg-white border-t border-slate-200 px-4 py-3 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                className="px-3 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {saving && <Spinner size="sm" />}
+                Save section
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

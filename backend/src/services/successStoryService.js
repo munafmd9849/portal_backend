@@ -22,6 +22,22 @@ function parseJson(value, fallback) {
   }
 }
 
+function normalizeEmail(value) {
+  if (value == null) return null;
+  const email = String(value).trim();
+  return email || null;
+}
+
+function normalizeLinkedin(value) {
+  if (value == null) return null;
+  let url = String(value).trim();
+  if (!url) return null;
+  if (!/^https?:\/\//i.test(url)) {
+    url = `https://${url.replace(/^\/+/, '')}`;
+  }
+  return url;
+}
+
 export function serializeStory(row) {
   if (!row) return null;
   return {
@@ -128,6 +144,8 @@ export async function createStory(data, userId) {
       company: data.company ?? null,
       studentName: data.studentName ?? null,
       studentId: data.studentId ?? null,
+      email: normalizeEmail(data.email),
+      linkedin: normalizeLinkedin(data.linkedin),
       branch: data.branch ?? null,
       campus: data.campus ?? null,
       batch: data.batch ?? null,
@@ -173,6 +191,8 @@ export async function updateStory(id, data, userId) {
   if (data.company !== undefined) patch.company = data.company;
   if (data.studentName !== undefined) patch.studentName = data.studentName;
   if (data.studentId !== undefined) patch.studentId = data.studentId;
+  if (data.email !== undefined) patch.email = normalizeEmail(data.email);
+  if (data.linkedin !== undefined) patch.linkedin = normalizeLinkedin(data.linkedin);
   if (data.branch !== undefined) patch.branch = data.branch;
   if (data.campus !== undefined) patch.campus = data.campus;
   if (data.batch !== undefined) patch.batch = data.batch;

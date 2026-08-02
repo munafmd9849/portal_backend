@@ -59,9 +59,10 @@ const EMPTY_OVERVIEW = {
   },
 };
 
-/** Job Opportunities block — use embedded on Admin Dashboard or standalone page */
+/** Job Opportunities block — Control Tower tab, or standalone page */
 export function JobOpportunitiesSection({
   embedded = false,
+  hideHeading = false,
   showAdminOverview = true,
   showMomAnalysis = true,
 }) {
@@ -193,19 +194,21 @@ export function JobOpportunitiesSection({
 
   const content = (
     <>
-        {!embedded && (
+        {!hideHeading && !embedded && (
           <header>
             <h1 className="text-xl md:text-2xl font-bold text-gray-900">Job Opportunities</h1>
             <p className="text-sm text-gray-500 mt-0.5">
-              Track Your Institute&apos;s Activity &amp; Performance at Glance
+              Track your institute&apos;s activity &amp; performance at a glance
             </p>
           </header>
         )}
 
-        {embedded && (
+        {!hideHeading && embedded && (
           <div>
             <h2 className="text-base font-semibold text-slate-900">Job Opportunities</h2>
-            <p className="text-sm text-slate-600 mt-0.5">Track your institute&apos;s activity &amp; performance at a glance</p>
+            <p className="text-sm text-slate-600 mt-0.5">
+              Track your institute&apos;s activity &amp; performance at a glance
+            </p>
           </div>
         )}
 

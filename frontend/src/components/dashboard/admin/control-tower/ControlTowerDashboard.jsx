@@ -82,7 +82,9 @@ export default function ControlTowerDashboard({ embedded = false }) {
         </div>
 
         <div className="pt-4 md:pt-5">
-          {loading ? (
+          {activeTab === 'jobOpportunities' ? (
+            <JobOpportunitiesTab />
+          ) : loading ? (
             <div className="space-y-4">
               <SkeletonStatsGrid count={4} />
               <SkeletonTable rows={8} columns={6} />
@@ -94,9 +96,6 @@ export default function ControlTowerDashboard({ embedded = false }) {
             </div>
           ) : (
             <>
-              {activeTab === 'jobOpportunities' && (
-                <JobOpportunitiesTab data={payload?.jobOpportunities} />
-              )}
               {activeTab === 'students' && (
                 <StudentsTab data={payload?.students} />
               )}

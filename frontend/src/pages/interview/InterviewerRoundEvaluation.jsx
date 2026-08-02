@@ -11,6 +11,7 @@ import { AlertCircle, Save, CheckCircle, XCircle, Clock, ArrowLeft, User, FileTe
 import { SkeletonDirectoryPage, Spinner } from '../../components/ui/loading';
 import { showSuccess, showError, showWarning, showLoading, replaceLoadingToast, dismissToast } from '../../utils/toast';
 import ThankYouPopup from '../../components/common/ThankYouPopup';
+import ShareResultsWithStudentModal from '../../components/interview/ShareResultsWithStudentModal';
 
 const InterviewerRoundEvaluation = () => {
   const { roundId } = useParams();
@@ -28,6 +29,8 @@ const InterviewerRoundEvaluation = () => {
   const [endingRound, setEndingRound] = useState(false);
   const [showThankYouPopup, setShowThankYouPopup] = useState(false);
   const [pendingNavigate, setPendingNavigate] = useState(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [isLastRound, setIsLastRound] = useState(false);
   const [openStatusDropdown, setOpenStatusDropdown] = useState(null); // applicationId when open
 
   useEffect(() => {
@@ -60,6 +63,7 @@ const InterviewerRoundEvaluation = () => {
       const list = Array.isArray(candidatesData.candidates) ? candidatesData.candidates : [];
       setCandidates(list);
       setRound(candidatesData.round || null);
+      setIsLastRound(Boolean(candidatesData.round?.isLastRound));
 
       // Build evaluations map and ensure profile URLs (use public profile so interviewer sees profile without login)
       const evalMap = {};
@@ -172,17 +176,13 @@ const InterviewerRoundEvaluation = () => {
     }
   };
 
-  const handleEndRound = async () => {
-    if (!window.confirm('Are you sure you want to end this round? This action cannot be undone and will lock all evaluations.')) {
-      return;
-    }
-
+  const completeEndRound = async (shareResultsWithStudents = false) => {
     let loadingToastId = null;
     try {
       setEndingRound(true);
       loadingToastId = showLoading('Ending round...');
 
-      const result = await api.endRound(roundId, token);
+      const result = await api.endRound(roundId, token, { shareResultsWithStudents });
       const sessionCompleted = result.sessionCompleted === true;
 
       if (sessionCompleted) {
@@ -204,7 +204,23 @@ const InterviewerRoundEvaluation = () => {
       showError(err.message || 'Failed to end round. Please ensure all candidates are evaluated and try again.');
     } finally {
       setEndingRound(false);
+      setShowShareModal(false);
     }
+  };
+
+  const handleEndRound = () => {
+    if (isLastRound) {
+      setShowShareModal(true);
+      return;
+    }
+    if (!window.confirm('Are you sure you want to end this round? This action cannot be undone and will lock all evaluations.')) {
+      return;
+    }
+    completeEndRound(false);
+  };
+
+  const handleConfirmShareAndEnd = (shareResultsWithStudents) => {
+    completeEndRound(shareResultsWithStudents);
   };
 
   const handleThankYouClose = () => {
@@ -548,6 +564,16 @@ const InterviewerRoundEvaluation = () => {
       <ThankYouPopup
         isOpen={showThankYouPopup}
         onClose={handleThankYouClose}
+      />
+
+      <ShareResultsWithStudentModal
+        isOpen={showShareModal}
+        onClose={() => !endingRound && setShowShareModal(false)}
+        onConfirm={handleConfirmShareAndEnd}
+        loading={endingRound}
+        title="End final round?"
+        description="This will complete the interview drive. Choose whether students can see their results and your notes in Past Applications."
+        confirmLabel="End round"
       />
     </div>
   );

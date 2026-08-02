@@ -1,0 +1,67 @@
+---
+description: Loading UI — use shared Shimmer for layout loads; spinner for directory tables only
+globs: frontend/src/**/*.{jsx,tsx,js,ts}
+alwaysApply: false
+---
+
+# Loading UI conventions (non-breaking)
+
+## Goal
+Standardize loading visuals without changing behavior, data flow, or API calls.
+
+## Hard constraints
+- Do NOT change fetch logic, state names, loading conditions, or route guards.
+- Do NOT remove existing loaders unless the user explicitly asks for a migration.
+- Prefer **additive** changes: import shared components; swap JSX only when safe.
+- Loading swaps must preserve the same `if (loading)` / `loading &&` gates.
+
+## Default: Shimmer (skeleton) UI
+Use the shared kit at `frontend/src/components/ui/loading/` when it exists:
+
+| Export | Use when |
+|--------|----------|
+| `Skeleton` | Single placeholder block (title, line, avatar) |
+| `SkeletonText` | 1–3 text lines |
+| `SkeletonCard` | Card / panel placeholder |
+| `SkeletonStatsGrid` | Dashboard stat tiles |
+| `SkeletonJobDetails` | Job detail header + body |
+
+**Use shimmer when** the final layout is known (cards, forms, job details, dashboard sections, list rows with fixed structure).
+
+**Do not** invent one-off `animate-pulse` gray blocks in new code — compose from `Skeleton*`.
+
+## Exception: directory tables → spinner panel
+For **Student Directory** and **Recruiter Directory** (and similar large data tables):
+
+- Use `DirectoryLoadingPanel` / `DirectoryLoadingSpinner` from `frontend/src/components/dashboard/admin/DirectoryLoading.jsx`
+- Or the shared `LoadingPanel` + `Spinner` once the loading kit exists
+- **Do not** use full-page shimmer that mimics every table row — tables are heavy and a centered spinner + short message is correct here
+
+## Inline / button actions
+- Use `Spinner size="sm"` inside the button; keep label or swap to "Saving…"
+- Do not use shimmer for submit buttons
+
+## Full-page / auth bootstrap
+- `ProtectedRoute`, dashboard shell: use `LoadingPage` or `LoadingPanel` from the shared kit when migrating
+- Avoid raw `"Loading..."` text in new code
+
+## Colors (when creating or extending shared components)
+- Skeleton: `bg-slate-200/80`, `rounded-md`
+- Spinner ring: `border-slate-200 border-t-indigo-600`
+- Message: `text-sm text-slate-500`
+
+## Migration policy
+1. **New features** → shared shimmer/spinner from day one
+2. **Bug fixes in a file** → only replace loaders in that file if the change is purely visual
+3. **Dedicated migration task** → user must explicitly request "migrate loading UI in X"
+
+## Example (safe swap)
+```jsx
+// Before (local pulse) — keep until migrating
+if (loading) return <div className="animate-pulse">...</div>;
+
+// After (shared, same condition)
+if (loading) return <SkeletonJobDetails />;
+```
+
+Behavior unchanged: still returns early when `loading` is true.

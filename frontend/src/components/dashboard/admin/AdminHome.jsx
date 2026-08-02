@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 
-import { JobOpportunitiesSection } from './JobOpportunitiesDashboard';
 import CrManagerCard from './CrManagerCard';
 import FunnelStatCard from './FunnelStatCard';
 import { fetchCrManagers } from '../../../services/jobOpportunities';
@@ -21,7 +20,6 @@ export default function AdminHome({ embedded = false }) {
   const { user, role } = useAuth();
   const userRole = (role || user?.role || '').toUpperCase();
   const isSuperAdmin = userRole === 'SUPER_ADMIN';
-  const isAdminUser = userRole === 'ADMIN' || isSuperAdmin;
   
   const [filters, setFilters] = useState({ campus: '', school: '', batch: '', admin: '' });
 
@@ -510,14 +508,6 @@ export default function AdminHome({ embedded = false }) {
       </div>
       )}
 
-      {/* Job Opportunities */}
-      {isAdminUser && (
-        <JobOpportunitiesSection
-          embedded
-          showAdminOverview={false}
-          showMomAnalysis={isSuperAdmin}
-        />
-      )}
     </div>
   );
 }

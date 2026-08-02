@@ -1059,9 +1059,11 @@ model InterviewSession {
   updatedAt          DateTime            @updatedAt
   startedAt          DateTime?
   completedAt        DateTime?
-  resultsDeclaredAt  DateTime?
-  resultsLocked      Boolean             @default(false)
-  rounds             InterviewRound[]
+  resultsDeclaredAt       DateTime?
+  resultsLocked           Boolean             @default(false)
+  shareResultsWithStudents Boolean            @default(false)
+  shareResultsSetAt       DateTime?
+  rounds                  InterviewRound[]
   slots              InterviewSlot[]
   job                Job                 @relation(fields: [jobId], references: [id], onDelete: Cascade)
   interviewerInvites InterviewerInvite[]
@@ -1452,6 +1454,8 @@ model SuccessStory {
   company      String?
   studentName  String?
   studentId    String?
+  email        String?
+  linkedin     String?
   branch       String?
   campus       String?
   batch        String?

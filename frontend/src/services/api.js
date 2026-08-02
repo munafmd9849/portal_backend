@@ -1063,13 +1063,15 @@ export const api = {
     method: 'POST',
     silent: true,
   }),
-  endRound: (roundId, token) => apiRequest(`/interview/round/${roundId}/end?token=${encodeURIComponent(token)}`, {
+  endRound: (roundId, token, body = {}) => apiRequest(`/interview/round/${roundId}/end?token=${encodeURIComponent(token)}`, {
     method: 'POST',
+    body: JSON.stringify(body),
     silent: true,
   }),
   /** End interview session (token-based). Use when all rounds are ended and session is ONGOING/INCOMPLETE. */
-  endInterviewSessionByToken: (sessionId, token) => apiRequest(`/interview/session/${sessionId}/end?token=${encodeURIComponent(token)}`, {
+  endInterviewSessionByToken: (sessionId, token, body = {}) => apiRequest(`/interview/session/${sessionId}/end?token=${encodeURIComponent(token)}`, {
     method: 'POST',
+    body: JSON.stringify(body),
     silent: true,
   }),
 
