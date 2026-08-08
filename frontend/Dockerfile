@@ -19,11 +19,11 @@ ENV NODE_ENV=production
 
 # Vite replaces VITE_* variables while building the static bundle. Runtime
 # environment variables in the Nginx container cannot configure it afterwards.
-ARG VITE_API_BASE_URL
-ARG VITE_API_URL
-ARG VITE_SOCKET_URL
-ARG VITE_GOOGLE_CLIENT_ID
-ARG VITE_JITSI_DOMAIN
+ARG VITE_API_BASE_URL=http://localhost:3000/api
+ARG VITE_API_URL=http://localhost:3000/api
+ARG VITE_SOCKET_URL=http://localhost:3000
+ARG VITE_GOOGLE_CLIENT_ID=620332349787-8elql0hf7t3c0mh6kom6md1pt9prdq3q.apps.googleusercontent.com
+ARG VITE_JITSI_DOMAIN=meet.jit.si
 
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL \
     VITE_API_URL=$VITE_API_URL \
@@ -38,6 +38,10 @@ RUN npm run build
 # STAGE 2: High-Performance Production Nginx Server
 # ==========================================
 FROM nginx:1.25-alpine AS runner
+
+# BrowserRouter routes do not have matching files in the static build. Route
+# unknown paths to index.html so React can render the requested page.
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy the compiled static files from Stage 1 into Nginx default serving folder
 COPY --from=builder /app/dist /usr/share/nginx/html
