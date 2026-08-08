@@ -9,7 +9,7 @@ async function addDummyData() {
   try {
     const user = await prisma.user.findUnique({
       where: { email },
-      include: { student: true },
+      include: { student: true }, 
     });
 
     if (!user?.student) {

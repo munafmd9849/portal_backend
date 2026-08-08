@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch src/server.js",
-    "postinstall": "prisma generate",
+    "postinstall": "prisma generate --generator client",
     "build": "prisma generate",
     "start": "node src/server.js",
     "db:migrate": "prisma migrate dev",
@@ -82,8 +82,10 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@mermaid-js/mermaid-cli": "^11.16.0",
     "jest": "^29.7.0",
     "nodemon": "^3.0.2",
+    "prisma-erd-generator": "^2.4.4",
     "supertest": "^6.3.3",
     "tsx": "^4.21.0"
   }
