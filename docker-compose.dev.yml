@@ -1,7 +1,26 @@
+name: portal-main-dev
+
+# ============================================================
+# COMMON LOGGING
+# ============================================================
+
+x-default-logging: &default-logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "100m"
+
+
+# ============================================================
+# SERVICES
+# ============================================================
+
 services:
-  # ==========================================
-  # PostgreSQL Database
-  # ==========================================
+
+  # ==========================================================
+  # PLACEMENT PORTAL - POSTGRESQL
+  # ==========================================================
+
   postgres-db:
     image: postgres:16-alpine
     container_name: portal-postgres
@@ -19,15 +38,26 @@ services:
       - pgdata:/var/lib/postgresql/data
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d placement_portal"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d placement_portal"
+        ]
       interval: 5s
       timeout: 5s
       retries: 12
       start_period: 10s
 
-  # ==========================================
-  # Redis Cache
-  # ==========================================
+    networks:
+      - portal-network
+
+    <<: *default-logging
+
+
+  # ==========================================================
+  # PLACEMENT PORTAL - REDIS
+  # ==========================================================
+
   redis-cache:
     image: redis:7-alpine
     container_name: portal-redis
@@ -37,21 +67,37 @@ services:
       - redisdata:/data
 
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+        [
+          "CMD",
+          "redis-cli",
+          "ping"
+        ]
       interval: 5s
       timeout: 3s
       retries: 12
       start_period: 5s
 
-  # ==========================================
-  # Backend API (Development Build)
-  # ==========================================
+    networks:
+      - portal-network
+
+    <<: *default-logging
+
+
+  # ==========================================================
+  # PLACEMENT PORTAL - BACKEND
+  #
+  # Development:
+  # Builds directly from ./backend/Dockerfile
+  # ==========================================================
+
   backend-api:
     build:
       context: ./backend
       dockerfile: Dockerfile
 
     image: munafmd9849/placement-portal-backend:dev
+
     container_name: portal-backend
     restart: always
 
@@ -59,63 +105,137 @@ services:
       - "3000:3000"
 
     environment:
+
+      # --------------------------------------------------------
+      # Application
+      # --------------------------------------------------------
+
       PORT: "3000"
       NODE_ENV: production
 
-      CORS_ORIGIN: http://localhost:5173
-      FRONTEND_URL: http://localhost:5173
+      CORS_ORIGIN: "http://localhost:5173"
+      FRONTEND_URL: "http://localhost:5173"
 
-      SUPER_ADMIN_EMAIL: admin@pwioi.in
-      SUPER_ADMIN_PASSWORD: admin123
 
-      ADMIN_EMAIL: munafmd9849@gmail.com
-      ADMIN_PASSWORD: qwert123
+      # --------------------------------------------------------
+      # Authentication Users
+      # --------------------------------------------------------
 
-      STUDENT_EMAIL: munafmd7407@gmail.com
-      STUDENT_PASSWORD: qwert123
+      SUPER_ADMIN_EMAIL: "admin@pwioi.in"
+      SUPER_ADMIN_PASSWORD: "admin123"
 
-      DATABASE_URL: postgresql://postgres:root123@postgres-db:5432/placement_portal
+      ADMIN_EMAIL: "munafmd9849@gmail.com"
+      ADMIN_PASSWORD: "qwert123"
 
-      REDIS_URL: redis://redis-cache:6379
-      REDIS_HOST: redis-cache
+      STUDENT_EMAIL: "munafmd7407@gmail.com"
+      STUDENT_PASSWORD: "qwert123"
+
+
+      # --------------------------------------------------------
+      # PostgreSQL
+      # --------------------------------------------------------
+
+      DATABASE_URL: "postgresql://postgres:root123@postgres-db:5432/placement_portal"
+
+
+      # --------------------------------------------------------
+      # Redis
+      # --------------------------------------------------------
+
+      REDIS_URL: "redis://redis-cache:6379"
+      REDIS_HOST: "redis-cache"
       REDIS_PORT: "6379"
 
-      JWT_SECRET: dev_9fA3xKQpT2mW8ZrE6YJH5sD0C1BvN4L
-      JWT_REFRESH_SECRET: dev-refresh-secret-key-min-32-characters-long-change-in-production
-      JWT_EXPIRES_IN: 1h
-      JWT_REFRESH_EXPIRES_IN: 7d
 
-      EMAIL_HOST: smtp.gmail.com
+      # --------------------------------------------------------
+      # Judge0
+      # --------------------------------------------------------
+
+      JUDGE0_URL: "http://judge0-server:2358"
+
+
+      # --------------------------------------------------------
+      # JWT
+      # --------------------------------------------------------
+
+      JWT_SECRET: "dev_9fA3xKQpT2mW8ZrE6YJH5sD0C1BvN4L"
+      JWT_REFRESH_SECRET: "dev-refresh-secret-key-min-32-characters-long-change-in-production"
+
+      JWT_EXPIRES_IN: "1h"
+      JWT_REFRESH_EXPIRES_IN: "7d"
+
+
+      # --------------------------------------------------------
+      # Email / Gmail
+      # --------------------------------------------------------
+
+      EMAIL_HOST: "smtp.gmail.com"
       EMAIL_PORT: "587"
       EMAIL_SECURE: "false"
-      EMAIL_USER: charansai82140@gmail.com
+
+      EMAIL_USER: "charansai82140@gmail.com"
       EMAIL_PASS: "yswj utrj jdyt srkq"
+
       EMAIL_FROM: "PWIOI Portal <charansai82140@gmail.com>"
 
-      AI_PROVIDER: google
+
+      # --------------------------------------------------------
+      # Google AI / Gemini
+      # --------------------------------------------------------
+
+      AI_PROVIDER: "google"
       AI_ENABLED: "true"
-      GOOGLE_AI_API_KEY: AIzaSyB8I8jymJfgcPDuOM2YNRs48tuAgU7TQPs
-      GOOGLE_AI_MODEL: gemini-2.5-flash
+
+      GOOGLE_AI_API_KEY: "AIzaSyB8I8jymJfgcPDuOM2YNRs48tuAgU7TQPs"
+
+      GOOGLE_AI_MODEL: "gemini-2.5-flash"
       GOOGLE_AI_MAX_TOKENS: "2048"
       GOOGLE_AI_TEMPERATURE: "0.7"
 
-      MISTRAL_API_KEY: PnMUBcJ0X3UY6tnoFmhlz26AAM3rqJur
-      MISTRAL_MODEL: mistral-large-latest
 
-      GOOGLE_CLIENT_ID: 620332349787-2r8h9nbimor0m9ef7ftjfnrnp6j0bpjt.apps.googleusercontent.com
-      GOOGLE_CLIENT_SECRET: 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
+      # --------------------------------------------------------
+      # Mistral AI
+      # --------------------------------------------------------
 
-      GOOGLE_REDIRECT_URI: http://localhost:3000/api/calendar/oauth/callback
-      GOOGLE_AUTH_REDIRECT_URI: http://localhost:3000/api/auth/google-login/callback
+      MISTRAL_API_KEY: "PnMUBcJ0X3UY6tnoFmhlz26AAM3rqJur"
+      MISTRAL_MODEL: "mistral-large-latest"
 
-      CLOUDINARY_CLOUD_NAME: ds4oikoaf
+
+      # --------------------------------------------------------
+      # Google OAuth
+      # --------------------------------------------------------
+
+      GOOGLE_CLIENT_ID: "620332349787-2r8h9nbimor0m9ef7ftjfnrnp6j0bpjt.apps.googleusercontent.com"
+
+      GOOGLE_CLIENT_SECRET: "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"
+
+      GOOGLE_REDIRECT_URI: "http://localhost:3000/api/calendar/oauth/callback"
+
+      GOOGLE_AUTH_REDIRECT_URI: "http://localhost:3000/api/auth/google-login/callback"
+
+
+      # --------------------------------------------------------
+      # Cloudinary
+      # --------------------------------------------------------
+
+      CLOUDINARY_CLOUD_NAME: "ds4oikoaf"
       CLOUDINARY_API_KEY: "915818672416539"
-      CLOUDINARY_API_SECRET: V2c66DUmBOGVkxAl6wx-qYWwvFM
+      CLOUDINARY_API_SECRET: "V2c66DUmBOGVkxAl6wx-qYWwvFM"
+
+
+      # --------------------------------------------------------
+      # AWS
+      # --------------------------------------------------------
 
       AWS_ACCESS_KEY_ID: ""
       AWS_SECRET_ACCESS_KEY: ""
-      AWS_REGION: us-east-1
+      AWS_REGION: "us-east-1"
       S3_BUCKET_NAME: ""
+
+
+    # --------------------------------------------------------
+    # Backend startup
+    # --------------------------------------------------------
 
     command: >
       sh -c "
@@ -125,26 +245,49 @@ services:
       "
 
     depends_on:
+
       postgres-db:
         condition: service_healthy
+
       redis-cache:
         condition: service_healthy
 
-  # ==========================================
-  # Frontend (Development Build)
-  # ==========================================
+      judge0-server:
+        condition: service_started
+
+    networks:
+      - portal-network
+
+    <<: *default-logging
+
+
+  # ==========================================================
+  # PLACEMENT PORTAL - FRONTEND
+  #
+  # Development:
+  # Builds directly from ./frontend/Dockerfile
+  # ==========================================================
+
   frontend-app:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+
       args:
-        VITE_API_BASE_URL: http://localhost:3000/api
-        VITE_API_URL: http://localhost:3000/api
-        VITE_SOCKET_URL: http://localhost:3000
-        VITE_GOOGLE_CLIENT_ID: 620332349787-8elql0hf7t3c0mh6kom6md1pt9prdq3q.apps.googleusercontent.com
-        VITE_JITSI_DOMAIN: meet.jit.si
+
+        # Browser accesses backend through HOST
+        VITE_API_BASE_URL: "http://localhost:3000/api"
+        VITE_API_URL: "http://localhost:3000/api"
+        VITE_SOCKET_URL: "http://localhost:3000"
+
+        # Google OAuth
+        VITE_GOOGLE_CLIENT_ID: "620332349787-8elql0hf7t3c0mh6kom6md1pt9prdq3q.apps.googleusercontent.com"
+
+        # Jitsi
+        VITE_JITSI_DOMAIN: "meet.jit.si"
 
     image: munafmd9849/placement-portal-frontend:dev
+
     container_name: portal-frontend
     restart: always
 
@@ -152,8 +295,174 @@ services:
       - "5173:80"
 
     depends_on:
-      - backend-api
+
+      backend-api:
+        condition: service_started
+
+    networks:
+      - portal-network
+
+    <<: *default-logging
+
+
+  # ==========================================================
+  # JUDGE0 - SERVER
+  # ==========================================================
+
+  judge0-server:
+    image: judge0/judge0:1.13.1
+
+    container_name: judge0-server
+    restart: always
+
+    volumes:
+      - ./judge0/judge0.conf:/judge0.conf:ro
+
+    ports:
+      - "2358:2358"
+
+    privileged: true
+
+    depends_on:
+
+      judge0-db:
+        condition: service_started
+
+      judge0-redis:
+        condition: service_started
+
+    networks:
+
+      portal-network:
+
+      judge0-internal:
+
+    <<: *default-logging
+
+
+  # ==========================================================
+  # JUDGE0 - WORKERS
+  # ==========================================================
+
+  judge0-workers:
+    image: judge0/judge0:1.13.1
+
+    container_name: judge0-workers
+    restart: always
+
+    command:
+      - "./scripts/workers"
+
+    volumes:
+      - ./judge0/judge0.conf:/judge0.conf:ro
+
+    privileged: true
+
+    depends_on:
+
+      judge0-db:
+        condition: service_started
+
+      judge0-redis:
+        condition: service_started
+
+    networks:
+      - judge0-internal
+
+    <<: *default-logging
+
+
+  # ==========================================================
+  # JUDGE0 - POSTGRESQL
+  # ==========================================================
+
+  judge0-db:
+    image: postgres:16.2
+
+    container_name: judge0-db
+    restart: always
+
+    env_file:
+      - ./judge0/judge0.conf
+
+    volumes:
+      - judge0-data:/var/lib/postgresql/data
+
+    networks:
+
+      judge0-internal:
+        aliases:
+          - db
+
+    <<: *default-logging
+
+
+  # ==========================================================
+  # JUDGE0 - REDIS
+  # ==========================================================
+
+  judge0-redis:
+    image: redis:7.2.4
+
+    container_name: judge0-redis
+    restart: always
+
+    command:
+      [
+        "bash",
+        "-c",
+        "docker-entrypoint.sh --appendonly no --requirepass \"$$REDIS_PASSWORD\""
+      ]
+
+    env_file:
+      - ./judge0/judge0.conf
+
+    networks:
+
+      judge0-internal:
+        aliases:
+          - redis
+
+    <<: *default-logging
+
+
+# ============================================================
+# VOLUMES
+# ============================================================
 
 volumes:
+
+  # Placement Portal
   pgdata:
   redisdata:
+
+  # Judge0
+  judge0-data:
+
+
+# ============================================================
+# NETWORKS
+# ============================================================
+
+networks:
+
+  # Shared network:
+  #
+  # frontend
+  # backend
+  # portal postgres
+  # portal redis
+  # judge0 server
+  #
+  portal-network:
+    driver: bridge
+
+  # Judge0-only communication:
+  #
+  # judge0-server
+  # judge0-workers
+  # judge0-db
+  # judge0-redis
+  #
+  judge0-internal:
+    driver: bridge
