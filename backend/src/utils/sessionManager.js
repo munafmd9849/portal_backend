@@ -1,36 +1,55 @@
 /**
  * Student single-device session management.
  * Incrementing sessionVersion invalidates prior access tokens; refresh tokens are cleared on login.
- *
- * Uses raw SQL for sessionVersion so login still works if the generated Prisma client
- * is temporarily out of sync with schema.prisma (e.g. prisma generate locked by a running server).
  */
 
 import prisma from '../config/database.js';
 
 const REFRESH_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
+function isSqlite() {
+  return (process.env.DATABASE_URL || '').toLowerCase().startsWith('file:');
+}
+
 export async function getUserSessionVersion(userId) {
   try {
+    if (isSqlite()) {
+      const rows = await prisma.$queryRaw`
+        SELECT sessionVersion FROM users WHERE id = ${userId} LIMIT 1
+      `;
+      return Number(rows?.[0]?.sessionVersion ?? 0);
+    }
     const rows = await prisma.$queryRaw`
       SELECT "sessionVersion" FROM users WHERE id = ${userId} LIMIT 1
     `;
     return Number(rows?.[0]?.sessionVersion ?? 0);
   } catch {
-    return 0;
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { sessionVersion: true },
+      });
+      return Number(user?.sessionVersion ?? 0);
+    } catch {
+      return 0;
+    }
   }
 }
 
 export async function establishStudentSession(userId) {
-  // Bump session version + last login in one statement (column must exist on users)
-  await prisma.$executeRaw`
-    UPDATE users
-    SET
-      "sessionVersion" = COALESCE("sessionVersion", 0) + 1,
-      "lastLoginAt" = NOW(),
-      "updatedAt" = NOW()
-    WHERE id = ${userId}
-  `;
+  // Portable update — works on SQLite and PostgreSQL (avoid Postgres-only NOW())
+  const current = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { sessionVersion: true },
+  });
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      sessionVersion: Number(current?.sessionVersion ?? 0) + 1,
+      lastLoginAt: new Date(),
+    },
+  });
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -45,8 +64,7 @@ export async function establishStudentSession(userId) {
     throw new Error('User not found after session establish');
   }
 
-  // Attach version for JWT even if Prisma client types omit the field
-  user.sessionVersion = await getUserSessionVersion(userId);
+  user.sessionVersion = Number(user.sessionVersion ?? 0);
 
   await prisma.refreshToken.deleteMany({ where: { userId } });
   return user;
