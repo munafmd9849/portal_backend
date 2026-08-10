@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import AdminLayout from '../../components/dashboard/shared/AdminLayout';
 import { AdminMobileMenuContext } from '../../contexts/AdminMobileMenuContext';
 import AdminDashboardHub from '../../components/dashboard/admin/AdminDashboardHub';
@@ -35,7 +35,9 @@ import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import RequireRole from '../../components/RequireRole';
 import ErrorBoundary from '../../components/common/ErrorBoundary';
 
-const SIDEBAR_WIDTH = '15rem';
+const DEFAULT_SIDEBAR_WIDTH = 15;
+const MIN_SIDEBAR_WIDTH = 5;
+const MAX_SIDEBAR_WIDTH = 15;
 
 const NAV_GROUPS = [
   { label: 'Overview', tabIds: ['dashboard'] },
@@ -57,9 +59,9 @@ function groupTabsForNav(visibleTabs, userRole) {
   }).filter(Boolean);
 }
 
-function navButtonClass(isActive, compact = false) {
+function navButtonClass(isActive, { compact = false, narrow = false } = {}) {
   const base = `w-full flex items-center rounded-lg font-medium transition-colors duration-150 ${
-    compact ? 'text-sm px-3 py-2.5' : 'text-sm px-3 py-2'
+    narrow ? 'justify-center px-2 py-2' : compact ? 'text-sm px-3 py-2.5' : 'text-sm px-3 py-2'
   }`;
   if (isActive) {
     return `${base} bg-indigo-50 text-indigo-700 border border-indigo-100`;
@@ -67,12 +69,15 @@ function navButtonClass(isActive, compact = false) {
   return `${base} text-slate-600 hover:text-indigo-700 hover:bg-slate-50`;
 }
 
-function renderGroupedNav({ groups, sidebarActiveTab, onTabClick, compact = false }) {
+function renderGroupedNav({ groups, sidebarActiveTab, onTabClick, compact = false, sidebarWidth = DEFAULT_SIDEBAR_WIDTH }) {
+  const narrow = !compact && sidebarWidth < 9;
   return groups.map((group) => (
     <div key={group.label} className={compact ? 'mb-4' : 'mb-5'}>
-      <p className="px-2 mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-        {group.label}
-      </p>
+      {!narrow && (
+        <p className="px-2 mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+          {group.label}
+        </p>
+      )}
       <nav className="space-y-0.5">
         {group.items.map((tab) => {
           const Icon = tab.icon;
@@ -81,10 +86,11 @@ function renderGroupedNav({ groups, sidebarActiveTab, onTabClick, compact = fals
               key={tab.id}
               type="button"
               onClick={() => onTabClick(tab.id)}
-              className={navButtonClass(sidebarActiveTab === tab.id, compact)}
+              className={navButtonClass(sidebarActiveTab === tab.id, { compact, narrow })}
+              title={narrow ? tab.label : ''}
             >
-              <Icon className="h-4 w-4 mr-2 shrink-0" />
-              <span className="truncate text-left">{tab.label}</span>
+              <Icon className={`h-4 w-4 shrink-0 ${narrow ? '' : 'mr-2'}`} />
+              {(compact || !narrow) && <span className="truncate text-left">{tab.label}</span>}
             </button>
           );
         })}
@@ -97,7 +103,12 @@ export default function AdminDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab') || 'dashboard';
   const [activeTab, setActiveTab] = useState(tabFromUrl);
+  const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
+  const [isDragging, setIsDragging] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isMobileView, setIsMobileView] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
+  );
   const { logout, user, role, loading } = useAuth();
   const navigate = useNavigate();
 
@@ -116,10 +127,41 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const mql = window.matchMedia('(max-width: 767px)');
-    const handler = () => { /* mobile drawer handles layout */ };
+    const handler = () => setIsMobileView(mql.matches);
     mql.addEventListener('change', handler);
+    handler();
     return () => mql.removeEventListener('change', handler);
   }, []);
+
+  const handleSidebarResizeStart = useCallback((e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleSidebarResizeMove = useCallback((e) => {
+    if (!isDragging) return;
+    const next = (e.clientX / window.innerWidth) * 100;
+    const constrained = Math.min(Math.max(next, MIN_SIDEBAR_WIDTH), MAX_SIDEBAR_WIDTH);
+    setSidebarWidth(constrained);
+  }, [isDragging]);
+
+  const handleSidebarResizeEnd = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  useEffect(() => {
+    if (!isDragging) return;
+    document.addEventListener('mousemove', handleSidebarResizeMove);
+    document.addEventListener('mouseup', handleSidebarResizeEnd);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    return () => {
+      document.removeEventListener('mousemove', handleSidebarResizeMove);
+      document.removeEventListener('mouseup', handleSidebarResizeEnd);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isDragging, handleSidebarResizeMove, handleSidebarResizeEnd]);
 
   const location = useLocation();
   const basePath = useMemo(
@@ -474,27 +516,41 @@ export default function AdminDashboard() {
       <AdminLayout>
         <div className="flex min-h-screen relative">
           <aside
-            className="hidden md:flex md:flex-col fixed top-[4.5rem] left-0 bottom-0 bg-white border-r border-slate-200 z-40"
-            style={{ width: SIDEBAR_WIDTH }}
+            className="hidden md:block bg-white border-r border-slate-200 fixed top-[3.75rem] md:top-[5.25rem] left-0 bottom-[4rem] overflow-y-auto overflow-x-hidden scrollbar-hide transition-all duration-200 ease-in-out z-40"
+            style={{ width: `${sidebarWidth}%` }}
           >
-            <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide p-3 pt-4">
+            <div className="p-3 pb-4">
               {renderGroupedNav({
                 groups: navGroups,
                 sidebarActiveTab,
                 onTabClick: handleTabClick,
+                sidebarWidth,
               })}
             </div>
-            <div className="shrink-0 p-3 border-t border-slate-200 bg-white">
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="w-full flex items-center rounded-lg text-sm font-medium text-rose-600 hover:bg-rose-50 hover:text-rose-700 px-3 py-2.5 transition-colors"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </button>
-            </div>
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize sidebar"
+              className="absolute top-0 right-0 w-1 h-full cursor-col-resize bg-slate-200 hover:bg-indigo-400 transition-colors duration-200"
+              onMouseDown={handleSidebarResizeStart}
+            />
           </aside>
+          <div
+            className="hidden md:block fixed bottom-0 left-0 z-50 p-3 border-t border-slate-200 bg-white"
+            style={{ width: `${sidebarWidth}%` }}
+          >
+            <button
+              type="button"
+              onClick={handleLogout}
+              className={`w-full flex items-center rounded-lg text-sm font-medium text-rose-600 hover:bg-rose-50 hover:text-rose-700 transition-colors ${
+                sidebarWidth < 9 ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5'
+              }`}
+              title={sidebarWidth < 9 ? 'Logout' : ''}
+            >
+              <LogOut className={`h-4 w-4 ${sidebarWidth >= 9 ? 'mr-2' : ''}`} />
+              {sidebarWidth >= 9 && 'Logout'}
+            </button>
+          </div>
 
           {/* Mobile drawer overlay */}
           {mobileMenuOpen && (
@@ -544,7 +600,12 @@ export default function AdminDashboard() {
           </aside>
 
           <main
-            className="bg-slate-50 min-h-screen md:ml-[15rem] w-full md:w-[calc(100%-15rem)]"
+            className="bg-slate-50 min-h-screen transition-all duration-200 ease-in-out"
+            style={
+              isMobileView
+                ? { marginLeft: 0, width: '100%' }
+                : { marginLeft: `${sidebarWidth}%`, width: `${100 - sidebarWidth}%` }
+            }
           >
             <div className="p-4 sm:p-6 max-w-[1600px]">
               <ErrorBoundary

@@ -1,20 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Video,
-  X,
   ChevronRight,
   Calendar,
   Clock,
-  BookOpen,
-  Info,
-  Users,
-  Layout,
-  MessageSquare,
   Terminal,
   CheckCircle2,
   Plus,
   Search,
-  AlertCircle,
 } from 'lucide-react';
 import { Spinner } from '../../ui/loading';
 import api from '../../../services/api';
@@ -29,6 +22,7 @@ import {
   ToggleRow,
 } from '../../assessment/WizardPrimitives';
 import { createCodingQuestion } from '../../../utils/mockInterviewQuestions';
+import ClockTimePicker from '../../ui/ClockTimePicker';
 
 const INITIAL_FORM = {
   title: '',
@@ -45,14 +39,6 @@ const INITIAL_FORM = {
   targetBranches: [],
   targetStudentIds: [],
 };
-
-const CATEGORIES = [
-  { id: 'TECHNICAL', label: 'Technical', icon: Layout },
-  { id: 'HR', label: 'HR Interview', icon: Users },
-  { id: 'BEHAVIORAL', label: 'Behavioral', icon: MessageSquare },
-  { id: 'COMMUNICATION', label: 'Communication', icon: BookOpen },
-  { id: 'GD_PREP', label: 'GD Prep', icon: Users },
-];
 
 function estimateSlots(formData) {
   if (!formData.startTime || !formData.endTime) return 0;
@@ -221,7 +207,7 @@ export default function MockInterviewCreateModal({ isOpen, onClose, onSuccess })
 
         <div className="flex-1 overflow-y-auto p-5 sm:p-6 custom-scrollbar bg-white">
           {step === 1 && (
-            <div className="max-w-3xl mx-auto space-y-5">
+            <div className="max-w-4xl mx-auto space-y-5">
               <WizardField label="Drive title">
                 <input
                   value={formData.title}
@@ -229,32 +215,6 @@ export default function MockInterviewCreateModal({ isOpen, onClose, onSuccess })
                   className={au.wizardInput}
                   placeholder="e.g. Q2 technical round — frontend"
                 />
-              </WizardField>
-
-              <WizardField label="Interview category">
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {CATEGORIES.map((cat) => (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() =>
-                        setFormData({
-                          ...formData,
-                          category: cat.id,
-                          enableCodeConsole: cat.id === 'TECHNICAL',
-                        })
-                      }
-                      className={`p-3 rounded-lg border transition-colors flex items-center gap-2.5 text-left ${
-                        formData.category === cat.id
-                          ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                      }`}
-                    >
-                      <cat.icon className="w-4 h-4 shrink-0" />
-                      <span className="text-sm font-medium truncate">{cat.label}</span>
-                    </button>
-                  ))}
-                </div>
               </WizardField>
 
               <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
@@ -291,7 +251,7 @@ export default function MockInterviewCreateModal({ isOpen, onClose, onSuccess })
           )}
 
           {step === 2 && (
-            <div className="max-w-3xl mx-auto space-y-5">
+            <div className="max-w-4xl mx-auto space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <WizardField label="Interview date">
                   <div className="relative">
@@ -306,19 +266,17 @@ export default function MockInterviewCreateModal({ isOpen, onClose, onSuccess })
                 </WizardField>
                 <div className="grid grid-cols-2 gap-3">
                   <WizardField label="Start time">
-                    <input
-                      type="time"
+                    <ClockTimePicker
                       value={formData.startTime}
-                      onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                      className={au.wizardInput}
+                      onChange={(startTime) => setFormData({ ...formData, startTime })}
+                      placeholder="Start"
                     />
                   </WizardField>
                   <WizardField label="End time">
-                    <input
-                      type="time"
+                    <ClockTimePicker
                       value={formData.endTime}
-                      onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                      className={au.wizardInput}
+                      onChange={(endTime) => setFormData({ ...formData, endTime })}
+                      placeholder="End"
                     />
                   </WizardField>
                 </div>
@@ -423,7 +381,7 @@ export default function MockInterviewCreateModal({ isOpen, onClose, onSuccess })
           )}
 
           {step === 3 && (
-            <div className="max-w-3xl mx-auto space-y-4">
+            <div className="max-w-4xl mx-auto space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3 pb-1">
                 <div>
                   <h3 className="text-base font-semibold text-slate-900">Assign candidates</h3>

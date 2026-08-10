@@ -77,7 +77,7 @@ export function buildControlTowerContext(query = {}, user = null) {
 export async function getControlTowerFilters() {
   const [base, schools, centers, batches] = await Promise.all([
     getFilterOptions(),
-    prisma.school.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' }, take: 100 }).catch(() => []),
+    prisma.school.findMany({ select: { id: true, name: true, code: true }, orderBy: { name: 'asc' }, take: 100 }).catch(() => []),
     prisma.center.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' }, take: 100 }).catch(() => []),
     prisma.batch.findMany({
       select: { id: true, year: true, label: true },
@@ -88,7 +88,7 @@ export async function getControlTowerFilters() {
 
   return {
     programs: schools.length
-      ? schools.map((s) => ({ id: s.name, name: s.name }))
+      ? schools.map((s) => ({ id: s.code || s.name, name: s.name }))
       : [{ id: 'SOT', name: 'School of Technology' }, { id: 'SOM', name: 'School of Management' }],
     cohorts: batches.length
       ? batches.map((b) => {
