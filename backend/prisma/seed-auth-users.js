@@ -114,45 +114,41 @@ async function main() {
     },
   });
 
-  // 2) ADMIN user + Admin profile (skip if same email as super admin)
-  if (creds.admin.email.toLowerCase() !== creds.superAdmin.email.toLowerCase()) {
-    const adminUser = await upsertUser({
-      email: creds.admin.email,
-      password: creds.admin.password,
-      role: 'ADMIN',
-      status: 'ACTIVE',
-      displayName: 'Platform Admin',
-    });
+  // 2) ADMIN user + Admin profile
+  const adminUser = await upsertUser({
+    email: creds.admin.email,
+    password: creds.admin.password,
+    role: 'ADMIN',
+    status: 'ACTIVE',
+    displayName: 'Platform Admin',
+  });
 
-    await prisma.admin.upsert({
-      where: { userId: adminUser.id },
-      update: {
-        name: 'Platform Admin',
-        role: 'ADMIN',
-        permissions: JSON.stringify(['*']),
-        allowedSchools: JSON.stringify(['*']),
-        allowedCenters: JSON.stringify(['*']),
-        allowedBatches: JSON.stringify(['*']),
-        allowedSchoolIds: JSON.stringify(['*']),
-        allowedCenterIds: JSON.stringify(['*']),
-        allowedBatchIds: JSON.stringify(['*']),
-      },
-      create: {
-        userId: adminUser.id,
-        name: 'Platform Admin',
-        role: 'ADMIN',
-        permissions: JSON.stringify(['*']),
-        allowedSchools: JSON.stringify(['*']),
-        allowedCenters: JSON.stringify(['*']),
-        allowedBatches: JSON.stringify(['*']),
-        allowedSchoolIds: JSON.stringify(['*']),
-        allowedCenterIds: JSON.stringify(['*']),
-        allowedBatchIds: JSON.stringify(['*']),
-      },
-    });
-  } else {
-    console.log(`Skipping separate ADMIN seed — same email as SUPER_ADMIN (${creds.superAdmin.email})`);
-  }
+  await prisma.admin.upsert({
+    where: { userId: adminUser.id },
+    update: {
+      name: 'Platform Admin',
+      role: 'ADMIN',
+      permissions: JSON.stringify(['*']),
+      allowedSchools: JSON.stringify(['*']),
+      allowedCenters: JSON.stringify(['*']),
+      allowedBatches: JSON.stringify(['*']),
+      allowedSchoolIds: JSON.stringify(['*']),
+      allowedCenterIds: JSON.stringify(['*']),
+      allowedBatchIds: JSON.stringify(['*']),
+    },
+    create: {
+      userId: adminUser.id,
+      name: 'Platform Admin',
+      role: 'ADMIN',
+      permissions: JSON.stringify(['*']),
+      allowedSchools: JSON.stringify(['*']),
+      allowedCenters: JSON.stringify(['*']),
+      allowedBatches: JSON.stringify(['*']),
+      allowedSchoolIds: JSON.stringify(['*']),
+      allowedCenterIds: JSON.stringify(['*']),
+      allowedBatchIds: JSON.stringify(['*']),
+    },
+  });
 
   // 3) STUDENT user + Student profile
   const studentUser = await upsertUser({
