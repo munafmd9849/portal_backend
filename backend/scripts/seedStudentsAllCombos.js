@@ -124,7 +124,7 @@ async function main() {
                 phone: `9${String(100000000 + index).slice(-9)}`,
                 enrollmentId,
                 school: school.storage,
-                center: center.storage,
+                center: center.name,
                 batch: batch.storage,
                 schoolId: schoolMap[school.storage],
                 centerId: centerMap[center.storage],

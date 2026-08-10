@@ -9,7 +9,7 @@ import {
 
 const ACCEPT = '.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel';
 
-export default function AssessmentQuestionExcelUpload({ onImport, disabled = false }) {
+export default function AssessmentQuestionExcelUpload({ onImport, disabled = false, compact = false }) {
   const inputRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -58,6 +58,30 @@ export default function AssessmentQuestionExcelUpload({ onImport, disabled = fal
   };
 
   if (!open) {
+    if (compact) {
+      return (
+        <div className="inline-flex items-center gap-2">
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={downloadAssessmentQuestionTemplate}
+            className={`${au.btnSecondary} text-xs`}
+          >
+            <Download className="w-4 h-4" />
+            Download template
+          </button>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => setOpen(true)}
+            className={`${au.btnPrimary} text-xs`}
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Import from Excel
+          </button>
+        </div>
+      );
+    }
     return (
       <button
         type="button"

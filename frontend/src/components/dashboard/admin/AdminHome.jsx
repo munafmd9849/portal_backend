@@ -4,7 +4,7 @@ import CrManagerCard from './CrManagerCard';
 import FunnelStatCard from './FunnelStatCard';
 import { fetchCrManagers } from '../../../services/jobOpportunities';
 import { PieChart } from 'react-minimal-pie-chart';
-import { Filter, TrendingUp, Users, Briefcase, MessageSquare, X, MapPin, GraduationCap, Shield } from 'lucide-react';
+import { Filter, TrendingUp, Users, Briefcase, MessageSquare, X, MapPin, GraduationCap } from 'lucide-react';
 import { SkeletonStatsGrid, SkeletonFunnelRow, SkeletonList } from '../../ui/loading';
 import { FaMapMarkerAlt, FaGraduationCap, FaUsers, FaUserShield } from 'react-icons/fa';
 import CustomDropdown from '../../common/CustomDropdown';
@@ -302,7 +302,7 @@ export default function AdminHome({ embedded = false }) {
             Filter Dashboard
           </h2>
 
-        {(filters.campus || filters.school || filters.batch || filters.admin) && (
+        {(filters.campus || filters.school || filters.batch) && (
           <div className="mb-4 flex flex-wrap gap-2 items-center">
             {filters.campus && (
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
@@ -328,19 +328,11 @@ export default function AdminHome({ embedded = false }) {
                 </button>
               </span>
             )}
-            {filters.admin && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">
-                Admin: {filterOptions.admins.find(opt => opt.id === filters.admin)?.name || filters.admin}
-                <button onClick={() => handleFilterChange('admin', '')} className="ml-1.5 hover:text-rose-900" aria-label="Remove admin filter">
-                  <X className="w-3 h-3" />
-                </button>
-              </span>
-            )}
             <button onClick={clearAllFilters} className="text-xs text-slate-500 hover:text-slate-700 underline">Clear all</button>
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <CustomDropdown
             label="Campus"
             icon={MapPin}
@@ -378,19 +370,6 @@ export default function AdminHome({ embedded = false }) {
             value={filters.batch}
             onChange={(value) => handleFilterChange('batch', value)}
             placeholder="Select Batch"
-          />
-          
-          <CustomDropdown
-            label="Admin"
-            icon={Shield}
-            iconColor="text-rose-600"
-            options={[
-              { value: '', label: 'Select Admin' },
-              ...filterOptions.admins.map(opt => ({ value: opt.id, label: opt.name }))
-            ]}
-            value={filters.admin}
-            onChange={(value) => handleFilterChange('admin', value)}
-            placeholder="Select Admin"
           />
         </div>
         </div>

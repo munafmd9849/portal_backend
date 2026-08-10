@@ -6,9 +6,9 @@ export const au = {
   backdropPanel: 'fixed inset-0 bg-slate-900/45 z-[99999]',
 
   modal:
-    'w-full max-w-xl max-h-[min(90vh,900px)] bg-white rounded-lg shadow-xl overflow-hidden flex flex-col border border-slate-200/80',
+    'w-full max-w-3xl max-h-[min(90vh,900px)] bg-white rounded-lg shadow-xl overflow-hidden flex flex-col border border-slate-200/80',
   modalLg:
-    'w-full max-w-5xl max-h-[min(92vh,920px)] bg-white rounded-lg shadow-xl overflow-hidden flex flex-col border border-slate-200/80',
+    'w-full max-w-6xl max-h-[min(92vh,920px)] bg-white rounded-lg shadow-xl overflow-hidden flex flex-col border border-slate-200/80',
   modalFull:
     'w-full h-full max-h-screen bg-white shadow-xl flex flex-col border-l border-slate-200',
 

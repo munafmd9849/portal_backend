@@ -1,6 +1,7 @@
 import prisma from '../config/database.js';
 import { getAdminScopeFilter } from '../utils/adminScope.js';
 import { deriveJobDriveStatus } from '../services/jobOpportunitiesPipeline.js';
+import { applyAcademicStudentFilters, expandBatchFilterValues } from '../utils/academicFilter.js';
 
 const PLACED_STATUSES = ['SELECTED', 'ACCEPTED', 'OFFERED'];
 const SHORTLIST_STATUSES = ['SHORTLISTED', 'INTERVIEWED', ...PLACED_STATUSES];
@@ -259,17 +260,9 @@ async function getActiveDrives(studentWhere) {
  * Build student WHERE clause from query filters
  */
 function buildStudentWhere(center, school, quarter, batch) {
-    const studentWhere = {};
-    if (center) {
-        const centers = center.split(',').map((c) => c.trim()).filter(Boolean);
-        if (centers.length) studentWhere.center = { in: centers };
-    }
-    if (school) {
-        const schools = school.split(',').map((s) => s.trim()).filter(Boolean);
-        if (schools.length) studentWhere.school = { in: schools };
-    }
+    const studentWhere = applyAcademicStudentFilters({}, { center, school, batch });
     const batches = [];
-    if (batch) batches.push(...batch.split(',').map((b) => b.trim()).filter(Boolean));
+    if (batch) batches.push(...String(batch).split(',').map((b) => b.trim()).filter(Boolean));
     if (quarter) {
         const quarterToBatch = {
             'Q1 (PRE-PLACEMENT)': '25-29',
@@ -277,13 +270,13 @@ function buildStudentWhere(center, school, quarter, batch) {
             'Q3 (INTERNSHIP)': '23-27',
             'Q4 (FINAL PLACEMENTS)': '26-30',
         };
-        quarter.split(',').forEach((q) => {
+        String(quarter).split(',').forEach((q) => {
             const uppercaseQ = String(q).trim().toUpperCase();
             batches.push(quarterToBatch[uppercaseQ] || q);
         });
     }
     if (batches.length) {
-        studentWhere.batch = { in: batches };
+        studentWhere.batch = { in: expandBatchFilterValues(batches.join(',')) };
     }
     return studentWhere;
 }

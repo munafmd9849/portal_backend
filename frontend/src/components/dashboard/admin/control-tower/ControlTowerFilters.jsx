@@ -20,7 +20,7 @@ export default function ControlTowerFilters({ filterOptions, filters, onChange, 
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 items-end">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 items-end">
         <CustomDropdown
           label="Program/Specialization"
           options={programOptions}
@@ -32,6 +32,12 @@ export default function ControlTowerFilters({ filterOptions, filters, onChange, 
           options={cohortOptions}
           value={filters.cohort || ''}
           onChange={(v) => onChange({ ...filters, cohort: v, batch: v })}
+        />
+        <CustomDropdown
+          label="Center"
+          options={[{ value: '', label: 'Center' }, ...opts.centers.map((c) => ({ value: c.id, label: c.name }))]}
+          value={filters.center || ''}
+          onChange={(v) => onChange({ ...filters, center: v })}
         />
         <CustomDropdown
           label="Quarter"

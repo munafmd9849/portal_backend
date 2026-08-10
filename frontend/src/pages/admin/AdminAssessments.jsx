@@ -1,23 +1,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { 
-  Plus, Search, Filter, MoreVertical, 
+  Plus, Search,
   Clock, Users, CheckCircle, AlertCircle,
-  Settings, Trash2, Edit3, Eye, FileText, Camera,
-  Video, Shield, Maximize2, Mic, AlertTriangle,
+  Settings, Trash2,
+  FileText, Camera,
+  Video, Shield, Maximize2, Mic,
   Layout, BookOpen, Terminal, ChevronRight,
-  MoreHorizontal, Activity, Target, X, Layers, Link2
+  Activity, Calendar, Layers, Link2
 } from 'lucide-react';
 import api from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
 import AssessmentSettingsModal from '../../components/dashboard/admin/AssessmentSettingsModal';
 import AssessmentInviteModal from '../../components/assessment/AssessmentInviteModal';
 import { fromDatetimeLocalValue } from '../../utils/assessmentEntryWindow';
-import StudentSelectorModal from '../../components/dashboard/admin/StudentSelectorModal';
 import { SkeletonTable } from '../../components/ui/loading';
 import CodingQuestionEditor from '../../components/admin/CodingQuestionEditor';
 import AssessmentQuestionExcelUpload from '../../components/admin/AssessmentQuestionExcelUpload';
-import AssessmentBulkImportPanel from '../../components/admin/AssessmentBulkImportPanel';
+import AssessmentAudiencePicker from '../../components/admin/AssessmentAudiencePicker';
+import ClockTimePicker from '../../components/ui/ClockTimePicker';
 import { au } from '../../components/assessment/assessmentUi';
 import {
   WizardProgress,
@@ -26,6 +27,7 @@ import {
   ToggleList,
   ToggleRow,
   WizardFooter,
+  WizardModalHeader,
 } from '../../components/assessment/WizardPrimitives';
 import AllowedCodingLanguagesPicker from '../../components/admin/AllowedCodingLanguagesPicker';
 import {
@@ -36,6 +38,86 @@ import {
 } from '../../coding-engine/starterCodeStorage';
 
 const COMPLETED_SESSION_STATUSES = new Set(['SUBMITTED', 'COMPLETED', 'PENDING_REVIEW', 'TERMINATED']);
+
+const WIZARD_STEP_LABELS = {
+  1: 'Audience & details',
+  2: 'Questions',
+  3: 'Security & publish',
+};
+
+const INITIAL_FORM = {
+  title: '',
+  description: '',
+  type: 'MOCK_TEST',
+  difficulty: 'MEDIUM',
+  duration: 60,
+  scheduleDate: '',
+  startClock: '',
+  endClock: '',
+  questions: [],
+  targetBatchIds: [],
+  targetStudentIds: [],
+  targetSchoolIds: [],
+  targetCenterIds: [],
+  scheduledAtMap: {},
+  config: {
+    proctoring: {
+      webcam: true,
+      mic: true,
+      tabSwitch: true,
+      fullscreen: true,
+      pauseOnTabSwitch: false,
+      tabSwitchGraceCount: 2,
+      snapshotInterval: 60,
+    },
+    shuffleQuestions: false,
+    shuffleOptions: false,
+    joinWindow: { opensMinutesBeforeStart: 10, closesMinutesAfterStart: 10 },
+    coding: { allowedLanguages: [...ALL_CODING_LANGUAGE_IDS] },
+  },
+};
+
+function resolveAudiencePayload(formData, { schools, centers, students }) {
+  const targetBatchIds = [...(formData.targetBatchIds || [])];
+  const studentUserIds = new Set(formData.targetStudentIds || []);
+  const schoolSet = new Set(formData.targetSchoolIds || []);
+  const centerSet = new Set(formData.targetCenterIds || []);
+
+  if (schoolSet.size || centerSet.size) {
+    for (const s of students) {
+      const uid = s.userId || s.id;
+      if (!uid) continue;
+
+      if (schoolSet.size) {
+        const schoolMatch =
+          (s.schoolId && schoolSet.has(s.schoolId)) ||
+          [...schoolSet].some((id) => {
+            const school = schools.find((sc) => sc.id === id);
+            return (
+              school &&
+              String(s.school || '').toLowerCase() === String(school.name).toLowerCase()
+            );
+          });
+        if (schoolMatch) studentUserIds.add(uid);
+      }
+
+      if (centerSet.size) {
+        const centerMatch =
+          (s.centerId && centerSet.has(s.centerId)) ||
+          [...centerSet].some((id) => {
+            const center = centers.find((c) => c.id === id);
+            return (
+              center &&
+              String(s.center || '').toLowerCase() === String(center.name).toLowerCase()
+            );
+          });
+        if (centerMatch) studentUserIds.add(uid);
+      }
+    }
+  }
+
+  return { targetBatchIds, targetStudentIds: [...studentUserIds] };
+}
 
 function assessmentHasLiveSession(assessment) {
   return (assessment.sessions || []).some((s) => s.status === 'IN_PROGRESS');
@@ -82,31 +164,13 @@ export default function AdminAssessments() {
   const [inviteAssessment, setInviteAssessment] = useState(null);
   const [step, setStep] = useState(1);
   const [batches, setBatches] = useState([]);
-  const [showStudentSelector, setShowStudentSelector] = useState(false);
+  const [schools, setSchools] = useState([]);
+  const [centers, setCenters] = useState([]);
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const toast = useToast();
 
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    type: 'MOCK_TEST', 
-    difficulty: 'MEDIUM',
-    duration: 60,
-    startTime: '',
-    endTime: '',
-    questions: [],
-    targetBatchIds: [],
-    targetStudentIds: [],
-    scheduledAtMap: {},
-    config: {
-      proctoring: { webcam: true, mic: true, tabSwitch: true, fullscreen: true, pauseOnTabSwitch: false, tabSwitchGraceCount: 2, snapshotInterval: 60 },
-      shuffleQuestions: false,
-      shuffleOptions: false,
-      joinWindow: { opensMinutesBeforeStart: 10, closesMinutesAfterStart: 10 },
-      coding: { allowedLanguages: [...ALL_CODING_LANGUAGE_IDS] },
-    },
-  });
+  const [formData, setFormData] = useState(INITIAL_FORM);
 
   const hasCodingQuestions =
     formData.type === 'CODING_TEST' ||
@@ -152,32 +216,31 @@ export default function AdminAssessments() {
   }, []);
 
   const [availableStudents, setAvailableStudents] = useState([]);
-  const [studentSearch, setStudentSearch] = useState('');
   const [loadingStudents, setLoadingStudents] = useState(false);
 
   useEffect(() => {
-    if (step === 3 && formData.type === 'MOCK_INTERVIEW_LIVE') {
-      const fetchStudents = async () => {
-        try {
-          setLoadingStudents(true);
-          const data = await api.getAllStudents();
-          setAvailableStudents(data?.students || (Array.isArray(data) ? data : []));
-        } catch (e) {
-          console.error('Failed to load students');
-        } finally {
-          setLoadingStudents(false);
-        }
-      };
-      fetchStudents();
-    }
-  }, [step, formData.type]);
-
-  const filteredStudents = Array.isArray(availableStudents) 
-    ? availableStudents.filter(s => 
-        s.fullName?.toLowerCase().includes(studentSearch.toLowerCase()) ||
-        s.enrollmentId?.toLowerCase().includes(studentSearch.toLowerCase())
-      )
-    : [];
+    if (!showCreateModal) return;
+    setStep(1);
+    setFormData(INITIAL_FORM);
+    const loadAudienceData = async () => {
+      try {
+        setLoadingStudents(true);
+        const [schoolData, centerData, studentData] = await Promise.all([
+          api.getSchools(),
+          api.getCenters(),
+          api.getAllStudents(),
+        ]);
+        setSchools(Array.isArray(schoolData) ? schoolData : []);
+        setCenters(Array.isArray(centerData) ? centerData : []);
+        setAvailableStudents(studentData?.students || (Array.isArray(studentData) ? studentData : []));
+      } catch {
+        console.error('Failed to load audience data');
+      } finally {
+        setLoadingStudents(false);
+      }
+    };
+    loadAudienceData();
+  }, [showCreateModal]);
 
   const allowedLangs =
     formData.config?.coding?.allowedLanguages?.length > 0
@@ -227,24 +290,58 @@ export default function AdminAssessments() {
     return true;
   };
 
-  const buildAssessmentPayload = (publish) => ({
-    ...formData,
-    title: formData.title?.trim(),
-    config: mergeCodingIntoConfig(formData.config, {
-      allowedLanguages: hasCodingQuestions ? allowedLangs : undefined,
-    }),
-    questions: (formData.questions || []).map((q) =>
-      q.type === 'CODING'
-        ? { ...q, starterCodes: parseStarterCodesByLang(q.starterCodes ?? q.starterCode) }
-        : q
-    ),
-    startTime: fromDatetimeLocalValue(formData.startTime),
-    endTime: fromDatetimeLocalValue(formData.endTime),
-    joinOpensMinutesBeforeStart: formData.config?.joinWindow?.opensMinutesBeforeStart,
-    joinClosesMinutesAfterStart: formData.config?.joinWindow?.closesMinutesAfterStart,
-    allowedCodingLanguages: hasCodingQuestions ? allowedLangs : undefined,
-    publish,
-  });
+  const toggleAudienceId = (key, id) => {
+    setFormData((prev) => {
+      const list = prev[key] || [];
+      return {
+        ...prev,
+        [key]: list.includes(id) ? list.filter((x) => x !== id) : [...list, id],
+      };
+    });
+  };
+
+  const toggleTargetStudent = (userId) => {
+    setFormData((prev) => ({
+      ...prev,
+      targetStudentIds: prev.targetStudentIds.includes(userId)
+        ? prev.targetStudentIds.filter((id) => id !== userId)
+        : [...prev.targetStudentIds, userId],
+    }));
+  };
+
+  const buildAssessmentPayload = (publish) => {
+    const audience = resolveAudiencePayload(formData, {
+      schools,
+      centers,
+      students: availableStudents,
+    });
+    const startIso = formData.scheduleDate && formData.startClock
+      ? fromDatetimeLocalValue(`${formData.scheduleDate}T${formData.startClock}`)
+      : null;
+    const endIso = formData.scheduleDate && formData.endClock
+      ? fromDatetimeLocalValue(`${formData.scheduleDate}T${formData.endClock}`)
+      : null;
+
+    return {
+      ...formData,
+      title: formData.title?.trim(),
+      ...audience,
+      config: mergeCodingIntoConfig(formData.config, {
+        allowedLanguages: hasCodingQuestions ? allowedLangs : undefined,
+      }),
+      questions: (formData.questions || []).map((q) =>
+        q.type === 'CODING'
+          ? { ...q, starterCodes: parseStarterCodesByLang(q.starterCodes ?? q.starterCode) }
+          : q
+      ),
+      startTime: startIso,
+      endTime: endIso,
+      joinOpensMinutesBeforeStart: formData.config?.joinWindow?.opensMinutesBeforeStart,
+      joinClosesMinutesAfterStart: formData.config?.joinWindow?.closesMinutesAfterStart,
+      allowedCodingLanguages: hasCodingQuestions ? allowedLangs : undefined,
+      publish,
+    };
+  };
 
   const handleSaveDraft = async () => {
     if (!formData.title?.trim()) {
@@ -613,448 +710,416 @@ export default function AdminAssessments() {
       
       {/* Creation Wizard - Clean Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-slate-900/50 z-[9999] flex items-center justify-center p-4">
+        <div className={au.backdropLg}>
           <div className={`${au.modalLg} h-[85vh]`}>
-            <div className={au.modalHeader}>
-               <div>
-                  <p className={au.modalTitle}>New assessment</p>
-                  <p className={au.modalSubtitle}>Step {step} of 3</p>
-               </div>
-               <button 
-                 type="button"
-                 onClick={() => setShowCreateModal(false)}
-                 className={au.closeBtn}
-               >
-                 <X className="w-5 h-5" />
-               </button>
-            </div>
+            <WizardModalHeader
+              title="New assessment"
+              subtitle={`Step ${step} of 3 · ${WIZARD_STEP_LABELS[step]}`}
+              onClose={() => setShowCreateModal(false)}
+              icon={FileText}
+            />
 
             <WizardProgress step={step} total={3} />
 
             <div className="flex-1 overflow-y-auto p-5 sm:p-6 custom-scrollbar bg-white">
-               {step === 1 && (
-                 <div className="max-w-3xl mx-auto space-y-10 animate-in fade-in slide-in-from-right-4 duration-500">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                       <div className="space-y-2.5">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Assessment Title</label>
-                          <input 
-                            value={formData.title}
-                            onChange={e => setFormData({...formData, title: e.target.value})}
-                            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 ring-sky-400/20 outline-none font-bold text-slate-900 transition-all" 
-                            placeholder="e.g. SOT Fullstack Mock Test" 
-                          />
-                       </div>
-                       <div className="space-y-2.5">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Assessment Category</label>
-                          <div className="grid grid-cols-2 gap-2">
-                             {[
-                               { id: 'MOCK_TEST', label: 'MCQ Test', icon: FileText },
-                               { id: 'CODING_TEST', label: 'Coding', icon: Terminal },
-                               { id: 'DESCRIPTIVE', label: 'Descriptive', icon: BookOpen },
-                               { id: 'MIXED', label: 'Mixed Mode', icon: Layers }
-                             ].map(type => (
-                               <button 
-                                 key={type.id}
-                                 onClick={() => setFormData({...formData, type: type.id})}
-                                 className={`p-3 rounded-xl border-2 transition-all flex items-center gap-3 ${formData.type === type.id ? 'border-sky-600 bg-sky-50 text-sky-700 shadow-md ' : 'border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200'}`}
-                               >
-                                 <type.icon className="w-4 h-4 flex-shrink-0" />
-                                 <span className="text-[10px] font-bold uppercase truncate">{type.label}</span>
-                               </button>
-                             ))}
-                          </div>
-                       </div>
-                    </div>
+              {step === 1 && (
+                <div className="max-w-4xl mx-auto space-y-5">
+                  <AssessmentAudiencePicker
+                    schools={schools}
+                    centers={centers}
+                    batches={batches}
+                    students={availableStudents}
+                    targetSchoolIds={formData.targetSchoolIds}
+                    targetCenterIds={formData.targetCenterIds}
+                    targetBatchIds={formData.targetBatchIds}
+                    targetStudentIds={formData.targetStudentIds}
+                    onSchoolToggle={(id) => toggleAudienceId('targetSchoolIds', id)}
+                    onCenterToggle={(id) => toggleAudienceId('targetCenterIds', id)}
+                    onBatchToggle={(id) => toggleAudienceId('targetBatchIds', id)}
+                    onStudentToggle={toggleTargetStudent}
+                    onClearAll={() =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        targetSchoolIds: [],
+                        targetCenterIds: [],
+                        targetBatchIds: [],
+                        targetStudentIds: [],
+                      }))
+                    }
+                    loading={loadingStudents}
+                  />
 
-                    <div className="space-y-2.5">
-                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Assessment Description</label>
-                       <textarea 
-                         value={formData.description}
-                         onChange={e => setFormData({...formData, description: e.target.value})}
-                         className="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 ring-sky-400/20 outline-none font-medium text-slate-700 h-32 resize-none transition-all shadow-inner" 
-                         placeholder="Describe the scope and rules of this test..." 
-                       />
-                    </div>
+                  <div className="border-t border-slate-100 pt-5 space-y-5">
+                    <WizardField label="Assessment title">
+                      <input
+                        value={formData.title}
+                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                        className={au.wizardInput}
+                        placeholder="e.g. SOT fullstack mock test"
+                      />
+                    </WizardField>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                       {[
-                         { label: 'Duration (Min)', type: 'number', key: 'duration' },
-                         { label: 'Scheduled Start', type: 'datetime-local', key: 'startTime' },
-                         { label: 'Overall End (optional)', type: 'datetime-local', key: 'endTime' },
-                       ].map((field) => (
-                         <div key={field.key} className="space-y-2.5">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{field.label}</label>
-                            <input
-                              type={field.type}
-                              value={formData[field.key]}
-                              onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
-                              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 ring-sky-400/20 outline-none font-bold text-slate-900 transition-all text-xs"
-                            />
-                         </div>
-                       ))}
-                    </div>
-
-                    <div className="p-5 bg-sky-50/50 border border-sky-100 rounded-2xl space-y-4">
-                      <p className="text-xs font-medium text-sky-800">Join window (when students can enter)</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                            Can join before start (minutes)
-                          </label>
-                          <input
-                            type="number"
-                            min={0}
-                            value={formData.config.joinWindow.opensMinutesBeforeStart}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                config: {
-                                  ...formData.config,
-                                  joinWindow: {
-                                    ...formData.config.joinWindow,
-                                    opensMinutesBeforeStart: parseInt(e.target.value, 10) || 0,
-                                  },
-                                },
-                              })
-                            }
-                            className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-800"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                            Must join within after start (minutes)
-                          </label>
-                          <input
-                            type="number"
-                            min={0}
-                            value={formData.config.joinWindow.closesMinutesAfterStart}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                config: {
-                                  ...formData.config,
-                                  joinWindow: {
-                                    ...formData.config.joinWindow,
-                                    closesMinutesAfterStart: parseInt(e.target.value, 10) || 0,
-                                  },
-                                },
-                              })
-                            }
-                            className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-800"
-                          />
-                        </div>
+                    <WizardField label="Assessment type">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {[
+                          { id: 'MOCK_TEST', label: 'MCQ test', icon: FileText },
+                          { id: 'CODING_TEST', label: 'Coding', icon: Terminal },
+                          { id: 'DESCRIPTIVE', label: 'Descriptive', icon: BookOpen },
+                          { id: 'MIXED', label: 'Mixed', icon: Layers },
+                        ].map((type) => (
+                          <button
+                            key={type.id}
+                            type="button"
+                            onClick={() => setFormData({ ...formData, type: type.id })}
+                            className={`p-3 rounded-lg border transition-colors flex flex-col items-center gap-1.5 text-center ${
+                              formData.type === type.id
+                                ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                            }`}
+                          >
+                            <type.icon className="w-4 h-4 shrink-0" />
+                            <span className="text-xs font-medium">{type.label}</span>
+                          </button>
+                        ))}
                       </div>
-                      <p className="text-[11px] text-slate-600 font-medium">
-                        Example: start 10:00, join within 10 min after start → students must enter by 10:10.
-                        Pre-check can open 10 min early if you set 10 above.
-                      </p>
+                    </WizardField>
+
+                    <WizardField label="Description">
+                      <textarea
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        className={au.wizardTextarea}
+                        placeholder="What is this assessment for? Any rules students should know?"
+                      />
+                    </WizardField>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <WizardField label="Duration (minutes)">
+                        <input
+                          type="number"
+                          min={1}
+                          value={formData.duration}
+                          onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+                          className={au.wizardInput}
+                        />
+                      </WizardField>
+                      <WizardField label="Assessment date">
+                        <div className="relative">
+                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                          <input
+                            type="date"
+                            value={formData.scheduleDate}
+                            onChange={(e) => setFormData({ ...formData, scheduleDate: e.target.value })}
+                            className={`${au.wizardInput} pl-10`}
+                          />
+                        </div>
+                      </WizardField>
                     </div>
-                 </div>
-               )}
 
-               {step === 2 && (
-                 <div className="max-w-4xl mx-auto space-y-5">
-                    <AssessmentQuestionExcelUpload onImport={handleExcelQuestionsImport} />
-                    <AssessmentBulkImportPanel assessmentId={formData?.id || undefined} />
-
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border border-slate-200 bg-slate-50">
-                       <p className="text-sm text-slate-600">
-                         {formData.questions.length
-                           ? `${formData.questions.length} question${formData.questions.length === 1 ? '' : 's'} in this assessment`
-                           : 'Add questions manually or upload from Excel.'}
-                       </p>
-                       <button 
-                         type="button"
-                         onClick={addQuestion}
-                         className={`${au.btnPrimary} text-xs shrink-0`}
-                       >
-                         <Plus className="w-4 h-4" /> Add question
-                       </button>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <WizardField label="Start time">
+                        <ClockTimePicker
+                          value={formData.startClock}
+                          onChange={(startClock) => setFormData({ ...formData, startClock })}
+                          placeholder="Start"
+                        />
+                      </WizardField>
+                      <WizardField label="End time (optional)" hint="Last moment students can still begin the test.">
+                        <ClockTimePicker
+                          value={formData.endClock}
+                          onChange={(endClock) => setFormData({ ...formData, endClock })}
+                          placeholder="End"
+                        />
+                      </WizardField>
                     </div>
+                  </div>
+                </div>
+              )}
 
-                    <div className="space-y-4">
-                       {formData.questions.map((q, idx) => (
-                         <div key={idx} className="p-6 bg-white border border-slate-200 rounded-xl shadow-sm space-y-6 relative group">
-                            <button 
-                              onClick={() => {
-                                const newQs = [...formData.questions];
-                                newQs.splice(idx, 1);
-                                setFormData({ ...formData, questions: newQs });
-                              }}
-                              className="absolute top-4 right-4 w-8 h-8 bg-rose-50 text-rose-500 rounded-lg hover:bg-rose-600 hover:text-white transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-sm"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+              {step === 2 && (
+                <div className="max-w-5xl mx-auto space-y-4">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-900">Add questions</p>
+                        <p className="text-xs text-slate-600 mt-0.5">
+                          Build manually or import rows from the Excel template.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 shrink-0">
+                        <AssessmentQuestionExcelUpload
+                          compact
+                          onImport={handleExcelQuestionsImport}
+                        />
+                        <button type="button" onClick={addQuestion} className={`${au.btnSecondary} text-xs`}>
+                          <Plus className="w-4 h-4" /> Add manually
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-3 pt-3 border-t border-slate-200/80">
+                      {formData.questions.length
+                        ? `${formData.questions.length} question${formData.questions.length === 1 ? '' : 's'} added`
+                        : 'No questions yet — import from Excel or add one manually.'}
+                    </p>
+                  </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                               {q.type !== 'CODING' && (
-                               <div className="md:col-span-8 space-y-2.5">
-                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Question {idx + 1}</label>
-                                  <input 
-                                     value={q.text}
-                                     onChange={e => updateQuestion(idx, 'text', e.target.value)}
-                                     className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm focus:ring-2 ring-sky-400/20 outline-none transition-all" 
-                                     placeholder="Enter question text here..." 
-                                  />
-                               </div>
-                               )}
-                               {q.type === 'CODING' && <div className="md:col-span-8" />}
-                               <div className="md:col-span-4 space-y-2.5">
-                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Type & Points</label>
-                                  <div className="flex gap-2">
-                                     <select 
-                                       value={q.type}
-                                       onChange={e => updateQuestion(idx, 'type', e.target.value)}
-                                       className="flex-1 p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-[10px] uppercase tracking-widest cursor-pointer outline-none focus:ring-2 ring-sky-400/20"
-                                     >
-                                       <option value="MCQ">MCQ</option>
-                                       <option value="CODING">Coding</option>
-                                       <option value="DESCRIPTIVE">Descriptive</option>
-                                     </select>
-                                     <input 
-                                       type="number"
-                                       value={q.points}
-                                       onChange={e => updateQuestion(idx, 'points', e.target.value)}
-                                       className="w-20 p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-center outline-none focus:ring-2 ring-sky-400/20" 
-                                     />
-                                  </div>
-                               </div>
+                  <div className="space-y-4">
+                    {formData.questions.map((q, idx) => (
+                      <div key={idx} className="p-5 bg-white border border-slate-200 rounded-xl space-y-4 relative group">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newQs = [...formData.questions];
+                            newQs.splice(idx, 1);
+                            setFormData({ ...formData, questions: newQs });
+                          }}
+                          className="absolute top-4 right-4 w-8 h-8 bg-rose-50 text-rose-500 rounded-lg hover:bg-rose-600 hover:text-white transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
+                          aria-label="Remove question"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                          {q.type !== 'CODING' && (
+                            <div className="md:col-span-8">
+                              <WizardField label={`Question ${idx + 1}`}>
+                                <input
+                                  value={q.text}
+                                  onChange={(e) => updateQuestion(idx, 'text', e.target.value)}
+                                  className={au.wizardInput}
+                                  placeholder="Enter question text"
+                                />
+                              </WizardField>
                             </div>
+                          )}
+                          {q.type === 'CODING' && <div className="md:col-span-8" />}
+                          <div className="md:col-span-4">
+                            <WizardField label="Type & points">
+                              <div className="flex gap-2">
+                                <select
+                                  value={q.type}
+                                  onChange={(e) => updateQuestion(idx, 'type', e.target.value)}
+                                  className={`${au.wizardInput} flex-1`}
+                                >
+                                  <option value="MCQ">MCQ</option>
+                                  <option value="CODING">Coding</option>
+                                  <option value="DESCRIPTIVE">Descriptive</option>
+                                </select>
+                                <input
+                                  type="number"
+                                  value={q.points}
+                                  onChange={(e) => updateQuestion(idx, 'points', e.target.value)}
+                                  className={`${au.wizardInput} w-20 text-center`}
+                                />
+                              </div>
+                            </WizardField>
+                          </div>
+                        </div>
 
-                            {q.type === 'MCQ' && (
-                              <div className="bg-slate-50/50 p-6 rounded-xl border border-slate-100 space-y-4">
-                                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Options (Click Circle to Mark Correct)</label>
-                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    {(q.options || ['', '', '', '']).map((opt, optIdx) => (
-                                      <div key={optIdx} className="flex gap-2 group/opt">
-                                         <button 
-                                           onClick={() => updateQuestion(idx, 'correctAnswer', optIdx.toString())}
-                                           className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all border shrink-0 ${q.correctAnswer === optIdx.toString() ? 'bg-emerald-600 border-emerald-600 text-white shadow-md' : 'bg-white text-slate-300 border-slate-200'}`}
-                                           title="Mark as correct"
-                                         >
-                                            <CheckCircle className="w-4 h-4" />
-                                         </button>
-                                         <div className="relative flex-1">
-                                           <input 
-                                             value={opt}
-                                             onChange={e => {
-                                               const newOpts = [...q.options];
-                                               newOpts[optIdx] = e.target.value;
-                                               updateQuestion(idx, 'options', newOpts);
-                                             }}
-                                             className="w-full p-3 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-sky-400 transition-all pr-10" 
-                                             placeholder={`Option ${String.fromCharCode(65 + optIdx)}`} 
-                                           />
-                                           {q.options?.length > 2 && (
-                                             <button 
-                                               onClick={() => {
-                                                 const newOpts = q.options.filter((_, i) => i !== optIdx);
-                                                 updateQuestion(idx, 'options', newOpts);
-                                                 if (q.correctAnswer === optIdx.toString()) {
-                                                   updateQuestion(idx, 'correctAnswer', '');
-                                                 } else if (parseInt(q.correctAnswer) > optIdx) {
-                                                   updateQuestion(idx, 'correctAnswer', (parseInt(q.correctAnswer) - 1).toString());
-                                                 }
-                                               }}
-                                               className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-300 hover:text-rose-500 transition-colors opacity-0 group-hover/opt:opacity-100"
-                                               title="Remove option"
-                                             >
-                                               <Trash2 className="w-3.5 h-3.5" />
-                                             </button>
-                                           )}
-                                         </div>
-                                      </div>
-                                    ))}
-                                    <button 
-                                      onClick={() => {
-                                        const newOpts = [...(q.options || []), ''];
+                        {q.type === 'MCQ' && (
+                          <div className="rounded-lg border border-slate-100 bg-slate-50 p-4 space-y-3">
+                            <p className={au.label}>Options — click the circle to mark correct</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {(q.options || ['', '', '', '']).map((opt, optIdx) => (
+                                <div key={optIdx} className="flex gap-2 group/opt">
+                                  <button
+                                    type="button"
+                                    onClick={() => updateQuestion(idx, 'correctAnswer', optIdx.toString())}
+                                    className={`w-9 h-9 rounded-lg flex items-center justify-center border shrink-0 ${
+                                      q.correctAnswer === optIdx.toString()
+                                        ? 'bg-emerald-600 border-emerald-600 text-white'
+                                        : 'bg-white text-slate-300 border-slate-200'
+                                    }`}
+                                    title="Mark as correct"
+                                  >
+                                    <CheckCircle className="w-4 h-4" />
+                                  </button>
+                                  <div className="relative flex-1">
+                                    <input
+                                      value={opt}
+                                      onChange={(e) => {
+                                        const newOpts = [...q.options];
+                                        newOpts[optIdx] = e.target.value;
                                         updateQuestion(idx, 'options', newOpts);
                                       }}
-                                      className="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 hover:border-sky-300 hover:text-sky-600 transition-all text-[10px] font-bold uppercase tracking-widest"
-                                    >
-                                       <Plus className="w-3.5 h-3.5" /> Add Option
-                                    </button>
-                                 </div>
-                              </div>
-                            )}
-
-                            {q.type === 'CODING' && (
-                              <CodingQuestionEditor
-                                question={q}
-                                onChange={(updated) => {
-                                  const newQuestions = [...formData.questions];
-                                  newQuestions[idx] = { ...newQuestions[idx], ...updated };
-                                  setFormData({ ...formData, questions: newQuestions });
+                                      className={au.wizardInput}
+                                      placeholder={`Option ${String.fromCharCode(65 + optIdx)}`}
+                                    />
+                                    {q.options?.length > 2 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const newOpts = q.options.filter((_, i) => i !== optIdx);
+                                          updateQuestion(idx, 'options', newOpts);
+                                          if (q.correctAnswer === optIdx.toString()) {
+                                            updateQuestion(idx, 'correctAnswer', '');
+                                          } else if (parseInt(q.correctAnswer, 10) > optIdx) {
+                                            updateQuestion(idx, 'correctAnswer', (parseInt(q.correctAnswer, 10) - 1).toString());
+                                          }
+                                        }}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-300 hover:text-rose-500 opacity-0 group-hover/opt:opacity-100"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newOpts = [...(q.options || []), ''];
+                                  updateQuestion(idx, 'options', newOpts);
                                 }}
-                              />
-                            )}
-                         </div>
-                       ))}
+                                className="flex items-center justify-center gap-2 p-3 border border-dashed border-slate-200 rounded-lg text-slate-500 hover:border-indigo-300 hover:text-indigo-600 text-xs font-medium"
+                              >
+                                <Plus className="w-3.5 h-3.5" /> Add option
+                              </button>
+                            </div>
+                          </div>
+                        )}
 
-                       {formData.questions.length === 0 && (
-                         <div className="py-20 border-2 border-dashed border-slate-100 rounded-3xl flex flex-col items-center justify-center text-slate-300">
-                            <Layers className="w-12 h-12 mb-3 opacity-20" />
-                            <p className="font-bold text-xs">No questions defined yet.</p>
-                         </div>
-                       )}
-                    </div>
-                 </div>
-               )}
-
-               {step === 3 && (
-                 <div className="max-w-3xl mx-auto space-y-6">
-                    <WizardSection
-                      title="Question bank delivery"
-                      description="Randomize order per student so shared papers are harder to coordinate."
-                    >
-                      <ToggleList>
-                        {[
-                          { key: 'shuffleQuestions', label: 'Shuffle questions', desc: 'Each student gets questions in a different order (locked for resume)' },
-                          { key: 'shuffleOptions', label: 'Shuffle MCQ options', desc: 'Each student sees answer choices in a different order' },
-                        ].map((feature) => (
-                          <ToggleRow
-                            key={feature.key}
-                            icon={Layers}
-                            label={feature.label}
-                            description={feature.desc}
-                            enabled={Boolean(formData.config[feature.key])}
-                            onToggle={() =>
-                              setFormData({
-                                ...formData,
-                                config: {
-                                  ...formData.config,
-                                  [feature.key]: !formData.config[feature.key],
-                                },
-                              })
-                            }
+                        {q.type === 'CODING' && (
+                          <CodingQuestionEditor
+                            question={q}
+                            onChange={(updated) => {
+                              const newQuestions = [...formData.questions];
+                              newQuestions[idx] = { ...newQuestions[idx], ...updated };
+                              setFormData({ ...formData, questions: newQuestions });
+                            }}
                           />
-                        ))}
-                      </ToggleList>
-                    </WizardSection>
+                        )}
+                      </div>
+                    ))}
 
-                    <WizardSection
-                      title="Proctoring & security"
-                      description="Choose what to monitor while students take this assessment."
-                    >
-                      <ToggleList>
-                        {[
-                          { key: 'webcam', label: 'Webcam snapshots', icon: Camera, desc: 'Capture periodic images during the session' },
-                          { key: 'mic', label: 'Microphone monitoring', icon: Mic, desc: 'Flag speech or sustained background noise' },
-                          { key: 'tabSwitch', label: 'Tab switching', icon: Layers, desc: 'Log when the candidate leaves the assessment tab' },
-                          { key: 'pauseOnTabSwitch', label: 'Pause on tab switch', icon: Maximize2, desc: 'After 2 warnings, lock the exam until an admin allows continue (timer freezes)' },
-                          { key: 'fullscreen', label: 'Require fullscreen', icon: Maximize2, desc: 'Keep the assessment in fullscreen mode' },
-                        ].map((feature) => (
-                          <ToggleRow
-                            key={feature.key}
-                            icon={feature.icon}
-                            label={feature.label}
-                            description={feature.desc}
-                            enabled={Boolean(formData.config.proctoring[feature.key])}
-                            onToggle={() =>
-                              setFormData({
-                                ...formData,
-                                config: {
-                                  ...formData.config,
-                                  proctoring: {
-                                    ...formData.config.proctoring,
-                                    [feature.key]: !formData.config.proctoring[feature.key],
-                                  },
-                                },
-                              })
-                            }
-                          />
-                        ))}
-                      </ToggleList>
-                    </WizardSection>
-
-                    {hasCodingQuestions && (
-                      <AllowedCodingLanguagesPicker
-                        selected={allowedLangs}
-                        onChange={(ids) =>
-                          setFormData({
-                            ...formData,
-                            config: mergeCodingIntoConfig(formData.config, {
-                              allowedLanguages: ids,
-                            }),
-                          })
-                        }
-                      />
+                    {formData.questions.length === 0 && (
+                      <div className={`${au.emptyState} border border-dashed border-slate-200 rounded-xl`}>
+                        No questions yet. Use Import from Excel or Add manually above.
+                      </div>
                     )}
+                  </div>
+                </div>
+              )}
 
-                    <WizardSection
-                      title="Target audience"
-                      description="Assign batches or pick individual students."
-                    >
-                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto">
-                          {batches.map(batch => (
-                            <button 
-                              key={batch.id}
-                              type="button"
-                              onClick={() => {
-                                const ids = formData.targetBatchIds.includes(batch.id)
-                                  ? formData.targetBatchIds.filter(id => id !== batch.id)
-                                  : [...formData.targetBatchIds, batch.id];
-                                setFormData({...formData, targetBatchIds: ids});
-                              }}
-                              className={`p-3 rounded-lg border text-left transition-colors ${
-                                formData.targetBatchIds.includes(batch.id)
-                                ? 'border-sky-600 bg-sky-50'
-                                : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-                              }`}
-                            >
-                              <div className="text-sm font-medium text-slate-900">{batch.label || batch.year}</div>
-                              <div className="text-xs text-slate-500 mt-0.5">{batch.school?.name || 'General batch'}</div>
-                            </button>
-                          ))}
-                       </div>
-                       
-                       <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
-                          <span className="text-xs text-slate-500">
-                            {formData.targetBatchIds.length} batch{formData.targetBatchIds.length === 1 ? '' : 'es'} selected
-                          </span>
-                          <button 
-                             type="button"
-                             onClick={() => setShowStudentSelector(true)}
-                             className="text-xs font-medium text-sky-600 hover:text-sky-700"
-                           >
-                             Select students
-                           </button>
-                       </div>
-                    </WizardSection>
-                 </div>
-               )}
+              {step === 3 && (
+                <div className="max-w-4xl mx-auto space-y-5">
+                  <WizardSection
+                    title="Question bank delivery"
+                    description="Randomize order per student so shared papers are harder to coordinate."
+                  >
+                    <ToggleList>
+                      {[
+                        { key: 'shuffleQuestions', label: 'Shuffle questions', desc: 'Each student gets questions in a different order (locked for resume)' },
+                        { key: 'shuffleOptions', label: 'Shuffle MCQ options', desc: 'Each student sees answer choices in a different order' },
+                      ].map((feature) => (
+                        <ToggleRow
+                          key={feature.key}
+                          icon={Layers}
+                          label={feature.label}
+                          description={feature.desc}
+                          enabled={Boolean(formData.config[feature.key])}
+                          onToggle={() =>
+                            setFormData({
+                              ...formData,
+                              config: {
+                                ...formData.config,
+                                [feature.key]: !formData.config[feature.key],
+                              },
+                            })
+                          }
+                        />
+                      ))}
+                    </ToggleList>
+                  </WizardSection>
+
+                  <WizardSection
+                    title="Proctoring & security"
+                    description="Choose what to monitor while students take this assessment."
+                  >
+                    <ToggleList>
+                      {[
+                        { key: 'webcam', label: 'Webcam snapshots', icon: Camera, desc: 'Capture periodic images during the session' },
+                        { key: 'mic', label: 'Microphone monitoring', icon: Mic, desc: 'Flag speech or sustained background noise' },
+                        { key: 'tabSwitch', label: 'Tab switching', icon: Layers, desc: 'Log when the candidate leaves the assessment tab' },
+                        { key: 'pauseOnTabSwitch', label: 'Pause on tab switch', icon: Maximize2, desc: 'After 2 warnings, lock the exam until an admin allows continue (timer freezes)' },
+                        { key: 'fullscreen', label: 'Require fullscreen', icon: Maximize2, desc: 'Keep the assessment in fullscreen mode' },
+                      ].map((feature) => (
+                        <ToggleRow
+                          key={feature.key}
+                          icon={feature.icon}
+                          label={feature.label}
+                          description={feature.desc}
+                          enabled={Boolean(formData.config.proctoring[feature.key])}
+                          onToggle={() =>
+                            setFormData({
+                              ...formData,
+                              config: {
+                                ...formData.config,
+                                proctoring: {
+                                  ...formData.config.proctoring,
+                                  [feature.key]: !formData.config.proctoring[feature.key],
+                                },
+                              },
+                            })
+                          }
+                        />
+                      ))}
+                    </ToggleList>
+                  </WizardSection>
+
+                  {hasCodingQuestions && (
+                    <AllowedCodingLanguagesPicker
+                      selected={allowedLangs}
+                      onChange={(ids) =>
+                        setFormData({
+                          ...formData,
+                          config: mergeCodingIntoConfig(formData.config, {
+                            allowedLanguages: ids,
+                          }),
+                        })
+                      }
+                    />
+                  )}
+
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                    <p className="font-medium text-slate-900">Ready to publish?</p>
+                    <p className="mt-1 text-xs leading-relaxed">
+                      {formData.title || 'Untitled assessment'} · {formData.questions.length} question
+                      {formData.questions.length === 1 ? '' : 's'} · {formData.duration} min
+                      {formData.scheduleDate && formData.startClock
+                        ? ` · starts ${formData.scheduleDate} at ${formData.startClock}`
+                        : ''}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <WizardFooter
-              onBack={() => setStep(step - 1)}
-              backDisabled={step === 1}
-            >
-               {step < 3 ? (
-                 <button 
-                   type="button"
-                   onClick={() => setStep(step + 1)}
-                   className={`${au.btnPrimary}`}
-                 >
-                   Continue <ChevronRight className="w-4 h-4" />
-                 </button>
-               ) : (
-                 <>
-                   <button
-                     type="button"
-                     onClick={handleSaveDraft}
-                     className={au.btnSecondary}
-                   >
-                     Save draft
-                   </button>
-                   <button
-                     type="button"
-                     onClick={handlePublish}
-                     className={au.btnPrimary}
-                   >
-                     Publish
-                   </button>
-                 </>
-               )}
+            <WizardFooter onBack={() => setStep((s) => s - 1)} backDisabled={step === 1}>
+              {step < 3 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (step === 1 && !formData.title?.trim()) {
+                      toast?.error('Assessment title is required');
+                      return;
+                    }
+                    setStep((s) => s + 1);
+                  }}
+                  className={au.btnPrimary}
+                >
+                  Continue <ChevronRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <>
+                  <button type="button" onClick={handleSaveDraft} className={au.btnSecondary}>
+                    Save draft
+                  </button>
+                  <button type="button" onClick={handlePublish} className={au.btnPrimary}>
+                    Publish
+                  </button>
+                </>
+              )}
             </WizardFooter>
           </div>
         </div>
@@ -1068,7 +1133,6 @@ export default function AdminAssessments() {
           onClose={() => setSettingsAssessment(null)}
         />
       )}
-
       {inviteAssessment && (
         <AssessmentInviteModal
           open
@@ -1078,17 +1142,6 @@ export default function AdminAssessments() {
         />
       )}
 
-      {/* Student Selector Modal for Advanced Targeting */}
-      <StudentSelectorModal 
-        isOpen={showStudentSelector}
-        onClose={() => setShowStudentSelector(false)}
-        onSelect={(studentIds) => {
-          setFormData({ ...formData, targetStudentIds: studentIds });
-          toast?.success(`${studentIds.length} students selected for targeting`);
-        }}
-        initialSelected={formData.targetStudentIds}
-        jobTitle={formData.title || 'New Assessment'}
-      />
     </>
   );
 }

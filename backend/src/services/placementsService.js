@@ -4,6 +4,7 @@
 
 import prisma from '../config/database.js';
 import { getAdminScopeFilter, mergeScopeIntoStudentWhere } from '../utils/adminScope.js';
+import { applyAcademicStudentFilters } from '../utils/academicFilter.js';
 import { patchApplication } from './applicationStateService.js';
 
 const PLACEMENT_TYPES = ['FULL_TIME', 'INTERNSHIP'];
@@ -42,11 +43,8 @@ function formatPlacement(row) {
 }
 
 function buildStudentWhere(query = {}, adminScope = {}) {
-  const where = mergeScopeIntoStudentWhere({}, adminScope);
-
-  if (query.school) where.school = query.school;
-  if (query.center) where.center = query.center;
-  if (query.batch) where.batch = query.batch;
+  let where = mergeScopeIntoStudentWhere({}, adminScope);
+  where = applyAcademicStudentFilters(where, query);
 
   if (query.search?.trim()) {
     const q = query.search.trim();

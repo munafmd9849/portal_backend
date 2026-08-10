@@ -10,6 +10,7 @@ import {
   buildScopedStudentWhere,
   isAdminScopeBlocked,
 } from '../utils/adminResourceScope.js';
+import { applyAcademicStudentFilters } from '../utils/academicFilter.js';
 
 export const PIPELINE_STATUS = {
   ACTIVE: 'ACTIVE',
@@ -103,11 +104,8 @@ export function deriveJobDriveStatus(job) {
 }
 
 export function buildFilters(query = {}) {
-  const { center, school, batch, segment, quarter, month, crManager, search } = query;
-  const studentWhere = {};
-  if (school) studentWhere.school = { in: school.split(',').map((s) => s.trim()).filter(Boolean) };
-  if (center) studentWhere.center = { in: center.split(',').map((c) => c.trim()).filter(Boolean) };
-  if (batch) studentWhere.batch = { in: batch.split(',').map((b) => b.trim()).filter(Boolean) };
+  const { segment, quarter, month, crManager, search } = query;
+  const studentWhere = applyAcademicStudentFilters({}, query);
 
   const jobWhere = {};
   if (crManager) jobWhere.recruiterId = crManager;

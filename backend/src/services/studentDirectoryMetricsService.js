@@ -463,11 +463,54 @@ async function computeDirectoryStatusBreakdown(query = {}) {
   return { total, active, blocked, inactive };
 }
 
+function hasPostComputeDirectoryFilters(query = {}) {
+  return Boolean(
+    query.csStatus ||
+      query.activityTier ||
+      query.tier ||
+      query.atsFilter ||
+      query.minReadiness,
+  );
+}
+
+function applyPostComputeDirectoryFilters(rows, query = {}) {
+  let filtered = rows;
+  if (query.csStatus) {
+    const code = String(query.csStatus).toUpperCase();
+    filtered = filtered.filter((r) => r.csStatus.code === code);
+  }
+  if (query.activityTier) {
+    filtered = filtered.filter((r) => r.activityTier === String(query.activityTier).toUpperCase());
+  }
+  if (query.tier) {
+    const t = String(query.tier).toLowerCase();
+    filtered = filtered.filter((r) => r.placementReadiness?.tier === t);
+  }
+  if (query.minReadiness) {
+    const min = parseFloat(query.minReadiness);
+    if (Number.isFinite(min)) {
+      filtered = filtered.filter((r) => (r.placementReadiness?.score ?? 0) >= min);
+    }
+  }
+  if (query.atsFilter) {
+    const ats = String(query.atsFilter).toLowerCase();
+    if (ats === 'scored') {
+      filtered = filtered.filter((r) => r.atsScore != null);
+    } else if (ats === 'unscored') {
+      filtered = filtered.filter((r) => r.hasResume && r.atsScore == null);
+    } else if (ats === 'no_resume') {
+      filtered = filtered.filter((r) => !r.hasResume);
+    }
+  }
+  return filtered;
+}
+
 export async function getStudentDirectory(query = {}, adminScope = {}) {
   const page = Math.max(1, parseInt(query.page, 10) || 1);
   const limit = Math.min(500, Math.max(1, parseInt(query.limit, 10) || 50));
   let where = buildDirectoryWhere(query);
   where = mergeScopeIntoStudentWhere(where, adminScope);
+  const postCompute = hasPostComputeDirectoryFilters(query);
 
   if (where.id === '__BLOCKED__') {
     return {
@@ -491,6 +534,8 @@ export async function getStudentDirectory(query = {}, adminScope = {}) {
   delete summaryQuery.csStatus;
   delete summaryQuery.activityTier;
   delete summaryQuery.tier;
+  delete summaryQuery.atsFilter;
+  delete summaryQuery.minReadiness;
   let summaryWhere = buildDirectoryWhere(summaryQuery);
   summaryWhere = mergeScopeIntoStudentWhere(summaryWhere, adminScope);
 
@@ -501,8 +546,9 @@ export async function getStudentDirectory(query = {}, adminScope = {}) {
       where,
       include: studentIncludeForDirectory,
       orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * limit,
-      take: limit,
+      ...(postCompute
+        ? { take: 5000 }
+        : { skip: (page - 1) * limit, take: limit }),
     }),
     prisma.student.count({ where: summaryWhere }),
     prisma.student.count({ where: { ...summaryWhere, user: { status: 'ACTIVE' } } }),
@@ -517,32 +563,20 @@ export async function getStudentDirectory(query = {}, adminScope = {}) {
     loadCohortStatsMap(students),
   ]);
 
-  const srBase = (page - 1) * limit;
   const rows = students.map((s, i) =>
-    mapStudentToDirectoryRow(s, activeJobSkills, cohortStatsByKey, resumeByUserId, srBase + i + 1),
+    mapStudentToDirectoryRow(s, activeJobSkills, cohortStatsByKey, resumeByUserId, i + 1),
   );
 
-  let filtered = rows;
-  if (query.csStatus) {
-    const code = String(query.csStatus).toUpperCase();
-    filtered = filtered.filter((r) => r.csStatus.code === code);
-  }
-  if (query.activityTier) {
-    filtered = filtered.filter((r) => r.activityTier === String(query.activityTier).toUpperCase());
-  }
-  if (query.tier) {
-    const t = String(query.tier).toLowerCase();
-    filtered = filtered.filter((r) => r.placementReadiness?.tier === t);
-  }
-  if (query.atsFilter) {
-    const ats = String(query.atsFilter).toLowerCase();
-    if (ats === 'scored') {
-      filtered = filtered.filter((r) => r.atsScore != null);
-    } else if (ats === 'unscored') {
-      filtered = filtered.filter((r) => r.hasResume && r.atsScore == null);
-    } else if (ats === 'no_resume') {
-      filtered = filtered.filter((r) => !r.hasResume);
-    }
+  let filtered = applyPostComputeDirectoryFilters(rows, query);
+  let pageRows = filtered;
+  let filteredTotal = postCompute ? filtered.length : total;
+
+  if (postCompute) {
+    filteredTotal = filtered.length;
+    pageRows = filtered.slice((page - 1) * limit, page * limit);
+    pageRows = pageRows.map((row, i) => ({ ...row, srNo: (page - 1) * limit + i + 1 }));
+  } else {
+    pageRows = filtered.map((row, i) => ({ ...row, srNo: (page - 1) * limit + i + 1 }));
   }
 
   const summary = {
@@ -554,7 +588,7 @@ export async function getStudentDirectory(query = {}, adminScope = {}) {
   };
 
   return {
-    students: filtered,
+    students: pageRows,
     summary,
     statusBreakdown: {
       total: summaryTotal,
@@ -565,8 +599,8 @@ export async function getStudentDirectory(query = {}, adminScope = {}) {
     pagination: {
       page,
       limit,
-      total,
-      totalPages: Math.max(1, Math.ceil(total / limit)),
+      total: filteredTotal,
+      totalPages: Math.max(1, Math.ceil(filteredTotal / limit)),
     },
   };
 }

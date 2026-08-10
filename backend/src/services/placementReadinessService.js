@@ -4,6 +4,9 @@
  */
 
 import prisma from '../config/database.js';
+import {
+  applyAcademicStudentFilters,
+} from '../utils/academicFilter.js';
 
 const PLACED_STATUSES = ['SELECTED', 'ACCEPTED', 'OFFERED'];
 const SHORTLIST_STATUSES = ['SHORTLISTED', 'INTERVIEWED', 'OFFERED', 'SELECTED', 'ACCEPTED'];
@@ -61,12 +64,8 @@ const inCI = (values) => (isSqliteDb() ? { in: values } : { in: values, mode: 'i
  * Build Prisma where clause from admin query params (aligned with students controller).
  */
 export function buildStudentFilterWhere(query = {}) {
-  const { school, center, batch, status, search, minCgpa, maxCgpa, degree, branch } = query;
-  const where = {};
-
-  if (school) where.school = { in: school.split(',').map((s) => s.trim()).filter(Boolean) };
-  if (center) where.center = { in: center.split(',').map((c) => c.trim()).filter(Boolean) };
-  if (batch) where.batch = { in: batch.split(',').map((b) => b.trim()).filter(Boolean) };
+  const { status, search, minCgpa, maxCgpa, degree, branch } = query;
+  const where = applyAcademicStudentFilters({}, query);
 
   if (status) {
     const statusFilter = status.trim().toUpperCase();
