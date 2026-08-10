@@ -47,6 +47,13 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/email-templates ./email-templates
 # Google Sheets settings are stored as runtime-readable JSON.
 COPY --from=builder /app/data ./data
+# Compose startup seeds (users, academic structure, jobs, assessments).
+COPY --from=builder /app/seed-all.js ./seed-all.js
+COPY --from=builder /app/seed-users.js ./seed-users.js
+COPY --from=builder /app/seed-student-profile.js ./seed-student-profile.js
+COPY --from=builder /app/seed-admin-data.js ./seed-admin-data.js
+COPY --from=builder /app/credentials.js ./credentials.js
+COPY --from=builder /app/prisma.js ./prisma.js
 
 EXPOSE 3000
 

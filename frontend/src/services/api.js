@@ -821,7 +821,7 @@ export const api = {
     const query = toQueryString(params);
     return apiRequest(`/jobs?${query}`);
   },
-  getJob: (jobId) => apiRequest(`/jobs/${jobId}`),
+  getJob: (jobId, options = {}) => apiRequest(`/jobs/${jobId}`, options),
   createJob: (data) => apiRequest('/jobs', {
     method: 'POST',
     body: JSON.stringify(data),

@@ -4,6 +4,7 @@
  * Handles job CRUD, posting, targeting, and distribution
  */
 
+import bcrypt from 'bcryptjs';
 import prisma from '../config/database.js';
 import { addJobToQueue } from '../workers/queues.js';
 import { sendJobPostedNotification, sendBulkJobNotifications } from '../services/emailService.js';
@@ -19,6 +20,31 @@ import { applyAuditContext } from '../utils/auditContext.js';
 import { studentHasCompleteProfile, studentMeetsJobEligibility } from '../utils/jobEligibility.js';
 import { computeDrivePhase, getDrivePhaseLabel } from '../services/drivePhaseService.js';
 import { normalizeCustomQuestions } from '../utils/customQuestions.js';
+
+/** Map linkedAssessmentId to Prisma relation input (works across client versions). */
+function applyLinkedAssessmentData(data, { isCreate = false } = {}) {
+  if (!Object.prototype.hasOwnProperty.call(data, 'linkedAssessmentId')) {
+    return data;
+  }
+
+  const { linkedAssessmentId, ...rest } = data;
+
+  if (linkedAssessmentId) {
+    return {
+      ...rest,
+      linkedAssessment: { connect: { id: linkedAssessmentId } },
+    };
+  }
+
+  if (!isCreate && (linkedAssessmentId === null || linkedAssessmentId === '')) {
+    return {
+      ...rest,
+      linkedAssessment: { disconnect: true },
+    };
+  }
+
+  return rest;
+}
 
 const creatorInclude = {
   creator: {
@@ -751,12 +777,15 @@ export async function createJob(req, res) {
         } else {
           // Auto-create recruiter user if admin provides an email that doesn't exist
           try {
+            const placeholderPassword = `PASSWORD_REQD_FOR_CREATE_${Math.random().toString(36).slice(-8)}`;
+            const passwordHash = await bcrypt.hash(placeholderPassword, 10);
             const newUser = await prisma.user.create({
               data: {
                 email: normalizedRecruiterEmail,
-                password: 'PASSWORD_REQD_FOR_CREATE_' + Math.random().toString(36).slice(-8), // Placeholder
+                passwordHash,
                 role: 'RECRUITER',
-                name: recruiterName || 'New Recruiter',
+                status: 'ACTIVE',
+                displayName: recruiterName || 'New Recruiter',
                 recruiter: {
                   create: {
                     companyName: companyName || 'Unknown Company',
@@ -951,7 +980,7 @@ export async function createJob(req, res) {
 
     // Create job
     const job = await prisma.job.create({
-      data: processedData,
+      data: applyLinkedAssessmentData(processedData, { isCreate: true }),
       include: {
         company: true,
         recruiter: {
@@ -1414,7 +1443,11 @@ export async function updateJob(req, res) {
     // Update the job
     const job = await prisma.job.update({
       where: { id: jobId },
-      data: applyAuditContext(finalUpdateData, userId, 'UPDATE'),
+      data: applyAuditContext(
+        applyLinkedAssessmentData(finalUpdateData),
+        userId,
+        'UPDATE'
+      ),
       include: {
         company: true,
         recruiter: {

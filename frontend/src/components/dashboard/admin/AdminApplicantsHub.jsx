@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../../services/api';
@@ -146,9 +146,35 @@ export default function AdminApplicantsHub() {
   const COMPANIES_PER_PAGE = 12;
 
   const toast = useToast();
+  const addNoteHandledRef = useRef(null);
+  const addNoteProcessingRef = useRef(false);
   const basePath = typeof window !== 'undefined' && window.location.pathname.startsWith('/super-admin')
     ? '/super-admin'
     : '/admin';
+
+  const clearAddNoteParam = useCallback(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('addNote');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const openAddNoteForJob = useCallback((job, jobsList) => {
+    const jobId = job?.id || job?.jobId;
+    const companyName = (job?.companyName || job?.company?.name || 'Unknown Company').trim() || 'Unknown Company';
+    const companyJobs = jobsList.filter(
+      (j) => (j?.companyName || j?.company?.name || 'Unknown Company').trim() === companyName
+    );
+    const jobsForModal = companyJobs.length > 0 ? companyJobs : [job];
+    const totalApplicants = jobsForModal.reduce(
+      (sum, j) => sum + (j?.applicationCount ?? j?.totalApplications ?? 0),
+      0
+    );
+    setSelectedCompany({ companyName, jobs: jobsForModal, totalApplicants });
+    setEditingNoteJobId(jobId);
+    setEditingNoteValue(job?.adminNote || '');
+  }, []);
 
   useEffect(() => {
     if (selectedCompany) {
@@ -204,25 +230,47 @@ export default function AdminApplicantsHub() {
   }, [filters.company]);
 
   useEffect(() => {
-    if (!addNoteJobId || loading || jobs.length === 0) return;
-    const job = jobs.find((j) => (j?.id || j?.jobId) === addNoteJobId);
-    if (!job) return;
-    const companyName = job?.companyName || job?.company?.name || 'Unknown Company';
-    const companyJobs = jobs.filter(
-      (j) => (j?.companyName || j?.company?.name || 'Unknown Company').trim() === companyName.trim()
-    );
-    const totalApplicants = companyJobs.reduce(
-      (sum, j) => sum + (j?.applicationCount ?? j?.totalApplications ?? 0),
-      0
-    );
-    setSelectedCompany({ companyName, jobs: companyJobs, totalApplicants });
-    setEditingNoteJobId(addNoteJobId);
-    setEditingNoteValue(job?.adminNote || '');
-    setSearchParams((prev) => {
-      prev.delete('addNote');
-      return prev;
-    }, { replace: true });
-  }, [addNoteJobId, loading, jobs, setSearchParams]);
+    if (!addNoteJobId || loading) return;
+    if (addNoteHandledRef.current === addNoteJobId || addNoteProcessingRef.current) return;
+
+    addNoteProcessingRef.current = true;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        let job = jobs.find((j) => (j?.id || j?.jobId) === addNoteJobId);
+
+        if (!job) {
+          const res = await api.getJob(addNoteJobId, { silent: true });
+          job = res?.data ?? res;
+          if (!job?.id && !job?.jobId) {
+            throw new Error('Job not found');
+          }
+        }
+
+        if (cancelled) return;
+
+        const jobsList = jobs.some((j) => (j?.id || j?.jobId) === (job?.id || job?.jobId))
+          ? jobs
+          : [...jobs, job];
+
+        addNoteHandledRef.current = addNoteJobId;
+        openAddNoteForJob(job, jobsList);
+        clearAddNoteParam();
+      } catch (e) {
+        console.error('Failed to open add-note deep link:', e);
+        if (!cancelled) {
+          toast.error('Could not open this job to add a note. It may be missing or outside your access scope.');
+          addNoteHandledRef.current = addNoteJobId;
+          clearAddNoteParam();
+        }
+      } finally {
+        addNoteProcessingRef.current = false;
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [addNoteJobId, loading, jobs, openAddNoteForJob, clearAddNoteParam, toast]);
 
   return (
     <div className="space-y-4">
