@@ -8,7 +8,7 @@ export const AI_CONFIG = {
   provider: process.env.AI_PROVIDER || 'google',
   enabled: process.env.AI_ENABLED !== 'false', // Default to enabled
   google: {
-    model: process.env.GOOGLE_AI_MODEL || process.env.GEMINI_MODEL || 'gemini-2.5-flash', // Default to gemini-2.5-flash
+    model: process.env.GOOGLE_AI_MODEL || process.env.GEMINI_MODEL || 'gemini-2.5-flash',
     apiKey: process.env.GOOGLE_AI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY || process.env.GEMINI_API_KEY,
     maxTokens: parseInt(process.env.GOOGLE_AI_MAX_TOKENS || '800', 10), // Default to 800 for concise responses
     temperature: parseFloat(process.env.GOOGLE_AI_TEMPERATURE || '0.35'), // Default to 0.35 for structured responses

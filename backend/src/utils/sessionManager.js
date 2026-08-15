@@ -22,15 +22,17 @@ export async function getUserSessionVersion(userId) {
 }
 
 export async function establishStudentSession(userId) {
-  // Bump session version + last login in one statement (column must exist on users)
-  await prisma.$executeRaw`
-    UPDATE users
-    SET
-      "sessionVersion" = COALESCE("sessionVersion", 0) + 1,
-      "lastLoginAt" = NOW(),
-      "updatedAt" = NOW()
-    WHERE id = ${userId}
-  `;
+  const loginAt = new Date();
+  const currentVersion = await getUserSessionVersion(userId);
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      sessionVersion: currentVersion + 1,
+      lastLoginAt: loginAt,
+      updatedAt: loginAt,
+    },
+  });
 
   const user = await prisma.user.findUnique({
     where: { id: userId },

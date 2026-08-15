@@ -45,6 +45,8 @@ import googleCalendarConnectRoutes from './routes/googleCalendarConnect.js';
 import calendarRoutes from './routes/calendar.js';
 import endorsementRoutes from './routes/endorsements.js';
 import placementRoutes from './routes/placement.js';
+import questionBankRoutes from './routes/questionBank.js';
+import interviewPrepRoutes from './routes/interviewPrep.js';
 import recruiterScreeningRoutes from './routes/recruiterScreening.js';
 import adminScreeningRoutes from './routes/adminScreening.js';
 import adminJobsRoutes from './routes/adminJobs.js';
@@ -291,6 +293,8 @@ app.use('/api/google/calendar', googleCalendarConnectRoutes); // Legacy routes (
 app.use('/api/calendar', calendarRoutes); // New unified calendar routes
 app.use('/api/endorsements', endorsementRoutes);
 app.use('/api/placement', placementRoutes);
+app.use('/api/placement/question-bank', questionBankRoutes);
+app.use('/api/placement/interview-prep', interviewPrepRoutes);
 app.use('/api/recruiter', recruiterScreeningRoutes); // Token-based recruiter screening (no login)
 app.use('/api/resume', resumeViewRoutes); // Resume view by token (inline, for new tab)
 app.use('/api/admin', adminScreeningRoutes); // Admin screening management routes

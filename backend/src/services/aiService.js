@@ -460,3 +460,133 @@ function generateATSFallback(resumeText) {
   };
 }
 
+function extractJobKeywords(jobDescription = '') {
+  const text = String(jobDescription).toLowerCase();
+  const candidates = [
+    'javascript', 'python', 'java', 'react', 'node', 'sql', 'communication', 'leadership',
+    'analysis', 'management', 'marketing', 'finance', 'excel', 'powerpoint', 'strategy',
+    'teamwork', 'problem solving', 'project management', 'data analysis', 'customer',
+  ];
+  return candidates.filter((k) => text.includes(k));
+}
+
+function generateResumeOptimizeFallback({ studentProfile, jobDescription, jobTitle = '', companyName = '' }) {
+  const skills = (studentProfile.skills || []).map((s) => s.skillName || s).filter(Boolean);
+  const jdKeywords = extractJobKeywords(jobDescription);
+  const matchedKeywords = jdKeywords.filter((k) =>
+    skills.some((s) => String(s).toLowerCase().includes(k)) ||
+    String(studentProfile.summary || studentProfile.bio || '').toLowerCase().includes(k),
+  );
+  const headline = studentProfile.headline || studentProfile.fullName || 'Candidate';
+  const summary = [
+    `${headline} targeting the ${jobTitle || 'role'}${companyName ? ` at ${companyName}` : ''}.`,
+    skills.length
+      ? `Brings strengths in ${skills.slice(0, 5).join(', ')} aligned with the job description.`
+      : 'Profile highlights relevant academic and project experience for this role.',
+    'This is a local fallback optimization — add GOOGLE_AI_API_KEY or MISTRAL_API_KEY for AI rewriting.',
+  ].join(' ');
+
+  const experience = (studentProfile.experiences || []).map((e) => ({
+    originalTitle: e.title || 'Experience',
+    originalCompany: e.company || 'Company',
+    optimizedBullets: [
+      e.description
+        ? String(e.description).slice(0, 120)
+        : `Contributed as ${e.title || 'team member'} at ${e.company || 'organization'}.`,
+    ],
+  }));
+
+  const projects = (studentProfile.projects || []).map((p) => ({
+    originalTitle: p.title || 'Project',
+    optimizedBullets: [
+      p.description
+        ? String(p.description).slice(0, 120)
+        : `Built ${p.title || 'a project'} using ${p.technologies || 'relevant technologies'}.`,
+    ],
+  }));
+
+  return {
+    summary,
+    skills: {
+      technical: skills.slice(0, 8),
+      tools: [],
+      soft: ['Communication', 'Teamwork', 'Problem solving'].filter((s) =>
+        String(jobDescription).toLowerCase().includes(s.toLowerCase()),
+      ),
+    },
+    experience,
+    projects,
+    keywords: [...new Set([...matchedKeywords, ...skills.slice(0, 10).map(String)])].slice(0, 15),
+    isAI: false,
+    provider: 'fallback',
+  };
+}
+
+export async function optimizeResumeForJobWithAI({
+  studentProfile,
+  jobDescription,
+  jobTitle = '',
+  companyName = '',
+}) {
+  if (!AI_CONFIG.enabled || !AI_CONFIG.google.apiKey) {
+    return generateResumeOptimizeFallback({ studentProfile, jobDescription, jobTitle, companyName });
+  }
+
+  const candidate = {
+    fullName: studentProfile.fullName || '',
+    skills: (studentProfile.skills || []).map((s) => s.skillName || s),
+    summary: studentProfile.summary || studentProfile.bio || '',
+    experience: (studentProfile.experiences || []).map((e) => ({
+      title: e.title,
+      company: e.company,
+      description: e.description || '',
+    })),
+    projects: (studentProfile.projects || []).map((p) => ({
+      title: p.title,
+      technologies: p.technologies,
+      description: p.description || '',
+    })),
+  };
+
+  const prompt = `You are a resume optimizer. Return ONLY valid JSON with this schema:
+{
+  "summary": "string",
+  "skills": { "technical": [], "tools": [], "soft": [] },
+  "experience": [{ "originalTitle": "", "originalCompany": "", "optimizedBullets": [] }],
+  "projects": [{ "originalTitle": "", "optimizedBullets": [] }],
+  "keywords": []
+}
+
+Job title: ${jobTitle}
+Company: ${companyName}
+Job description:
+${String(jobDescription).slice(0, 3500)}
+
+Candidate:
+${JSON.stringify(candidate).slice(0, 4000)}`;
+
+  try {
+    const aiResponse = await generateAIContent(prompt);
+    if (isAiErrorResponse(aiResponse)) {
+      return generateResumeOptimizeFallback({ studentProfile, jobDescription, jobTitle, companyName });
+    }
+    const parsed = parseAiJsonResponse(aiResponse);
+    return {
+      summary: parsed.summary || '',
+      skills: {
+        technical: Array.isArray(parsed.skills?.technical) ? parsed.skills.technical : [],
+        tools: Array.isArray(parsed.skills?.tools) ? parsed.skills.tools : [],
+        soft: Array.isArray(parsed.skills?.soft) ? parsed.skills.soft : [],
+      },
+      experience: Array.isArray(parsed.experience) ? parsed.experience : [],
+      projects: Array.isArray(parsed.projects) ? parsed.projects : [],
+      keywords: Array.isArray(parsed.keywords) ? parsed.keywords : [],
+      isAI: true,
+      provider: 'google',
+    };
+  } catch (error) {
+    console.warn('[Resume Optimize] Google fallback failed:', error.message);
+    return generateResumeOptimizeFallback({ studentProfile, jobDescription, jobTitle, companyName });
+  }
+}
+
