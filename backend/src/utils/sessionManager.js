@@ -38,6 +38,7 @@ export async function getUserSessionVersion(userId) {
 
 export async function establishStudentSession(userId) {
   // Portable update — works on SQLite and PostgreSQL (avoid Postgres-only NOW())
+  const loginAt = new Date();
   const current = await prisma.user.findUnique({
     where: { id: userId },
     select: { sessionVersion: true },
@@ -47,7 +48,8 @@ export async function establishStudentSession(userId) {
     where: { id: userId },
     data: {
       sessionVersion: Number(current?.sessionVersion ?? 0) + 1,
-      lastLoginAt: new Date(),
+      lastLoginAt: loginAt,
+      updatedAt: loginAt,
     },
   });
 

@@ -122,7 +122,7 @@ async function refreshAccessToken() {
  * @returns {Promise} API response data
  */
 async function apiRequest(endpoint, options = {}) {
-  const { silent = false, showSuccess = false, noCache = false, ...fetchOptions } = options;
+  const { silent = false, showSuccess = false, noCache = false, timeoutMs = 30000, ...fetchOptions } = options;
   const method = (fetchOptions.method || 'GET').toUpperCase();
   const token = getAuthToken();
 
@@ -223,7 +223,7 @@ async function apiRequest(endpoint, options = {}) {
         ...fetchOptions,
         headers,
         credentials: 'include', // Include credentials for CORS (cookies, auth headers)
-        signal: AbortSignal.timeout(30000), // 30 second timeout
+        signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (fetchError) {
       // Network error - server not reachable, CORS issue, or connection failed
@@ -1125,6 +1125,46 @@ export const api = {
     method: 'POST',
     body: JSON.stringify({ topic }),
   }),
+  getQuestionBankMeta: () => apiRequest('/placement/question-bank/meta'),
+  getQuestionBank: (queryString = '') =>
+    apiRequest(`/placement/question-bank${queryString ? `?${queryString}` : ''}`),
+  generateQuestionBank: (data) =>
+    apiRequest('/placement/question-bank/generate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getInterviewPrepMeta: () => apiRequest('/placement/interview-prep/meta'),
+  analyzeInterviewTarget: (data) =>
+    apiRequest('/placement/interview-prep/analyze', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      timeoutMs: 120000,
+    }),
+  getInterviewPrepAnalytics: () => apiRequest('/placement/interview-prep/analytics'),
+  listInterviewPrepSessions: (limit) =>
+    apiRequest(`/placement/interview-prep/sessions${limit ? `?limit=${limit}` : ''}`),
+  getInterviewPrepSession: (sessionId) =>
+    apiRequest(`/placement/interview-prep/sessions/${sessionId}`),
+  createInterviewPrepSession: (data) =>
+    apiRequest('/placement/interview-prep/sessions', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      timeoutMs: 120000,
+    }),
+  submitInterviewPrepAnswer: (sessionId, questionId, data) =>
+    apiRequest(`/placement/interview-prep/sessions/${sessionId}/questions/${questionId}/answer`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  evaluateInterviewPrepAnswer: (sessionId, questionId) =>
+    apiRequest(`/placement/interview-prep/sessions/${sessionId}/questions/${questionId}/evaluate`, {
+      method: 'POST',
+    }),
+  completeInterviewPrepSession: (sessionId) =>
+    apiRequest(`/placement/interview-prep/sessions/${sessionId}/complete`, {
+      method: 'POST',
+    }),
 
   // Recruiters (Admin)
   getRecruiterDirectory: () => apiRequest('/recruiters/directory'),

@@ -16,6 +16,13 @@ function getClient() {
 /**
  * Internal: Call Mistral and return strict JSON
  */
+export async function generateMistralJSON(systemPrompt, userPrompt, temperature = 0.3) {
+  return callMistralJSON(systemPrompt, userPrompt, temperature);
+}
+
+/**
+ * Internal: Call Mistral and return strict JSON
+ */
 async function callMistralJSON(systemPrompt, userPrompt, temperature = 0.3) {
   const client = getClient();
   const response = await client.chat.complete({

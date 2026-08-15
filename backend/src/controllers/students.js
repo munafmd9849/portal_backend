@@ -2464,20 +2464,37 @@ export async function optimizeResumeForJob(req, res) {
 
     const jobDescription = [job.description, job.requirements, job.requiredSkills].filter(Boolean).join('\n\n');
 
-    const { optimizeResumeForJob: optimizeWithMistral } = await import('../services/mistralService.js');
-    const optimized = await optimizeWithMistral({
+    const optimizeInput = {
       studentProfile: student,
       jobDescription,
       jobTitle: job.jobTitle,
       companyName: job.companyName || '',
-    });
+    };
 
-    res.json({ success: true, optimized, jobTitle: job.jobTitle, companyName: job.companyName, timestamp: new Date().toISOString() });
+    let optimized;
+    let provider = 'fallback';
+
+    try {
+      const { optimizeResumeForJob: optimizeWithMistral } = await import('../services/mistralService.js');
+      optimized = await optimizeWithMistral(optimizeInput);
+      provider = 'mistral';
+    } catch (mistralErr) {
+      console.warn('⚠️ Mistral resume optimize unavailable, using fallback:', mistralErr.message);
+      const { optimizeResumeForJobWithAI } = await import('../services/aiService.js');
+      optimized = await optimizeResumeForJobWithAI(optimizeInput);
+      provider = optimized.provider || (optimized.isAI ? 'google' : 'fallback');
+    }
+
+    res.json({
+      success: true,
+      optimized,
+      provider,
+      jobTitle: job.jobTitle,
+      companyName: job.companyName,
+      timestamp: new Date().toISOString(),
+    });
   } catch (error) {
     console.error('❌ [optimizeResumeForJob] Error:', error);
-    if (error.message?.includes('MISTRAL_API_KEY')) {
-      return res.status(503).json({ error: 'AI optimization service is not configured. Please contact admin.' });
-    }
     res.status(500).json({ error: 'Failed to optimize resume. Please try again.' });
   }
 }

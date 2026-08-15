@@ -142,6 +142,7 @@ model Student {
   mockInterviewSlots         MockInterviewSlot[]
   aiMockInterviewEnrollments AiMockInterviewEnrollment[]
   activityLogs               StudentActivityLog[]
+  interviewPrepSessions      InterviewPrepSession[]
   user                       User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([center])
@@ -1514,5 +1515,58 @@ model SearchIndexMeta {
   @@index([entityType])
   @@index([keywords])
   @@map("search_index_meta")
+}
+
+model InterviewPrepSession {
+  id              String                  @id @default(uuid())
+  studentId       String
+  role            String
+  difficulty      String
+  interviewType   String
+  jobId           String?
+  jobTitle        String?
+  companyName     String?
+  resumeSnapshot  String?
+  jdSnapshot      String?
+  technicalScore  Float?
+  confidenceScore Float?
+  overallScore    Float?
+  status          String                  @default("IN_PROGRESS")
+  analysisJson    String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  student         Student                 @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  questions       InterviewPrepQuestion[]
+
+  @@index([studentId, createdAt])
+  @@index([studentId, status])
+  @@map("interview_prep_sessions")
+}
+
+model InterviewPrepQuestion {
+  id              String               @id @default(uuid())
+  sessionId       String
+  orderIndex      Int
+  inputType       String
+  category        String
+  title           String
+  prompt          String
+  starterCode     String?
+  language        String?              @default("javascript")
+  idealAnswer     String?
+  hints           String?
+  studentText     String?
+  studentCode     String?
+  transcript      String?
+  technicalScore  Float?
+  confidenceScore Float?
+  feedbackJson    String?
+  status          String               @default("PENDING")
+  answeredAt      DateTime?
+  evaluatedAt     DateTime?
+  session         InterviewPrepSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, orderIndex])
+  @@map("interview_prep_questions")
 }
 
