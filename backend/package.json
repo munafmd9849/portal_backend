@@ -22,7 +22,7 @@
     "db:seed-student-profile": "node data/seed-student-profile.js",
     "db:seed-admin-data": "node data/seed-admin-data.js",
     "db:seed-auth": "node prisma/seed-auth-users.js",
-    "db:seed-compose": "node seed-all.js",
+    "db:seed-compose": "npx prisma db push --skip-generate && node seed-all.js",
     "db:setup": "node scripts/setupRenderDatabase.js",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
