@@ -23,6 +23,49 @@ const handleValidation = (req, res, next) => {
   return next();
 };
 
+/**
+ * @openapi
+ * /api/queries:
+ *   post:
+ *     tags: [Queries]
+ *     summary: Submit a support query
+ *     description: Student or Recruiter — create a question, CGPA, calendar, endorsement, or backlog query. Optional proof document upload.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [subject]
+ *             properties:
+ *               subject: { type: string }
+ *               message: { type: string }
+ *               type:
+ *                 type: string
+ *                 enum: [question, cgpa, calendar, endorsement, backlog]
+ *                 default: question
+ *               teacherEmail: { type: string, format: email }
+ *               proofDocument:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       201:
+ *         description: Query created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 router.post(
   '/',
   requireRole(['STUDENT', 'RECRUITER']),
@@ -65,10 +108,102 @@ router.post(
   createStudentQuery
 );
 
+/**
+ * @openapi
+ * /api/queries:
+ *   get:
+ *     tags: [Queries]
+ *     summary: Get own queries
+ *     description: Student or Recruiter — list queries submitted by the authenticated user.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User queries
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 router.get('/', requireRole(['STUDENT', 'RECRUITER']), getStudentQueries);
 
+/**
+ * @openapi
+ * /api/queries/admin:
+ *   get:
+ *     tags: [Queries]
+ *     summary: Get all queries (admin)
+ *     description: Admin and Super Admin only — list all student/recruiter support queries.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: All queries
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 router.get('/admin', requireRole(['ADMIN', 'SUPER_ADMIN']), getAllQueries);
 
+/**
+ * @openapi
+ * /api/queries/{queryId}/respond:
+ *   patch:
+ *     tags: [Queries]
+ *     summary: Respond to a query
+ *     description: Admin and Super Admin only — reply to a support query and optionally update status.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: queryId
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [response]
+ *             properties:
+ *               response: { type: string }
+ *               status:
+ *                 type: string
+ *                 enum: [OPEN, RESOLVED, CLOSED]
+ *     responses:
+ *       200:
+ *         description: Query responded
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 router.patch(
   '/:queryId/respond',
   requireRole(['ADMIN', 'SUPER_ADMIN']),
@@ -85,4 +220,3 @@ router.patch(
 );
 
 export default router;
-

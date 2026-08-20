@@ -15,19 +15,148 @@ const router = express.Router({ mergeParams: true });
 // All routes require authentication
 router.use(authenticate);
 
-// Get user notifications
+/**
+ * @openapi
+ * /api/notifications:
+ *   get:
+ *     tags: [Notifications]
+ *     summary: Get user notifications
+ *     description: Returns notifications for the authenticated user.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User notifications
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 router.get('/', notificationController.getUserNotifications);
 
-// Mark all notifications as read (must come before :notificationId routes)
+/**
+ * @openapi
+ * /api/notifications/mark-all-read:
+ *   patch:
+ *     tags: [Notifications]
+ *     summary: Mark all notifications as read
+ *     description: Marks every notification for the authenticated user as read.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: All notifications marked as read
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 router.patch('/mark-all-read', notificationController.markAllNotificationsRead);
 
-// Mark notification as read
+/**
+ * @openapi
+ * /api/notifications/{notificationId}/read:
+ *   patch:
+ *     tags: [Notifications]
+ *     summary: Mark notification as read
+ *     description: Marks a single notification as read for the authenticated user.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: notificationId
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: Notification marked as read
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 router.patch('/:notificationId/read', notificationController.markNotificationRead);
 
-// Delete notification
+/**
+ * @openapi
+ * /api/notifications/{notificationId}:
+ *   delete:
+ *     tags: [Notifications]
+ *     summary: Delete a notification
+ *     description: Deletes a notification for the authenticated user.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: notificationId
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: Notification deleted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 router.delete('/:notificationId', notificationController.deleteNotification);
 
-// Create notification (admin/recruiter only)
+/**
+ * @openapi
+ * /api/notifications:
+ *   post:
+ *     tags: [Notifications]
+ *     summary: Create a notification
+ *     description: Admin or Recruiter only — send a notification to a user, optionally with email.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [userId, title, body]
+ *             properties:
+ *               userId: { type: string, format: uuid }
+ *               title: { type: string }
+ *               body: { type: string }
+ *               data: { type: object }
+ *               sendEmail: { type: boolean, default: false }
+ *     responses:
+ *       201:
+ *         description: Notification created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 router.post('/', [
   requireRole(['ADMIN', 'RECRUITER']),
   body('userId').notEmpty(),

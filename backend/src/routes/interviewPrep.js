@@ -39,10 +39,64 @@ const evaluateLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/**
+ * @openapi
+ * /api/placement/interview-prep/meta:
+ *   get:
+ *     tags: [Interview Prep]
+ *     summary: Get interview prep metadata
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Metadata (difficulties, interview types, etc.)
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 router.get('/meta', (_req, res) => {
   res.json({ success: true, ...getInterviewPrepMeta() });
 });
 
+/**
+ * @openapi
+ * /api/placement/interview-prep/analyze:
+ *   post:
+ *     tags: [Interview Prep]
+ *     summary: Analyze resume and target role for interview prep
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               resumeId: { type: string }
+ *               resumeText: { type: string }
+ *               jobId: { type: string }
+ *               jobTitle: { type: string }
+ *               targetRole: { type: string }
+ *               company: { type: string }
+ *               companyName: { type: string }
+ *               jobDescription: { type: string }
+ *     responses:
+ *       200:
+ *         description: Analysis result
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       429:
+ *         description: Rate limit exceeded
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 router.post(
   '/analyze',
   sessionLimiter,
@@ -70,6 +124,24 @@ router.post(
   },
 );
 
+/**
+ * @openapi
+ * /api/placement/interview-prep/analytics:
+ *   get:
+ *     tags: [Interview Prep]
+ *     summary: Get interview prep analytics for the student
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Analytics data
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 router.get('/analytics', async (req, res) => {
   try {
     const data = await getInterviewPrepAnalytics(req.userId);
@@ -79,6 +151,64 @@ router.get('/analytics', async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/placement/interview-prep/sessions:
+ *   get:
+ *     tags: [Interview Prep]
+ *     summary: List interview prep sessions
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: List of sessions
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ *   post:
+ *     tags: [Interview Prep]
+ *     summary: Create a new interview prep session
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               resumeId: { type: string }
+ *               resumeText: { type: string }
+ *               jobId: { type: string }
+ *               jobTitle: { type: string }
+ *               targetRole: { type: string }
+ *               difficulty: { type: string, enum: [easy, medium, hard] }
+ *               interviewType: { type: string, enum: [CONCEPTUAL, SITUATIONAL, CODING, MIXED, ORAL] }
+ *               company: { type: string }
+ *               companyName: { type: string }
+ *               jobDescription: { type: string }
+ *               analysis: { type: object }
+ *     responses:
+ *       201:
+ *         description: Session created
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       429:
+ *         description: Rate limit exceeded
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 router.get('/sessions', async (req, res) => {
   try {
     const sessions = await listInterviewPrepSessions(req.userId, {
@@ -90,6 +220,34 @@ router.get('/sessions', async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/placement/interview-prep/sessions/{sessionId}:
+ *   get:
+ *     tags: [Interview Prep]
+ *     summary: Get interview prep session by ID
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Session details
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 router.get(
   '/sessions/:sessionId',
   [param('sessionId').isString()],
@@ -137,6 +295,50 @@ router.post(
   },
 );
 
+/**
+ * @openapi
+ * /api/placement/interview-prep/sessions/{sessionId}/questions/{questionId}/answer:
+ *   post:
+ *     tags: [Interview Prep]
+ *     summary: Submit an answer for an interview prep question
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: questionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               transcript: { type: string }
+ *               studentText: { type: string }
+ *               studentCode: { type: string }
+ *               audioBase64: { type: string }
+ *               audioMimeType: { type: string }
+ *     responses:
+ *       200:
+ *         description: Answer submitted
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 router.post(
   '/sessions/:sessionId/questions/:questionId/answer',
   [
@@ -167,6 +369,41 @@ router.post(
   },
 );
 
+/**
+ * @openapi
+ * /api/placement/interview-prep/sessions/{sessionId}/questions/{questionId}/evaluate:
+ *   post:
+ *     tags: [Interview Prep]
+ *     summary: Evaluate an interview prep answer with AI
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: questionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Answer evaluated
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       429:
+ *         description: Rate limit exceeded
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 router.post(
   '/sessions/:sessionId/questions/:questionId/evaluate',
   evaluateLimiter,
@@ -189,6 +426,34 @@ router.post(
   },
 );
 
+/**
+ * @openapi
+ * /api/placement/interview-prep/sessions/{sessionId}/complete:
+ *   post:
+ *     tags: [Interview Prep]
+ *     summary: Complete an interview prep session
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Session completed
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 router.post(
   '/sessions/:sessionId/complete',
   [param('sessionId').isString()],

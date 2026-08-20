@@ -67,6 +67,7 @@ import successStoriesRoutes from './routes/successStories.js';
 import globalSearchRoutes from './routes/globalSearch.js';
 import assessmentBulkImportRoutes from './routes/assessmentBulkImport.js';
 import { getJudge0Status } from './services/judge0.js';
+import { setupSwagger } from './config/swagger.js';
 
 // ============================================
 // STARTUP VALIDATION: Required Environment Variables
@@ -241,6 +242,31 @@ app.use('/api/auth/send-otp', authLimiter);
 app.use('/api/auth/verify-otp', authLimiter);
 app.use('/api/', generalLimiter);
 
+// Interactive OpenAPI documentation (Swagger UI)
+setupSwagger(app);
+
+/**
+ * @openapi
+ * /:
+ *   get:
+ *     tags: [Health]
+ *     summary: API root — service info
+ *     description: Returns basic API metadata and available entry points.
+ *     responses:
+ *       200:
+ *         description: API information
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message: { type: string }
+ *                 version: { type: string }
+ *                 status: { type: string }
+ *                 timestamp: { type: string, format: date-time }
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Root route - API information
 app.get('/', (req, res) => {
   res.json({
@@ -251,12 +277,29 @@ app.get('/', (req, res) => {
     endpoints: {
       health: '/health',
       api: '/api',
-      documentation: 'See API documentation for available endpoints'
+      documentation: '/api-docs'
     },
     environment: process.env.NODE_ENV || 'development'
   });
 });
 
+/**
+ * @openapi
+ * /health:
+ *   get:
+ *     tags: [Health]
+ *     summary: Health check
+ *     description: Lightweight liveness probe for load balancers and monitoring.
+ *     responses:
+ *       200:
+ *         description: Service is healthy
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/HealthResponse'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -311,6 +354,30 @@ app.use('/api/success-stories', successStoriesRoutes);
 app.use('/api/search', globalSearchRoutes);
 app.use('/api/assessment-imports', assessmentBulkImportRoutes);
 
+/**
+ * @openapi
+ * /auth/google/calendar/callback:
+ *   get:
+ *     tags: [OAuth Callbacks]
+ *     summary: Google Calendar OAuth callback (calendar path)
+ *     description: Handles Google OAuth redirect with authorization code for calendar connection.
+ *     parameters:
+ *       - in: query
+ *         name: code
+ *         schema: { type: string }
+ *         description: Authorization code from Google
+ *       - in: query
+ *         name: state
+ *         schema: { type: string }
+ *         description: OAuth state parameter
+ *     responses:
+ *       200:
+ *         description: OAuth callback processed (HTML redirect or JSON)
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Google Calendar OAuth callback for popup flow
 // This route is called by Google with the authorization code
 // CRITICAL: Use secure handler with email validation
@@ -321,6 +388,27 @@ app.get('/auth/google/calendar/callback', async (req, res) => {
   return handleOAuthCallback(req, res);
 });
 
+/**
+ * @openapi
+ * /auth/google/callback:
+ *   get:
+ *     tags: [OAuth Callbacks]
+ *     summary: Google OAuth callback (legacy path)
+ *     parameters:
+ *       - in: query
+ *         name: code
+ *         schema: { type: string }
+ *       - in: query
+ *         name: state
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: OAuth callback processed
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Legacy callback route (for backward compatibility)
 // If Google Cloud Console is configured with /auth/google/callback
 // CRITICAL: Use secure handler with email validation
@@ -330,6 +418,27 @@ app.get('/auth/google/callback', async (req, res) => {
   return handleOAuthCallback(req, res);
 });
 
+/**
+ * @openapi
+ * /api/calendar/oauth/callback:
+ *   get:
+ *     tags: [OAuth Callbacks]
+ *     summary: Google Calendar OAuth callback (API path)
+ *     parameters:
+ *       - in: query
+ *         name: code
+ *         schema: { type: string }
+ *       - in: query
+ *         name: state
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: OAuth callback processed
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Additional callback route for /api/calendar/oauth/callback
 // This handles redirects from Google Cloud Console if configured with this path
 app.get('/api/calendar/oauth/callback', async (req, res) => {

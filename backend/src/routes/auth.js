@@ -28,9 +28,78 @@ import { recordStudentActivity } from '../services/studentDirectoryMetricsServic
 const router = express.Router();
 
 /**
- * POST /auth/register
- * Register new user (replaces createUserWithEmailAndPassword)
- * Requires OTP verification before registration (optional: can be enforced on frontend)
+ * @openapi
+ * /api/auth/register:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Register new user
+ *     description: Creates a new STUDENT or RECRUITER account. Optional verificationToken from /api/auth/verify-otp can enforce email verification before registration.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password, role]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *               role:
+ *                 type: string
+ *                 enum: [STUDENT, RECRUITER]
+ *               verificationToken:
+ *                 type: string
+ *                 description: JWT from verify-otp endpoint (optional)
+ *               profile:
+ *                 type: object
+ *                 properties:
+ *                   fullName:
+ *                     type: string
+ *                   phone:
+ *                     type: string
+ *                   enrollmentId:
+ *                     type: string
+ *                   school:
+ *                     type: string
+ *                   center:
+ *                     type: string
+ *                   batch:
+ *                     type: string
+ *                   companyName:
+ *                     type: string
+ *                   location:
+ *                     type: string
+ *     responses:
+ *       200:
+ *         description: User registered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *                     status:
+ *                       type: string
+ *                 accessToken:
+ *                   type: string
+ *                 refreshToken:
+ *                   type: string
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 router.post('/register', [
   body('email').isEmail().normalizeEmail(),
@@ -210,8 +279,66 @@ router.post('/register', [
 });
 
 /**
- * POST /auth/login
- * Login user (replaces signInWithEmailAndPassword)
+ * @openapi
+ * /api/auth/login:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Login user
+ *     description: Authenticates with email and password. Optional role or selectedRole must match the account role (except Super Admin).
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *               role:
+ *                 type: string
+ *                 enum: [STUDENT, RECRUITER, ADMIN, SUPER_ADMIN]
+ *               selectedRole:
+ *                 type: string
+ *                 enum: [STUDENT, RECRUITER, ADMIN, SUPER_ADMIN]
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *                     status:
+ *                       type: string
+ *                     emailVerified:
+ *                       type: boolean
+ *                     profileCompleted:
+ *                       type: boolean
+ *                 accessToken:
+ *                   type: string
+ *                 refreshToken:
+ *                   type: string
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 router.post('/login', [
   body('email').isEmail().normalizeEmail(),
@@ -447,8 +574,38 @@ router.post('/login', [
 });
 
 /**
- * POST /auth/refresh
- * Refresh access token
+ * @openapi
+ * /api/auth/refresh:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Refresh access token
+ *     description: Exchanges a valid refresh token for a new access token.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [refreshToken]
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: New access token issued
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 accessToken:
+ *                   type: string
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 router.post('/refresh', verifyRefreshToken, async (req, res) => {
   try {
@@ -471,12 +628,37 @@ router.post('/refresh', verifyRefreshToken, async (req, res) => {
 });
 
 /**
- * POST /auth/logout
- * Logout user (invalidate refresh token)
- * 
- * IMPORTANT: This endpoint ONLY clears refresh tokens for session management.
- * Google Calendar tokens are NOT cleared on logout - they persist in the database
- * so the calendar remains connected when the user logs back in.
+ * @openapi
+ * /api/auth/logout:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Logout user
+ *     description: Invalidates the provided refresh token. Google Calendar tokens are not cleared on logout.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Logged out successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/MessageResponse'
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 router.post('/logout', authenticate, async (req, res) => {
   try {
@@ -507,8 +689,36 @@ router.post('/logout', authenticate, async (req, res) => {
 });
 
 /**
- * GET /auth/me
- * Get current user (replaces onAuthStateChanged)
+ * @openapi
+ * /api/auth/me:
+ *   get:
+ *     tags: [Auth]
+ *     summary: Get current user
+ *     description: Returns the authenticated user profile including role-specific data and profile completion status.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Current user profile
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   type: object
+ *                 profileCompleted:
+ *                   type: boolean
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 router.get('/me', authenticate, async (req, res) => {
   try {
@@ -567,8 +777,50 @@ router.get('/me', authenticate, async (req, res) => {
 });
 
 /**
- * PUT /auth/profile
- * Update current user profile (displayName, profilePhoto)
+ * @openapi
+ * /api/auth/profile:
+ *   put:
+ *     tags: [Auth]
+ *     summary: Update user profile
+ *     description: Updates displayName and/or profilePhoto for the authenticated user.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               displayName:
+ *                 type: string
+ *                 minLength: 1
+ *                 maxLength: 100
+ *               profilePhoto:
+ *                 type: string
+ *                 nullable: true
+ *     responses:
+ *       200:
+ *         description: Profile updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   type: object
+ *                 message:
+ *                   type: string
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 router.put('/profile', authenticate, [
   body('displayName').optional().isString().trim().isLength({ min: 1, max: 100 }),
@@ -657,8 +909,61 @@ router.put('/profile', authenticate, [
 });
 
 /**
- * PUT /auth/company-details
- * Update company details for recruiters
+ * @openapi
+ * /api/auth/company-details:
+ *   put:
+ *     tags: [Auth]
+ *     summary: Update recruiter company details
+ *     description: Updates or creates company information linked to the authenticated recruiter account.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               companyName:
+ *                 type: string
+ *                 minLength: 1
+ *                 maxLength: 200
+ *               website:
+ *                 type: string
+ *               address:
+ *                 type: string
+ *                 maxLength: 500
+ *               registrationNumber:
+ *                 type: string
+ *                 maxLength: 100
+ *               phone:
+ *                 type: string
+ *                 maxLength: 20
+ *               email:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: Company details updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 company:
+ *                   type: object
+ *                 message:
+ *                   type: string
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 router.put('/company-details', authenticate, requireRole(['RECRUITER']), [
   body('companyName').optional().isString().trim().isLength({ min: 1, max: 200 }),
@@ -792,8 +1097,44 @@ router.put('/company-details', authenticate, requireRole(['RECRUITER']), [
 });
 
 /**
- * POST /auth/reset-password
- * Request password reset - sends OTP to email
+ * @openapi
+ * /api/auth/reset-password:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Request password reset
+ *     description: Sends a password reset OTP to the provided email if the account exists. Response is consistent regardless of whether the email is registered.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: Password reset OTP initiated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 otpStatus:
+ *                   type: string
+ *                 otpExpiresAt:
+ *                   type: string
+ *                   format: date-time
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 router.post('/reset-password', [
   body('email').isEmail().normalizeEmail(),
@@ -912,8 +1253,46 @@ router.post('/reset-password', [
 });
 
 /**
- * POST /auth/send-otp
- * Send OTP to email for verification (required before registration)
+ * @openapi
+ * /api/auth/send-otp:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Send email verification OTP
+ *     description: Sends a 6-digit OTP for email verification before registration. Fails if email is already registered.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: OTP sent or created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 expiresIn:
+ *                   type: integer
+ *                 otpStatus:
+ *                   type: string
+ *                 otpExpiresAt:
+ *                   type: string
+ *                   format: date-time
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 router.post('/send-otp', [
   body('email').isEmail().normalizeEmail(),
@@ -996,8 +1375,48 @@ router.post('/send-otp', [
 });
 
 /**
- * POST /auth/verify-otp
- * Verify OTP before allowing registration
+ * @openapi
+ * /api/auth/verify-otp:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Verify email OTP
+ *     description: Verifies the registration OTP and returns a short-lived verificationToken for use during registration.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, otp]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               otp:
+ *                 type: string
+ *                 pattern: '^\\d{6}$'
+ *     responses:
+ *       200:
+ *         description: OTP verified
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 verified:
+ *                   type: boolean
+ *                 email:
+ *                   type: string
+ *                 verificationToken:
+ *                   type: string
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 router.post('/verify-otp', [
   body('email').isEmail().normalizeEmail(),
@@ -1049,8 +1468,48 @@ router.post('/verify-otp', [
 });
 
 /**
- * POST /auth/verify-reset-otp
- * Verify password reset OTP
+ * @openapi
+ * /api/auth/verify-reset-otp:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Verify password reset OTP
+ *     description: Verifies the password reset OTP and returns a resetToken for updating the password.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, otp]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               otp:
+ *                 type: string
+ *                 pattern: '^\\d{6}$'
+ *     responses:
+ *       200:
+ *         description: Reset OTP verified
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 verified:
+ *                   type: boolean
+ *                 email:
+ *                   type: string
+ *                 resetToken:
+ *                   type: string
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 router.post('/verify-reset-otp', [
   body('email').isEmail().normalizeEmail(),
@@ -1107,8 +1566,41 @@ router.post('/verify-reset-otp', [
 });
 
 /**
- * POST /auth/update-password
- * Update password after reset OTP verification
+ * @openapi
+ * /api/auth/update-password:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Update password after reset
+ *     description: Sets a new password using the resetToken from verify-reset-otp. Requires a recently verified reset OTP.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [resetToken, password]
+ *             properties:
+ *               resetToken:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *     responses:
+ *       200:
+ *         description: Password updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 router.post('/update-password', [
   body('resetToken').notEmpty(),
@@ -1179,16 +1671,64 @@ router.post('/update-password', [
 });
 
 /**
- * GET /auth/google-login/url
- * Get Google OAuth URL for login/registration
- * Query params: role (optional, defaults to STUDENT)
+ * @openapi
+ * /api/auth/google-login/url:
+ *   get:
+ *     tags: [Auth]
+ *     summary: Get Google OAuth login URL
+ *     description: Returns the Google OAuth authorization URL for login or registration. Optional role query parameter defaults to STUDENT.
+ *     parameters:
+ *       - in: query
+ *         name: role
+ *         schema:
+ *           type: string
+ *           enum: [STUDENT, RECRUITER, ADMIN]
+ *           default: STUDENT
+ *         description: Intended user role for Google login
+ *     responses:
+ *       200:
+ *         description: Google OAuth URL
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 authUrl:
+ *                   type: string
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 router.get('/google-login/url', getGoogleLoginUrl);
 
 /**
- * GET /auth/google-login/callback
- * Handle Google OAuth callback for login
- * Called by Google after user authorizes
+ * @openapi
+ * /api/auth/google-login/callback:
+ *   get:
+ *     tags: [Auth]
+ *     summary: Google OAuth login callback
+ *     description: Handles Google OAuth redirect after user authorization. Exchanges code for tokens, creates or logs in the user, and redirects to the frontend callback URL.
+ *     parameters:
+ *       - in: query
+ *         name: code
+ *         schema:
+ *           type: string
+ *         description: Authorization code from Google
+ *       - in: query
+ *         name: state
+ *         schema:
+ *           type: string
+ *         description: OAuth state parameter containing role metadata
+ *     responses:
+ *       200:
+ *         description: OAuth callback processed (redirect to frontend)
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 router.get('/google-login/callback', handleGoogleLoginCallback);
 

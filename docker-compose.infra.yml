@@ -1,0 +1,164 @@
+# =============================================================================
+# PWIOI Placement Portal — local dev infrastructure only
+#
+# Run Postgres, Redis, and Judge0 in Docker while backend/frontend use npm run dev:
+#
+#   docker compose -f docker-compose.infra.yml up -d
+#   cd backend && npm run dev
+#   cd frontend && npm run dev
+#
+# Open:
+#   Frontend : http://localhost:5173
+#   Backend  : http://localhost:3000
+#   Swagger  : http://localhost:3000/api-docs
+#   Judge0   : http://localhost:2358
+# =============================================================================
+
+name: placement-portal-infra
+
+x-default-logging: &default-logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "100m"
+
+configs:
+  judge0_conf:
+    content: |
+      REDIS_HOST=redis
+      REDIS_PASSWORD=2rx2LZgGJfnqSjHAq7T5nEXwWat5cRuY
+      POSTGRES_HOST=db
+      POSTGRES_DB=judge0
+      POSTGRES_USER=judge0
+      POSTGRES_PASSWORD=4CKnPySHkLKabKqfh2RXDWFxDssYHu9f
+
+services:
+
+  postgres-db:
+    image: postgres:16-alpine
+    container_name: portal-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root123
+      POSTGRES_DB: placement_portal
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d placement_portal"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks:
+      - portal-network
+    <<: *default-logging
+
+  redis-cache:
+    image: redis:7-alpine
+    container_name: portal-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    networks:
+      - portal-network
+    <<: *default-logging
+
+  judge0-db:
+    image: postgres:16-alpine
+    container_name: judge0-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: judge0
+      POSTGRES_USER: judge0
+      POSTGRES_PASSWORD: 4CKnPySHkLKabKqfh2RXDWFxDssYHu9f
+    volumes:
+      - judge0-data:/var/lib/postgresql/data
+    networks:
+      judge0-internal:
+        aliases:
+          - db
+    <<: *default-logging
+
+  judge0-redis:
+    image: redis:7-alpine
+    container_name: judge0-redis
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: 2rx2LZgGJfnqSjHAq7T5nEXwWat5cRuY
+    command:
+      [
+        "sh",
+        "-c",
+        "docker-entrypoint.sh --appendonly no --requirepass \"$$REDIS_PASSWORD\""
+      ]
+    networks:
+      judge0-internal:
+        aliases:
+          - redis
+    <<: *default-logging
+
+  judge0-server:
+    image: mrkushalsm/judge0:latest
+    container_name: judge0-server
+    restart: unless-stopped
+    privileged: true
+    cgroup: host
+    ports:
+      - "2358:2358"
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    configs:
+      - source: judge0_conf
+        target: /judge0.conf
+    depends_on:
+      judge0-db:
+        condition: service_started
+      judge0-redis:
+        condition: service_started
+    networks:
+      - portal-network
+      - judge0-internal
+    <<: *default-logging
+
+  judge0-workers:
+    image: mrkushalsm/judge0:latest
+    container_name: judge0-workers
+    restart: unless-stopped
+    privileged: true
+    cgroup: host
+    command: ["./scripts/workers"]
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    configs:
+      - source: judge0_conf
+        target: /judge0.conf
+    depends_on:
+      judge0-db:
+        condition: service_started
+      judge0-redis:
+        condition: service_started
+    networks:
+      - judge0-internal
+    <<: *default-logging
+
+volumes:
+  pgdata:
+  redisdata:
+  judge0-data:
+
+networks:
+  portal-network:
+    driver: bridge
+  judge0-internal:
+    driver: bridge
