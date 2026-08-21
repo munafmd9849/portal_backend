@@ -13,6 +13,7 @@ import api from '../../services/api';
 import { mcqAnswersMatch, resolveMcqOptionLabel } from '../../utils/mcqAnswers';
 import { useToast } from '../../components/ui/Toast';
 import { SkeletonTable, SkeletonStatsGrid } from '../../components/ui/loading';
+import { ErrorBoundary } from '../../components/ui/ErrorBoundary';
 import { au } from '../../components/assessment/assessmentUi';
 
 function formatSessionTime(ts) {

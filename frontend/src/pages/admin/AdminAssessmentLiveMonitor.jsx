@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Filter, Grid3x3, List, Radio, TriangleAlert, Video, X, ZoomIn, Unlock } from 'lucide-react';
+import { ArrowLeft, Filter, Grid3x3, List, Radio, TriangleAlert, Video, X, ZoomIn, Unlock, Clock, Send } from 'lucide-react';
 import api from '../../services/api';
 import { initSocket, subscribeProctoringMonitor } from '../../services/socket';
 import { ProctoringViewer } from '../../proctoring-engine/liveProctoringRtc';
 import { Spinner, Skeleton, SkeletonMediaRowList } from '../../components/ui/loading';
+import { useToast } from '../../components/ui/Toast';
 
 function formatTime(ts) {
   if (!ts) return '—';
@@ -45,6 +46,7 @@ export default function AdminAssessmentLiveMonitor() {
   const location = useLocation();
   const basePath = location.pathname.startsWith('/super-admin') ? '/super-admin' : '/admin';
 
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState([]);
   const [selectedSessionId, setSelectedSessionId] = useState(null);
@@ -57,6 +59,8 @@ export default function AdminAssessmentLiveMonitor() {
   const [rtcConnecting, setRtcConnecting] = useState(false);
   const [liveVideoEl, setLiveVideoEl] = useState(null);
   const [unlocking, setUnlocking] = useState(false);
+  const [extending, setExtending] = useState(false);
+  const [forceSubmitting, setForceSubmitting] = useState(false);
   const rtcViewerRef = useRef(null);
 
   const setLiveVideoRef = useCallback((el) => {
@@ -226,12 +230,57 @@ export default function AdminAssessmentLiveMonitor() {
       if (details) {
         setDetails((prev) => (prev ? { ...prev, paused: false, pauseReason: null } : prev));
       }
+      toast?.success('Session unlocked');
     } catch (e) {
       console.error('Unlock failed', e);
+      toast?.error('Unlock failed');
     } finally {
       setUnlocking(false);
     }
-  }, [selectedSessionId, unlocking, refreshSessions, details]);
+  }, [selectedSessionId, unlocking, refreshSessions, details, toast]);
+
+  const handleExtendTime = useCallback(async () => {
+    if (!selectedSessionId || extending) return;
+    const raw = window.prompt('Extend time by how many minutes? (1–180)', '15');
+    if (raw == null) return;
+    const minutes = Number(raw);
+    if (!Number.isFinite(minutes) || minutes <= 0) {
+      toast?.error('Enter a valid number of minutes');
+      return;
+    }
+    try {
+      setExtending(true);
+      const res = await api.extendAssessmentSession(selectedSessionId, minutes);
+      await refreshSessions(false);
+      toast?.success(`Extended by ${minutes} min · ${Math.ceil((res?.remainingSeconds || 0) / 60)} min left`);
+    } catch (e) {
+      console.error('Extend failed', e);
+      toast?.error('Could not extend time');
+    } finally {
+      setExtending(false);
+    }
+  }, [selectedSessionId, extending, refreshSessions, toast]);
+
+  const handleForceSubmit = useCallback(async () => {
+    if (!selectedSessionId || forceSubmitting) return;
+    const ok = window.confirm(
+      'Force-submit this attempt with the latest saved answers? The student will not be able to continue.'
+    );
+    if (!ok) return;
+    try {
+      setForceSubmitting(true);
+      await api.forceSubmitAssessmentSession(selectedSessionId);
+      await refreshSessions(false);
+      setSelectedSessionId(null);
+      setDetails(null);
+      toast?.success('Attempt force-submitted');
+    } catch (e) {
+      console.error('Force submit failed', e);
+      toast?.error('Force submit failed');
+    } finally {
+      setForceSubmitting(false);
+    }
+  }, [selectedSessionId, forceSubmitting, refreshSessions, toast]);
 
   const isSelectedPaused = Boolean(selectedRow?.paused || details?.paused);
 
@@ -366,17 +415,39 @@ export default function AdminAssessmentLiveMonitor() {
                 {isSelectedPaused ? ' · paused (awaiting unlock)' : ''}
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {isSelectedPaused && selectedSessionId && (
-                <button
-                  type="button"
-                  onClick={handleAllowContinue}
-                  disabled={unlocking}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white disabled:opacity-60"
-                >
-                  <Unlock className="w-3.5 h-3.5" />
-                  {unlocking ? 'Unlocking…' : 'Allow continue'}
-                </button>
+            <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+              {selectedSessionId && (
+                <>
+                  {isSelectedPaused && (
+                    <button
+                      type="button"
+                      onClick={handleAllowContinue}
+                      disabled={unlocking}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white disabled:opacity-60"
+                    >
+                      <Unlock className="w-3.5 h-3.5" />
+                      {unlocking ? 'Unlocking…' : 'Allow continue'}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleExtendTime}
+                    disabled={extending}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white disabled:opacity-60"
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    {extending ? 'Extending…' : 'Extend time'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleForceSubmit}
+                    disabled={forceSubmitting}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-60"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    {forceSubmitting ? 'Submitting…' : 'Force submit'}
+                  </button>
+                </>
               )}
               {detailLoading && <Spinner size="sm" tone="muted" />}
             </div>

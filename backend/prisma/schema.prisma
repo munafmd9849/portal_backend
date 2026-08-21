@@ -1453,6 +1453,8 @@ model SuccessStory {
   company      String?
   studentName  String?
   studentId    String?
+  email        String?
+  linkedin     String?
   branch       String?
   campus       String?
   batch        String?

@@ -1283,8 +1283,20 @@ export const api = {
   getAssessmentResults: (sessionId) => apiRequest(`/assessments/results/${sessionId}`),
   getStudentAssessments: () =>
     apiRequest('/assessments/my-assignments', { noCache: true }),
-  startAssessmentSession: (id, options = {}) =>
-    apiRequest(`/assessments/session/start/${id}`, { method: 'POST', ...options }),
+  startAssessmentSession: (id, options = {}) => {
+    const { body, silent, forceDeviceTakeover, clientDeviceId, ...rest } = options;
+    const payload =
+      body ||
+      (clientDeviceId || forceDeviceTakeover
+        ? { clientDeviceId, forceDeviceTakeover }
+        : undefined);
+    return apiRequest(`/assessments/session/start/${id}`, {
+      method: 'POST',
+      silent,
+      ...(payload ? { body: JSON.stringify(payload) } : {}),
+      ...rest,
+    });
+  },
   logProctoringViolation: (sessionId, data) => apiRequest(`/assessments/session/violation/${sessionId}`, { method: 'POST', body: JSON.stringify(data) }),
   saveAssessmentProgress: (sessionId, answers) =>
     apiRequest(`/assessments/session/progress/${sessionId}`, {
@@ -1295,6 +1307,13 @@ export const api = {
     apiRequest(`/assessments/session/status/${sessionId}`),
   unlockAssessmentSession: (sessionId) =>
     apiRequest(`/assessments/session/unlock/${sessionId}`, { method: 'POST' }),
+  extendAssessmentSession: (sessionId, minutes) =>
+    apiRequest(`/assessments/session/extend/${sessionId}`, {
+      method: 'POST',
+      body: JSON.stringify({ minutes }),
+    }),
+  forceSubmitAssessmentSession: (sessionId) =>
+    apiRequest(`/assessments/session/force-submit/${sessionId}`, { method: 'POST' }),
   uploadProctoringMedia: (sessionId, data) => apiRequest(`/assessments/session/media/${sessionId}`, { method: 'POST', body: JSON.stringify(data) }),
   uploadProctoringScreenshot: (sessionId, blob, meta) => uploadProctoringScreenshot(sessionId, blob, meta),
   getProctoringSessionDetails: (sessionId) => apiRequest(`/assessments/session/proctoring/${sessionId}`),

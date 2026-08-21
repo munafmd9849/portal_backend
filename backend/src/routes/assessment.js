@@ -9,6 +9,8 @@ import {
   saveSessionProgress,
   getStudentSessionStatus,
   unlockAssessmentSession,
+  extendAssessmentSession,
+  forceSubmitAssessmentSession,
   uploadMedia, 
   uploadScreenshot,
   completeAssessment,
@@ -35,6 +37,8 @@ router.get('/details/:id', authenticate, authorize(['ADMIN', 'SUPER_ADMIN', 'STU
 router.get('/session/proctoring/:sessionId', authenticate, authorize(['ADMIN', 'SUPER_ADMIN']), getProctoringSessionDetails);
 router.get('/session/screenshot/:screenshotId/url', authenticate, authorize(['ADMIN', 'SUPER_ADMIN']), getSignedScreenshotUrl);
 router.post('/session/unlock/:sessionId', authenticate, authorize(['ADMIN', 'SUPER_ADMIN']), unlockAssessmentSession);
+router.post('/session/extend/:sessionId', authenticate, authorize(['ADMIN', 'SUPER_ADMIN']), extendAssessmentSession);
+router.post('/session/force-submit/:sessionId', authenticate, authorize(['ADMIN', 'SUPER_ADMIN']), forceSubmitAssessmentSession);
 router.get('/:id/live-sessions', authenticate, authorize(['ADMIN', 'SUPER_ADMIN']), getLiveAssessmentSessions);
 router.get('/results/:sessionId', authenticate, authorize(['ADMIN', 'SUPER_ADMIN']), getSessionResults);
 router.get('/dashboard/:id', authenticate, authorize(['ADMIN', 'SUPER_ADMIN']), getAssessmentResults);

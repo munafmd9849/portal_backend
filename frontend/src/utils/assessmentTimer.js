@@ -35,7 +35,9 @@ function getEffectiveElapsedSeconds(session, nowMs) {
 
 export function getRemainingSecondsFromSession(session, durationMinutes, now = Date.now()) {
   const duration = Number(durationMinutes);
-  const totalSeconds = (Number.isFinite(duration) && duration > 0 ? duration : 60) * 60;
+  const meta = parseSecureModeMeta(session?.secureModeMeta);
+  const extra = Math.max(0, Number(session?.extraSeconds ?? meta.extraSeconds) || 0);
+  const totalSeconds = (Number.isFinite(duration) && duration > 0 ? duration : 60) * 60 + extra;
   if (!session?.startTime) return totalSeconds;
 
   const elapsed = getEffectiveElapsedSeconds(session, now);

@@ -371,6 +371,7 @@ export class ProctoringEngine {
     const onPaste = (e) => {
       if (!this._running || !this.cfg.clipboardGuard) return;
       e.preventDefault();
+      e.stopPropagation();
       this.bumpViolation(ProctoringViolationType.PASTE_ATTEMPT, 'Paste blocked during secure exam');
     };
     const onContext = (e) => {
@@ -378,10 +379,28 @@ export class ProctoringEngine {
       e.preventDefault();
       this.bumpViolation(ProctoringViolationType.RIGHT_CLICK, 'Right-click blocked during secure exam');
     };
-    const onSelectStart = () => {
+    const onSelectStart = (e) => {
       if (!this._running || !this.cfg.selectionGuard) return;
-      // Soft log — do not always prevent (coding editors need selection)
+      const tag = String(e?.target?.tagName || '').toUpperCase();
+      const isEditor =
+        tag === 'TEXTAREA' ||
+        tag === 'INPUT' ||
+        e?.target?.isContentEditable ||
+        e?.target?.closest?.('.cm-editor, .monaco-editor, [data-coding-editor]');
+      if (!isEditor) {
+        e.preventDefault();
+      }
       this.bumpViolation(ProctoringViolationType.TEXT_SELECTION, 'Text selection detected');
+    };
+    const onDragStart = (e) => {
+      if (!this._running || !this.cfg.clipboardGuard) return;
+      e.preventDefault();
+      this.bumpViolation(ProctoringViolationType.COPY_ATTEMPT, 'Drag-copy blocked during secure exam');
+    };
+    const onDrop = (e) => {
+      if (!this._running || !this.cfg.clipboardGuard) return;
+      e.preventDefault();
+      this.bumpViolation(ProctoringViolationType.PASTE_ATTEMPT, 'Drop-paste blocked during secure exam');
     };
 
     const onKeyDown = (e) => {
@@ -509,9 +528,11 @@ export class ProctoringEngine {
     document.addEventListener('fullscreenchange', onFs);
     document.addEventListener('copy', onCopy);
     document.addEventListener('cut', onCut);
-    document.addEventListener('paste', onPaste);
+    document.addEventListener('paste', onPaste, true);
     document.addEventListener('contextmenu', onContext);
     document.addEventListener('selectstart', onSelectStart);
+    document.addEventListener('dragstart', onDragStart);
+    document.addEventListener('drop', onDrop);
     document.addEventListener('keydown', onKeyDown, true);
     window.addEventListener('resize', onResize);
     window.addEventListener('beforeunload', onBeforeUnload);
@@ -523,9 +544,11 @@ export class ProctoringEngine {
     this._listeners.push(['fullscreenchange', onFs, document]);
     this._listeners.push(['copy', onCopy, document]);
     this._listeners.push(['cut', onCut, document]);
-    this._listeners.push(['paste', onPaste, document]);
+    this._listeners.push(['paste', onPaste, document, true]);
     this._listeners.push(['contextmenu', onContext, document]);
     this._listeners.push(['selectstart', onSelectStart, document]);
+    this._listeners.push(['dragstart', onDragStart, document]);
+    this._listeners.push(['drop', onDrop, document]);
     this._listeners.push(['keydown', onKeyDown, document, true]);
     this._listeners.push(['resize', onResize, window]);
     this._listeners.push(['beforeunload', onBeforeUnload, window]);

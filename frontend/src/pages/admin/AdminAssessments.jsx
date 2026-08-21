@@ -99,6 +99,8 @@ export default function AdminAssessments() {
     scheduledAtMap: {},
     config: {
       proctoring: { webcam: true, mic: true, tabSwitch: true, fullscreen: true, pauseOnTabSwitch: false, tabSwitchGraceCount: 2, snapshotInterval: 60 },
+      shuffleQuestions: false,
+      shuffleOptions: false,
       joinWindow: { opensMinutesBeforeStart: 10, closesMinutesAfterStart: 10 },
       coding: { allowedLanguages: [...ALL_CODING_LANGUAGE_IDS] },
     },
@@ -892,6 +894,35 @@ export default function AdminAssessments() {
 
                {step === 3 && (
                  <div className="max-w-3xl mx-auto space-y-6">
+                    <WizardSection
+                      title="Question bank delivery"
+                      description="Randomize order per student so shared papers are harder to coordinate."
+                    >
+                      <ToggleList>
+                        {[
+                          { key: 'shuffleQuestions', label: 'Shuffle questions', desc: 'Each student gets questions in a different order (locked for resume)' },
+                          { key: 'shuffleOptions', label: 'Shuffle MCQ options', desc: 'Each student sees answer choices in a different order' },
+                        ].map((feature) => (
+                          <ToggleRow
+                            key={feature.key}
+                            icon={Layers}
+                            label={feature.label}
+                            description={feature.desc}
+                            enabled={Boolean(formData.config[feature.key])}
+                            onToggle={() =>
+                              setFormData({
+                                ...formData,
+                                config: {
+                                  ...formData.config,
+                                  [feature.key]: !formData.config[feature.key],
+                                },
+                              })
+                            }
+                          />
+                        ))}
+                      </ToggleList>
+                    </WizardSection>
+
                     <WizardSection
                       title="Proctoring & security"
                       description="Choose what to monitor while students take this assessment."

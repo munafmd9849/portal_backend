@@ -37,6 +37,58 @@ import {
 import { initSocket } from '../../services/socket';
 import { ProctoringBroadcaster } from '../../proctoring-engine/liveProctoringRtc';
 
+const EXAM_DEVICE_KEY = 'pwioi_exam_device_id';
+
+function getExamDeviceId() {
+  try {
+    let id = localStorage.getItem(EXAM_DEVICE_KEY);
+    if (!id) {
+      id = `dev_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`;
+      localStorage.setItem(EXAM_DEVICE_KEY, id);
+    }
+    return id;
+  } catch {
+    return `dev_mem_${Date.now()}`;
+  }
+}
+
+function draftStorageKey(sessionId) {
+  return `pwioi_exam_draft_${sessionId}`;
+}
+
+function readLocalDraft(sessionId) {
+  if (!sessionId) return null;
+  try {
+    const raw = localStorage.getItem(draftStorageKey(sessionId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.answers && typeof parsed.answers === 'object' ? parsed.answers : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalDraft(sessionId, answers) {
+  if (!sessionId) return;
+  try {
+    localStorage.setItem(
+      draftStorageKey(sessionId),
+      JSON.stringify({ answers, savedAt: new Date().toISOString() })
+    );
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+function clearLocalDraft(sessionId) {
+  if (!sessionId) return;
+  try {
+    localStorage.removeItem(draftStorageKey(sessionId));
+  } catch {
+    /* ignore */
+  }
+}
+
 function MetaSegment({ label, highlight = false }) {
   return (
     <div className="flex items-center px-4 py-2.5 border-l border-slate-200 first:border-l-0">
@@ -166,8 +218,13 @@ export default function AssessmentApp() {
   const [violationTimeline, setViolationTimeline] = useState([]);
   const [examPaused, setExamPaused] = useState(false);
   const [pauseReason, setPauseReason] = useState(null);
+  const [isOffline, setIsOffline] = useState(typeof navigator !== 'undefined' ? !navigator.onLine : false);
+  const [multiMonitorBlocked, setMultiMonitorBlocked] = useState(false);
+  const [questionOrder, setQuestionOrder] = useState(null);
+  const [optionOrders, setOptionOrders] = useState(null);
   const answersRef = useRef({});
   const examPausedRef = useRef(false);
+  const saveTimerRef = useRef(null);
   const [secureStatus, setSecureStatus] = useState({
     secureMode: false,
     fullscreen: false,
@@ -324,12 +381,21 @@ export default function AssessmentApp() {
   const saveProgress = useCallback(async () => {
     const sess = sessionRef.current;
     if (!sess?.id || isInterviewer) return;
+    writeLocalDraft(sess.id, answersRef.current);
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return;
     try {
       await api.saveAssessmentProgress(sess.id, answersRef.current);
     } catch (e) {
       console.error('Progress save failed', e);
     }
   }, [isInterviewer]);
+
+  const scheduleSaveProgress = useCallback(() => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveProgress();
+    }, 800);
+  }, [saveProgress]);
 
   const applyPauseState = useCallback((paused, reason = null, remainingSeconds = null) => {
     setExamPaused(Boolean(paused));
@@ -505,7 +571,7 @@ export default function AssessmentApp() {
         faceMonitoring: true,
         clipboardGuard: true,
         contextMenuGuard: true,
-        selectionGuard: false,
+        selectionGuard: true,
         shortcutGuard: true,
         resizeGuard: true,
         navigationGuard: true,
@@ -715,10 +781,14 @@ export default function AssessmentApp() {
     }
   };
 
-  const executeTestStart = async () => {
+  const executeTestStart = async (forceDeviceTakeover = false) => {
     try {
       setLoading(true);
-      const sess = await api.startAssessmentSession(assessmentId, { silent: true });
+      const sess = await api.startAssessmentSession(assessmentId, {
+        silent: true,
+        clientDeviceId: getExamDeviceId(),
+        forceDeviceTakeover,
+      });
       const remaining = resolveSessionRemainingSeconds(sess, assessment?.duration ?? sess.durationMinutes);
 
       if (remaining <= 0) {
@@ -730,14 +800,25 @@ export default function AssessmentApp() {
       sessionRef.current = sess;
       setSession(sess);
       setTimeLeft(remaining);
+      setQuestionOrder(Array.isArray(sess.questionOrder) ? sess.questionOrder : null);
+      setOptionOrders(sess.optionOrders && typeof sess.optionOrders === 'object' ? sess.optionOrders : null);
+
+      let restored = null;
       if (sess.responses) {
         try {
           const parsed = typeof sess.responses === 'string' ? JSON.parse(sess.responses) : sess.responses;
-          setAnswers(parsed?.rawAnswers && typeof parsed.rawAnswers === 'object' ? parsed.rawAnswers : parsed);
+          restored = parsed?.rawAnswers && typeof parsed.rawAnswers === 'object' ? parsed.rawAnswers : parsed;
         } catch {
-          /* ignore corrupt draft */
+          restored = null;
         }
       }
+      if (!restored || !Object.keys(restored).length) {
+        restored = readLocalDraft(sess.id) || {};
+      }
+      setAnswers(restored && typeof restored === 'object' ? restored : {});
+      answersRef.current = restored && typeof restored === 'object' ? restored : {};
+      writeLocalDraft(sess.id, answersRef.current);
+
       if (sess.paused) {
         setExamPaused(true);
         setPauseReason(sess.pauseReason || 'TAB_SWITCH');
@@ -745,6 +826,17 @@ export default function AssessmentApp() {
       setIsPreCheckDone(true);
       setEntryStatus('ALLOWED');
     } catch (e) {
+      if (e.response?.data?.code === 'DEVICE_CONFLICT') {
+        const takeOver = window.confirm(
+          'This assessment is already open on another device or browser. Take over on this device? The other session will be locked out.'
+        );
+        if (takeOver) {
+          await executeTestStart(true);
+          return;
+        }
+        toast?.error('Continue on the original device, or take over from here.');
+        return;
+      }
       if (e.response?.data?.code === 'TIME_EXPIRED') {
         toast?.error('Assessment time has expired');
         navigate('/student/dashboard');
@@ -764,7 +856,18 @@ export default function AssessmentApp() {
       toast?.warning('Exam is paused. Wait for an admin to unlock your attempt.');
       return;
     }
-    setAnswers(prev => ({ ...prev, [questionId]: value }));
+    if (multiMonitorBlocked) {
+      toast?.warning('Multiple monitors detected. Disconnect extra displays to continue.');
+      return;
+    }
+    setAnswers((prev) => {
+      const next = { ...prev, [questionId]: value };
+      answersRef.current = next;
+      const sess = sessionRef.current;
+      if (sess?.id) writeLocalDraft(sess.id, next);
+      return next;
+    });
+    scheduleSaveProgress();
   };
 
   // Video Recording for VIDEO questions
@@ -796,7 +899,9 @@ export default function AssessmentApp() {
       const sess = sessionRef.current;
       if (!sess?.id) return;
       submittingRef.current = true;
-      await api.completeAssessment(sess.id, { answers: JSON.stringify(answers) });
+      await saveProgress();
+      await api.completeAssessment(sess.id, { answers: JSON.stringify(answersRef.current) });
+      clearLocalDraft(sess.id);
       toast?.success('Assessment submitted successfully');
       if (document.fullscreenElement) document.exitFullscreen();
       try {
@@ -811,6 +916,46 @@ export default function AssessmentApp() {
     }
   };
   submitAssessmentRef.current = submitAssessment;
+
+  // Offline / reconnect: keep drafts local and flush when back online
+  useEffect(() => {
+    const onOffline = () => setIsOffline(true);
+    const onOnline = () => {
+      setIsOffline(false);
+      saveProgress();
+    };
+    window.addEventListener('offline', onOffline);
+    window.addEventListener('online', onOnline);
+    return () => {
+      window.removeEventListener('offline', onOffline);
+      window.removeEventListener('online', onOnline);
+    };
+  }, [saveProgress]);
+
+  // Multi-monitor hard block (answers locked until single display)
+  useEffect(() => {
+    if (!isPreCheckDone || isInterviewer) return;
+    setMultiMonitorBlocked(secureStatus.multiMonitor === true);
+  }, [secureStatus.multiMonitor, isPreCheckDone, isInterviewer]);
+
+  // Persist draft on refresh / close
+  useEffect(() => {
+    if (!isPreCheckDone || isInterviewer) return undefined;
+    const flush = () => {
+      const sess = sessionRef.current;
+      if (sess?.id) writeLocalDraft(sess.id, answersRef.current);
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        saveProgress();
+      }
+    };
+    window.addEventListener('pagehide', flush);
+    window.addEventListener('beforeunload', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      window.removeEventListener('beforeunload', flush);
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [isPreCheckDone, isInterviewer, saveProgress]);
 
   useEffect(() => {
     if (!isPreCheckDone || isInterviewer) return undefined;
@@ -1190,10 +1335,51 @@ export default function AssessmentApp() {
   }
 
   // LIVE ASSESSMENT UI
-  const currentQuestion = assessment?.questions?.[currentQuestionIdx];
+  const orderedQuestions = React.useMemo(() => {
+    const list = Array.isArray(assessment?.questions) ? assessment.questions : [];
+    if (!Array.isArray(questionOrder) || !questionOrder.length) return list;
+    const byId = new Map(list.map((q) => [q.id, q]));
+    const ordered = [];
+    for (const id of questionOrder) {
+      if (byId.has(id)) {
+        ordered.push(byId.get(id));
+        byId.delete(id);
+      }
+    }
+    for (const q of byId.values()) ordered.push(q);
+    return ordered;
+  }, [assessment?.questions, questionOrder]);
+
+  const currentQuestion = orderedQuestions?.[currentQuestionIdx];
+
+  const mcqDisplayOptions = React.useMemo(() => {
+    if (!currentQuestion || currentQuestion.type !== 'MCQ') return [];
+    let opts = [];
+    try {
+      opts = JSON.parse(currentQuestion.options || '[]');
+    } catch {
+      opts = [];
+    }
+    if (!Array.isArray(opts)) return [];
+    const order = optionOrders?.[currentQuestion.id];
+    if (!Array.isArray(order) || order.length !== opts.length) {
+      return opts.map((opt, originalIndex) => ({ opt, originalIndex }));
+    }
+    return order.map((originalIndex) => ({
+      opt: opts[originalIndex],
+      originalIndex,
+    }));
+  }, [currentQuestion, optionOrders]);
 
   return (
     <div className="h-screen bg-slate-50 flex flex-col overflow-hidden text-slate-900 relative">
+      {(isOffline || multiMonitorBlocked) && !isInterviewer && (
+        <div className="absolute top-0 inset-x-0 z-[60] px-3 py-2 text-center text-xs font-semibold bg-amber-500 text-white">
+          {isOffline
+            ? 'You are offline — answers are saved on this device and will sync when connection returns.'
+            : 'Multiple monitors detected — disconnect extra displays to continue answering.'}
+        </div>
+      )}
       {examPaused && !isInterviewer && (
         <div className="absolute inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6">
           <div className="max-w-md w-full bg-white rounded-2xl border border-slate-200 shadow-xl p-6 space-y-4 text-center">
@@ -1285,15 +1471,15 @@ export default function AssessmentApp() {
                     layout="mcq"
                   >
                     <div className="grid gap-3">
-                        {JSON.parse(currentQuestion.options || '[]').map((opt, i) => {
+                        {mcqDisplayOptions.map(({ opt, originalIndex }, displayIdx) => {
                           const opts = currentQuestion.options;
                           const selected =
-                            normalizeMcqAnswer(answers[currentQuestion.id], opts) === String(i);
+                            normalizeMcqAnswer(answers[currentQuestion.id], opts) === String(originalIndex);
                           return (
                             <button
-                              key={i}
+                              key={`${currentQuestion.id}-${originalIndex}`}
                               type="button"
-                              onClick={() => handleAnswerChange(currentQuestion.id, String(i))}
+                              onClick={() => handleAnswerChange(currentQuestion.id, String(originalIndex))}
                               className={`group p-4 text-left rounded-lg transition-colors flex items-center gap-4 border ${
                                 selected
                                   ? 'bg-indigo-50 border-indigo-400 text-slate-900 shadow-sm'
@@ -1307,7 +1493,7 @@ export default function AssessmentApp() {
                                     : 'bg-slate-100 text-slate-600 group-hover:bg-slate-200'
                                 }`}
                               >
-                                {String.fromCharCode(65 + i)}
+                                {String.fromCharCode(65 + displayIdx)}
                               </div>
                               <span className="text-sm font-medium flex-1">{opt}</span>
                               {selected && <CheckCircle className="w-5 h-5 text-indigo-600 shrink-0" strokeWidth={1.75} />}
@@ -1536,7 +1722,7 @@ export default function AssessmentApp() {
             <div className="flex-1 basis-0 min-h-0 flex flex-col p-3 overflow-hidden">
               <p className="text-xs font-medium text-slate-500 mb-2 shrink-0">Questions</p>
               <div className="flex-1 min-h-0 flex flex-wrap content-start gap-2 overflow-y-auto">
-                {assessment?.questions?.map((q, i) => (
+                {orderedQuestions?.map((q, i) => (
                   <button
                     key={i}
                     type="button"
@@ -1564,7 +1750,7 @@ export default function AssessmentApp() {
                 </button>
                 <button
                   type="button"
-                  disabled={currentQuestionIdx === assessment?.questions?.length - 1}
+                  disabled={currentQuestionIdx === orderedQuestions?.length - 1}
                   onClick={() => setCurrentQuestionIdx((v) => v + 1)}
                   className="flex-1 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors flex items-center justify-center disabled:opacity-30 border border-slate-200"
                 >

@@ -22,6 +22,50 @@ function parseJson(value, fallback) {
   }
 }
 
+function normalizeEmail(value) {
+  if (value == null) return null;
+  const email = String(value).trim();
+  return email || null;
+}
+
+function normalizeLinkedin(value) {
+  if (value == null) return null;
+  let url = String(value).trim();
+  if (!url) return null;
+  if (!/^https?:\/\//i.test(url)) {
+    url = `https://${url.replace(/^\/+/, '')}`;
+  }
+  return url;
+}
+
+function validateContactFields(data) {
+  const email = normalizeEmail(data.email);
+  if (!email) {
+    const err = new Error('Email is required');
+    err.status = 400;
+    throw err;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const err = new Error('Enter a valid email address');
+    err.status = 400;
+    throw err;
+  }
+
+  const linkedin = normalizeLinkedin(data.linkedin);
+  if (!linkedin) {
+    const err = new Error('LinkedIn profile URL is required');
+    err.status = 400;
+    throw err;
+  }
+
+  const packageCtc = String(data.packageCtc ?? data.package ?? '').trim();
+  if (!packageCtc) {
+    const err = new Error('Package or stipend is required');
+    err.status = 400;
+    throw err;
+  }
+}
+
 export function serializeStory(row) {
   if (!row) return null;
   return {
@@ -116,6 +160,7 @@ export async function createStory(data, userId) {
     err.status = 400;
     throw err;
   }
+  validateContactFields(data);
 
   const row = await prisma.successStory.create({
     data: {
@@ -128,6 +173,8 @@ export async function createStory(data, userId) {
       company: data.company ?? null,
       studentName: data.studentName ?? null,
       studentId: data.studentId ?? null,
+      email: normalizeEmail(data.email),
+      linkedin: normalizeLinkedin(data.linkedin),
       branch: data.branch ?? null,
       campus: data.campus ?? null,
       batch: data.batch ?? null,
@@ -173,6 +220,8 @@ export async function updateStory(id, data, userId) {
   if (data.company !== undefined) patch.company = data.company;
   if (data.studentName !== undefined) patch.studentName = data.studentName;
   if (data.studentId !== undefined) patch.studentId = data.studentId;
+  if (data.email !== undefined) patch.email = normalizeEmail(data.email);
+  if (data.linkedin !== undefined) patch.linkedin = normalizeLinkedin(data.linkedin);
   if (data.branch !== undefined) patch.branch = data.branch;
   if (data.campus !== undefined) patch.campus = data.campus;
   if (data.batch !== undefined) patch.batch = data.batch;
@@ -189,6 +238,19 @@ export async function updateStory(id, data, userId) {
       patch.publishedAt = new Date();
     }
   }
+
+  const merged = {
+    ...existing,
+    ...data,
+    email: data.email !== undefined ? normalizeEmail(data.email) : existing.email,
+    linkedin: data.linkedin !== undefined ? normalizeLinkedin(data.linkedin) : existing.linkedin,
+    packageCtc:
+      data.packageCtc !== undefined || data.package !== undefined
+        ? data.packageCtc ?? data.package
+        : existing.packageCtc,
+  };
+  if (data.title != null) merged.title = String(data.title).trim();
+  validateContactFields(merged);
 
   return serializeStory(
     await prisma.successStory.update({ where: { id }, data: patch })
