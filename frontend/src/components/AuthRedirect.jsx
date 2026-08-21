@@ -53,6 +53,7 @@ export default function AuthRedirect() {
         || currentPath.startsWith('/endorsement/')
         || currentPath.startsWith('/interview/')
         || currentPath.startsWith('/recruiter/screening')
+        || currentPath.startsWith('/invite/')
         || currentPath.startsWith('/mock-interview-room/')
         || currentPath.startsWith('/mock-interview-precheck/')
         || currentPath.startsWith('/mock-interview/results/')

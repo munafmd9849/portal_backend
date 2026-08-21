@@ -1261,11 +1261,14 @@ model Assessment {
   instructions String?
   status       String                 @default("PUBLISHED") // DRAFT, PUBLISHED
   config       String                 @default("{}") // JSON: proctoring settings
+  inviteEnabled Boolean               @default(false)
+  inviteToken   String?               @unique
   createdAt    DateTime               @default(now())
   updatedAt    DateTime               @updatedAt
   questions    AssessmentQuestion[]
   sessions     AssessmentSession[]
   assignments  AssessmentAssignment[]
+  inviteEmails AssessmentInviteEmail[]
   linkedJobs   Job[]                  @relation("JobLinkedAssessment")
 
   @@map("assessments")
@@ -1315,6 +1318,23 @@ model AssessmentAssignment {
 
   @@index([assessmentId])
   @@map("assessment_assignments")
+}
+
+model AssessmentInviteEmail {
+  id           String     @id @default(uuid())
+  assessmentId String
+  email        String
+  fullName     String?
+  status       String     @default("PENDING") // PENDING, STARTED, COMPLETED
+  studentId    String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, email])
+  @@index([assessmentId])
+  @@index([email])
+  @@map("assessment_invite_emails")
 }
 
 model AssessmentSession {

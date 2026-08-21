@@ -1326,6 +1326,28 @@ export const api = {
   getLiveAssessmentSessions: (id) => apiRequest(`/assessments/${id}/live-sessions`),
   getStudentSessionResults: (sessionId) => apiRequest(`/assessments/session/results/${sessionId}`),
 
+  // Assessment invite links (public + admin)
+  getInviteAssessment: (token) =>
+    apiRequest(`/assessments/invite/${token}`, { silent: true }),
+  requestInviteOtp: (token, email) =>
+    apiRequest(`/assessments/invite/${token}/request-otp`, {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+      silent: true,
+    }),
+  verifyInviteAccess: (token, data) =>
+    apiRequest(`/assessments/invite/${token}/verify`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      silent: true,
+    }),
+  getAssessmentInvite: (id) => apiRequest(`/assessments/${id}/invite`),
+  updateAssessmentInvite: (id, data) =>
+    apiRequest(`/assessments/${id}/invite`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
   // Mock Interview System
   createMockInterviewDrive: (data) => apiRequest('/mock-interviews/create', { method: 'POST', body: JSON.stringify(data) }),
   publishMockInterviewDrive: (id) =>

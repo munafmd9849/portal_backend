@@ -6,11 +6,12 @@ import {
   Settings, Trash2, Edit3, Eye, FileText, Camera,
   Video, Shield, Maximize2, Mic, AlertTriangle,
   Layout, BookOpen, Terminal, ChevronRight,
-  MoreHorizontal, Activity, Target, X, Layers
+  MoreHorizontal, Activity, Target, X, Layers, Link2
 } from 'lucide-react';
 import api from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
 import AssessmentSettingsModal from '../../components/dashboard/admin/AssessmentSettingsModal';
+import AssessmentInviteModal from '../../components/assessment/AssessmentInviteModal';
 import { fromDatetimeLocalValue } from '../../utils/assessmentEntryWindow';
 import StudentSelectorModal from '../../components/dashboard/admin/StudentSelectorModal';
 import { SkeletonTable } from '../../components/ui/loading';
@@ -78,6 +79,7 @@ export default function AdminAssessments() {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [settingsAssessment, setSettingsAssessment] = useState(null);
+  const [inviteAssessment, setInviteAssessment] = useState(null);
   const [step, setStep] = useState(1);
   const [batches, setBatches] = useState([]);
   const [showStudentSelector, setShowStudentSelector] = useState(false);
@@ -565,6 +567,13 @@ export default function AdminAssessments() {
                                     className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md"
                                   >
                                     <Video className="w-3.5 h-3.5" /> Monitor
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setInviteAssessment(item)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-indigo-200 text-indigo-700 hover:bg-indigo-50 text-xs font-medium rounded-md"
+                                  >
+                                    <Link2 className="w-3.5 h-3.5" /> Invite
                                   </button>
                                   <button
                                     type="button"
@@ -1057,6 +1066,15 @@ export default function AdminAssessments() {
           assessment={settingsAssessment}
           onUpdate={fetchAssessments}
           onClose={() => setSettingsAssessment(null)}
+        />
+      )}
+
+      {inviteAssessment && (
+        <AssessmentInviteModal
+          open
+          assessmentId={inviteAssessment.id}
+          assessmentTitle={inviteAssessment.title}
+          onClose={() => setInviteAssessment(null)}
         />
       )}
 

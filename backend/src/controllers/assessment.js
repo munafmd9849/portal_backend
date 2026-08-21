@@ -1103,7 +1103,7 @@ export async function forceSubmitAssessmentSession(req, res) {
     const session = await prisma.assessmentSession.findUnique({
       where: { id: sessionId },
       include: {
-        student: { select: { fullName: true } },
+        student: { select: { fullName: true, email: true } },
         assessment: {
           include: { questions: true },
         },
@@ -1201,6 +1201,18 @@ export async function forceSubmitAssessmentSession(req, res) {
       sessionId,
       studentName: session.student?.fullName,
     });
+
+    if (session.student?.email || session.studentId) {
+      const email = session.student?.email
+        ? String(session.student.email).trim().toLowerCase()
+        : null;
+      if (email) {
+        await prisma.assessmentInviteEmail.updateMany({
+          where: { assessmentId: session.assessmentId, email },
+          data: { status: 'COMPLETED', studentId: session.studentId },
+        });
+      }
+    }
 
     res.json({
       success: true,
@@ -1479,8 +1491,18 @@ export async function completeAssessment(req, res) {
 
     const updatedSession = await prisma.assessmentSession.findUnique({
       where: { id: sessionId },
-      include: { student: { select: { id: true } } },
+      include: { student: { select: { id: true, email: true } } },
     });
+
+    if (updatedSession?.student?.email) {
+      await prisma.assessmentInviteEmail.updateMany({
+        where: {
+          assessmentId: updatedSession.assessmentId,
+          email: String(updatedSession.student.email).trim().toLowerCase(),
+        },
+        data: { status: 'COMPLETED', studentId: updatedSession.student.id },
+      });
+    }
 
     if (!hasDescriptive && updatedSession.student?.id) {
       try {

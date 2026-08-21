@@ -27,8 +27,20 @@ import {
   getStudentSessionResults
 } from '../controllers/assessment.js';
 import { authenticate, authorize } from '../middleware/auth.js';
+import {
+  getInviteAssessment,
+  requestInviteOtp,
+  verifyInviteAccess,
+  getAssessmentInvite,
+  updateAssessmentInvite,
+} from '../controllers/assessmentInvite.js';
 
 const router = express.Router();
+
+// --- Public invite link (no auth) ---
+router.get('/invite/:token', getInviteAssessment);
+router.post('/invite/:token/request-otp', requestInviteOtp);
+router.post('/invite/:token/verify', verifyInviteAccess);
 
 // --- Admin Routes (static paths before /:id params) ---
 router.get('/all', authenticate, authorize(['ADMIN', 'SUPER_ADMIN']), getAssessments);
@@ -39,6 +51,8 @@ router.get('/session/screenshot/:screenshotId/url', authenticate, authorize(['AD
 router.post('/session/unlock/:sessionId', authenticate, authorize(['ADMIN', 'SUPER_ADMIN']), unlockAssessmentSession);
 router.post('/session/extend/:sessionId', authenticate, authorize(['ADMIN', 'SUPER_ADMIN']), extendAssessmentSession);
 router.post('/session/force-submit/:sessionId', authenticate, authorize(['ADMIN', 'SUPER_ADMIN']), forceSubmitAssessmentSession);
+router.get('/:id/invite', authenticate, authorize(['ADMIN', 'SUPER_ADMIN']), getAssessmentInvite);
+router.put('/:id/invite', authenticate, authorize(['ADMIN', 'SUPER_ADMIN']), updateAssessmentInvite);
 router.get('/:id/live-sessions', authenticate, authorize(['ADMIN', 'SUPER_ADMIN']), getLiveAssessmentSessions);
 router.get('/results/:sessionId', authenticate, authorize(['ADMIN', 'SUPER_ADMIN']), getSessionResults);
 router.get('/dashboard/:id', authenticate, authorize(['ADMIN', 'SUPER_ADMIN']), getAssessmentResults);
