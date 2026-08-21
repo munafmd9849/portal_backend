@@ -1,16 +1,13 @@
 /**
- * Shareable assessment invite links with email allowlist + OTP gate.
+ * Shareable assessment invite links with email allowlist (no OTP).
  */
 
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import prisma from '../config/database.js';
-import { sendOTP } from '../services/emailService.js';
 import { generateAccessToken, generateRefreshToken } from '../middleware/auth.js';
 import { adminCanAccessAssessmentById } from '../utils/adminResourceScope.js';
 import { getAssessmentEntryStatus } from '../utils/assessmentEntryWindow.js';
-
-const INVITE_OTP_PURPOSE = 'ASSESSMENT_INVITE';
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -31,10 +28,6 @@ function parseEmailsInput(raw) {
       .filter(Boolean);
   }
   return [];
-}
-
-function inviteOtpPurpose(assessmentId) {
-  return `${INVITE_OTP_PURPOSE}:${assessmentId}`;
 }
 
 function newInviteToken() {
@@ -185,11 +178,13 @@ export async function getInviteAssessment(req, res) {
   }
 }
 
-/** Public: send OTP only if email is on allowlist. */
-export async function requestInviteOtp(req, res) {
+/** Public: allowlisted email → issue student JWT for this assessment (no OTP). */
+export async function claimInviteAccess(req, res) {
   try {
     const { token } = req.params;
     const email = normalizeEmail(req.body?.email);
+    const fullName = req.body?.fullName ? String(req.body.fullName).trim().slice(0, 120) : null;
+
     if (!isValidEmail(email)) {
       return res.status(400).json({ error: 'Valid email is required' });
     }
@@ -199,19 +194,7 @@ export async function requestInviteOtp(req, res) {
       return res.status(404).json({ error: 'Invite link is invalid or disabled' });
     }
     if (assessment.status === 'DRAFT') {
-      return res.status(403).json({ error: 'This assessment is not published yet' });
-    }
-
-    const allowed = await prisma.assessmentInviteEmail.findUnique({
-      where: {
-        assessmentId_email: { assessmentId: assessment.id, email },
-      },
-    });
-    if (!allowed) {
-      return res.status(403).json({
-        error: 'This email is not invited to this assessment',
-        code: 'EMAIL_NOT_ALLOWED',
-      });
+      return res.status(403).json({ error: 'This assessment is not published yet', code: 'DRAFT' });
     }
 
     const entry = getAssessmentEntryStatus(assessment);
@@ -229,57 +212,6 @@ export async function requestInviteOtp(req, res) {
       });
     }
 
-    const purpose = inviteOtpPurpose(assessment.id);
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-    await prisma.oTP.updateMany({
-      where: { email, purpose, isUsed: false, expiresAt: { gt: new Date() } },
-      data: { isUsed: true },
-    });
-    await prisma.oTP.create({ data: { email, otp, purpose, expiresAt } });
-
-    try {
-      await sendOTP(email, otp);
-    } catch (mailErr) {
-      console.error('Invite OTP email failed:', mailErr);
-      if (process.env.NODE_ENV === 'production') {
-        return res.status(500).json({ error: 'Failed to send OTP email' });
-      }
-    }
-
-    const payload = {
-      success: true,
-      message: 'OTP sent to your email',
-      email,
-    };
-    if (process.env.NODE_ENV !== 'production') {
-      payload.devOtp = otp;
-    }
-    res.json(payload);
-  } catch (error) {
-    console.error('requestInviteOtp error:', error);
-    res.status(500).json({ error: 'Failed to send OTP' });
-  }
-}
-
-/** Public: verify OTP → issue student JWT for this assessment. */
-export async function verifyInviteAccess(req, res) {
-  try {
-    const { token } = req.params;
-    const email = normalizeEmail(req.body?.email);
-    const otp = String(req.body?.otp || '').trim();
-    const fullName = req.body?.fullName ? String(req.body.fullName).trim().slice(0, 120) : null;
-
-    if (!isValidEmail(email) || !otp) {
-      return res.status(400).json({ error: 'Email and OTP are required' });
-    }
-
-    const assessment = await loadAssessmentByInviteToken(token);
-    if (!assessment) {
-      return res.status(404).json({ error: 'Invite link is invalid or disabled' });
-    }
-
     const inviteRow = await prisma.assessmentInviteEmail.findUnique({
       where: {
         assessmentId_email: { assessmentId: assessment.id, email },
@@ -291,23 +223,6 @@ export async function verifyInviteAccess(req, res) {
         code: 'EMAIL_NOT_ALLOWED',
       });
     }
-
-    const purpose = inviteOtpPurpose(assessment.id);
-    const otpRow = await prisma.oTP.findFirst({
-      where: {
-        email,
-        purpose,
-        otp,
-        isUsed: false,
-        expiresAt: { gt: new Date() },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (!otpRow) {
-      return res.status(400).json({ error: 'Invalid or expired OTP' });
-    }
-
-    await prisma.oTP.update({ where: { id: otpRow.id }, data: { isUsed: true } });
 
     const student = await ensureInviteStudent({
       email,
@@ -350,9 +265,9 @@ export async function verifyInviteAccess(req, res) {
       },
     });
   } catch (error) {
-    console.error('verifyInviteAccess error:', error);
+    console.error('claimInviteAccess error:', error);
     const status = error.status || 500;
-    res.status(status).json({ error: error.message || 'Failed to verify invite', code: error.code });
+    res.status(status).json({ error: error.message || 'Failed to claim invite', code: error.code });
   }
 }
 

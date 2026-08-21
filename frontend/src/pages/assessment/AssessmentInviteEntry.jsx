@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Shield, Mail, KeyRound, ArrowRight } from 'lucide-react';
+import { Shield, Mail, ArrowRight } from 'lucide-react';
 import api from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
 import { Spinner } from '../../components/ui/loading';
@@ -13,11 +13,8 @@ export default function AssessmentInviteEntry() {
   const [loading, setLoading] = useState(true);
   const [meta, setMeta] = useState(null);
   const [error, setError] = useState(null);
-  const [step, setStep] = useState('email'); // email | otp
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
-  const [otp, setOtp] = useState('');
-  const [devOtp, setDevOtp] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -40,7 +37,7 @@ export default function AssessmentInviteEntry() {
     };
   }, [token]);
 
-  const requestOtp = async (e) => {
+  const startExam = async (e) => {
     e?.preventDefault?.();
     if (!email.trim()) {
       toast?.error('Enter your invited email');
@@ -48,39 +45,18 @@ export default function AssessmentInviteEntry() {
     }
     try {
       setSubmitting(true);
-      const res = await api.requestInviteOtp(token, email.trim());
-      setDevOtp(res?.devOtp || null);
-      setStep('otp');
-      toast?.success(res?.message || 'OTP sent');
-    } catch (err) {
-      toast?.error(err?.response?.data?.error || err?.message || 'Could not send OTP');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const verify = async (e) => {
-    e?.preventDefault?.();
-    if (!otp.trim()) {
-      toast?.error('Enter the OTP from your email');
-      return;
-    }
-    try {
-      setSubmitting(true);
-      const res = await api.verifyInviteAccess(token, {
+      const res = await api.claimInviteAccess(token, {
         email: email.trim(),
-        otp: otp.trim(),
         fullName: fullName.trim() || undefined,
       });
       if (!res?.accessToken || !res?.assessmentId) {
-        throw new Error('Invalid verify response');
+        throw new Error('Invalid access response');
       }
       api.setAuthTokens(res.accessToken, res.refreshToken);
       toast?.success('Access granted — starting exam');
-      // Full navigation so AuthProvider reloads the invite session
       window.location.assign(`/assessment/${res.assessmentId}`);
     } catch (err) {
-      toast?.error(err?.response?.data?.error || err?.message || 'Verification failed');
+      toast?.error(err?.response?.data?.error || err?.message || 'Could not start assessment');
       setSubmitting(false);
     }
   };
@@ -140,8 +116,8 @@ export default function AssessmentInviteEntry() {
             </div>
           )}
 
-          {!entryBlocked && step === 'email' && (
-            <form onSubmit={requestOtp} className="space-y-4">
+          {!entryBlocked && (
+            <form onSubmit={startExam} className="space-y-4">
               <p className="text-sm text-slate-600">
                 Enter the email you were invited with. Only allowlisted emails can take this test.
               </p>
@@ -177,64 +153,7 @@ export default function AssessmentInviteEntry() {
                 className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold py-2.5 disabled:opacity-60"
               >
                 {submitting ? <Spinner size="sm" /> : <ArrowRight className="w-4 h-4" />}
-                Send OTP
-              </button>
-            </form>
-          )}
-
-          {!entryBlocked && step === 'otp' && (
-            <form onSubmit={verify} className="space-y-4">
-              <p className="text-sm text-slate-600">
-                We sent a one-time code to <strong>{email}</strong>. Enter it to continue.
-              </p>
-              {devOtp && (
-                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-                  Dev OTP: <strong>{devOtp}</strong>
-                </p>
-              )}
-              <label className="block space-y-1.5">
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
-                  <KeyRound className="w-3.5 h-3.5" /> OTP
-                </span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  required
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm tracking-widest focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
-                  placeholder="6-digit code"
-                  autoComplete="one-time-code"
-                />
-              </label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStep('email');
-                    setOtp('');
-                    setDevOtp(null);
-                  }}
-                  className="flex-1 rounded-lg border border-slate-200 text-sm font-medium py-2.5 text-slate-700 hover:bg-slate-50"
-                >
-                  Back
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold py-2.5 disabled:opacity-60"
-                >
-                  {submitting ? <Spinner size="sm" /> : null}
-                  Start assessment
-                </button>
-              </div>
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={requestOtp}
-                className="w-full text-xs text-indigo-600 hover:underline"
-              >
-                Resend OTP
+                Start assessment
               </button>
             </form>
           )}

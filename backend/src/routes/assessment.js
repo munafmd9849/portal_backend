@@ -29,8 +29,7 @@ import {
 import { authenticate, authorize } from '../middleware/auth.js';
 import {
   getInviteAssessment,
-  requestInviteOtp,
-  verifyInviteAccess,
+  claimInviteAccess,
   getAssessmentInvite,
   updateAssessmentInvite,
 } from '../controllers/assessmentInvite.js';
@@ -39,8 +38,7 @@ const router = express.Router();
 
 // --- Public invite link (no auth) ---
 router.get('/invite/:token', getInviteAssessment);
-router.post('/invite/:token/request-otp', requestInviteOtp);
-router.post('/invite/:token/verify', verifyInviteAccess);
+router.post('/invite/:token/claim', claimInviteAccess);
 
 // --- Admin Routes (static paths before /:id params) ---
 router.get('/all', authenticate, authorize(['ADMIN', 'SUPER_ADMIN']), getAssessments);

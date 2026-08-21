@@ -101,7 +101,7 @@ export default function AssessmentInviteModal({ assessmentId, assessmentTitle, o
                 <div>
                   <div className="text-sm font-medium text-slate-900">Enable invite link</div>
                   <div className="text-xs text-slate-500">
-                    Only emails on the allowlist can enter (OTP required).
+                    Only emails on the allowlist can enter and take the exam.
                   </div>
                 </div>
                 <input

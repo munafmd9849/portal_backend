@@ -1329,14 +1329,8 @@ export const api = {
   // Assessment invite links (public + admin)
   getInviteAssessment: (token) =>
     apiRequest(`/assessments/invite/${token}`, { silent: true }),
-  requestInviteOtp: (token, email) =>
-    apiRequest(`/assessments/invite/${token}/request-otp`, {
-      method: 'POST',
-      body: JSON.stringify({ email }),
-      silent: true,
-    }),
-  verifyInviteAccess: (token, data) =>
-    apiRequest(`/assessments/invite/${token}/verify`, {
+  claimInviteAccess: (token, data) =>
+    apiRequest(`/assessments/invite/${token}/claim`, {
       method: 'POST',
       body: JSON.stringify(data),
       silent: true,
