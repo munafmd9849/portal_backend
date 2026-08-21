@@ -22,10 +22,12 @@ import AdminAssessments from '../admin/AdminAssessments';
 import MockInterviewManagement from '../admin/MockInterviewManagement';
 import PlacementCalendar from '../../components/dashboard/admin/PlacementCalendar';
 import PlacementsRegistry from '../../components/dashboard/admin/PlacementsRegistry';
-import { Home, FilePlus2, Briefcase, GripVertical, LogOut, Users, Settings, User, Calendar, UserPlus, BarChart3, X, History, Megaphone, ShieldCheck, Video, UserCheck } from 'lucide-react';
+import Notifications from '../../components/dashboard/admin/Notifications';
+import { Home, FilePlus2, Briefcase, GripVertical, LogOut, Users, Settings, User, Calendar, UserPlus, BarChart3, X, History, Megaphone, ShieldCheck, Video, UserCheck, Bell } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import showLogoutConfirm from '../../utils/logoutConfirm';
 import { LoadingPage } from '../../components/ui/loading';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 
 const BASE = '/super-admin';
 
@@ -110,6 +112,7 @@ export default function SuperAdminDashboard() {
 
   const allTabs = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'createJob', label: 'Create Job', icon: FilePlus2 },
     { id: 'manageJobs', label: 'Manage Jobs', icon: Briefcase },
     { id: 'jobApplications', label: 'Applicants', icon: Users },
@@ -174,6 +177,7 @@ export default function SuperAdminDashboard() {
     if (isJobApplicationsPage) return <AdminJobApplications />;
     switch (activeTab) {
       case 'dashboard': return <AdminHome />;
+      case 'notifications': return <Notifications />;
       case 'createJob':
         return (
           <CreateJob

@@ -27,7 +27,8 @@ import PlacementCalendar from '../../components/dashboard/admin/PlacementCalenda
 import PlacementsRegistry from '../../components/dashboard/admin/PlacementsRegistry';
 import LandingCmsManager from '../../components/dashboard/admin/LandingCmsManager';
 import SuccessStoriesManager from '../../components/dashboard/admin/SuccessStoriesManager';
-import { Home, FilePlus2, Briefcase, GripVertical, LogOut, Users, Settings, User, Calendar, Megaphone, X, UserPlus, History, BarChart3, ShieldCheck, Video, UserCheck, Layout, Sparkles } from 'lucide-react';
+import Notifications from '../../components/dashboard/admin/Notifications';
+import { Home, FilePlus2, Briefcase, GripVertical, LogOut, Users, Settings, User, Calendar, Megaphone, X, UserPlus, History, BarChart3, ShieldCheck, Video, UserCheck, Layout, Sparkles, Bell } from 'lucide-react';
 import { LoadingPage, Spinner } from '../../components/ui/loading';
 import { useAuth } from '../../hooks/useAuth';
 import showLogoutConfirm from '../../utils/logoutConfirm';
@@ -38,7 +39,7 @@ import ErrorBoundary from '../../components/common/ErrorBoundary';
 const SIDEBAR_WIDTH = '15rem';
 
 const NAV_GROUPS = [
-  { label: 'Overview', tabIds: ['dashboard'] },
+  { label: 'Overview', tabIds: ['dashboard', 'notifications'] },
   { label: 'Placements', tabIds: ['createJob', 'manageJobs', 'jobApplications', 'interviewScheduling', 'calendar', 'placements'] },
   { label: 'People', tabIds: ['studentDirectory', 'recruiterDirectory'] },
   { label: 'Programs', tabIds: ['announcements', 'mockInterviews', 'assessments'] },
@@ -258,6 +259,7 @@ export default function AdminDashboard() {
   // Base tabs available to all authorized users
   const allTabs = [
     { id: 'dashboard', label: 'Dashboard', icon: Home, roles: ['ADMIN', 'RECRUITER', 'STUDENT', 'SUPER_ADMIN'] },
+    { id: 'notifications', label: 'Notifications', icon: Bell, roles: ['ADMIN', 'SUPER_ADMIN'] },
     { id: 'landingCms', label: 'Landing Page', icon: Layout, roles: ['SUPER_ADMIN'] },
     { id: 'successStories', label: 'Success Stories', icon: Sparkles, roles: ['ADMIN', 'SUPER_ADMIN'] },
     { id: 'createJob', label: 'Create Job', icon: FilePlus2, roles: ['ADMIN', 'RECRUITER', 'SUPER_ADMIN'] }, // ADMIN and RECRUITER only
@@ -342,6 +344,11 @@ export default function AdminDashboard() {
     switch (currentTab) {
       case 'dashboard':
         return <AdminDashboardHub />;
+      case 'notifications':
+        if (!isAdminOnly) {
+          return <div className="text-red-600 font-semibold">Access denied: Only ADMIN users can access notifications.</div>;
+        }
+        return <Notifications />;
       case 'landingCms':
         if (!isSuperAdmin) {
           return <div className="text-red-600 font-semibold p-6 bg-red-50 rounded-xl">Access denied: Only SUPER_ADMIN can manage the landing page.</div>;

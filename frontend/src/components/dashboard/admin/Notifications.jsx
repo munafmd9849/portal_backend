@@ -1,30 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  FaBell, 
-  FaUserGraduate, 
-  FaBriefcase, 
-  FaClipboardCheck, 
-  FaUsers, 
-  FaSearch, 
-  FaFilter,
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  FaBell,
+  FaUserGraduate,
+  FaBriefcase,
+  FaClipboardCheck,
+  FaUsers,
   FaCheck,
   FaTimes,
   FaTrash,
   FaEye,
-  FaEyeSlash,
-  FaExclamationTriangle,
-  FaInfoCircle,
-  FaCheckCircle,
-  FaClock,
-  FaChevronDown,
-  FaChevronUp,
   FaEnvelopeOpen,
   FaQuestionCircle,
   FaChartLine,
   FaCalendarAlt,
-  FaReply
 } from 'react-icons/fa';
-import { SkeletonMediaRowList, SkeletonList, Spinner } from '../../ui/loading';
+import { Bell, Clock, ChevronRight, Search, X } from 'lucide-react';
+import { SkeletonList, Spinner } from '../../ui/loading';
 
 // Notification types constants (moved from queries service for compatibility)
 const NOTIFICATION_TYPES = {
@@ -40,6 +31,85 @@ const PRIORITY_LEVELS = {
   MEDIUM: 'medium',
   HIGH: 'high'
 };
+
+const TYPE_BORDER = {
+  question_request: 'border-l-blue-800',
+  cgpa_request: 'border-l-blue-800',
+  calendar_request: 'border-l-blue-800',
+  jd_approval: 'border-l-amber-500',
+  job_application: 'border-l-blue-800',
+  applicationreview: 'border-l-blue-800',
+  application: 'border-l-blue-800',
+  admincollab: 'border-l-blue-800',
+  admin_coordination: 'border-l-blue-800',
+  admin_login: 'border-l-amber-500',
+  recruiter_inquiry: 'border-l-blue-800',
+};
+
+const TYPE_BADGE = {
+  question_request: 'bg-blue-50 text-blue-800 border-blue-200',
+  cgpa_request: 'bg-blue-50 text-blue-800 border-blue-200',
+  calendar_request: 'bg-blue-50 text-blue-800 border-blue-200',
+  jd_approval: 'bg-amber-50 text-amber-800 border-amber-200',
+  job_application: 'bg-blue-50 text-blue-800 border-blue-200',
+  applicationreview: 'bg-blue-50 text-blue-800 border-blue-200',
+  application: 'bg-blue-50 text-blue-800 border-blue-200',
+  admincollab: 'bg-blue-50 text-blue-800 border-blue-200',
+  admin_coordination: 'bg-blue-50 text-blue-800 border-blue-200',
+  admin_login: 'bg-amber-50 text-amber-800 border-amber-200',
+  recruiter_inquiry: 'bg-blue-50 text-blue-800 border-blue-200',
+};
+
+function notificationTimestamp(notification) {
+  if (notification.createdAt) {
+    const d = new Date(notification.createdAt);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  if (notification.date) {
+    const d = new Date(`${notification.date}${notification.time ? ` ${notification.time}` : ''}`);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  return new Date();
+}
+
+function formatDayHeader(iso) {
+  try {
+    return new Date(iso).toLocaleDateString(undefined, {
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  } catch {
+    return iso;
+  }
+}
+
+function formatDateBox(iso) {
+  try {
+    const d = new Date(iso);
+    return {
+      month: d.toLocaleString('default', { month: 'short' }),
+      day: d.getDate(),
+    };
+  } catch {
+    return { month: '---', day: '--' };
+  }
+}
+
+function formatEventDate(iso) {
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return iso;
+  }
+}
 import { 
   subscribeToNotifications, 
   markNotificationAsRead, 
@@ -98,19 +168,10 @@ const Notifications = () => {
 
   // Load notifications from backend API with real-time subscription
   useEffect(() => {
-    console.log('🔄 Setting up notifications subscription...');
     setLoadingNotifications(true);
-    
+
     const unsubscribe = subscribeToNotifications(
       (notificationsList) => {
-        console.log('📨 Received notifications:', notificationsList.length);
-        console.log('📨 Notification details:', notificationsList.map(n => ({
-          id: n.id,
-          title: n.title,
-          type: n.type,
-          isRead: n.isRead,
-          meta: n.meta
-        })));
         setNotifications(notificationsList || []);
         setLoadingNotifications(false);
       }
@@ -118,10 +179,9 @@ const Notifications = () => {
 
     loadNotifications();
     return () => {
-      console.log('🧹 Cleaning up notifications subscription');
       if (unsubscribe) unsubscribe();
     };
-  }, [activeFilter]);
+  }, []);
 
   // Clear search input when filter changes
   useEffect(() => {
@@ -600,345 +660,288 @@ const Notifications = () => {
     ? allFilters
     : allFilters.filter((f) => f.id !== 'admin_coordination');
 
-  console.log('🎨 Rendering notifications component:', {
-    total: notifications.length,
-    filtered: filteredNotifications.length,
-    loading: loadingNotifications,
-    counts: filterCounts
-  });
+  const activeFilterMeta = filters.find((f) => f.id === activeFilter) || filters[0];
 
-  const activeTheme = getFilterTheme(activeFilter);
+  const groupedNotifications = useMemo(() => {
+    const map = new Map();
+    filteredNotifications.forEach((notification) => {
+      const day = notificationTimestamp(notification).toDateString();
+      if (!map.has(day)) map.set(day, []);
+      map.get(day).push(notification);
+    });
+    return Array.from(map.entries());
+  }, [filteredNotifications]);
+
   const selectedModalTheme = selectedNotification
     ? getNotificationTheme(selectedNotification.type)
     : null;
 
   return (
-    <div className="min-h-screen bg-white p-4 sm:p-6 overflow-x-hidden">
-      <div className="max-w-6xl mx-auto space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-xs text-gray-400">
-            <span>{filterCounts.all} total</span>
-            {filterCounts.unread > 0 && (
-              <>
-                <span>·</span>
-                <span className="text-blue-600">{filterCounts.unread} unread</span>
-              </>
-            )}
-          </div>
+    <div className="space-y-5 p-4 sm:p-6 max-w-[1600px] mx-auto overflow-x-hidden">
+      <div className="flex justify-center mb-2">
+        <div className="bg-white rounded-lg p-1 shadow-sm border border-gray-200 inline-flex flex-wrap justify-center gap-2 max-w-full">
+          {filters.map((filter) => (
+            <button
+              key={filter.id}
+              type="button"
+              onClick={() => setActiveFilter(filter.id)}
+              className={`px-3 sm:px-5 py-2 rounded-md text-sm font-medium transition-all duration-200 touch-manipulation whitespace-nowrap ${
+                activeFilter === filter.id
+                  ? 'bg-blue-800 text-white shadow-md'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              {filter.name} ({filter.count})
+            </button>
+          ))}
+        </div>
+      </div>
 
-          <div className="flex items-center gap-2">
-            <form onSubmit={handleSearchSubmit} className="flex items-center">
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
-                  <FaSearch className="text-gray-300 text-[10px]" />
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search"
-                  className="pl-7 pr-7 py-1 text-sm border-0 border-b border-gray-200 rounded-none bg-transparent focus:outline-none focus:border-gray-400 w-40 sm:w-48"
-                  value={searchInput}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setSearchInput(value);
-                    setSearchQuery(value.trim());
-                  }}
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={handleClearSearch}
-                    className="absolute inset-y-0 right-0 pr-1 flex items-center text-gray-300 hover:text-gray-500"
-                    title="Clear search"
-                  >
-                    <FaTimes className="text-[10px]" />
-                  </button>
-                )}
-              </div>
-            </form>
-
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden flex flex-col">
+        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <h3 className="font-semibold text-gray-900">
+            {activeFilter === 'all' ? 'All Notifications' : activeFilterMeta.name} ({filteredNotifications.length})
+          </h3>
+          <div className="flex items-center gap-2 flex-wrap sm:justify-end">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search notifications"
+                className="pl-8 pr-8 py-1.5 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:border-blue-800 focus:ring-1 focus:ring-blue-800/20 w-full sm:w-52"
+                value={searchInput}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSearchInput(value);
+                  setSearchQuery(value.trim());
+                }}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={handleClearSearch}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  aria-label="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
             <button
               type="button"
               onClick={handleMarkAllAsRead}
               disabled={markingAllAsRead || loadingNotifications}
-              className="px-2 py-1 text-xs text-gray-500 hover:text-gray-800 transition-colors disabled:opacity-50"
+              className="px-3 py-1.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-white disabled:opacity-50 transition-colors"
             >
               {markingAllAsRead ? 'Marking…' : 'Mark all read'}
             </button>
+            {loadingNotifications && filteredNotifications.length > 0 && (
+              <div className="inline-flex items-center gap-2 text-sm text-slate-500 shrink-0">
+                <Spinner size="sm" />
+                Refreshing…
+              </div>
+            )}
           </div>
         </div>
 
-        {searchQuery && (
-          <p className="text-[11px] text-gray-400">
-            Results for &quot;{searchQuery}&quot;
-          </p>
-        )}
-
-        <div className="flex flex-wrap gap-1 border-b border-gray-100 pb-2">
-          {filters.map((filter) => {
-            const theme = getFilterTheme(filter.id);
-            const isActive = activeFilter === filter.id;
-            return (
-              <button
-                key={filter.id}
-                type="button"
-                onClick={() => setActiveFilter(filter.id)}
-                className={`px-2.5 py-1 rounded-sm text-xs font-medium flex items-center gap-1 transition-colors ${
-                  isActive ? theme.active : theme.inactive
-                }`}
-              >
-                <filter.icon className={`text-[10px] ${isActive ? '' : 'opacity-60'}`} />
-                <span>{filter.name}</span>
-                {filter.count > 0 && (
-                  <span className={`text-[10px] tabular-nums ${isActive ? theme.count : 'text-gray-400'}`}>
-                    {filter.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="border border-gray-100 rounded overflow-hidden">
-          <div className={`px-3 py-2 border-b flex items-center justify-between ${activeTheme.header}`}>
-            <p className={`text-xs font-medium ${activeTheme.headerText}`}>
-              {activeFilter === 'all' ? 'All' :
-               activeFilter === 'unread' ? 'Unread' :
-               filters.find(f => f.id === activeFilter)?.name}
-              <span className="opacity-60 font-normal ml-1">({filteredNotifications.length})</span>
+        {loadingNotifications && filteredNotifications.length === 0 ? (
+          <SkeletonList rows={5} />
+        ) : groupedNotifications.length === 0 ? (
+          <div className="px-4 py-16 text-center">
+            <Bell className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500 text-sm font-medium">
+              {searchQuery ? 'No matching notifications' : 'No notifications in this view'}
+            </p>
+            <p className="text-gray-400 text-xs mt-1">
+              {searchQuery ? 'Try another search term' : 'New items will appear here when students, recruiters, or admins act'}
             </p>
           </div>
-
-          <div>
-            {loadingNotifications ? (
-              <SkeletonMediaRowList rows={5} className="py-4" />
-            ) : filteredNotifications.length === 0 ? (
-              <div className="text-center py-16">
-                <div className={`text-4xl mb-3 ${activeTheme.empty}`}>
-                  {activeFilter === 'student_queries' ? <FaUserGraduate /> :
-                   activeFilter === 'jd_approvals' ? <FaBriefcase /> :
-                   activeFilter === 'job_applications' ? <FaClipboardCheck /> :
-                   activeFilter === 'admin_coordination' ? <FaUsers /> :
-                   <FaBell />}
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {groupedNotifications.map(([day, dayNotifications]) => (
+              <div key={day}>
+                <div className="px-4 sm:px-5 py-2.5 bg-gray-50/80 border-b border-gray-100">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-gray-500">
+                    {formatDayHeader(notificationTimestamp(dayNotifications[0]).toISOString())}
+                  </p>
                 </div>
-                <p className="text-sm font-medium text-gray-600 mb-1">
-                  {searchQuery ? 'No matching notifications' : 'No notifications found'}
-                </p>
-                <p className="text-xs text-gray-400">
-                  {searchQuery
-                    ? 'Try adjusting your search'
-                    : activeFilter === 'all'
-                      ? 'New notifications will appear here'
-                      : `No ${filters.find(f => f.id === activeFilter)?.name.toLowerCase()} at this time`}
-                </p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-50">
-                {filteredNotifications.map((notification) => {
-                  const theme = getNotificationTheme(notification.type);
+                {dayNotifications.map((notification) => {
+                  const borderClass = TYPE_BORDER[notification.type] || 'border-l-gray-300';
+                  const badgeClass = TYPE_BADGE[notification.type] || 'bg-gray-50 text-gray-600 border-gray-200';
+                  const dateBox = formatDateBox(notificationTimestamp(notification).toISOString());
+                  const isJd = notification.type === 'jd_approval' || notification.type === NOTIFICATION_TYPES.JD_APPROVAL;
+                  const isUnread = !notification.isRead;
+
                   return (
-                  <div
-                    key={notification.id}
-                    className={`px-3 py-3 transition-colors hover:bg-gray-50/60 border-l-2 ${theme.accent} ${
-                      !notification.isRead ? 'bg-white' : 'bg-white/80'
-                    }`}
-                  >
-                    <div className="flex items-start gap-2.5">
-                      <div className="shrink-0 mt-0.5">
-                        {getNotificationIcon(notification.type)}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5 mb-0.5">
-                              <span className={`px-1.5 py-0.5 rounded-sm text-[10px] font-medium ${theme.chip}`}>
-                                {getNotificationTypeLabel(notification.type)}
-                              </span>
-                              {!notification.isRead && (
-                                <span className="w-1 h-1 bg-blue-400 rounded-full shrink-0" />
-                              )}
+                    <div
+                      key={notification.id}
+                      className={`group relative bg-white border-l-[4px] ${borderClass} hover:bg-gray-50 transition-colors ${
+                        isUnread ? '' : 'opacity-90'
+                      }`}
+                    >
+                      <div className="p-4 sm:p-5">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <div className="flex gap-4 min-w-0 flex-1">
+                            <div
+                              className={`w-11 h-11 rounded-md flex flex-col items-center justify-center flex-shrink-0 border ${
+                                isJd
+                                  ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                  : 'bg-blue-800 text-white border-blue-800'
+                              }`}
+                            >
+                              <span className="text-[9px] font-medium uppercase opacity-80">{dateBox.month}</span>
+                              <span className="text-base font-semibold leading-none">{dateBox.day}</span>
                             </div>
-                            <p className={`text-sm truncate ${
-                              notification.isRead ? 'font-normal text-gray-700' : 'font-medium text-gray-900'
-                            }`}>
-                              {notification.title}
-                            </p>
-                            <p className="text-gray-400 mt-0.5 text-xs line-clamp-1">
-                              {notification.message}
-                            </p>
+                            <div className="space-y-0.5 min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`px-2 py-0.5 text-[10px] font-medium rounded border ${badgeClass}`}>
+                                  {getNotificationTypeLabel(notification.type)}
+                                </span>
+                                {isUnread && (
+                                  <span className="text-[10px] font-medium text-blue-800 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
+                                    Unread
+                                  </span>
+                                )}
+                                {(notification.priority === 'high' || notification.priority === PRIORITY_LEVELS.HIGH) && (
+                                  <span className="text-[10px] font-medium text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">
+                                    High priority
+                                  </span>
+                                )}
+                              </div>
+                              <h4 className="text-sm font-semibold text-gray-900 group-hover:text-blue-800 transition-colors">
+                                {notification.title}
+                              </h4>
+                              <p className="text-xs text-gray-500 line-clamp-2">{notification.message}</p>
+                              <p className="text-xs text-gray-500 flex items-center gap-1.5 flex-wrap pt-0.5">
+                                <Clock className="w-3.5 h-3.5 shrink-0" />
+                                {formatEventDate(notificationTimestamp(notification).toISOString())}
+                                {notification.from && (
+                                  <span className="text-gray-400">· {notification.from}</span>
+                                )}
+                                {notification.enrollmentId && (
+                                  <span className="text-gray-400">· {notification.enrollmentId}</span>
+                                )}
+                              </p>
+                            </div>
                           </div>
 
-                          <div className="flex items-center gap-1 shrink-0">
-                            {(notification.priority === 'high' || notification.priority === PRIORITY_LEVELS.HIGH) && (
-                              <span className="px-1.5 py-0.5 rounded-sm text-[10px] text-rose-600 bg-rose-50 font-medium">High</span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
-                          <p className="text-[11px] text-gray-400">
-                            {notification.from}
-                            {notification.enrollmentId && ` · ${notification.enrollmentId}`}
-                            {` · ${notification.date} ${notification.time}`}
-                          </p>
-
-                          <div className="flex items-center gap-0.5">
+                          <div className="flex items-center gap-2 shrink-0 flex-wrap md:pl-4">
+                            {isSuperAdmin &&
+                              notification.type === 'admin_login' &&
+                              (notification.meta?.adminUserId || notification.data?.adminUserId) && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleAdmitAdminLogin(
+                                        notification.id,
+                                        notification.meta?.adminUserId || notification.data?.adminUserId,
+                                        notification.meta?.adminEmail || notification.data?.adminEmail || 'admin'
+                                      )
+                                    }
+                                    disabled={actionLoading[`admin_login_admit_${notification.id}`]}
+                                    className="px-3 py-2 bg-blue-800 text-white rounded-md text-xs font-medium hover:bg-blue-900 disabled:opacity-50"
+                                  >
+                                    Admit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleRejectAdminLogin(
+                                        notification.id,
+                                        notification.meta?.adminUserId || notification.data?.adminUserId,
+                                        notification.meta?.adminEmail || notification.data?.adminEmail || 'admin'
+                                      )
+                                    }
+                                    disabled={actionLoading[`admin_login_reject_${notification.id}`]}
+                                    className="px-3 py-2 border border-gray-300 text-gray-700 rounded-md text-xs font-medium hover:bg-white disabled:opacity-50"
+                                  >
+                                    Reject
+                                  </button>
+                                </>
+                              )}
+                            <button
+                              type="button"
+                              onClick={() => openDetailModal(notification)}
+                              className="px-3 py-2 border border-gray-300 text-gray-700 rounded-md text-xs font-medium group-hover:bg-white flex items-center gap-1"
+                            >
+                              View
+                              <ChevronRight className="w-3.5 h-3.5" />
+                            </button>
                             <button
                               type="button"
                               onClick={() => markAsRead(notification.id)}
                               disabled={actionLoading[notification.id]}
-                              className="p-1 text-gray-300 hover:text-gray-500"
-                              title={notification.isRead ? 'Mark as unread' : 'Mark as read'}
+                              className="px-3 py-2 border border-gray-300 text-gray-700 rounded-md text-xs font-medium hover:bg-white disabled:opacity-50"
                             >
-                              {actionLoading[notification.id] ? (
-                                <Spinner size="sm" tone="muted" className="h-2.5 w-2.5" />
-                              ) : (
-                                <FaBell className={`text-[10px] ${notification.isRead ? '' : 'text-blue-400'}`} />
-                              )}
+                              {notification.isRead ? 'Read' : 'Mark read'}
                             </button>
                             <button
                               type="button"
                               onClick={() => handleDeleteNotification(notification.id)}
                               disabled={actionLoading[notification.id]}
-                              className="p-1 text-gray-300 hover:text-rose-400"
-                              title="Delete"
+                              className="p-2 text-gray-400 hover:text-rose-600 rounded-md hover:bg-rose-50 disabled:opacity-50"
+                              aria-label="Delete notification"
                             >
-                              {actionLoading[notification.id] ? (
-                                <Spinner size="sm" tone="muted" className="h-2.5 w-2.5" />
-                              ) : (
-                                <FaTrash className="text-[10px]" />
-                              )}
+                              <FaTrash className="text-xs" />
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => openDetailModal(notification)}
-                              className={`ml-1 px-2 py-0.5 text-[11px] rounded-sm border transition-colors ${theme.chip} border-current/20 hover:opacity-80`}
-                            >
-                              View
-                            </button>
-                          {/* Admit/Reject for admin_login (PENDING admin tried to enter) — Super Admin only */}
-                          {isSuperAdmin &&
-                            notification.type === 'admin_login' &&
-                            (notification.meta?.adminUserId || notification.data?.adminUserId) && (
-                              <>
-                                <button
-                                  onClick={() =>
-                                    handleAdmitAdminLogin(
-                                      notification.id,
-                                      notification.meta?.adminUserId || notification.data?.adminUserId,
-                                      notification.meta?.adminEmail || notification.data?.adminEmail || 'admin'
-                                    )
-                                  }
-                                  disabled={actionLoading[`admin_login_admit_${notification.id}`]}
-                                  className="px-2 py-0.5 text-[11px] text-indigo-700 border border-indigo-200 bg-indigo-50 rounded-sm hover:bg-indigo-100 disabled:opacity-50"
-                                >
-                                  {actionLoading[`admin_login_admit_${notification.id}`] ? (
-                                    <Spinner size="sm" className="h-2.5 w-2.5 inline" />
-                                  ) : (
-                                    'Admit'
-                                  )}
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    handleRejectAdminLogin(
-                                      notification.id,
-                                      notification.meta?.adminUserId || notification.data?.adminUserId,
-                                      notification.meta?.adminEmail || notification.data?.adminEmail || 'admin'
-                                    )
-                                  }
-                                  disabled={actionLoading[`admin_login_reject_${notification.id}`]}
-                                  className="px-2 py-0.5 text-[11px] text-gray-500 hover:text-gray-700 disabled:opacity-50"
-                                >
-                                  {actionLoading[`admin_login_reject_${notification.id}`] ? (
-                                    <Spinner size="sm" className="h-2.5 w-2.5 inline" />
-                                  ) : (
-                                    'Reject'
-                                  )}
-                                </button>
-                              </>
-                            )}
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
                   );
                 })}
-                
-                {/* Admin Requests Section - Super Admin only, when admin_coordination filter is active */}
-                {activeFilter === 'admin_coordination' && isSuperAdmin && (
-                  <>
-                    {filteredAdminRequests.length > 0 && (
-                      <div className="border-t border-indigo-100 bg-indigo-50/30">
-                        <p className="px-3 py-2 text-xs font-medium text-indigo-700">
-                          Pending admin requests ({filteredAdminRequests.length})
+              </div>
+            ))}
+
+            {activeFilter === 'admin_coordination' && isSuperAdmin && filteredAdminRequests.length > 0 && (
+              <div className="border-t border-gray-200 bg-gray-50/50">
+                <div className="px-4 sm:px-5 py-2.5 border-b border-gray-100">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-gray-500">
+                    Pending admin requests ({filteredAdminRequests.length})
+                  </p>
+                </div>
+                {loadingAdminRequests ? (
+                  <SkeletonList rows={3} />
+                ) : (
+                  filteredAdminRequests.map((request) => (
+                    <div
+                      key={request.id}
+                      className="px-4 sm:px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 last:border-0 bg-white hover:bg-gray-50"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{request.email}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Requested{' '}
+                          {new Date(request.requestedAt || request.createdAt?.toDate?.() || request.createdAt).toLocaleDateString()}
                         </p>
-
-                        {loadingAdminRequests ? (
-                          <SkeletonList rows={3} />
-                        ) : (
-                          <div className="divide-y divide-gray-50">
-                            {filteredAdminRequests.map((request) => (
-                              <div
-                                key={request.id}
-                                className="px-3 py-2.5 flex items-center justify-between gap-3 hover:bg-indigo-50/40 border-l-2 border-l-indigo-300"
-                              >
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <div className="w-6 h-6 bg-indigo-50 text-indigo-600 rounded-sm flex items-center justify-center shrink-0">
-                                    <span className="text-indigo-600 font-medium text-[10px]">
-                                      {request.email.charAt(0).toUpperCase()}
-                                    </span>
-                                  </div>
-                                  <div className="min-w-0">
-                                    <p className="text-xs font-medium text-gray-700 truncate">{request.email}</p>
-                                    <p className="text-[11px] text-gray-400">
-                                      {new Date(request.requestedAt || request.createdAt?.toDate?.() || request.createdAt).toLocaleDateString()}
-                                    </p>
-                                  </div>
-                                </div>
-
-                                <div className="flex gap-1 shrink-0">
-                                  {isSuperAdmin ? (
-                                    <>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleApproveAdmin(request.id, request.uid || request.user?.id, request.email)}
-                                        disabled={actionLoading[`admin_${request.id}`]}
-                                        className="px-2 py-0.5 text-[11px] text-indigo-700 border border-indigo-200 bg-indigo-50 rounded-sm hover:bg-indigo-100 disabled:opacity-50"
-                                      >
-                                        {actionLoading[`admin_${request.id}`] === 'approving' ? '…' : 'Approve'}
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleRejectAdmin(request.id, request.uid || request.user?.id, request.email)}
-                                        disabled={actionLoading[`admin_${request.id}`]}
-                                        className="px-2 py-0.5 text-[11px] text-gray-400 hover:text-gray-600 disabled:opacity-50"
-                                      >
-                                        {actionLoading[`admin_${request.id}`] === 'rejecting' ? '…' : 'Reject'}
-                                      </button>
-                                    </>
-                                  ) : (
-                                    <span className="text-[11px] text-gray-400">Super Admin only</span>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
                       </div>
-                    )}
-
-                    {filteredAdminRequests.length === 0 && !loadingAdminRequests && (
-                      <div className="border-t border-gray-50 text-center py-6">
-                        <p className="text-xs text-gray-400">No pending admin requests</p>
+                      <div className="flex gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleApproveAdmin(request.id, request.uid || request.user?.id, request.email)}
+                          disabled={actionLoading[`admin_${request.id}`]}
+                          className="px-3 py-2 bg-blue-800 text-white rounded-md text-xs font-medium hover:bg-blue-900 disabled:opacity-50"
+                        >
+                          {actionLoading[`admin_${request.id}`] === 'approving' ? '…' : 'Approve'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRejectAdmin(request.id, request.uid || request.user?.id, request.email)}
+                          disabled={actionLoading[`admin_${request.id}`]}
+                          className="px-3 py-2 border border-gray-300 text-gray-700 rounded-md text-xs font-medium hover:bg-white disabled:opacity-50"
+                        >
+                          {actionLoading[`admin_${request.id}`] === 'rejecting' ? '…' : 'Reject'}
+                        </button>
                       </div>
-                    )}
-                  </>
+                    </div>
+                  ))
                 )}
               </div>
             )}
           </div>
-        </div>
+        )}
+      </div>
 
         {/* Detail Modal - SIMPLIFIED VERSION */}
         {showDetailModal && selectedNotification && selectedModalTheme && (
@@ -1247,7 +1250,6 @@ const Notifications = () => {
             </div>
           </div>
         )}
-      </div>
     </div>
   );
 };
