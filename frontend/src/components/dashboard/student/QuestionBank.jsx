@@ -1,11 +1,12 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { AlertCircle } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { AlertCircle, Upload } from 'lucide-react';
 import api from '../../../services/api';
 import { Spinner } from '../../ui/loading';
 import RoleTargetPicker from '../../resume/RoleTargetPicker';
 import InterviewPrepSession from './interviewPrep/InterviewPrepSession';
 import PrepSegments, { prepFieldClass, prepPrimaryBtnClass, prepGhostBtnClass } from './interviewPrep/PrepSegments';
 import { labelFormatType, labelQuestionType } from './interviewPrep/labels';
+import { validateResumeFile } from '../../../utils/resumeUtils';
 
 const VIEWS = { HOME: 'home', SESSION: 'session', RESULTS: 'results' };
 
@@ -22,8 +23,9 @@ export default function QuestionBank({ initialSessionId = null, onSessionOpened 
   const [resumes, setResumes] = useState([]);
   const [loadingResumes, setLoadingResumes] = useState(true);
   const [selectedResumeId, setSelectedResumeId] = useState(null);
-  const [resumeText, setResumeText] = useState('');
-  const [showPaste, setShowPaste] = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
   const [target, setTarget] = useState(null);
 
   const [difficulty, setDifficulty] = useState('medium');
@@ -51,7 +53,7 @@ export default function QuestionBank({ initialSessionId = null, onSessionOpened 
           setResumes(list);
           const defaultResume = list.find((r) => r.isDefault) || list[0];
           if (defaultResume) setSelectedResumeId(defaultResume.id);
-          if (!list.length) setShowPaste(true);
+          if (!list.length) setShowUpload(true);
         }
       } catch (err) {
         if (!cancelled) setError(err.message || 'Could not load prep settings');
@@ -65,22 +67,51 @@ export default function QuestionBank({ initialSessionId = null, onSessionOpened 
     return () => { cancelled = true; };
   }, []);
 
+  const refreshResumes = useCallback(async () => {
+    const resumeRes = await api.getResumes({ noCache: true });
+    const list = Array.isArray(resumeRes) ? resumeRes : (resumeRes?.resumes || []);
+    setResumes(list);
+    return list;
+  }, []);
+
+  const handleResumeUpload = useCallback(async (file) => {
+    const validation = validateResumeFile(file);
+    if (!validation.valid) {
+      setError(validation.errors[0] || 'Invalid file');
+      return;
+    }
+
+    setUploading(true);
+    setError(null);
+    try {
+      const uploaded = await api.uploadResume(file);
+      const list = await refreshResumes();
+      const nextId = uploaded?.id || list.find((r) => r.fileName === file.name)?.id || list[0]?.id;
+      if (nextId) setSelectedResumeId(nextId);
+      setShowUpload(false);
+    } catch (err) {
+      setError(err.message || 'Failed to upload resume');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }, [refreshResumes]);
+
   const buildPayload = useCallback(() => ({
     ...(selectedResumeId ? { resumeId: selectedResumeId } : {}),
-    ...(resumeText.trim() ? { resumeText: resumeText.trim() } : {}),
     ...(target?.id ? { jobId: target.id } : {}),
     ...(target?.jobTitle ? { jobTitle: target.jobTitle, targetRole: target.jobTitle } : {}),
     ...(target?.companyName ? { companyName: target.companyName } : {}),
     ...(target?.jobDescription ? { jobDescription: target.jobDescription } : {}),
-  }), [selectedResumeId, resumeText, target]);
+  }), [selectedResumeId, target]);
 
   const generatePrep = useCallback(async () => {
     if (!target?.jobTitle) {
       setError('Pick a job or enter a role');
       return;
     }
-    if (!selectedResumeId && !resumeText.trim()) {
-      setError('Select a resume or paste text');
+    if (!selectedResumeId) {
+      setError('Select or upload a resume');
       return;
     }
     setCreating(true);
@@ -100,7 +131,7 @@ export default function QuestionBank({ initialSessionId = null, onSessionOpened 
     } finally {
       setCreating(false);
     }
-  }, [buildPayload, difficulty, interviewType, selectedResumeId, resumeText, target]);
+  }, [buildPayload, difficulty, interviewType, selectedResumeId, target]);
 
   const handleComplete = useCallback((session) => {
     setCompletedSession(session);
@@ -182,7 +213,7 @@ export default function QuestionBank({ initialSessionId = null, onSessionOpened 
                   onChange={(e) => {
                     const id = e.target.value || null;
                     setSelectedResumeId(id);
-                    if (id) { setResumeText(''); setShowPaste(false); }
+                    if (id) setShowUpload(false);
                   }}
                   className={prepFieldClass}
                 >
@@ -194,22 +225,53 @@ export default function QuestionBank({ initialSessionId = null, onSessionOpened 
                   ))}
                 </select>
               )}
-              {!showPaste && resumes.length > 0 && (
-                <button type="button" onClick={() => setShowPaste(true)} className={prepGhostBtnClass}>
-                  Paste instead
+              {!showUpload && resumes.length > 0 && (
+                <button type="button" onClick={() => setShowUpload(true)} className={prepGhostBtnClass}>
+                  Upload resume
                 </button>
               )}
-              {(showPaste || !resumes.length) && (
-                <textarea
-                  value={resumeText}
-                  onChange={(e) => {
-                    setResumeText(e.target.value);
-                    if (e.target.value.trim()) setSelectedResumeId(null);
-                  }}
-                  rows={3}
-                  placeholder="Paste resume text…"
-                  className={prepFieldClass}
-                />
+              {(showUpload || !resumes.length) && (
+                <div className="space-y-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    className="sr-only"
+                    id="prep-resume-upload"
+                    disabled={uploading}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleResumeUpload(file);
+                    }}
+                  />
+                  <label
+                    htmlFor="prep-resume-upload"
+                    className={`flex items-center justify-center gap-2 w-full min-h-[42px] px-3 py-2 rounded-lg border border-dashed border-[#C5D2E8] bg-[#F4F6FB] text-sm font-medium text-[#3D5278] transition-colors ${
+                      uploading ? 'opacity-60 cursor-wait' : 'cursor-pointer hover:border-[#8FA8D4] hover:bg-[#EEF2F9]'
+                    }`}
+                  >
+                    {uploading ? (
+                      <>
+                        <Spinner className="h-4 w-4" />
+                        Uploading…
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4 text-[#6B8FD6]" strokeWidth={2} />
+                        Upload resume (PDF)
+                      </>
+                    )}
+                  </label>
+                  {resumes.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowUpload(false)}
+                      className={prepGhostBtnClass}
+                    >
+                      Use saved resume
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           )}
