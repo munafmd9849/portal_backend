@@ -81,3 +81,16 @@ export async function persistRefreshToken(userId, refreshToken) {
     },
   });
 }
+
+/** Invalidate all sessions for a user (logout, security events). */
+export async function invalidateUserSession(userId) {
+  const current = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { sessionVersion: true },
+  });
+  await prisma.user.update({
+    where: { id: userId },
+    data: { sessionVersion: Number(current?.sessionVersion ?? 0) + 1 },
+  });
+  await prisma.refreshToken.deleteMany({ where: { userId } });
+}

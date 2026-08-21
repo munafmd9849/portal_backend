@@ -160,6 +160,8 @@ export function subscribeProctoringMonitor(assessmentId, callbacks = {}) {
     }
     if (payload?.kind === 'screenshot') callbacks.onScreenshot?.(payload);
     if (payload?.kind === 'violation') callbacks.onViolation?.(payload);
+    if (payload?.kind === 'paused') callbacks.onPaused?.(payload);
+    if (payload?.kind === 'unlocked') callbacks.onUnlocked?.(payload);
   };
 
   s.on('proctoring:update', handler);

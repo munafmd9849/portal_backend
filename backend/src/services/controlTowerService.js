@@ -5,6 +5,7 @@
 
 import prisma from '../config/database.js';
 import { getAdminScopeFilter } from '../utils/adminScope.js';
+import { buildJobListWhere } from '../utils/adminResourceScope.js';
 import {
   buildFilters,
   getJobOpportunitiesOverview,
@@ -49,13 +50,32 @@ export function buildControlTowerContext(query = {}, user = null) {
 
   const { studentWhere, jobWhere, appWhere } = buildFilters(pipelineQuery);
   let scopedStudentWhere = { ...studentWhere };
+  let scopedJobWhere = { ...jobWhere };
+  let scopedAppWhere = { ...appWhere };
 
   if (user?.admin || user?.role) {
     const scope = getAdminScopeFilter(user.admin, user.role);
     if (scope.id === 'BLOCK_ALL') {
-      return { blocked: true, studentWhere: {}, jobWhere, appWhere, pipelineQuery };
+      return {
+        blocked: true,
+        studentWhere: {},
+        jobWhere: { id: '__BLOCKED__' },
+        appWhere: { id: '__BLOCKED__' },
+        pipelineQuery,
+      };
     }
     scopedStudentWhere = { ...scopedStudentWhere, ...scope };
+
+    if (user.role === 'ADMIN') {
+      const jobScope = buildJobListWhere(user.admin, user.role, user.id);
+      scopedJobWhere = Object.keys(jobWhere).length
+        ? { AND: [jobWhere, jobScope] }
+        : jobScope;
+      scopedAppWhere = { ...appWhere, job: scopedJobWhere };
+      if (Object.keys(scopedStudentWhere).length) {
+        scopedAppWhere = { ...scopedAppWhere, student: scopedStudentWhere };
+      }
+    }
   }
 
   if (query.from || query.to) {
@@ -68,8 +88,8 @@ export function buildControlTowerContext(query = {}, user = null) {
   return {
     blocked: false,
     studentWhere: scopedStudentWhere,
-    jobWhere,
-    appWhere,
+    jobWhere: scopedJobWhere,
+    appWhere: scopedAppWhere,
     pipelineQuery,
   };
 }

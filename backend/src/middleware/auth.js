@@ -7,6 +7,7 @@
 import jwt from 'jsonwebtoken';
 import prisma from '../config/database.js';
 import { getUserSessionVersion } from '../utils/sessionManager.js';
+import { getJwtSecret, getJwtRefreshSecret } from '../config/secrets.js';
 
 /**
  * Verify JWT token and attach user to request
@@ -23,7 +24,7 @@ export async function authenticate(req, res, next) {
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, getJwtSecret());
 
     // Get user from database
     const user = await prisma.user.findUnique({
@@ -43,20 +44,19 @@ export async function authenticate(req, res, next) {
       return res.status(403).json({ error: 'Account is blocked' });
     }
 
-    // Single-device login for students: reject tokens from a superseded session
-    if (user.role === 'STUDENT' && decoded.sessionVersion !== undefined) {
-      const currentVersion =
-        user.sessionVersion !== undefined && user.sessionVersion !== null
-          ? Number(user.sessionVersion)
-          : await getUserSessionVersion(user.id);
-      user.sessionVersion = currentVersion;
-      if (currentVersion !== decoded.sessionVersion) {
-        return res.status(401).json({
-          error: 'Session expired',
-          code: 'SESSION_SUPERSEDED',
-          message: 'Your account was logged in on another device. Please log in again.',
-        });
-      }
+    // Reject tokens from a superseded session (logout, login elsewhere)
+    const tokenVersion = decoded.sessionVersion ?? 0;
+    const currentVersion =
+      user.sessionVersion !== undefined && user.sessionVersion !== null
+        ? Number(user.sessionVersion)
+        : await getUserSessionVersion(user.id);
+    user.sessionVersion = currentVersion;
+    if (tokenVersion !== currentVersion) {
+      return res.status(401).json({
+        error: 'Session expired',
+        code: 'SESSION_SUPERSEDED',
+        message: 'Your session has ended. Please log in again.',
+      });
     }
 
     // Attach user to request
@@ -89,7 +89,7 @@ export async function verifyRefreshToken(req, res, next) {
     }
 
     // Verify refresh token
-    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    const decoded = jwt.verify(refreshToken, getJwtRefreshSecret());
 
     // Check if token exists in database
     const tokenRecord = await prisma.refreshToken.findUnique({
@@ -122,13 +122,11 @@ export function generateAccessToken(user) {
           type: 'access',
           role: user.role,
           status: user.status,
-          ...(user.role === 'STUDENT'
-            ? { sessionVersion: user.sessionVersion ?? 0 }
-            : {}),
+          sessionVersion: user.sessionVersion ?? 0,
         }
       : { userId: user, type: 'access' };
 
-  return jwt.sign(payload, process.env.JWT_SECRET, {
+  return jwt.sign(payload, getJwtSecret(), {
     expiresIn: process.env.JWT_EXPIRES_IN || '1h',
   });
 }
@@ -139,7 +137,7 @@ export function generateAccessToken(user) {
 export function generateRefreshToken(userId) {
   return jwt.sign(
     { userId, type: 'refresh' },
-    process.env.JWT_REFRESH_SECRET,
+    getJwtRefreshSecret(),
     { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
   );
 }

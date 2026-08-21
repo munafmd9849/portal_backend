@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Filter, Grid3x3, List, Radio, TriangleAlert, Video, X, ZoomIn } from 'lucide-react';
+import { ArrowLeft, Filter, Grid3x3, List, Radio, TriangleAlert, Video, X, ZoomIn, Unlock } from 'lucide-react';
 import api from '../../services/api';
 import { initSocket, subscribeProctoringMonitor } from '../../services/socket';
 import { ProctoringViewer } from '../../proctoring-engine/liveProctoringRtc';
@@ -56,6 +56,7 @@ export default function AdminAssessmentLiveMonitor() {
   const [rtcConnected, setRtcConnected] = useState(false);
   const [rtcConnecting, setRtcConnecting] = useState(false);
   const [liveVideoEl, setLiveVideoEl] = useState(null);
+  const [unlocking, setUnlocking] = useState(false);
   const rtcViewerRef = useRef(null);
 
   const setLiveVideoRef = useCallback((el) => {
@@ -123,6 +124,8 @@ export default function AdminAssessmentLiveMonitor() {
     const unsub = subscribeProctoringMonitor(id, {
       onScreenshot: applyLiveScreenshot,
       onViolation: () => refreshSessions(false),
+      onPaused: () => refreshSessions(false),
+      onUnlocked: () => refreshSessions(false),
     });
     return unsub;
   }, [id, applyLiveScreenshot, refreshSessions]);
@@ -213,6 +216,24 @@ export default function AdminAssessmentLiveMonitor() {
   }, [selectedSessionId]);
 
   const selectedRow = useMemo(() => sessions.find((s) => s.id === selectedSessionId) || null, [sessions, selectedSessionId]);
+
+  const handleAllowContinue = useCallback(async () => {
+    if (!selectedSessionId || unlocking) return;
+    try {
+      setUnlocking(true);
+      await api.unlockAssessmentSession(selectedSessionId);
+      await refreshSessions(false);
+      if (details) {
+        setDetails((prev) => (prev ? { ...prev, paused: false, pauseReason: null } : prev));
+      }
+    } catch (e) {
+      console.error('Unlock failed', e);
+    } finally {
+      setUnlocking(false);
+    }
+  }, [selectedSessionId, unlocking, refreshSessions, details]);
+
+  const isSelectedPaused = Boolean(selectedRow?.paused || details?.paused);
 
   const evidenceTimeline = useMemo(
     () => buildEvidenceTimeline(details?.screenshots),
@@ -308,7 +329,9 @@ export default function AdminAssessmentLiveMonitor() {
                     <td className="px-3 py-2.5">
                       <span
                         className={`inline-flex px-2 py-0.5 rounded-md text-xs font-medium border ${
-                          s.status === 'CRITICAL' || s.status === 'HIGH'
+                          s.status === 'PAUSED'
+                            ? 'bg-amber-50 text-amber-800 border-amber-300'
+                            : s.status === 'CRITICAL' || s.status === 'HIGH'
                             ? 'bg-rose-50 text-rose-700 border-rose-200'
                             : s.status === 'WARNING' || s.status === 'MEDIUM'
                               ? 'bg-amber-50 text-amber-700 border-amber-200'
@@ -335,14 +358,28 @@ export default function AdminAssessmentLiveMonitor() {
         </div>
 
         <div className="lg:col-span-7 bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-            <div>
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+            <div className="min-w-0">
               <div className="text-sm font-semibold text-slate-900">Evidence timeline</div>
               <div className="text-xs font-medium text-gray-500 ">
                 {selectedRow ? selectedRow.studentName : 'Select a candidate'}
+                {isSelectedPaused ? ' · paused (awaiting unlock)' : ''}
               </div>
             </div>
-            {detailLoading && <Spinner size="sm" tone="muted" />}
+            <div className="flex items-center gap-2 shrink-0">
+              {isSelectedPaused && selectedSessionId && (
+                <button
+                  type="button"
+                  onClick={handleAllowContinue}
+                  disabled={unlocking}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white disabled:opacity-60"
+                >
+                  <Unlock className="w-3.5 h-3.5" />
+                  {unlocking ? 'Unlocking…' : 'Allow continue'}
+                </button>
+              )}
+              {detailLoading && <Spinner size="sm" tone="muted" />}
+            </div>
           </div>
 
           {!selectedSessionId ? (

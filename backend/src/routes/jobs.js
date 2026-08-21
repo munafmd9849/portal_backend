@@ -5,7 +5,7 @@
 
 import express from 'express';
 import { authenticate } from '../middleware/auth.js';
-import { requireRole, requirePermission } from '../middleware/roles.js';
+import { requireRole, requirePermission, requireActiveRecruiter } from '../middleware/roles.js';
 import * as jobController from '../controllers/jobs.js';
 import { validateJob } from '../middleware/validation.js';
 
@@ -21,13 +21,13 @@ router.get('/', authenticate, jobController.getJobs);
 router.get('/:jobId', authenticate, jobController.getJob);
 
 // Create job (recruiter or admin)
-router.post('/', authenticate, requireRole(['RECRUITER', 'ADMIN']), validateJob, jobController.createJob);
+router.post('/', authenticate, requireRole(['RECRUITER', 'ADMIN']), requireActiveRecruiter, validateJob, jobController.createJob);
 
 // Update job (recruiter who owns it, or admin)
-router.put('/:jobId', authenticate, requireRole(['RECRUITER', 'ADMIN']), jobController.updateJob);
+router.put('/:jobId', authenticate, requireRole(['RECRUITER', 'ADMIN']), requireActiveRecruiter, jobController.updateJob);
 
 // Update recruiter note for a job (post-drive note, visible in Company History)
-router.patch('/:jobId/recruiter-note', authenticate, requireRole(['RECRUITER']), jobController.updateJobRecruiterNote);
+router.patch('/:jobId/recruiter-note', authenticate, requireRole(['RECRUITER']), requireActiveRecruiter, jobController.updateJobRecruiterNote);
 
 // Post job (admin only - triggers distribution)
 router.post('/:jobId/post', authenticate, requireRole(['ADMIN']), requirePermission('jobs:post'), jobController.postJob);
@@ -44,6 +44,6 @@ router.post('/:jobId/reject', authenticate, requireRole(['ADMIN']), requirePermi
 // Auto-archive expired jobs (admin)
 router.post('/auto-archive-expired', authenticate, requireRole(['ADMIN']), requirePermission('jobs:manage'), jobController.autoArchiveExpiredJobs);
 
-router.delete('/:jobId', authenticate, requireRole(['RECRUITER', 'ADMIN']), requirePermission('jobs:delete'), jobController.deleteJob);
+router.delete('/:jobId', authenticate, requireRole(['RECRUITER', 'ADMIN']), requireActiveRecruiter, requirePermission('jobs:delete'), jobController.deleteJob);
 
 export default router;

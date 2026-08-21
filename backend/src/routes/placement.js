@@ -11,6 +11,7 @@ import { generateContent as generateGoogleContent } from '../services/ai/google.
 import { getCachedResponse, setCachedResponse } from '../utils/placementCache.js';
 import { getFallbackGuidance } from '../utils/placementFallback.js';
 import { getDuckDuckGoFallback } from '../services/duckDuckGoFallback.js';
+import { authenticate, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -61,6 +62,8 @@ router.use('/ai', placementLimiter);
  */
 router.post(
   '/ai',
+  authenticate,
+  authorize(['STUDENT']),
   [
     body('topic')
       .trim()

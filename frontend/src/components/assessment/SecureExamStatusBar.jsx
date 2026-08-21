@@ -30,8 +30,6 @@ function StatusPill({ ok, warn, label, icon: Icon }) {
 export default function SecureExamStatusBar({
   status = {},
   violations = 0,
-  threshold = 10,
-  autoSubmitEnabled = true,
   className = '',
 }) {
   const {
@@ -42,8 +40,6 @@ export default function SecureExamStatusBar({
     online = true,
     multiMonitor = null,
   } = status;
-
-  const remaining = Math.max(0, (threshold || 10) - (violations || 0));
 
   return (
     <div
@@ -87,7 +83,6 @@ export default function SecureExamStatusBar({
       >
         <AlertTriangle className="h-3 w-3" />
         Violations {violations}
-        {autoSubmitEnabled ? ` · ${remaining} left` : ''}
       </span>
     </div>
   );

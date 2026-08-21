@@ -33,3 +33,22 @@ firebase-service-account.json
 *.sln
 *.sw?
 dump.rdb
+
+# E2E
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/e2e/fixtures/ids.json
+/backend/e2e.db
+/backend/e2e.db-journal
+/backend/e2e.db-wal
+/backend/e2e.db-shm
+/backend/prisma/e2e.db
+/backend/prisma/e2e.db-journal
+/backend/prisma/e2e.db-wal
+/backend/.env.e2e.postgres
+/backend/prisma/schema.e2e.postgres.prisma
+/backend/prisma/schema.e2e.sqlite.prisma
+
+/backend/.env.e2e

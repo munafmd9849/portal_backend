@@ -56,6 +56,8 @@ export async function evaluateTestCases({ language, code, testCases }, options =
       total: 0,
       score: 0,
       results: [],
+      hiddenTestsPassed: 0,
+      hiddenTestsTotal: 0,
       error: 'No test cases configured',
     };
   }
@@ -80,11 +82,51 @@ export async function evaluateTestCases({ language, code, testCases }, options =
     });
   }
 
+  const hiddenTotal = results.filter((r) => r.hidden).length;
+  const hiddenPassed = results.filter((r) => r.hidden && r.passed).length;
+  const score = cases.length ? Math.round((passed / cases.length) * 100) : 0;
+
+  if (options.redactHidden) {
+    const publicResults = results
+      .filter((r) => !r.hidden)
+      .map(({ label, input, expectedOutput, actualOutput, passed: p, error, executionTime }) => ({
+        label,
+        input,
+        expectedOutput,
+        actualOutput,
+        passed: p,
+        error,
+        executionTime,
+        hidden: false,
+      }));
+    const hiddenSummary = results
+      .filter((r) => r.hidden)
+      .map(({ label, passed: p, error, executionTime }) => ({
+        label,
+        passed: p,
+        error,
+        executionTime,
+        hidden: true,
+      }));
+
+    return {
+      passed,
+      total: cases.length,
+      score,
+      results: [...publicResults, ...hiddenSummary],
+      hiddenTestsPassed: hiddenPassed,
+      hiddenTestsTotal: hiddenTotal,
+      error: null,
+    };
+  }
+
   return {
     passed,
     total: cases.length,
-    score: cases.length ? Math.round((passed / cases.length) * 100) : 0,
+    score,
     results,
+    hiddenTestsPassed: hiddenPassed,
+    hiddenTestsTotal: hiddenTotal,
     error: null,
   };
 }
@@ -124,7 +166,7 @@ export async function gradeCodingAnswer(question, studentAnswer) {
     language,
     code,
     testCases: question.testCases,
-  });
+  }, { redactHidden: true });
   const pointsEarned =
     evaluation.total > 0
       ? Math.floor((evaluation.passed / evaluation.total) * (question.points || 1))

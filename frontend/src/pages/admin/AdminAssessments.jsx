@@ -98,7 +98,7 @@ export default function AdminAssessments() {
     targetStudentIds: [],
     scheduledAtMap: {},
     config: {
-      proctoring: { webcam: true, mic: true, tabSwitch: true, fullscreen: true, snapshotInterval: 60 },
+      proctoring: { webcam: true, mic: true, tabSwitch: true, fullscreen: true, pauseOnTabSwitch: false, tabSwitchGraceCount: 2, snapshotInterval: 60 },
       joinWindow: { opensMinutesBeforeStart: 10, closesMinutesAfterStart: 10 },
       coding: { allowedLanguages: [...ALL_CODING_LANGUAGE_IDS] },
     },
@@ -901,6 +901,7 @@ export default function AdminAssessments() {
                           { key: 'webcam', label: 'Webcam snapshots', icon: Camera, desc: 'Capture periodic images during the session' },
                           { key: 'mic', label: 'Microphone monitoring', icon: Mic, desc: 'Flag speech or sustained background noise' },
                           { key: 'tabSwitch', label: 'Tab switching', icon: Layers, desc: 'Log when the candidate leaves the assessment tab' },
+                          { key: 'pauseOnTabSwitch', label: 'Pause on tab switch', icon: Maximize2, desc: 'After 2 warnings, lock the exam until an admin allows continue (timer freezes)' },
                           { key: 'fullscreen', label: 'Require fullscreen', icon: Maximize2, desc: 'Keep the assessment in fullscreen mode' },
                         ].map((feature) => (
                           <ToggleRow

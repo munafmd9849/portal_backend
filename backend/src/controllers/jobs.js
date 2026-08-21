@@ -14,6 +14,7 @@ import { logAction } from '../utils/auditLogger.js';
 import { rankCandidatesForJob } from '../services/recommendationService.js';
 import { getIO } from '../config/socket.js';
 import { getAdminScopeFilter } from '../utils/adminScope.js';
+import { assertAdminJobAccess } from '../utils/adminResourceScope.js';
 import { applyAuditContext } from '../utils/auditContext.js';
 import { studentHasCompleteProfile, studentMeetsJobEligibility } from '../utils/jobEligibility.js';
 import { computeDrivePhase, getDrivePhaseLabel } from '../services/drivePhaseService.js';
@@ -564,8 +565,13 @@ export async function getJob(req, res) {
       return res.status(404).json({
         success: false,
         error: 'Job not found',
-        message: 'The requested job does not exist.'
+        message: 'The requested job does not exist.',
       });
+    }
+
+    const accessError = assertAdminJobAccess(req, job);
+    if (accessError) {
+      return res.status(accessError.status).json({ error: accessError.error });
     }
 
     res.json({
@@ -926,7 +932,9 @@ export async function createJob(req, res) {
       // Pre-Interview Requirements
       requiresScreening: mappedData.requiresScreening === true || mappedData.requiresScreening === 'true',
       requiresTest: mappedData.requiresTest === true || mappedData.requiresTest === 'true',
-      linkedAssessmentId: mappedData.linkedAssessmentId || jobData.linkedAssessmentId || null,
+      ...(mappedData.linkedAssessmentId || jobData.linkedAssessmentId
+        ? { linkedAssessmentId: mappedData.linkedAssessmentId || jobData.linkedAssessmentId }
+        : {}),
       assessmentPassPercent: mappedData.assessmentPassPercent != null
         ? parseFloat(mappedData.assessmentPassPercent)
         : (jobData.assessmentPassPercent != null ? parseFloat(jobData.assessmentPassPercent) : 60),
@@ -1086,6 +1094,13 @@ export async function updateJob(req, res) {
 
     if (!existingJob) {
       return res.status(404).json({ error: 'Job not found' });
+    }
+
+    if (userRole === 'ADMIN') {
+      const updateAccessError = assertAdminJobAccess(req, existingJob);
+      if (updateAccessError) {
+        return res.status(updateAccessError.status).json({ error: updateAccessError.error });
+      }
     }
 
     // STRICT RULE: Recruiters cannot edit jobs after creation (any status)
@@ -1354,29 +1369,32 @@ export async function updateJob(req, res) {
     }
 
     // Handle recruiterId update - validate before updating
-    // Only update recruiterId if it's explicitly provided and valid
     if (finalUpdateData.recruiterId !== undefined) {
-      // If recruiterId is null or empty string, allow setting it to null
       if (!finalUpdateData.recruiterId || finalUpdateData.recruiterId === '') {
         finalUpdateData.recruiterId = null;
-      } else {
-        // Check if recruiterId is the same as existing - if so, preserve it without validation
-        if (existingJob.recruiterId === finalUpdateData.recruiterId) {
-          // Same as existing, no need to validate
-        } else {
-          // Validate that the recruiterId exists
-          const recruiter = await prisma.recruiter.findUnique({
-            where: { id: finalUpdateData.recruiterId },
-          });
-
-          if (!recruiter) {
-            // If recruiterId doesn't exist, try to see if it's a userId that should map to a recruiter
-            // But for now, if it's being changed and doesn't exist, preserve the existing one
-            console.warn(`⚠️ [updateJob] Invalid recruiterId ${finalUpdateData.recruiterId}, preserving existing recruiterId ${existingJob.recruiterId}`);
-            delete finalUpdateData.recruiterId; // Don't update - preserve existing
-          }
+      } else if (existingJob.recruiterId !== finalUpdateData.recruiterId) {
+        const recruiter = await prisma.recruiter.findUnique({
+          where: { id: finalUpdateData.recruiterId },
+        });
+        if (!recruiter) {
+          console.warn(`⚠️ [updateJob] Invalid recruiterId ${finalUpdateData.recruiterId}, preserving existing recruiterId ${existingJob.recruiterId}`);
+          delete finalUpdateData.recruiterId;
         }
       }
+    }
+
+    // linkedAssessmentId: preserve existing when omitted or empty (matches createJob)
+    if (Object.prototype.hasOwnProperty.call(updateData, 'linkedAssessmentId')) {
+      const linkedId = updateData.linkedAssessmentId;
+      if (linkedId) {
+        finalUpdateData.linkedAssessmentId = linkedId;
+      } else if (linkedId === null) {
+        finalUpdateData.linkedAssessmentId = null;
+      } else {
+        delete finalUpdateData.linkedAssessmentId;
+      }
+    } else {
+      delete finalUpdateData.linkedAssessmentId;
     }
 
     // Validate companyId if it's being updated
@@ -1477,6 +1495,11 @@ export async function postJob(req, res) {
 
     if (!existingJob) {
       return res.status(404).json({ error: 'Job not found' });
+    }
+
+    const postAccessError = assertAdminJobAccess(req, existingJob);
+    if (postAccessError) {
+      return res.status(postAccessError.status).json({ error: postAccessError.error });
     }
 
     // Allow posting from IN_REVIEW or POSTED status
@@ -1707,6 +1730,11 @@ export async function deleteJob(req, res) {
       return res.status(404).json({ error: 'Job not found' });
     }
 
+    const deleteAccessError = assertAdminJobAccess(req, job);
+    if (deleteAccessError) {
+      return res.status(deleteAccessError.status).json({ error: deleteAccessError.error });
+    }
+
     // Only admin or the job's recruiter can delete
     if (user.role !== 'ADMIN' && job.recruiter.user.id !== userId) {
       return res.status(403).json({ error: 'Not authorized to delete this job' });
@@ -1753,6 +1781,11 @@ export async function rejectJob(req, res) {
 
     if (!existingJob) {
       return res.status(404).json({ error: 'Job not found' });
+    }
+
+    const rejectAccessError = assertAdminJobAccess(req, existingJob);
+    if (rejectAccessError) {
+      return res.status(rejectAccessError.status).json({ error: rejectAccessError.error });
     }
 
     if (existingJob.status !== 'IN_REVIEW') {
@@ -1856,11 +1889,25 @@ export async function updateJobAdminNote(req, res) {
 
     const job = await prisma.job.findUnique({
       where: { id: jobId },
-      select: { id: true },
+      select: {
+        id: true,
+        createdBy: true,
+        targetSchools: true,
+        targetCenters: true,
+        targetBatches: true,
+        targetSchoolIds: true,
+        targetCenterIds: true,
+        targetBatchIds: true,
+      },
     });
 
     if (!job) {
       return res.status(404).json({ error: 'Job not found' });
+    }
+
+    const noteAccessError = assertAdminJobAccess(req, job);
+    if (noteAccessError) {
+      return res.status(noteAccessError.status).json({ error: noteAccessError.error });
     }
 
     await prisma.job.update({
@@ -1944,6 +1991,14 @@ export async function updateJobRecruiterNote(req, res) {
 export async function analyzeCandidates(req, res) {
   try {
     const { jobId } = req.params;
+    const job = await prisma.job.findUnique({ where: { id: jobId } });
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    const accessError = assertAdminJobAccess(req, job);
+    if (accessError) {
+      return res.status(accessError.status).json({ error: accessError.error });
+    }
     const rankedCandidates = await rankCandidatesForJob(jobId);
     res.json(rankedCandidates);
   } catch (error) {

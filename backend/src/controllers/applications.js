@@ -13,6 +13,8 @@ import logger from '../config/logger.js';
 import { sendSuccess } from '../utils/response.js';
 import { logAction } from '../utils/auditLogger.js';
 import { getAdminScopeFilter } from '../utils/adminScope.js';
+import { assertApplicationMutationAccess, adminCanAccessStudentById, assertAdminJobAccess } from '../utils/adminResourceScope.js';
+import { getJwtSecret } from '../config/secrets.js';
 import { validateApplicationStateTransition } from '../utils/applicationIntegrity.js';
 import { isAdminViewer } from '../utils/adminAccess.js';
 import { buildApplicationTrackerState, getInitialScreeningStatusForJob } from '../utils/applicationTrackerState.js';
@@ -23,7 +25,7 @@ import { assertApplicationEditable, patchApplication } from '../services/applica
 import { canStudentWithdrawApplication } from '../utils/applicationWithdraw.js';
 
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = getJwtSecret();
 
 /**
  * ==============================
@@ -557,6 +559,15 @@ export async function getJobScreeningSummary(req, res) {
       return res.status(400).json({ error: 'Job ID is required' });
     }
 
+    const job = await prisma.job.findUnique({ where: { id: jobId } });
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    const jobAccessError = assertAdminJobAccess(req, job);
+    if (jobAccessError) {
+      return res.status(jobAccessError.status).json({ error: jobAccessError.error });
+    }
+
     // Get all applications for this job
     const applications = await prisma.application.findMany({
       where: { jobId },
@@ -625,6 +636,16 @@ export async function getStudentApplications(req, res) {
     let studentId;
     if (req.query.studentId && isAdminViewer(req.user)) {
       studentId = req.query.studentId;
+      if (req.user.role === 'ADMIN') {
+        const allowed = await adminCanAccessStudentById(
+          studentId,
+          req.user.admin,
+          req.user.role,
+        );
+        if (!allowed) {
+          return res.status(403).json({ error: 'Not authorized to view this student (out of scope)' });
+        }
+      }
     } else {
       const student = await prisma.student.findUnique({
         where: { userId: req.userId },
@@ -2250,7 +2271,7 @@ export async function applyToJob(req, res) {
     if (error.code === 'P2002') {
       // Unique constraint violation (likely already applied)
       errorMessage = 'Already applied to this job';
-      statusCode = 400;
+      statusCode = 409;
     } else if (error.code === 'P2003') {
       // Foreign key constraint violation
       errorMessage = 'Invalid job or student reference';
@@ -2302,6 +2323,11 @@ export async function updateApplicationStatus(req, res) {
 
     if (!application) {
       return res.status(404).json({ error: 'Application not found' });
+    }
+
+    const accessError = await assertApplicationMutationAccess(req, application);
+    if (accessError) {
+      return res.status(accessError.status).json({ error: accessError.error });
     }
 
     const oldStatus = application.status;
@@ -2624,6 +2650,11 @@ export async function revokeApplication(req, res) {
       return res.status(404).json({ error: 'Application not found' });
     }
 
+    const accessError = await assertApplicationMutationAccess(req, application);
+    if (accessError) {
+      return res.status(accessError.status).json({ error: accessError.error });
+    }
+
     if (application.status === 'REVOKED_BY_ADMIN') {
       return res.status(400).json({ error: 'Application is already revoked' });
     }
@@ -2690,6 +2721,11 @@ export async function restoreApplication(req, res) {
       return res.status(404).json({ error: 'Application not found' });
     }
 
+    const accessError = await assertApplicationMutationAccess(req, application);
+    if (accessError) {
+      return res.status(accessError.status).json({ error: accessError.error });
+    }
+
     if (application.status !== 'REVOKED_BY_ADMIN') {
       return res.status(400).json({ error: 'Application is not in revoked state' });
     }
@@ -2745,11 +2781,17 @@ export async function getResumeViewUrl(req, res) {
     const { applicationId } = req.params;
     const application = await prisma.application.findUnique({
       where: { id: applicationId },
-      select: { id: true }
+      select: { id: true, studentId: true, jobId: true },
     });
     if (!application) {
       return res.status(404).json({ error: 'Application not found' });
     }
+
+    const accessError = await assertApplicationMutationAccess(req, application);
+    if (accessError) {
+      return res.status(accessError.status).json({ error: accessError.error });
+    }
+
     const token = jwt.sign(
       { type: 'application', applicationId: application.id },
       JWT_SECRET,

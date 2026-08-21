@@ -28,7 +28,7 @@ services:
 
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: root123
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in environment or .env}
       POSTGRES_DB: placement_portal
 
     ports:
@@ -114,21 +114,21 @@ services:
       # Authentication Users
       # --------------------------------------------------------
 
-      SUPER_ADMIN_EMAIL: "admin@pwioi.in"
-      SUPER_ADMIN_PASSWORD: "admin123"
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-admin@localhost.dev}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-changeme}
 
-      ADMIN_EMAIL: "munafmd9849@gmail.com"
-      ADMIN_PASSWORD: "qwert123"
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@localhost.dev}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-changeme}
 
-      STUDENT_EMAIL: "munafmd7407@gmail.com"
-      STUDENT_PASSWORD: "qwert123"
+      STUDENT_EMAIL: ${STUDENT_EMAIL:-student@localhost.dev}
+      STUDENT_PASSWORD: ${STUDENT_PASSWORD:-changeme}
 
 
       # --------------------------------------------------------
       # PostgreSQL
       # --------------------------------------------------------
 
-      DATABASE_URL: "postgresql://postgres:root123@postgres-db:5432/placement_portal"
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in environment or .env}
 
 
       # --------------------------------------------------------
@@ -154,8 +154,8 @@ services:
       # JWT
       # --------------------------------------------------------
 
-      JWT_SECRET: "dev_9fA3xKQpT2mW8ZrE6YJH5sD0C1BvN4L"
-      JWT_REFRESH_SECRET: "dev-refresh-secret-key-min-32-characters-long-change-in-production"
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in environment or .env}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in environment or .env}
 
       JWT_EXPIRES_IN: "1h"
       JWT_REFRESH_EXPIRES_IN: "7d"
@@ -168,9 +168,9 @@ services:
       EMAIL_HOST: "smtp.gmail.com"
       EMAIL_PORT: "587"
       EMAIL_SECURE: "false"
-      EMAIL_USER: "charansai82140@gmail.com"
-      EMAIL_PASS: "yswj utrj jdyt srkq"
-      EMAIL_FROM: "PWIOI Portal <charansai82140@gmail.com>"
+      EMAIL_USER: ${EMAIL_USER:-}
+      EMAIL_PASS: ${EMAIL_PASS:-}
+      EMAIL_FROM: ${EMAIL_FROM:-PWIOI Portal <noreply@localhost.dev>}
 
 
       # --------------------------------------------------------
@@ -180,7 +180,7 @@ services:
       AI_PROVIDER: "google"
       AI_ENABLED: "true"
 
-      GOOGLE_AI_API_KEY: "AIzaSyB8I8jymJfgcPDuOM2YNRs48tuAgU7TQPs"
+      GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY:-}
       GOOGLE_AI_MODEL: "gemini-2.5-flash"
       GOOGLE_AI_MAX_TOKENS: "2048"
       GOOGLE_AI_TEMPERATURE: "0.7"
@@ -190,7 +190,7 @@ services:
       # Mistral AI
       # --------------------------------------------------------
 
-      MISTRAL_API_KEY: "PnMUBcJ0X3UY6tnoFmhlz26AAM3rqJur"
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
       MISTRAL_MODEL: "mistral-large-latest"
 
 
@@ -198,9 +198,9 @@ services:
       # Google OAuth
       # --------------------------------------------------------
 
-      GOOGLE_CLIENT_ID: "620332349787-2r8h9nbimor0m9ef7ftjfnrnp6j0bpjt.apps.googleusercontent.com"
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
 
-      GOOGLE_CLIENT_SECRET: "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"
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
 
       GOOGLE_REDIRECT_URI: "http://localhost:3000/api/calendar/oauth/callback"
 
@@ -211,11 +211,11 @@ services:
       # Cloudinary
       # --------------------------------------------------------
 
-      CLOUDINARY_CLOUD_NAME: "ds4oikoaf"
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
 
-      CLOUDINARY_API_KEY: "915818672416539"
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
 
-      CLOUDINARY_API_SECRET: "V2c66DUmBOGVkxAl6wx-qYWwvFM"
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
 
 
       # --------------------------------------------------------
@@ -237,7 +237,6 @@ services:
     command: >
       sh -c "
       npx prisma db push --skip-generate &&
-      node data/seed-all.js &&
       npm start
       "
 
@@ -429,7 +428,7 @@ services:
 
     environment:
 
-      DATABASE_URL: "postgresql://postgres:root123@postgres-db:5432/placement_portal"
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in environment or .env}
 
     volumes:
       - ./backend/data:/app/data:ro

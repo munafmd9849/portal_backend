@@ -16,12 +16,39 @@ export const APPLICATION_STATUS = {
   REVOKED_BY_ADMIN: 'REVOKED_BY_ADMIN',
 };
 
-const PLACEMENT_FLOW_STATUSES = new Set([
-  APPLICATION_STATUS.OFFERED,
-  APPLICATION_STATUS.ACCEPTED,
-  APPLICATION_STATUS.OFFER_DECLINED,
-  APPLICATION_STATUS.JOINED,
-]);
+/** Allowed direct status transitions in the placement pipeline. */
+const STATUS_TRANSITIONS = {
+  [APPLICATION_STATUS.APPLIED]: new Set([
+    APPLICATION_STATUS.SHORTLISTED,
+    APPLICATION_STATUS.REJECTED,
+  ]),
+  [APPLICATION_STATUS.SHORTLISTED]: new Set([
+    APPLICATION_STATUS.INTERVIEWED,
+    APPLICATION_STATUS.SELECTED,
+    APPLICATION_STATUS.REJECTED,
+  ]),
+  [APPLICATION_STATUS.INTERVIEWED]: new Set([
+    APPLICATION_STATUS.SELECTED,
+    APPLICATION_STATUS.OFFERED,
+    APPLICATION_STATUS.REJECTED,
+  ]),
+  [APPLICATION_STATUS.SELECTED]: new Set([
+    APPLICATION_STATUS.OFFERED,
+    APPLICATION_STATUS.REJECTED,
+  ]),
+  [APPLICATION_STATUS.OFFERED]: new Set([
+    APPLICATION_STATUS.ACCEPTED,
+    APPLICATION_STATUS.OFFER_DECLINED,
+    APPLICATION_STATUS.REJECTED,
+  ]),
+  [APPLICATION_STATUS.ACCEPTED]: new Set([
+    APPLICATION_STATUS.JOINED,
+    APPLICATION_STATUS.OFFER_DECLINED,
+  ]),
+  [APPLICATION_STATUS.OFFER_DECLINED]: new Set([]),
+  [APPLICATION_STATUS.JOINED]: new Set([]),
+  [APPLICATION_STATUS.REJECTED]: new Set([]),
+};
 
 /**
  * Validates if an application can move from currentStatus to nextStatus
@@ -30,28 +57,22 @@ const PLACEMENT_FLOW_STATUSES = new Set([
  * @returns {boolean} - True if valid, throws error otherwise
  */
 export function validateApplicationStateTransition(currentStatus, nextStatus) {
-  // 1. Protection for REVOKED applications
-  if (currentStatus === APPLICATION_STATUS.REVOKED_BY_ADMIN) {
-    // ONLY allowed transition from REVOKED is RESTORE (which would set status back to previousStatus)
-    // This helper is used for normal status updates. 
-    // Restoration should be handled by its own dedicated controller.
+  const from = String(currentStatus || APPLICATION_STATUS.APPLIED).toUpperCase();
+  const to = String(nextStatus || '').toUpperCase();
+
+  if (from === to) return true;
+
+  if (from === APPLICATION_STATUS.REVOKED_BY_ADMIN) {
     throw new Error('Applications revoked by admin cannot be updated. Restore them first.');
   }
 
-  if (currentStatus === APPLICATION_STATUS.WITHDRAWN) {
+  if (from === APPLICATION_STATUS.WITHDRAWN) {
     throw new Error('Withdrawn applications cannot be updated through this endpoint.');
   }
 
-  if (
-    PLACEMENT_FLOW_STATUSES.has(currentStatus)
-    && nextStatus !== APPLICATION_STATUS.JOINED
-    && nextStatus !== APPLICATION_STATUS.ACCEPTED
-    && nextStatus !== APPLICATION_STATUS.OFFER_DECLINED
-    && nextStatus !== APPLICATION_STATUS.OFFERED
-    && nextStatus !== APPLICATION_STATUS.SELECTED
-    && nextStatus !== APPLICATION_STATUS.REJECTED
-  ) {
-    // Allow admins to correct placement states; block unrelated transitions.
+  const allowed = STATUS_TRANSITIONS[from];
+  if (!allowed || !allowed.has(to)) {
+    throw new Error(`Invalid status transition: ${from} → ${to}`);
   }
 
   return true;

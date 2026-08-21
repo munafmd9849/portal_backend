@@ -164,6 +164,10 @@ export default function AssessmentApp() {
   const [violations, setViolations] = useState(0);
   const [lastViolationType, setLastViolationType] = useState(null);
   const [violationTimeline, setViolationTimeline] = useState([]);
+  const [examPaused, setExamPaused] = useState(false);
+  const [pauseReason, setPauseReason] = useState(null);
+  const answersRef = useRef({});
+  const examPausedRef = useRef(false);
   const [secureStatus, setSecureStatus] = useState({
     secureMode: false,
     fullscreen: false,
@@ -263,9 +267,9 @@ export default function AssessmentApp() {
     return () => clearInterval(id);
   }, [assessmentId, entryStatus, isInterviewer, loading]);
 
-  // 2. Timer Logic
+  // 2. Timer Logic (frozen while examPaused)
   useEffect(() => {
-    if (!loading && isPreCheckDone && timeLeft > 0 && !isInterviewer) {
+    if (!loading && isPreCheckDone && timeLeft > 0 && !isInterviewer && !examPaused) {
       timerIntervalRef.current = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
@@ -278,11 +282,11 @@ export default function AssessmentApp() {
       }, 1000);
       return () => clearInterval(timerIntervalRef.current);
     }
-  }, [loading, isPreCheckDone, isInterviewer]);
+  }, [loading, isPreCheckDone, isInterviewer, examPaused]);
 
   // Re-sync countdown from session start (tab return, background throttling)
   useEffect(() => {
-    if (!isPreCheckDone || isInterviewer || !session?.startTime || !assessment?.duration) return;
+    if (!isPreCheckDone || isInterviewer || !session?.startTime || !assessment?.duration || examPaused) return;
 
     const syncTimer = () => {
       const remaining = getRemainingSecondsFromSession(session, assessment.duration);
@@ -303,17 +307,53 @@ export default function AssessmentApp() {
       document.removeEventListener('visibilitychange', onVisible);
       clearInterval(id);
     };
-  }, [isPreCheckDone, isInterviewer, session?.id, session?.startTime, assessment?.duration]);
+  }, [isPreCheckDone, isInterviewer, session?.id, session?.startTime, session?.secureModeMeta, session?.paused, assessment?.duration, examPaused]);
 
   useEffect(() => {
     sessionRef.current = session;
   }, [session]);
 
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
+
+  useEffect(() => {
+    examPausedRef.current = examPaused;
+  }, [examPaused]);
+
+  const saveProgress = useCallback(async () => {
+    const sess = sessionRef.current;
+    if (!sess?.id || isInterviewer) return;
+    try {
+      await api.saveAssessmentProgress(sess.id, answersRef.current);
+    } catch (e) {
+      console.error('Progress save failed', e);
+    }
+  }, [isInterviewer]);
+
+  const applyPauseState = useCallback((paused, reason = null, remainingSeconds = null) => {
+    setExamPaused(Boolean(paused));
+    setPauseReason(reason || (paused ? 'TAB_SWITCH' : null));
+    if (Number.isFinite(remainingSeconds)) {
+      setTimeLeft(Math.max(0, remainingSeconds));
+    }
+    setSession((prev) =>
+      prev
+        ? {
+            ...prev,
+            paused: Boolean(paused),
+            pauseReason: reason || null,
+            remainingSeconds: Number.isFinite(remainingSeconds) ? remainingSeconds : prev.remainingSeconds,
+          }
+        : prev
+    );
+  }, []);
+
   const logViolation = useCallback(async (type, details, meta) => {
     const sess = sessionRef.current;
     if (!sess || isInterviewer) return;
     try {
-      await api.logProctoringViolation(sess.id, { type, details, meta });
+      const result = await api.logProctoringViolation(sess.id, { type, details, meta });
       setViolations(v => v + 1);
       setLastViolationType(type.replace(/_/g, ' '));
       setViolationTimeline((prev) => [
@@ -325,10 +365,44 @@ export default function AssessmentApp() {
           at: new Date().toISOString(),
         },
       ]);
+      if (result?.paused) {
+        await saveProgress();
+        applyPauseState(true, result.pauseReason, result.remainingSeconds);
+        toast?.error('Exam paused after tab switch. Wait for an admin to allow you to continue.');
+      }
     } catch (e) {
       console.error('Violation log failed', e);
     }
-  }, [isInterviewer]);
+  }, [isInterviewer, saveProgress, applyPauseState, toast]);
+
+  // Autosave answers while in progress (supports resume after unlock)
+  useEffect(() => {
+    if (!isPreCheckDone || isInterviewer || !session?.id) return undefined;
+    const id = setInterval(() => {
+      saveProgress();
+    }, 20000);
+    return () => clearInterval(id);
+  }, [isPreCheckDone, isInterviewer, session?.id, saveProgress]);
+
+  // When paused: freeze local countdown + poll until admin unlocks
+  useEffect(() => {
+    if (!examPaused || !session?.id || isInterviewer) return undefined;
+    clearInterval(timerIntervalRef.current);
+    const poll = setInterval(async () => {
+      try {
+        const status = await api.getAssessmentSessionStatus(session.id);
+        if (!status?.paused) {
+          applyPauseState(false, null, status?.remainingSeconds);
+          toast?.success('Admin unlocked your exam. You may continue.');
+        } else if (Number.isFinite(status?.remainingSeconds)) {
+          setTimeLeft(Math.max(0, status.remainingSeconds));
+        }
+      } catch {
+        /* ignore */
+      }
+    }, 4000);
+    return () => clearInterval(poll);
+  }, [examPaused, session?.id, isInterviewer, applyPauseState, toast]);
 
   // 4. Jitsi Integration (Configurable and robust)
   useEffect(() => {
@@ -420,6 +494,8 @@ export default function AssessmentApp() {
         cameraRequired: p.webcam !== false,
         micRequired: p.mic === true,
         tabSwitch: p.tabSwitch !== false,
+        pauseOnTabSwitch: p.pauseOnTabSwitch === true,
+        tabSwitchGraceCount: Math.max(0, Number(p.tabSwitchGraceCount ?? 2) || 2),
         windowBlur: true,
         fullscreenRequired: p.fullscreen !== false,
         periodicSnapshotBaseMs: Math.max(25000, (Number(p.snapshotInterval) || 45) * 1000),
@@ -435,9 +511,10 @@ export default function AssessmentApp() {
         navigationGuard: true,
         multiMonitorWarn: true,
         connectivityMonitor: true,
+        // Violation-threshold auto-submit removed
         autoSubmit: {
-          enabled: p.autoSubmit !== false && p.autoSubmitEnabled !== false,
-          threshold: Number(p.violationLimit || p.autoSubmitThreshold || 10) || 10,
+          enabled: false,
+          threshold: 10,
         },
       };
     } catch {
@@ -467,19 +544,6 @@ export default function AssessmentApp() {
       onViolation: ({ type, details, severity, count, at }) => {
         setSecureStatus((prev) => ({ ...prev, ...(engine.getSecureStatus?.() || {}) }));
         setLastViolationType(String(type || '').replace(/_/g, ' '));
-      },
-      onAutoSubmit: async ({ reason, count, threshold }) => {
-        toast?.error(
-          reason
-            ? `${reason} (${count}/${threshold}). Auto-submitting your attempt…`
-            : 'Violation limit reached. Auto-submitting…'
-        );
-        try {
-          await submitAssessmentRef.current?.();
-        } catch (err) {
-          console.error('Auto-submit failed', err);
-          toast?.error('Auto-submit failed. Please submit manually.');
-        }
       },
       config: cfg,
     });
@@ -666,7 +730,18 @@ export default function AssessmentApp() {
       sessionRef.current = sess;
       setSession(sess);
       setTimeLeft(remaining);
-      if (sess.responses) setAnswers(JSON.parse(sess.responses));
+      if (sess.responses) {
+        try {
+          const parsed = typeof sess.responses === 'string' ? JSON.parse(sess.responses) : sess.responses;
+          setAnswers(parsed?.rawAnswers && typeof parsed.rawAnswers === 'object' ? parsed.rawAnswers : parsed);
+        } catch {
+          /* ignore corrupt draft */
+        }
+      }
+      if (sess.paused) {
+        setExamPaused(true);
+        setPauseReason(sess.pauseReason || 'TAB_SWITCH');
+      }
       setIsPreCheckDone(true);
       setEntryStatus('ALLOWED');
     } catch (e) {
@@ -685,6 +760,10 @@ export default function AssessmentApp() {
   };
 
   const handleAnswerChange = (questionId, value) => {
+    if (examPausedRef.current) {
+      toast?.warning('Exam is paused. Wait for an admin to unlock your attempt.');
+      return;
+    }
     setAnswers(prev => ({ ...prev, [questionId]: value }));
   };
 
@@ -1114,7 +1193,24 @@ export default function AssessmentApp() {
   const currentQuestion = assessment?.questions?.[currentQuestionIdx];
 
   return (
-    <div className="h-screen bg-slate-50 flex flex-col overflow-hidden text-slate-900">
+    <div className="h-screen bg-slate-50 flex flex-col overflow-hidden text-slate-900 relative">
+      {examPaused && !isInterviewer && (
+        <div className="absolute inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="max-w-md w-full bg-white rounded-2xl border border-slate-200 shadow-xl p-6 space-y-4 text-center">
+            <div className="mx-auto w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center">
+              <Ban className="w-6 h-6 text-amber-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900">Exam paused</h3>
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Your attempt was locked after a tab switch
+              {pauseReason ? ` (${String(pauseReason).replace(/_/g, ' ')})` : ''}.
+              Answers are saved. Ask an admin to click <strong>Allow continue</strong> on the live monitor.
+              Your timer is frozen until then.
+            </p>
+            <p className="text-xs text-slate-400">Waiting for unlock… this screen updates automatically.</p>
+          </div>
+        </div>
+      )}
       <div className="shrink-0 px-4 sm:px-6 py-3 z-30 bg-white border-b border-slate-200/80">
         <header className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
@@ -1172,8 +1268,6 @@ export default function AssessmentApp() {
             <SecureExamStatusBar
               status={secureStatus}
               violations={violations}
-              threshold={getProctoringConfig()?.autoSubmit?.threshold ?? 10}
-              autoSubmitEnabled={getProctoringConfig()?.autoSubmit?.enabled !== false}
             />
           </div>
         )}

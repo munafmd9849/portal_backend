@@ -160,27 +160,20 @@ export function AuthProvider({ children }) {
 
   // Logout (replaces signOut)
   const logout = async () => {
-    // Clear tokens FIRST to prevent any API calls
-    api.clearAuthTokens();
+    try {
+      await api.logout();
+    } catch (error) {
+      console.warn('Logout API call failed:', error);
+      api.clearAuthTokens();
+    }
 
-    // Clear user state IMMEDIATELY to prevent redirects
     setUser(null);
     setRole(null);
     setEmailVerified(false);
     setUserStatus(null);
-    userLoadedRef.current = false; // Reset user loaded flag
-
-    // Disconnect socket
+    userLoadedRef.current = false;
     disconnectSocket();
     socketInitializedRef.current = false;
-
-    // Then try to call logout API (but don't wait for it or fail if it errors)
-    try {
-      await api.logout();
-    } catch (error) {
-      console.warn('Logout API call failed, but tokens already cleared:', error);
-      // Tokens are already cleared above, so we're good
-    }
   };
 
   // Register (replaces createUserWithEmailAndPassword)

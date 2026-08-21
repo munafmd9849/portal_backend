@@ -1286,6 +1286,15 @@ export const api = {
   startAssessmentSession: (id, options = {}) =>
     apiRequest(`/assessments/session/start/${id}`, { method: 'POST', ...options }),
   logProctoringViolation: (sessionId, data) => apiRequest(`/assessments/session/violation/${sessionId}`, { method: 'POST', body: JSON.stringify(data) }),
+  saveAssessmentProgress: (sessionId, answers) =>
+    apiRequest(`/assessments/session/progress/${sessionId}`, {
+      method: 'POST',
+      body: JSON.stringify({ answers }),
+    }),
+  getAssessmentSessionStatus: (sessionId) =>
+    apiRequest(`/assessments/session/status/${sessionId}`),
+  unlockAssessmentSession: (sessionId) =>
+    apiRequest(`/assessments/session/unlock/${sessionId}`, { method: 'POST' }),
   uploadProctoringMedia: (sessionId, data) => apiRequest(`/assessments/session/media/${sessionId}`, { method: 'POST', body: JSON.stringify(data) }),
   uploadProctoringScreenshot: (sessionId, blob, meta) => uploadProctoringScreenshot(sessionId, blob, meta),
   getProctoringSessionDetails: (sessionId) => apiRequest(`/assessments/session/proctoring/${sessionId}`),

@@ -1,15 +1,16 @@
 /**
  * Remaining exam time from session.startTime + assessment duration (server clock).
+ * Respects opt-in pause lock (tab-switch) via secureModeMeta — inactive unless paused.
  */
+
+import { getEffectiveElapsedSeconds, pauseSnapshot } from './assessmentPauseLock.js';
+
 export function getSessionRemainingSeconds(session, durationMinutes, now = new Date()) {
   const duration = Number(durationMinutes);
   const totalSeconds = (Number.isFinite(duration) && duration > 0 ? duration : 60) * 60;
   if (!session?.startTime) return totalSeconds;
 
-  const started = new Date(session.startTime);
-  if (Number.isNaN(started.getTime())) return totalSeconds;
-
-  const elapsed = Math.floor((now.getTime() - started.getTime()) / 1000);
+  const elapsed = getEffectiveElapsedSeconds(session, now);
   return Math.max(0, totalSeconds - elapsed);
 }
 
@@ -20,11 +21,15 @@ export function isSessionTimeExpired(session, durationMinutes, now = new Date())
 export function enrichSessionWithTimer(session, durationMinutes, now = new Date()) {
   const duration = Number(durationMinutes) || 60;
   const remainingSeconds = getSessionRemainingSeconds(session, duration, now);
+  const pause = pauseSnapshot(session?.secureModeMeta);
   return {
     ...session,
     durationMinutes: duration,
     remainingSeconds,
     timeExpired: remainingSeconds <= 0,
+    paused: pause.paused,
+    pauseReason: pause.pauseReason,
+    tabSwitchCount: pause.tabSwitchCount,
   };
 }
 

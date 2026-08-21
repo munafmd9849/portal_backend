@@ -15,6 +15,8 @@ import { buildInterviewEligibleApplicationWhere } from '../utils/applicationTrac
 import { isJobResultsLocked, backfillNoGateInterviewEligibility } from '../services/applicationStateService.js';
 import { logAction, logSystemAction } from '../utils/auditLogger.js';
 import { createNotification } from './notifications.js';
+import { adminCanAccessJob } from '../utils/adminResourceScope.js';
+import { getJwtSecret } from '../config/secrets.js';
 
 /**
  * Generate secure token for interviewer invite
@@ -25,7 +27,7 @@ function generateInterviewerToken(sessionId, email) {
     email,
     type: 'interviewer',
   };
-  return jwt.sign(payload, process.env.JWT_SECRET || 'fallback-secret', {
+  return jwt.sign(payload, getJwtSecret(), {
     expiresIn: '30d', // 30 days expiry
   });
 }
@@ -201,6 +203,13 @@ export const getOrCreateSession = async (req, res) => {
         jobTitle: true,
         companyId: true,
         recruiterId: true,
+        createdBy: true,
+        targetSchools: true,
+        targetCenters: true,
+        targetBatches: true,
+        targetSchoolIds: true,
+        targetCenterIds: true,
+        targetBatchIds: true,
         driveDate: true, // CRITICAL: Get driveDate for validation
         requiresScreening: true,
         requiresTest: true,
@@ -221,6 +230,18 @@ export const getOrCreateSession = async (req, res) => {
 
     if (!job) {
       return res.status(404).json({ error: 'Job not found' });
+    }
+
+    if (!isRecruiter && userRole === 'ADMIN') {
+      const allowed = adminCanAccessJob(
+        job,
+        req.user?.admin,
+        userRole,
+        userId,
+      );
+      if (!allowed) {
+        return res.status(403).json({ error: 'Job not in your admin scope' });
+      }
     }
 
     // Permission check: Recruiters can only access their own jobs
@@ -789,7 +810,7 @@ export const getSession = async (req, res) => {
     // Validate token
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+      decoded = jwt.verify(token, getJwtSecret());
 
       // Log for debugging (remove in production)
       if (process.env.NODE_ENV === 'development') {
@@ -967,7 +988,7 @@ export const getActiveRound = async (req, res) => {
     // Validate token
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+      decoded = jwt.verify(token, getJwtSecret());
       if (decoded.type !== 'interviewer' || decoded.sessionId !== sessionId) {
         return res.status(403).json({ error: 'Invalid token' });
       }
@@ -1030,7 +1051,7 @@ export const getRoundCandidates = async (req, res) => {
     // Validate token
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+      decoded = jwt.verify(token, getJwtSecret());
       if (decoded.type !== 'interviewer') {
         return res.status(403).json({ error: 'Invalid token type' });
       }
@@ -1237,7 +1258,7 @@ export const evaluateCandidate = async (req, res) => {
     // Validate token
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+      decoded = jwt.verify(token, getJwtSecret());
       if (decoded.type !== 'interviewer') {
         return res.status(403).json({ error: 'Invalid token type' });
       }
@@ -1365,7 +1386,7 @@ export const startRound = async (req, res) => {
     // Validate token
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+      decoded = jwt.verify(token, getJwtSecret());
       if (decoded.type !== 'interviewer') {
         return res.status(403).json({ error: 'Invalid token type' });
       }
@@ -1604,7 +1625,7 @@ export const endRound = async (req, res) => {
     // Validate token
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+      decoded = jwt.verify(token, getJwtSecret());
       if (decoded.type !== 'interviewer') {
         return res.status(403).json({ error: 'Invalid token type' });
       }
@@ -2053,7 +2074,7 @@ export const endSession = async (req, res) => {
     // Validate token
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+      decoded = jwt.verify(token, getJwtSecret());
       if (decoded.type !== 'interviewer') {
         return res.status(403).json({ error: 'Invalid token type' });
       }
@@ -2268,7 +2289,7 @@ export const exportSessionSpreadsheet = async (req, res) => {
 
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+      decoded = jwt.verify(token, getJwtSecret());
       if (decoded.type !== 'interviewer' || decoded.sessionId !== sessionId) {
         return res.status(403).json({ error: 'Invalid token' });
       }

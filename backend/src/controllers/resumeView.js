@@ -7,7 +7,9 @@
 import prisma from '../config/database.js';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+import { getJwtSecret } from '../config/secrets.js';
+
+const JWT_SECRET = getJwtSecret();
 
 /**
  * GET /api/resume/view?t=<jwt>

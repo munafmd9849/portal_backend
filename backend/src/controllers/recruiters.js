@@ -7,6 +7,11 @@ import prisma from '../config/database.js';
 import { createNotification } from './notifications.js';
 import { getIO } from '../config/socket.js';
 
+import {
+  buildRecruiterListWhere,
+  buildJobListWhere,
+} from '../utils/adminResourceScope.js';
+
 /**
  * Parse user.blockInfo stored as JSON string (SQLite) or object.
  */
@@ -26,10 +31,20 @@ function parseBlockInfo(blockInfo) {
  */
 export async function getRecruiterDirectory(req, res) {
   try {
+    const role = req.user?.role;
+    const scopeWhere = role === 'ADMIN'
+      ? buildRecruiterListWhere(req.user.admin, role, req.user.id)
+      : {};
+    const jobScope = role === 'ADMIN'
+      ? buildJobListWhere(req.user.admin, role, req.user.id)
+      : {};
+
     const recruiters = await prisma.recruiter.findMany({
+      where: scopeWhere,
       include: {
         company: true,
         jobs: {
+          where: jobScope.id === '__BLOCKED__' ? { id: '__BLOCKED__' } : jobScope,
           orderBy: { createdAt: 'desc' },
           take: 10,
         },
@@ -128,10 +143,15 @@ export async function getRecruiterJobs(req, res) {
       return res.status(404).json({ error: 'Recruiter not found' });
     }
 
-    // Get all jobs for this recruiter
+    const jobScope = req.user?.role === 'ADMIN'
+      ? buildJobListWhere(req.user.admin, req.user.role, req.user.id)
+      : {};
+
+    // Get all jobs for this recruiter (scoped for restricted admins)
     const jobs = await prisma.job.findMany({
       where: {
         recruiterId: recruiter.id,
+        ...(jobScope.id === '__BLOCKED__' ? { id: '__BLOCKED__' } : jobScope),
       },
       include: {
         company: true,

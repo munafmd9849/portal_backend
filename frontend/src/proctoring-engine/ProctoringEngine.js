@@ -49,7 +49,6 @@ export class ProctoringEngine {
     logViolation,
     uploadScreenshot,
     onWarning,
-    onAutoSubmit,
     onViolation,
     onRiskChange,
     onStatus,
@@ -62,7 +61,6 @@ export class ProctoringEngine {
     this.logViolation = logViolation;
     this.uploadScreenshot = uploadScreenshot;
     this.onWarning = onWarning;
-    this.onAutoSubmit = onAutoSubmit;
     this.onViolation = onViolation;
     this.onRiskChange = onRiskChange;
     this.onStatus = onStatus;
@@ -91,7 +89,6 @@ export class ProctoringEngine {
     this._noFaceSince = null;
     this._multiFaceSince = null;
     this._violationCount = 0;
-    this._autoSubmitFired = false;
     this._faceDetectorInitPromise = null;
   }
 
@@ -126,8 +123,6 @@ export class ProctoringEngine {
       online: typeof navigator.onLine === 'boolean' ? navigator.onLine : true,
       multiMonitor: screenCount != null ? screenCount > 1 : null,
       violationCount: this._violationCount,
-      autoSubmitThreshold: this.cfg.autoSubmit?.threshold ?? 10,
-      autoSubmitEnabled: Boolean(this.cfg.autoSubmit?.enabled),
     };
   }
 
@@ -571,12 +566,10 @@ export class ProctoringEngine {
     const severity = getViolationSeverity(type);
     const payloadMeta = { ...(meta && typeof meta === 'object' ? meta : {}), severity };
 
-    const threshold = this.cfg.autoSubmit?.threshold ?? 10;
-    const remaining = Math.max(0, threshold - (this._violationCount + 1));
     if (this.cfg.softWarningBeforeCount) {
       this.onWarning?.({
         level: severity === 'CRITICAL' || severity === 'HIGH' ? 'error' : 'warn',
-        message: `${details || type}${remaining > 0 && this.cfg.autoSubmit?.enabled ? ` — ${remaining} warning(s) remaining` : ''}`,
+        message: details || type,
       });
     }
 
@@ -600,14 +593,7 @@ export class ProctoringEngine {
       // ignore
     }
 
-    if (
-      this.cfg.autoSubmit?.enabled &&
-      !this._autoSubmitFired &&
-      this._violationCount >= threshold
-    ) {
-      this._autoSubmitFired = true;
-      this.onAutoSubmit?.({ reason: 'Violation threshold exceeded', count: this._violationCount, threshold });
-    }
+    // Auto-submit on violation threshold removed — exams pause (opt-in) or warn only.
 
     if (EVENT_SCREENSHOT_VIOLATIONS.has(type)) {
       this._queueEventScreenshot(type);

@@ -3,6 +3,7 @@ import { createNotification } from './notifications.js';
 import { sendEndorsementRequestEmail } from '../services/emailService.js';
 import crypto from 'crypto';
 import logger from '../config/logger.js';
+import { buildScopedStudentWhere } from '../utils/adminResourceScope.js';
 
 const QUERY_NOTIFICATION_TYPES = {
   question: 'question_request',
@@ -481,7 +482,16 @@ export async function getStudentQueries(req, res) {
 
 export async function getAllQueries(req, res) {
   try {
+    const role = req.user?.role;
+    const studentScope =
+      role === 'ADMIN'
+        ? buildScopedStudentWhere(req.user.admin, role)
+        : null;
+
     const queries = await prisma.studentQuery.findMany({
+      where: studentScope
+        ? { user: { student: studentScope } }
+        : undefined,
       orderBy: { createdAt: 'desc' },
       include: {
         user: {

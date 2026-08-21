@@ -74,6 +74,9 @@ export const defaultProctoringConfig = Object.freeze({
   micRequired: false,
   fullscreenRequired: true,
   tabSwitch: true,
+  /** Opt-in: after grace tab switches, pause exam until admin unlocks (default off). */
+  pauseOnTabSwitch: false,
+  tabSwitchGraceCount: 2,
   windowBlur: true,
   faceMonitoring: true,
   clipboardGuard: true,
@@ -105,8 +108,9 @@ export const defaultProctoringConfig = Object.freeze({
   audioMonitoring: false,
   audioRmsThreshold: 0.25,
   audioSpikeConsecutiveSamples: 5,
+  /** Removed: violation-threshold auto-submit. Use pause-on-tab-switch + admin unlock instead. */
   autoSubmit: {
-    enabled: true,
+    enabled: false,
     threshold: 10,
   },
 });

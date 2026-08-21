@@ -5,17 +5,10 @@
  */
 
 // CRITICAL: Load environment variables FIRST before any imports that use them
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import dotenv from 'dotenv';
+import './config/loadEnv.js';
+import { assertProductionSecrets } from './config/secrets.js';
 
-// Get the directory of the current module
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-// Load .env file from the backend root directory (parent of src/)
-// Override any already-set env vars so switching DB providers works reliably.
-dotenv.config({ path: join(__dirname, '../.env'), override: true });
+assertProductionSecrets();
 
 // Now import modules that depend on environment variables
 import express from 'express';
@@ -130,14 +123,12 @@ function logDatabaseTarget() {
   }
 }
 
-// DEBUG: Verify .env loading for Google AI
-console.log('🔍 [DEBUG] Environment Variables Check:');
-console.log('  - GOOGLE_AI_API_KEY:', process.env.GOOGLE_AI_API_KEY ? `${process.env.GOOGLE_AI_API_KEY.substring(0, 10)}...${process.env.GOOGLE_AI_API_KEY.substring(process.env.GOOGLE_AI_API_KEY.length - 5)} (${process.env.GOOGLE_AI_API_KEY.length} chars)` : '❌ NOT SET');
-console.log('  - GOOGLE_AI_MODEL:', process.env.GOOGLE_AI_MODEL || process.env.GEMINI_MODEL || 'gemini-2.5-flash (default)');
-console.log('  - GOOGLE_AI_MAX_TOKENS:', process.env.GOOGLE_AI_MAX_TOKENS || '2048 (default)');
-console.log('  - GOOGLE_AI_TEMPERATURE:', process.env.GOOGLE_AI_TEMPERATURE || '0.7 (default)');
-console.log('  - AI_ENABLED:', process.env.AI_ENABLED !== 'false' ? 'true' : 'false');
-console.log('  - FRONTEND_URL:', process.env.FRONTEND_URL);
+if (process.env.NODE_ENV !== 'production') {
+  console.log('🔍 [DEBUG] Environment Variables Check:');
+  console.log('  - GOOGLE_AI_API_KEY:', process.env.GOOGLE_AI_API_KEY ? `${process.env.GOOGLE_AI_API_KEY.substring(0, 10)}... (${process.env.GOOGLE_AI_API_KEY.length} chars)` : '❌ NOT SET');
+  console.log('  - AI_ENABLED:', process.env.AI_ENABLED !== 'false' ? 'true' : 'false');
+  console.log('  - FRONTEND_URL:', process.env.FRONTEND_URL);
+}
 logDatabaseTarget();
 const judge0Status = getJudge0Status();
 if (judge0Status.enabled) {

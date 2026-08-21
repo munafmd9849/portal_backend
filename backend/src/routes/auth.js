@@ -5,6 +5,7 @@
  */
 
 import express from 'express';
+import { getSuperAdminEmail } from '../config/secrets.js';
 import bcrypt from 'bcryptjs';
 import prisma from '../config/database.js';
 import {
@@ -13,7 +14,7 @@ import {
   generateRefreshToken,
   verifyRefreshToken,
 } from '../middleware/auth.js';
-import { establishStudentSession, persistRefreshToken } from '../utils/sessionManager.js';
+import { establishStudentSession, persistRefreshToken, invalidateUserSession } from '../utils/sessionManager.js';
 import { requireRole } from '../middleware/roles.js';
 import jwt from 'jsonwebtoken';
 import { validateUUID } from '../middleware/validation.js';
@@ -239,7 +240,7 @@ router.post('/login', [
     // Super Admin: specific email + password → always log in as Super Admin (no role selector on login).
     // Note: express-validator's normalizeEmail() removes dots from Gmail addresses
     // So we need to normalize the super admin email for comparison
-    const superAdminEmailRaw = (process.env.SUPER_ADMIN_EMAIL || 'malhotra.harshikaa@gmail.com').trim().toLowerCase();
+    const superAdminEmailRaw = getSuperAdminEmail();
     // Normalize the super admin email the same way express-validator does (remove dots for Gmail)
     const superAdminEmailNormalized = superAdminEmailRaw.replace(/\.(?=.*@gmail\.com)/g, '');
     const isSuperAdminLogin = email.toLowerCase() === superAdminEmailNormalized || email.toLowerCase() === superAdminEmailRaw;
@@ -274,19 +275,15 @@ router.post('/login', [
       if (user.status === 'BLOCKED') {
         return res.status(403).json({ error: 'Account is blocked' });
       }
-      await prisma.user.update({
+      const sessionUser = await prisma.user.update({
         where: { id: user.id },
         data: { lastLoginAt: new Date() },
+        include: { student: true, recruiter: true, admin: true },
       });
-      const accessToken = generateAccessToken(user.id);
+      const accessToken = generateAccessToken(sessionUser);
       const refreshToken = generateRefreshToken(user.id);
-      await prisma.refreshToken.create({
-        data: {
-          userId: user.id,
-          token: refreshToken,
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        },
-      });
+      await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
+      await persistRefreshToken(user.id, refreshToken);
       await logAction(req, {
         actionType: 'Login',
         targetType: 'Auth',
@@ -348,9 +345,10 @@ router.post('/login', [
       }
       user.emailVerified = sessionUser.emailVerified;
     } else {
-      await prisma.user.update({
+      sessionUser = await prisma.user.update({
         where: { id: user.id },
         data: { lastLoginAt: loginAt },
+        include: { student: true, recruiter: true, admin: true },
       });
     }
     if (user.student?.id) {
@@ -454,7 +452,14 @@ router.post('/login', [
  */
 router.post('/refresh', verifyRefreshToken, async (req, res) => {
   try {
-    const newAccessToken = generateAccessToken(req.user);
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: { student: true, recruiter: true, admin: true },
+    });
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+    const newAccessToken = generateAccessToken(user);
 
     res.json({
       accessToken: newAccessToken,
@@ -486,6 +491,8 @@ router.post('/logout', authenticate, async (req, res) => {
         where: { token: refreshToken },
       });
     }
+
+    await invalidateUserSession(req.userId);
 
     await logAction(req, {
       actionType: 'Logout',

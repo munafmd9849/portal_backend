@@ -26,30 +26,40 @@ export function isAdminFullAccess(admin) {
   const centerIds = parseAdminScopeField(admin.allowedCenterIds);
   const batchIds = parseAdminScopeField(admin.allowedBatchIds);
 
-  const legacyEmpty =
-    !schools.length &&
-    !centers.length &&
-    !batches.length &&
-    !schoolIds.length &&
-    !centerIds.length &&
-    !batchIds.length;
-
   const rawSchools = Array.isArray(admin.allowedSchools)
     ? admin.allowedSchools
-    : parseAdminScopeField(admin.allowedSchools);
+    : (() => {
+        try {
+          return JSON.parse(admin.allowedSchools || '[]');
+        } catch {
+          return [];
+        }
+      })();
   const rawCenters = Array.isArray(admin.allowedCenters)
     ? admin.allowedCenters
-    : parseAdminScopeField(admin.allowedCenters);
+    : (() => {
+        try {
+          return JSON.parse(admin.allowedCenters || '[]');
+        } catch {
+          return [];
+        }
+      })();
   const rawBatches = Array.isArray(admin.allowedBatches)
     ? admin.allowedBatches
-    : parseAdminScopeField(admin.allowedBatches);
+    : (() => {
+        try {
+          return JSON.parse(admin.allowedBatches || '[]');
+        } catch {
+          return [];
+        }
+      })();
 
   const explicitWildcard =
     rawSchools.includes(SCOPE_WILDCARD) &&
     rawCenters.includes(SCOPE_WILDCARD) &&
     rawBatches.includes(SCOPE_WILDCARD);
 
-  return legacyEmpty || explicitWildcard;
+  return explicitWildcard;
 }
 
 function matchByName(items, names, getLabel, getAlt) {

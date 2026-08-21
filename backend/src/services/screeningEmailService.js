@@ -8,7 +8,9 @@ import { sendEmail } from '../config/email.js';
 import jwt from 'jsonwebtoken';
 import { loadTemplate } from '../utils/templateLoader.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+import { getJwtSecret } from '../config/secrets.js';
+
+const JWT_SECRET = getJwtSecret();
 
 function generateScreeningToken(jobId, recruiterEmail) {
   return jwt.sign(

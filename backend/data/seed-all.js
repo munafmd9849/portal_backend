@@ -11,6 +11,11 @@ import { seedAdminData } from './seed-admin-data.js';
 import { CREDENTIALS } from './credentials.js';
 
 async function main() {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('❌ seed-all.js must NOT run in production. Aborting.');
+    process.exit(1);
+  }
+
   console.log('\n🌱 Seeding local portal database...\n');
   assertSqliteFriendly();
 
