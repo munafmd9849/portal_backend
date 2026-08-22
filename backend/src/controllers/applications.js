@@ -39,18 +39,6 @@ function mapStudentInterviewEvaluations(appEvaluations, session) {
   }));
 }
 
-function mapStudentInterviewEvaluations(appEvaluations, session) {
-  const shared = Boolean(session?.shareResultsWithStudents);
-  return appEvaluations.map((e) => ({
-    roundName: e.round?.name || `Round ${e.round?.roundNumber}`,
-    roundNumber: e.round?.roundNumber,
-    marks: null,
-    remarks: shared ? e.remarks : null,
-    status: shared ? e.status : null,
-    evaluatedAt: shared ? e.createdAt : null,
-  }));
-}
-
 /**
  * ==============================
  * Application Stage/Progress Mapping (single source of truth)
