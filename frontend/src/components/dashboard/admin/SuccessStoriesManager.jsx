@@ -20,12 +20,6 @@ import {
 } from 'lucide-react';
 import { SkeletonMediaRowList, Spinner } from '../../ui/loading';
 import CustomDropdown from '../../common/CustomDropdown';
-import { au } from '../../assessment/assessmentUi';
-import {
-  WizardModalHeader,
-  WizardSection,
-  WizardField,
-} from '../../assessment/WizardPrimitives';
 import {
   listStories,
   createStory,
@@ -109,7 +103,6 @@ export default function SuccessStoriesManager() {
   const [searchInput, setSearchInput] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
-  const [formErrors, setFormErrors] = useState({});
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
@@ -147,12 +140,10 @@ export default function SuccessStoriesManager() {
 
   const openCreate = () => {
     setForm(EMPTY_FORM);
-    setFormErrors({});
     setFormOpen(true);
   };
 
   const openEdit = (story) => {
-    setFormErrors({});
     setForm({
       id: story.id,
       type: story.type || 'STUDENT_SUCCESS',
@@ -199,33 +190,11 @@ export default function SuccessStoriesManager() {
       .filter(Boolean),
   });
 
-  const validateForm = () => {
-    const errors = {};
-    if (!form.title.trim()) errors.title = 'Title is required';
-    if (!form.email.trim()) errors.email = 'Email is required';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-      errors.email = 'Enter a valid email address';
-    }
-    if (!form.linkedin.trim()) errors.linkedin = 'LinkedIn profile is required';
-    if (!form.packageCtc.trim()) errors.packageCtc = 'Package or stipend is required';
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const patchForm = (updates) => {
-    setForm((f) => ({ ...f, ...updates }));
-    const keys = Object.keys(updates);
-    if (keys.some((k) => formErrors[k])) {
-      setFormErrors((prev) => {
-        const next = { ...prev };
-        keys.forEach((k) => delete next[k]);
-        return next;
-      });
-    }
-  };
-
   const handleSave = async () => {
-    if (!validateForm()) return;
+    if (!form.title.trim()) {
+      setError('Title is required');
+      return;
+    }
     try {
       setSaving(true);
       setError('');
@@ -482,245 +451,219 @@ export default function SuccessStoriesManager() {
       </section>
 
       {formOpen && (
-        <div className={au.backdropLg}>
-          <div className={`${au.modalLg} h-[min(90vh,820px)]`}>
-            <WizardModalHeader
-              title={form.id ? 'Edit success story' : 'New success story'}
-              subtitle="Shown on the public landing page"
-              onClose={() => setFormOpen(false)}
-              icon={Star}
-            />
-
-            <div className="flex-1 overflow-y-auto p-5 sm:p-6 custom-scrollbar bg-white">
-              <div className="max-w-4xl mx-auto space-y-5">
-                <WizardSection
-                  title="Story"
-                  description="What kind of win is this, and how should it read on the landing page?"
-                >
-                  <CustomDropdown
-                    label="Story type"
-                    compact
-                    options={STORY_TYPES}
-                    value={form.type}
-                    onChange={(v) => patchForm({ type: v })}
-                  />
-                  <WizardField label="Title">
-                    <input
-                      className={`${au.wizardInput} ${formErrors.title ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/20' : ''}`}
-                      value={form.title}
-                      onChange={(e) => patchForm({ title: e.target.value })}
-                      placeholder="e.g. Placed at Microsoft as SDE"
-                    />
-                    {formErrors.title && (
-                      <p className="text-xs text-rose-600 mt-1">{formErrors.title}</p>
-                    )}
-                  </WizardField>
-                  <WizardField label="Description" hint="One or two sentences for the card subtitle.">
-                    <textarea
-                      rows={3}
-                      className={au.wizardTextarea}
-                      value={form.description}
-                      onChange={(e) => patchForm({ description: e.target.value })}
-                      placeholder="Brief story summary"
-                    />
-                  </WizardField>
-                </WizardSection>
-
-                <WizardSection
-                  title="Person & placement"
-                  description="Who earned this outcome and where they landed."
-                >
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {showStudentFields && (
-                      <WizardField label="Student name">
-                        <input
-                          className={au.wizardInput}
-                          value={form.studentName}
-                          onChange={(e) => patchForm({ studentName: e.target.value })}
-                          placeholder="Full name"
-                        />
-                      </WizardField>
-                    )}
-                    <WizardField label="Company">
-                      <input
-                        className={au.wizardInput}
-                        value={form.company}
-                        onChange={(e) => patchForm({ company: e.target.value })}
-                        placeholder="e.g. Microsoft"
-                      />
-                    </WizardField>
-                    <WizardField label="Role">
-                      <input
-                        className={au.wizardInput}
-                        value={form.jobRole}
-                        onChange={(e) => patchForm({ jobRole: e.target.value })}
-                        placeholder="e.g. Software Engineer"
-                      />
-                    </WizardField>
-                    <WizardField
-                      label={
-                        <>
-                          Package / stipend <span className="text-rose-600">*</span>
-                        </>
-                      }
-                      hint="Shown on the landing card — use LPA or monthly stipend."
-                    >
-                      <input
-                        className={`${au.wizardInput} ${formErrors.packageCtc ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/20' : ''}`}
-                        value={form.packageCtc}
-                        onChange={(e) => patchForm({ packageCtc: e.target.value })}
-                        placeholder="e.g. 12 LPA or ₹40k/month"
-                      />
-                      {formErrors.packageCtc && (
-                        <p className="text-xs text-rose-600 mt-1">{formErrors.packageCtc}</p>
-                      )}
-                    </WizardField>
-                    {showStudentFields && (
-                      <>
-                        <WizardField label="Campus">
-                          <input
-                            className={au.wizardInput}
-                            value={form.campus}
-                            onChange={(e) => patchForm({ campus: e.target.value })}
-                          />
-                        </WizardField>
-                        <WizardField label="Batch">
-                          <input
-                            className={au.wizardInput}
-                            value={form.batch}
-                            onChange={(e) => patchForm({ batch: e.target.value })}
-                            placeholder="e.g. 2024-2028"
-                          />
-                        </WizardField>
-                      </>
-                    )}
-                  </div>
-                </WizardSection>
-
-                <WizardSection
-                  title="Contact links"
-                  description="Required for mail and LinkedIn buttons on the landing page."
-                >
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <WizardField
-                      label={
-                        <>
-                          Email <span className="text-rose-600">*</span>
-                        </>
-                      }
-                    >
-                      <input
-                        type="email"
-                        className={`${au.wizardInput} ${formErrors.email ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/20' : ''}`}
-                        value={form.email}
-                        onChange={(e) => patchForm({ email: e.target.value })}
-                        placeholder="name@example.com"
-                        autoComplete="email"
-                      />
-                      {formErrors.email && (
-                        <p className="text-xs text-rose-600 mt-1">{formErrors.email}</p>
-                      )}
-                    </WizardField>
-                    <WizardField
-                      label={
-                        <>
-                          LinkedIn <span className="text-rose-600">*</span>
-                        </>
-                      }
-                    >
-                      <input
-                        type="url"
-                        className={`${au.wizardInput} ${formErrors.linkedin ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500/20' : ''}`}
-                        value={form.linkedin}
-                        onChange={(e) => patchForm({ linkedin: e.target.value })}
-                        placeholder="linkedin.com/in/username"
-                        autoComplete="url"
-                      />
-                      {formErrors.linkedin && (
-                        <p className="text-xs text-rose-600 mt-1">{formErrors.linkedin}</p>
-                      )}
-                    </WizardField>
-                  </div>
-                </WizardSection>
-
-                <WizardSection title="Photo">
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {(form.images || []).map((img, idx) => (
-                      <div
-                        key={img.url || idx}
-                        className="relative w-16 h-16 rounded-lg overflow-hidden border border-slate-200"
-                      >
-                        <img src={img.url} alt="" className="w-full h-full object-cover" />
-                        <button
-                          type="button"
-                          className="absolute top-0.5 right-0.5 p-0.5 bg-white/90 rounded border border-slate-200"
-                          onClick={() =>
-                            patchForm({ images: form.images.filter((_, i) => i !== idx) })
-                          }
-                          aria-label="Remove image"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  <label className={`${au.btnSecondary} cursor-pointer inline-flex`}>
-                    {uploading ? <Spinner size="sm" /> : <Upload className="w-4 h-4" />}
-                    Upload photo
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleUpload}
-                      disabled={uploading}
-                    />
-                  </label>
-                </WizardSection>
-
-                <WizardSection title="Publishing">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <CustomDropdown
-                      label="Status"
-                      compact
-                      options={STATUS_FORM_OPTIONS}
-                      value={form.status}
-                      onChange={(v) => patchForm({ status: v })}
-                    />
-                    <WizardField label="Sort order">
-                      <input
-                        type="number"
-                        className={au.wizardInput}
-                        value={form.sortOrder}
-                        onChange={(e) => patchForm({ sortOrder: e.target.value })}
-                      />
-                    </WizardField>
-                  </div>
-                  <label className="inline-flex items-center gap-2 text-sm text-slate-700 cursor-pointer mt-2">
-                    <input
-                      type="checkbox"
-                      checked={form.featured}
-                      onChange={(e) => patchForm({ featured: e.target.checked })}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    Feature on landing page
-                  </label>
-                  <WizardField label="Tags" hint="Comma-separated keywords for filtering.">
-                    <input
-                      className={au.wizardInput}
-                      value={form.tags}
-                      onChange={(e) => patchForm({ tags: e.target.value })}
-                      placeholder="SDE, Product, Internship"
-                    />
-                  </WizardField>
-                </WizardSection>
-              </div>
-            </div>
-
-            <div className={au.modalFooter}>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 p-0 sm:p-4">
+          <div className="bg-white w-full sm:max-w-xl sm:rounded-xl shadow-xl max-h-[92vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-900">
+                {form.id ? 'Edit story' : 'New story'}
+              </h3>
               <button
                 type="button"
                 onClick={() => setFormOpen(false)}
-                className={`${au.btnSecondary} mr-auto`}
+                className="p-1.5 rounded-md hover:bg-slate-100"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              <div className="space-y-3">
+                <CustomDropdown
+                  label="Story type"
+                  compact
+                  options={STORY_TYPES}
+                  value={form.type}
+                  onChange={(v) => setForm((f) => ({ ...f, type: v }))}
+                />
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Title</label>
+                  <input
+                    className={inputClass}
+                    value={form.title}
+                    onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                    placeholder="Short headline"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Description</label>
+                  <textarea
+                    rows={3}
+                    className={inputClass}
+                    value={form.description}
+                    onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                    placeholder="One or two sentences"
+                  />
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 pt-4 space-y-3">
+                <p className="text-xs font-medium text-slate-500">Details</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {showStudentFields && (
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Student name</label>
+                      <input
+                        className={inputClass}
+                        value={form.studentName}
+                        onChange={(e) => setForm((f) => ({ ...f, studentName: e.target.value }))}
+                      />
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Email</label>
+                    <input
+                      type="email"
+                      className={inputClass}
+                      value={form.email}
+                      onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                      placeholder="name@example.com"
+                      autoComplete="email"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">LinkedIn</label>
+                    <input
+                      type="url"
+                      className={inputClass}
+                      value={form.linkedin}
+                      onChange={(e) => setForm((f) => ({ ...f, linkedin: e.target.value }))}
+                      placeholder="https://linkedin.com/in/…"
+                      autoComplete="url"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Company</label>
+                    <input
+                      className={inputClass}
+                      value={form.company}
+                      onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Role</label>
+                    <input
+                      className={inputClass}
+                      value={form.jobRole}
+                      onChange={(e) => setForm((f) => ({ ...f, jobRole: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">CTC / package</label>
+                    <input
+                      className={inputClass}
+                      value={form.packageCtc}
+                      onChange={(e) => setForm((f) => ({ ...f, packageCtc: e.target.value }))}
+                      placeholder="e.g. 12 LPA"
+                    />
+                  </div>
+                  {showStudentFields && (
+                    <>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Campus</label>
+                        <input
+                          className={inputClass}
+                          value={form.campus}
+                          onChange={(e) => setForm((f) => ({ ...f, campus: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Batch</label>
+                        <input
+                          className={inputClass}
+                          value={form.batch}
+                          onChange={(e) => setForm((f) => ({ ...f, batch: e.target.value }))}
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 pt-4 space-y-3">
+                <p className="text-xs font-medium text-slate-500">Publishing</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <CustomDropdown
+                    label="Status"
+                    compact
+                    options={STATUS_FORM_OPTIONS}
+                    value={form.status}
+                    onChange={(v) => setForm((f) => ({ ...f, status: v }))}
+                  />
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Sort order</label>
+                    <input
+                      type="number"
+                      className={inputClass}
+                      value={form.sortOrder}
+                      onChange={(e) => setForm((f) => ({ ...f, sortOrder: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <label className="inline-flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.featured}
+                    onChange={(e) => setForm((f) => ({ ...f, featured: e.target.checked }))}
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  Feature on landing
+                </label>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Tags</label>
+                  <input
+                    className={inputClass}
+                    value={form.tags}
+                    onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))}
+                    placeholder="SDE, Product, Internship"
+                  />
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 pt-4">
+                <label className="block text-xs font-medium text-slate-600 mb-1">Images</label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {(form.images || []).map((img, idx) => (
+                    <div
+                      key={img.url || idx}
+                      className="relative w-16 h-16 rounded-md overflow-hidden border border-slate-200"
+                    >
+                      <img src={img.url} alt="" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        className="absolute top-0.5 right-0.5 p-0.5 bg-white/90 rounded border border-slate-200"
+                        onClick={() =>
+                          setForm((f) => ({
+                            ...f,
+                            images: f.images.filter((_, i) => i !== idx),
+                          }))
+                        }
+                        aria-label="Remove image"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <label className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
+                  {uploading ? <Spinner size="sm" /> : <Upload className="w-4 h-4" />}
+                  Upload image
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleUpload}
+                    disabled={uploading}
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 bg-white border-t border-slate-200 px-4 py-3 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setFormOpen(false)}
+                className="px-3 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50"
               >
                 Cancel
               </button>
@@ -728,9 +671,9 @@ export default function SuccessStoriesManager() {
                 type="button"
                 onClick={handleSave}
                 disabled={saving}
-                className={au.btnPrimary}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
               >
-                {saving ? <Spinner size="sm" tone="white" /> : null}
+                {saving && <Spinner size="sm" />}
                 Save story
               </button>
             </div>

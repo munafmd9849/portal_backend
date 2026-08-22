@@ -3138,6 +3138,12 @@ export default function StudentDashboard() {
                                         </div>
                                       </div>
 
+                                      {history.hasInterview && history.resultsSharedWithStudent === false && history.evaluations?.some((e) => e.roundName) && (
+                                        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                                          Interview feedback has not been shared with you yet.
+                                        </div>
+                                      )}
+
                                       {history.rounds && history.rounds.length > 0 && (
                                         <div className="rounded-md border border-gray-200 bg-white p-3 sm:p-4 overflow-x-hidden">
                                           <p className="text-xs font-medium text-gray-500 mb-3">Interview rounds</p>
@@ -3172,6 +3178,7 @@ export default function StudentDashboard() {
 
                                                   <div className="space-y-1.5 pl-11">
                                                     {wasReached ? (
+                                                      history.resultsSharedWithStudent ? (
                                                       <>
                                                         {evaluation?.marks !== null && (
                                                           <div className="flex items-center justify-between text-sm py-1">
@@ -3200,6 +3207,11 @@ export default function StudentDashboard() {
                                                           </div>
                                                         )}
                                                       </>
+                                                      ) : (
+                                                        <div className="text-sm text-gray-500 italic py-1">
+                                                          Feedback not shared yet
+                                                        </div>
+                                                      )
                                                     ) : (
                                                       <div className="text-sm text-gray-400 py-1">Not reached</div>
                                                     )}

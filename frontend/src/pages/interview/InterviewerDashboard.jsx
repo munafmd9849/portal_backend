@@ -9,6 +9,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
 import { Building2, Briefcase, AlertCircle, CheckCircle, Clock, Lock, PlayCircle, ArrowRight, Download } from 'lucide-react';
 import { SkeletonStatsGrid, SkeletonCard, Spinner } from '../../components/ui/loading';
+import ShareResultsWithStudentModal from '../../components/interview/ShareResultsWithStudentModal';
 
 // Helper to decode JWT token
 const decodeJWT = (token) => {
@@ -48,6 +49,7 @@ const InterviewerDashboard = () => {
   const [activeRound, setActiveRound] = useState(null);
   const [downloading, setDownloading] = useState(false);
   const [endingSession, setEndingSession] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -179,18 +181,23 @@ const InterviewerDashboard = () => {
   const showEndInterview =
     (session?.status === 'ONGOING' || session?.status === 'INCOMPLETE') && allRoundsEnded;
 
-  const handleEndInterview = async () => {
+  const handleEndInterview = () => {
     if (!sessionId || !token || endingSession || !showEndInterview) return;
-    if (!window.confirm('End this interview session? You can still download the spreadsheet afterward.')) return;
+    setShowShareModal(true);
+  };
+
+  const handleConfirmEndInterview = async (shareResultsWithStudents) => {
+    if (!sessionId || !token || endingSession || !showEndInterview) return;
     setEndingSession(true);
     try {
-      await api.endInterviewSessionByToken(sessionId, token);
+      await api.endInterviewSessionByToken(sessionId, token, { shareResultsWithStudents });
       await loadSession();
     } catch (e) {
       console.error('End session failed:', e);
       alert(e?.message || 'Failed to end interview session. Please try again.');
     } finally {
       setEndingSession(false);
+      setShowShareModal(false);
     }
   };
 
@@ -449,6 +456,13 @@ const InterviewerDashboard = () => {
           </div>
         </div>
       </div>
+
+      <ShareResultsWithStudentModal
+        isOpen={showShareModal}
+        onClose={() => !endingSession && setShowShareModal(false)}
+        onConfirm={handleConfirmEndInterview}
+        loading={endingSession}
+      />
     </div>
   );
 };

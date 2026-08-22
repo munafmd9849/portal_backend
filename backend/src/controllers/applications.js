@@ -27,6 +27,18 @@ import { canStudentWithdrawApplication } from '../utils/applicationWithdraw.js';
 
 const JWT_SECRET = getJwtSecret();
 
+function mapStudentInterviewEvaluations(appEvaluations, session) {
+  const shared = Boolean(session?.shareResultsWithStudents);
+  return appEvaluations.map((e) => ({
+    roundName: e.round?.name || `Round ${e.round?.roundNumber}`,
+    roundNumber: e.round?.roundNumber,
+    marks: null,
+    remarks: shared ? e.remarks : null,
+    status: shared ? e.status : null,
+    evaluatedAt: shared ? e.createdAt : null,
+  }));
+}
+
 /**
  * ==============================
  * Application Stage/Progress Mapping (single source of truth)
@@ -998,6 +1010,7 @@ export async function getStudentInterviewHistory(req, res) {
         interviewHistory: session ? {
           interviewId: session.id,
           hasInterview: true,
+          resultsSharedWithStudent: Boolean(session.shareResultsWithStudents),
           rounds: rounds.map(r => ({
             name: r.name,
             roundNumber: r.roundNumber,
@@ -1006,14 +1019,7 @@ export async function getStudentInterviewHistory(req, res) {
           })),
           lastRoundReached: lastRoundReached,
           roundsReached: roundsReached,
-          evaluations: appEvaluations.map(e => ({
-            roundName: e.round?.name || `Round ${e.round?.roundNumber}`,
-            roundNumber: e.round?.roundNumber,
-            marks: null, // Not stored in new system
-            remarks: e.remarks,
-            status: e.status,
-            evaluatedAt: e.createdAt,
-          })),
+          evaluations: mapStudentInterviewEvaluations(appEvaluations, session),
           isCracked,
           isRejected,
         } : {

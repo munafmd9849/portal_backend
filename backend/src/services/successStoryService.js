@@ -38,34 +38,6 @@ function normalizeLinkedin(value) {
   return url;
 }
 
-function validateContactFields(data) {
-  const email = normalizeEmail(data.email);
-  if (!email) {
-    const err = new Error('Email is required');
-    err.status = 400;
-    throw err;
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    const err = new Error('Enter a valid email address');
-    err.status = 400;
-    throw err;
-  }
-
-  const linkedin = normalizeLinkedin(data.linkedin);
-  if (!linkedin) {
-    const err = new Error('LinkedIn profile URL is required');
-    err.status = 400;
-    throw err;
-  }
-
-  const packageCtc = String(data.packageCtc ?? data.package ?? '').trim();
-  if (!packageCtc) {
-    const err = new Error('Package or stipend is required');
-    err.status = 400;
-    throw err;
-  }
-}
-
 export function serializeStory(row) {
   if (!row) return null;
   return {
@@ -160,7 +132,6 @@ export async function createStory(data, userId) {
     err.status = 400;
     throw err;
   }
-  validateContactFields(data);
 
   const row = await prisma.successStory.create({
     data: {
@@ -238,19 +209,6 @@ export async function updateStory(id, data, userId) {
       patch.publishedAt = new Date();
     }
   }
-
-  const merged = {
-    ...existing,
-    ...data,
-    email: data.email !== undefined ? normalizeEmail(data.email) : existing.email,
-    linkedin: data.linkedin !== undefined ? normalizeLinkedin(data.linkedin) : existing.linkedin,
-    packageCtc:
-      data.packageCtc !== undefined || data.package !== undefined
-        ? data.packageCtc ?? data.package
-        : existing.packageCtc,
-  };
-  if (data.title != null) merged.title = String(data.title).trim();
-  validateContactFields(merged);
 
   return serializeStory(
     await prisma.successStory.update({ where: { id }, data: patch })
