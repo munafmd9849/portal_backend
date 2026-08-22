@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Filter, Grid3x3, List, Radio, TriangleAlert, Video, X, ZoomIn, Unlock, Clock, Send } from 'lucide-react';
+import { ArrowLeft, Filter, Grid3x3, List, Radio, TriangleAlert, Video, X, ZoomIn, Unlock, Clock, Send, Pause } from 'lucide-react';
 import api from '../../services/api';
 import { initSocket, subscribeProctoringMonitor } from '../../services/socket';
 import { ProctoringViewer } from '../../proctoring-engine/liveProctoringRtc';
@@ -59,6 +59,7 @@ export default function AdminAssessmentLiveMonitor() {
   const [rtcConnecting, setRtcConnecting] = useState(false);
   const [liveVideoEl, setLiveVideoEl] = useState(null);
   const [unlocking, setUnlocking] = useState(false);
+  const [pausing, setPausing] = useState(false);
   const [extending, setExtending] = useState(false);
   const [forceSubmitting, setForceSubmitting] = useState(false);
   const rtcViewerRef = useRef(null);
@@ -76,6 +77,8 @@ export default function AdminAssessmentLiveMonitor() {
       if (list.length > 0) {
         setSelectedSessionId((prev) => prev || list[0].id);
       }
+    } catch (e) {
+      console.error('Live sessions refresh failed', e);
     } finally {
       if (showSpinner) setLoading(false);
     }
@@ -104,35 +107,77 @@ export default function AdminAssessmentLiveMonitor() {
       )
     );
 
-    if (payload.sessionId === selectedSessionId) {
-      setDetails((prev) => {
-        if (!prev) return prev;
-        const exists = prev.screenshots?.some((x) => x.id === shot.id);
-        const signed = { ...shot, signedUrl: shot.url, imageUrl: shot.url };
-        const screenshots = exists
-          ? prev.screenshots
-          : [...(prev.screenshots || []), signed];
-        return { ...prev, screenshots };
-      });
-    }
-  }, [selectedSessionId]);
+    setDetails((prev) => {
+      if (!prev || prev.id !== payload.sessionId) return prev;
+      const exists = prev.screenshots?.some((x) => x.id === shot.id);
+      const signed = { ...shot, signedUrl: shot.url, imageUrl: shot.url };
+      const screenshots = exists
+        ? prev.screenshots
+        : [...(prev.screenshots || []), signed];
+      return { ...prev, screenshots };
+    });
+  }, []);
+
+  const applyLiveViolation = useCallback((payload) => {
+    if (!payload?.sessionId) return;
+    const typeLabel = payload.violation?.type
+      ? String(payload.violation.type).replace(/_/g, ' ')
+      : null;
+
+    setSessions((prev) =>
+      prev.map((s) =>
+        s.id === payload.sessionId
+          ? {
+              ...s,
+              violations: payload.violationsCount ?? (s.violations || 0) + 1,
+              lastViolation: typeLabel || s.lastViolation,
+              lastPing: 'Just now',
+              paused: payload.paused ?? s.paused,
+              pauseReason: payload.pauseReason ?? s.pauseReason,
+              status: payload.paused
+                ? 'PAUSED'
+                : payload.violationsCount > 3
+                  ? 'CRITICAL'
+                  : payload.violationsCount > 0
+                    ? 'WARNING'
+                    : s.status,
+            }
+          : s
+      )
+    );
+
+    setDetails((prev) => {
+      if (!prev || prev.id !== payload.sessionId) return prev;
+      const incoming = payload.violation;
+      const exists = incoming?.id && prev.violations?.some((x) => x.id === incoming.id);
+      return {
+        ...prev,
+        violationsCount: payload.violationsCount ?? prev.violationsCount,
+        paused: payload.paused ?? prev.paused,
+        pauseReason: payload.pauseReason ?? prev.pauseReason,
+        violations:
+          incoming && !exists ? [...(prev.violations || []), incoming] : prev.violations,
+      };
+    });
+  }, []);
 
   useEffect(() => {
     initSocket();
     refreshSessions(true);
-    const interval = setInterval(() => refreshSessions(false), 2500);
+    const interval = setInterval(() => refreshSessions(false), 10000);
     return () => clearInterval(interval);
   }, [refreshSessions]);
 
   useEffect(() => {
     const unsub = subscribeProctoringMonitor(id, {
       onScreenshot: applyLiveScreenshot,
-      onViolation: () => refreshSessions(false),
-      onPaused: () => refreshSessions(false),
+      onViolation: applyLiveViolation,
+      onPaused: applyLiveViolation,
       onUnlocked: () => refreshSessions(false),
+      onExtended: () => refreshSessions(false),
     });
     return unsub;
-  }, [id, applyLiveScreenshot, refreshSessions]);
+  }, [id, applyLiveScreenshot, applyLiveViolation, refreshSessions]);
 
   useEffect(() => {
     if (!selectedSessionId || !liveVideoEl) {
@@ -188,31 +233,38 @@ export default function AdminAssessmentLiveMonitor() {
       try {
         setDetailLoading(true);
         const d = await api.getProctoringSessionDetails(selectedSessionId);
-
         const screenshots = Array.isArray(d?.screenshots) ? d.screenshots : [];
-        const urls = await Promise.all(
-          screenshots.map(async (s) => {
-            try {
-              const r = await api.getProctoringScreenshotUrl(s.id);
-              return { id: s.id, url: r?.url || s.imageUrl };
-            } catch {
-              return { id: s.id, url: s.imageUrl };
-            }
-          })
-        );
-        const urlById = new Map(urls.map((u) => [u.id, u.url]));
+        const missing = screenshots.filter((s) => !s.signedUrl && !s.imageUrl);
+        const extraUrls = missing.length
+          ? await Promise.all(
+              missing.map(async (s) => {
+                try {
+                  const r = await api.getProctoringScreenshotUrl(s.id);
+                  return { id: s.id, url: r?.url || s.imageUrl };
+                } catch {
+                  return { id: s.id, url: s.imageUrl };
+                }
+              })
+            )
+          : [];
+        const urlById = new Map(extraUrls.map((u) => [u.id, u.url]));
         const hydrated = {
           ...d,
-          screenshots: screenshots.map((s) => ({ ...s, signedUrl: urlById.get(s.id) || s.imageUrl })),
+          screenshots: screenshots.map((s) => ({
+            ...s,
+            signedUrl: s.signedUrl || urlById.get(s.id) || s.imageUrl,
+          })),
         };
 
         if (!cancelled) setDetails(hydrated);
+      } catch (e) {
+        console.error('Proctoring details load failed', e);
       } finally {
         if (!cancelled) setDetailLoading(false);
       }
     };
     load();
-    const poll = setInterval(load, 3000);
+    const poll = setInterval(load, 12000);
     return () => {
       cancelled = true;
       clearInterval(poll);
@@ -238,6 +290,26 @@ export default function AdminAssessmentLiveMonitor() {
       setUnlocking(false);
     }
   }, [selectedSessionId, unlocking, refreshSessions, details, toast]);
+
+  const handlePauseExam = useCallback(async () => {
+    if (!selectedSessionId || pausing) return;
+    const ok = window.confirm(
+      'Pause this student’s exam now? Their timer freezes until you allow them to continue.'
+    );
+    if (!ok) return;
+    try {
+      setPausing(true);
+      await api.pauseAssessmentSession(selectedSessionId, 'ADMIN_PAUSE');
+      await refreshSessions(false);
+      setDetails((prev) => (prev ? { ...prev, paused: true, pauseReason: 'ADMIN_PAUSE' } : prev));
+      toast?.success('Exam paused for this student');
+    } catch (e) {
+      console.error('Pause failed', e);
+      toast?.error('Could not pause exam');
+    } finally {
+      setPausing(false);
+    }
+  }, [selectedSessionId, pausing, refreshSessions, toast]);
 
   const handleExtendTime = useCallback(async () => {
     if (!selectedSessionId || extending) return;
@@ -418,7 +490,7 @@ export default function AdminAssessmentLiveMonitor() {
             <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
               {selectedSessionId && (
                 <>
-                  {isSelectedPaused && (
+                  {isSelectedPaused ? (
                     <button
                       type="button"
                       onClick={handleAllowContinue}
@@ -427,6 +499,16 @@ export default function AdminAssessmentLiveMonitor() {
                     >
                       <Unlock className="w-3.5 h-3.5" />
                       {unlocking ? 'Unlocking…' : 'Allow continue'}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handlePauseExam}
+                      disabled={pausing}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 disabled:opacity-60"
+                    >
+                      <Pause className="w-3.5 h-3.5" />
+                      {pausing ? 'Pausing…' : 'Pause exam'}
                     </button>
                   )}
                   <button

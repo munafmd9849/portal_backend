@@ -8,28 +8,40 @@ import {
   WifiOff,
   AlertTriangle,
   Monitor,
+  ScanFace,
 } from 'lucide-react';
 
-function StatusPill({ ok, warn, label, icon: Icon }) {
-  const tone = ok
-    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+function StatusItem({ ok, warn, fail, label, icon: Icon }) {
+  const tone = fail
+    ? 'text-rose-800 bg-rose-50'
     : warn
-      ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-      : 'bg-rose-500/15 text-rose-400 border-rose-500/30';
+      ? 'text-amber-800 bg-amber-50'
+      : ok
+        ? 'text-slate-600'
+        : 'text-rose-800 bg-rose-50';
+  const iconTone = fail || (!ok && !warn)
+    ? 'text-rose-600'
+    : warn
+      ? 'text-amber-600'
+      : 'text-emerald-600';
+
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${tone}`}>
-      <Icon className="h-3 w-3 shrink-0" />
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium ${tone}`}
+    >
+      <Icon className={`h-3.5 w-3.5 shrink-0 ${iconTone}`} aria-hidden />
       {label}
     </span>
   );
 }
 
 /**
- * Secure Exam Mode status strip — camera, mic, fullscreen, connectivity, violations.
+ * Compact exam integrity strip — semantic status, not a rainbow of pills.
  */
 export default function SecureExamStatusBar({
   status = {},
   violations = 0,
+  lastAlert = null,
   className = '',
 }) {
   const {
@@ -39,50 +51,77 @@ export default function SecureExamStatusBar({
     microphone = false,
     online = true,
     multiMonitor = null,
+    face = null,
   } = status;
+
+  const faceFail = face === false;
+  const alertText = lastAlert && String(lastAlert).trim();
 
   return (
     <div
-      className={`flex flex-wrap items-center gap-2 rounded-xl border border-indigo-500/30 bg-indigo-950/40 px-3 py-2 backdrop-blur ${className}`}
+      className={`flex flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 ${className}`}
       role="status"
       aria-live="polite"
     >
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/20 border border-indigo-400/40 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-indigo-200">
-        <Shield className="h-3.5 w-3.5" />
-        {secureMode ? 'Secure Exam Mode' : 'Monitoring Off'}
+      <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-slate-800">
+        <Shield className="h-3.5 w-3.5 text-indigo-600" aria-hidden />
+        {secureMode ? 'Secure exam' : 'Monitoring off'}
       </span>
 
-      <StatusPill ok={camera} label={camera ? 'Camera On' : 'Camera Off'} icon={Camera} />
-      <StatusPill
+      <span className="hidden sm:block w-px h-4 bg-slate-200 mx-0.5" aria-hidden />
+
+      <StatusItem ok={camera} label={camera ? 'Camera' : 'Camera off'} icon={Camera} />
+      <StatusItem
         ok={microphone}
         warn={!microphone}
-        label={microphone ? 'Mic On' : 'Mic Off'}
+        label={microphone ? 'Mic' : 'Mic off'}
         icon={Mic}
       />
-      <StatusPill ok={fullscreen} label={fullscreen ? 'Fullscreen' : 'Not Fullscreen'} icon={Maximize2} />
-      <StatusPill
+      {face != null && (
+        <StatusItem
+          ok={face}
+          fail={faceFail}
+          label={faceFail ? 'No face' : 'Face'}
+          icon={ScanFace}
+        />
+      )}
+      <StatusItem
+        ok={fullscreen}
+        fail={!fullscreen}
+        label={fullscreen ? 'Fullscreen' : 'Exit fullscreen'}
+        icon={Maximize2}
+      />
+      <StatusItem
         ok={online}
+        fail={!online}
         label={online ? 'Online' : 'Offline'}
         icon={online ? Wifi : WifiOff}
       />
       {multiMonitor != null && (
-        <StatusPill
+        <StatusItem
           ok={!multiMonitor}
           warn={multiMonitor}
-          label={multiMonitor ? 'Multi-Monitor' : 'Single Display'}
+          label={multiMonitor ? 'Extra display' : 'One display'}
           icon={Monitor}
         />
       )}
 
+      {alertText && (
+        <span className="inline-flex items-center gap-1.5 rounded-md bg-rose-50 px-2 py-1 text-xs font-medium text-rose-800">
+          <AlertTriangle className="h-3.5 w-3.5 text-rose-600" aria-hidden />
+          {alertText}
+        </span>
+      )}
+
       <span
-        className={`ml-auto inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold ${
+        className={`ml-auto inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold tabular-nums ${
           violations > 0
-            ? 'bg-rose-500/15 text-rose-300 border-rose-500/40'
-            : 'bg-slate-800 text-slate-300 border-slate-700'
+            ? 'bg-rose-50 text-rose-800'
+            : 'text-slate-500'
         }`}
       >
-        <AlertTriangle className="h-3 w-3" />
-        Violations {violations}
+        <AlertTriangle className={`h-3.5 w-3.5 ${violations > 0 ? 'text-rose-600' : 'text-slate-400'}`} aria-hidden />
+        {violations} {violations === 1 ? 'flag' : 'flags'}
       </span>
     </div>
   );

@@ -35,52 +35,61 @@ export function whenSocketReady(timeoutMs = 12000) {
  * Initialize Socket.IO connection
  */
 export function initSocket() {
-  // Prevent multiple socket connections
-  if (socket && socket.connected) {
-    return socket;
-  }
-  
-  // Disconnect existing socket if any
-  if (socket) {
-    socket.disconnect();
-    socket = null;
-  }
-  
   const token = api.getAuthToken();
-  
+
   if (!token) {
     console.warn('No auth token, Socket.IO not connected');
     return null;
   }
 
-  console.log(`🔌 Initializing Socket.IO connection to: ${SOCKET_URL}`);
-  
-  socket = io(SOCKET_URL, {
-    auth: {
-      token,
-    },
-    transports: ['websocket', 'polling'],
+  // Reuse a connecting socket. Recreating it drops subscribe:proctoring and
+  // causes ECONNRESET through the Vite HTTPS proxy.
+  if (socket) {
+    socket.auth = { token };
+    if (socket.connected || socket.active) {
+      return socket;
+    }
+    socket.disconnect();
+    socket = null;
+  }
+
+  const isDev = import.meta.env.DEV;
+  const options = {
+    path: '/socket.io',
+    auth: { token },
+    // Polling first is reliable through the Vite proxy; websocket upgrades after.
+    transports: ['polling', 'websocket'],
+    withCredentials: true,
     reconnection: true,
     reconnectionDelay: 1000,
-    reconnectionAttempts: 5,
-  });
+    reconnectionDelayMax: 8000,
+    reconnectionAttempts: Infinity,
+    timeout: 20000,
+    upgrade: true,
+  };
+
+  console.log(`🔌 Initializing Socket.IO connection to: ${isDev ? window.location.origin : SOCKET_URL}`);
+
+  socket = isDev ? io(options) : io(SOCKET_URL, options);
 
   socket.on('connect', () => {
     console.log('✅ Socket.IO connected');
+    socket.emit('subscribe:jobs');
+    socket.emit('subscribe:applications');
+    socket.emit('subscribe:notifications');
   });
 
   socket.on('disconnect', () => {
     console.log('❌ Socket.IO disconnected');
   });
 
+  socket.on('connect_error', (error) => {
+    console.error('Socket.IO connect_error:', error?.message || error);
+  });
+
   socket.on('error', (error) => {
     console.error('Socket.IO error:', error);
   });
-
-  // Subscribe to events
-  socket.emit('subscribe:jobs');
-  socket.emit('subscribe:applications');
-  socket.emit('subscribe:notifications');
 
   return socket;
 }
@@ -152,7 +161,9 @@ export function subscribeProctoringMonitor(assessmentId, callbacks = {}) {
   const s = initSocket();
   if (!s || !assessmentId) return () => {};
 
-  s.emit('subscribe:proctoring', assessmentId);
+  const join = () => s.emit('subscribe:proctoring', assessmentId);
+  join();
+  s.on('connect', join);
 
   const handler = (payload) => {
     if (!payload || payload.assessmentId === assessmentId || !payload.assessmentId) {
@@ -162,6 +173,7 @@ export function subscribeProctoringMonitor(assessmentId, callbacks = {}) {
     if (payload?.kind === 'violation') callbacks.onViolation?.(payload);
     if (payload?.kind === 'paused') callbacks.onPaused?.(payload);
     if (payload?.kind === 'unlocked') callbacks.onUnlocked?.(payload);
+    if (payload?.kind === 'extended') callbacks.onExtended?.(payload);
   };
 
   s.on('proctoring:update', handler);
@@ -172,10 +184,24 @@ export function subscribeProctoringMonitor(assessmentId, callbacks = {}) {
   s.on('proctoring:live-frame', liveHandler);
 
   return () => {
+    s.off('connect', join);
     s.off('proctoring:update', handler);
     s.off('proctoring:live-frame', liveHandler);
     s.emit('unsubscribe:proctoring', assessmentId);
   };
+}
+
+export function subscribeAssessmentSessionControl(sessionId, onControl) {
+  const s = initSocket();
+  if (!s || !sessionId || typeof onControl !== 'function') return () => {};
+
+  const handler = (payload) => {
+    if (!payload) return;
+    if (payload.sessionId && payload.sessionId !== sessionId) return;
+    onControl(payload);
+  };
+  s.on('assessment:session-control', handler);
+  return () => s.off('assessment:session-control', handler);
 }
 
 export function emitProctoringLiveFrame(assessmentId, sessionId, frame) {
@@ -189,6 +215,7 @@ export default {
   disconnectSocket,
   subscribeToUpdates,
   subscribeProctoringMonitor,
+  subscribeAssessmentSessionControl,
   emitProctoringLiveFrame,
   useSocket,
 };

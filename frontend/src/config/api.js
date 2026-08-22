@@ -14,17 +14,39 @@
 const isProduction = import.meta.env.PROD;
 const isDevelopment = import.meta.env.DEV;
 
+function rewriteDevUrlForPageHost(url) {
+  if (!url || !isDevelopment || typeof window === 'undefined') return url;
+  const pageHost = window.location.hostname;
+  if (!pageHost || pageHost === 'localhost' || pageHost === '127.0.0.1') return url;
+  try {
+    const parsed = new URL(url, window.location.origin);
+    if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
+      parsed.hostname = pageHost;
+      return parsed.toString().replace(/\/$/, '');
+    }
+  } catch {
+    return String(url).replace(/\/\/(localhost|127\.0\.0\.1)/g, `//${pageHost}`);
+  }
+  return url;
+}
+
 /**
  * Get API base URL from environment variable
  * BACKEND IS SINGLE SOURCE OF TRUTH - No localhost fallbacks
  */
 const getApiBaseUrl = () => {
+  // Dev: always same-origin so Vite can proxy /api. Going to http://localhost:3000
+  // from an https:// page is mixed content and the request hangs until timeout.
+  if (isDevelopment && typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}/api`;
+  }
+
   // Prefer VITE_API_BASE_URL, fallback to VITE_API_URL for backward compatibility
   const envUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL;
   
   if (envUrl) {
-    // Ensure URL ends with /api for consistency
-    return envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`;
+    const normalized = envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`;
+    return rewriteDevUrlForPageHost(normalized);
   }
   
   // CRITICAL: No fallbacks - app must fail if backend URL not configured
@@ -47,10 +69,14 @@ const getApiBaseUrl = () => {
  * BACKEND IS SINGLE SOURCE OF TRUTH - No localhost fallbacks
  */
 const getSocketUrl = () => {
+  if (isDevelopment && typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+
   const envUrl = import.meta.env.VITE_SOCKET_URL;
   
   if (envUrl) {
-    return envUrl;
+    return rewriteDevUrlForPageHost(envUrl);
   }
   
   // CRITICAL: No fallbacks - app must fail if socket URL not configured

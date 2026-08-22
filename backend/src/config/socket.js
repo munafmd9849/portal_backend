@@ -19,6 +19,26 @@ let io = null;
 /** sessionId → student socket id (for WebRTC live proctoring) */
 const proctorStudentSockets = new Map();
 
+function isPrivateLanHostname(hostname) {
+  if (!hostname) return false;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
+  if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true;
+  if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true;
+  if (/^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true;
+  return false;
+}
+
+function isAllowedSocketOrigin(origin, configured) {
+  if (!origin) return true;
+  if (configured.includes(origin)) return true;
+  if (process.env.NODE_ENV === 'production') return false;
+  try {
+    return isPrivateLanHostname(new URL(origin).hostname);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Initialize Socket.IO server
  */
@@ -34,10 +54,20 @@ export function initSocket(server) {
 
   io = new Server(server, {
     cors: {
-      origin: corsOrigin,
+      origin: (origin, callback) => {
+        if (isAllowedSocketOrigin(origin, corsOrigin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
       methods: ['GET', 'POST'],
       credentials: true,
     },
+    pingInterval: 25000,
+    pingTimeout: 30000,
+    connectTimeout: 20000,
+    transports: ['polling', 'websocket'],
   });
 
   io.use(async (socket, next) => {

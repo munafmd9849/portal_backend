@@ -101,7 +101,7 @@ export default function ProctoringConsole({
           </div>
         )}
 
-        {violations > 0 && (
+        {lastViolationType && (
           <div
             className={`absolute inset-0 pointer-events-none animate-pulse ${
               isLight ? 'bg-red-50' : 'bg-rose-500/10'

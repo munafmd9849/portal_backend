@@ -73,6 +73,24 @@ import { setupSwagger } from './config/swagger.js';
 // STARTUP VALIDATION: Required Environment Variables
 // ============================================
 const isDevelopment = process.env.NODE_ENV !== 'production';
+
+function isPrivateLanHostname(hostname) {
+  if (!hostname) return false;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
+  if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true;
+  if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true;
+  if (/^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true;
+  return false;
+}
+
+function isAllowedDevOrigin(origin) {
+  if (!isDevelopment || !origin) return false;
+  try {
+    return isPrivateLanHostname(new URL(origin).hostname);
+  } catch {
+    return false;
+  }
+}
 const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET', 'FRONTEND_URL'];
 const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
@@ -180,8 +198,8 @@ app.use(cors({
       }
     }
 
-    // In development, also allow localhost on any port
-    if (isDevelopment && origin && (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:'))) {
+    // In development, allow localhost / LAN over http and https (camera needs https on LAN).
+    if (isDevelopment && isAllowedDevOrigin(origin)) {
       return callback(null, true);
     }
 

@@ -237,6 +237,7 @@ services:
     command: >
       sh -c "
       npx prisma db push --skip-generate &&
+      node seed-all.js &&
       npm start
       "
 

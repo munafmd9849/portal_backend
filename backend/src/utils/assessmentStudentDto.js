@@ -34,11 +34,13 @@ function publicTestCasesOnly(raw) {
   return serializeTestCasesForStorage(publicCases);
 }
 
-function sanitizeQuestionForStudent(question) {
+function sanitizeQuestionForStudent(question, { revealAnswers = false } = {}) {
   if (!question) return question;
   const out = { ...question };
-  for (const key of STUDENT_QUESTION_OMIT) {
-    delete out[key];
+  if (!revealAnswers) {
+    for (const key of STUDENT_QUESTION_OMIT) {
+      delete out[key];
+    }
   }
   if (out.testCases != null) {
     out.testCases = publicTestCasesOnly(out.testCases);
@@ -52,13 +54,13 @@ function sanitizeQuestionForStudent(question) {
   return out;
 }
 
-export function sanitizeAssessmentForStudent(assessment) {
+export function sanitizeAssessmentForStudent(assessment, { revealAnswers = false } = {}) {
   if (!assessment) return assessment;
   const { questions, ...rest } = assessment;
   return {
     ...rest,
     questions: Array.isArray(questions)
-      ? questions.map(sanitizeQuestionForStudent)
+      ? questions.map((q) => sanitizeQuestionForStudent(q, { revealAnswers }))
       : questions,
   };
 }

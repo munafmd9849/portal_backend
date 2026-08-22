@@ -88,19 +88,40 @@ function AssessmentResultStudentComponent() {
     );
   }
 
-  const { assessment, score, duration, responses, status, violations } = session;
+  const { assessment, score, duration, responses, status, violations, pointsEarned, maxPoints } = session;
   const questions = assessment?.questions || [];
 
   let parsedResponses = { rawAnswers: {}, executionLogs: {} };
-  try {
-    parsedResponses = JSON.parse(responses || '{}');
-  } catch {
-    /* ignore */
+  if (responses && typeof responses === 'object') {
+    parsedResponses = responses;
+  } else {
+    try {
+      parsedResponses = JSON.parse(responses || '{}');
+    } catch {
+      /* ignore */
+    }
   }
 
   const rawAnswers = parsedResponses.rawAnswers || {};
   const executionLogs = parsedResponses.executionLogs || {};
-  const scoreVal = typeof score === 'number' ? score : 0;
+  const earned =
+    Number.isFinite(Number(pointsEarned))
+      ? Number(pointsEarned)
+      : Number.isFinite(Number(parsedResponses.pointsEarned))
+        ? Number(parsedResponses.pointsEarned)
+        : null;
+  const max =
+    Number.isFinite(Number(maxPoints)) && Number(maxPoints) > 0
+      ? Number(maxPoints)
+      : Number.isFinite(Number(parsedResponses.maxPoints)) && Number(parsedResponses.maxPoints) > 0
+        ? Number(parsedResponses.maxPoints)
+        : null;
+  const scoreVal =
+    earned != null && max
+      ? Math.round((earned / max) * 100)
+      : typeof score === 'number'
+        ? score
+        : 0;
   const hasViolations = Array.isArray(violations) && violations.length > 0;
 
   return (
@@ -133,6 +154,14 @@ function AssessmentResultStudentComponent() {
                 <span className="text-2xl sm:text-3xl text-slate-400 font-medium">%</span>
               </p>
               <div className="pb-1 flex items-center gap-3 text-sm text-slate-500">
+                {earned != null && max != null && (
+                  <>
+                    <span className="tabular-nums">
+                      {earned}/{max} pts
+                    </span>
+                    <span className="w-1 h-1 rounded-full bg-slate-300" />
+                  </>
+                )}
                 <span className="inline-flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5" strokeWidth={1.75} />
                   {formatDuration(duration)}
@@ -183,10 +212,11 @@ function AssessmentResultStudentComponent() {
                 const isMcq = q.type === 'MCQ';
                 const isCoding = q.type === 'CODING';
                 const isDescriptive = q.type === 'DESCRIPTIVE';
-                const isCorrect = isMcq
+                const hasKey = isMcq && q.correctAnswer != null && String(q.correctAnswer) !== '';
+                const isCorrect = hasKey
                   ? mcqAnswersMatch(studentAnswer, q.correctAnswer, q.options)
                   : null;
-                const isWrongMCQ = isMcq && isCorrect === false;
+                const isWrongMCQ = hasKey && isCorrect === false;
                 const studentAnswerLabel = isMcq
                   ? resolveMcqOptionLabel(q.options, studentAnswer)
                   : studentAnswer;
@@ -223,7 +253,7 @@ function AssessmentResultStudentComponent() {
                               {q.questionText}
                             </p>
                           </div>
-                          {isMcq && (
+                          {hasKey && (
                             <span
                               className={`shrink-0 inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md border ${
                                 isCorrect

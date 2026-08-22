@@ -10,6 +10,7 @@ import {
   getStudentSessionStatus,
   unlockAssessmentSession,
   extendAssessmentSession,
+  pauseAssessmentSession,
   forceSubmitAssessmentSession,
   uploadMedia, 
   uploadScreenshot,
@@ -174,6 +175,7 @@ router.get('/session/proctoring/:sessionId', authenticate, authorize(['ADMIN', '
  */
 router.get('/session/screenshot/:screenshotId/url', authenticate, authorize(['ADMIN', 'SUPER_ADMIN']), getSignedScreenshotUrl);
 router.post('/session/unlock/:sessionId', authenticate, authorize(['ADMIN', 'SUPER_ADMIN']), unlockAssessmentSession);
+router.post('/session/pause/:sessionId', authenticate, authorize(['ADMIN', 'SUPER_ADMIN']), pauseAssessmentSession);
 router.post('/session/extend/:sessionId', authenticate, authorize(['ADMIN', 'SUPER_ADMIN']), extendAssessmentSession);
 router.post('/session/force-submit/:sessionId', authenticate, authorize(['ADMIN', 'SUPER_ADMIN']), forceSubmitAssessmentSession);
 router.get('/:id/invite', authenticate, authorize(['ADMIN', 'SUPER_ADMIN']), getAssessmentInvite);

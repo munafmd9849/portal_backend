@@ -30,14 +30,14 @@ export default function CodingProblemPanel({
             )}
           </div>
         )}
-        <h2 className="text-lg font-bold text-slate-900 leading-snug">{title || 'Coding problem'}</h2>
+        <h2 className="text-lg font-bold text-slate-900 leading-snug select-none">{title || 'Coding problem'}</h2>
       </div>
 
       <div className="px-5 py-5 space-y-6 text-sm leading-relaxed">
         {problem ? (
           <section>
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Problem</h3>
-            <div className="text-slate-700 whitespace-pre-wrap font-medium">{problem}</div>
+            <div className="text-slate-700 whitespace-pre-wrap font-medium select-none">{problem}</div>
           </section>
         ) : (
           <p className="text-slate-400 italic">No problem statement provided.</p>

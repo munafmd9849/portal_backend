@@ -2,31 +2,53 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import dualListen from './vite-plugin-dual-listen.js';
 
-// Get __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// https://vite.dev/config/
+const PUBLIC_PORT = 5173;
+const INNER_PORT = 5178;
+
+function proxyToBackend() {
+  return {
+    target: 'http://127.0.0.1:3000',
+    changeOrigin: true,
+    secure: false,
+    ws: true,
+    timeout: 180000,
+    proxyTimeout: 180000,
+  };
+}
+
+// Inner Vite is HTTP on 5178. Port 5173 accepts HTTP (admin) and HTTPS (LAN camera).
 export default defineConfig({
   plugins: [
     react({
       include: '**/*.{jsx,tsx}',
     }),
+    dualListen({ publicPort: PUBLIC_PORT }),
   ],
 
   server: {
-    // true = listen on 0.0.0.0 so other laptops on the LAN can open the dev UI
     host: true,
-    port: 5173,
-    // Fail loudly if 5173 is taken instead of silently moving to 5174 (breaks HMR)
+    port: INNER_PORT,
     strictPort: true,
+    allowedHosts: true,
     open: false,
+    headers: {
+      'Permissions-Policy': 'camera=*, microphone=*, display-capture=*',
+    },
     hmr: {
       overlay: true,
+      clientPort: PUBLIC_PORT,
     },
     watch: {
       usePolling: false,
+    },
+    proxy: {
+      '/api': proxyToBackend(),
+      '/socket.io': proxyToBackend(),
     },
   },
   resolve: {

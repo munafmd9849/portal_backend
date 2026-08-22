@@ -1299,16 +1299,29 @@ export const api = {
       ...rest,
     });
   },
-  logProctoringViolation: (sessionId, data) => apiRequest(`/assessments/session/violation/${sessionId}`, { method: 'POST', body: JSON.stringify(data) }),
-  saveAssessmentProgress: (sessionId, answers) =>
+  logProctoringViolation: (sessionId, data) =>
+    apiRequest(`/assessments/session/violation/${sessionId}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      silent: true,
+      timeoutMs: 8000,
+    }),
+  saveAssessmentProgress: (sessionId, answers, extra = {}) =>
     apiRequest(`/assessments/session/progress/${sessionId}`, {
       method: 'POST',
-      body: JSON.stringify({ answers }),
+      body: JSON.stringify({ answers, ...extra }),
+      silent: true,
+      timeoutMs: 20000,
     }),
   getAssessmentSessionStatus: (sessionId) =>
-    apiRequest(`/assessments/session/status/${sessionId}`),
+    apiRequest(`/assessments/session/status/${sessionId}`, { silent: true, noCache: true }),
   unlockAssessmentSession: (sessionId) =>
     apiRequest(`/assessments/session/unlock/${sessionId}`, { method: 'POST' }),
+  pauseAssessmentSession: (sessionId, reason = 'ADMIN_PAUSE') =>
+    apiRequest(`/assessments/session/pause/${sessionId}`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
   extendAssessmentSession: (sessionId, minutes) =>
     apiRequest(`/assessments/session/extend/${sessionId}`, {
       method: 'POST',
@@ -1318,14 +1331,23 @@ export const api = {
     apiRequest(`/assessments/session/force-submit/${sessionId}`, { method: 'POST' }),
   uploadProctoringMedia: (sessionId, data) => apiRequest(`/assessments/session/media/${sessionId}`, { method: 'POST', body: JSON.stringify(data) }),
   uploadProctoringScreenshot: (sessionId, blob, meta) => uploadProctoringScreenshot(sessionId, blob, meta),
-  getProctoringSessionDetails: (sessionId) => apiRequest(`/assessments/session/proctoring/${sessionId}`),
-  getProctoringScreenshotUrl: (screenshotId) => apiRequest(`/assessments/session/screenshot/${screenshotId}/url`),
-  completeAssessment: (sessionId, data) => apiRequest(`/assessments/session/complete/${sessionId}`, { method: 'POST', body: JSON.stringify(data) }),
+  getProctoringSessionDetails: (sessionId) =>
+    apiRequest(`/assessments/session/proctoring/${sessionId}`, { silent: true, noCache: true }),
+  getProctoringScreenshotUrl: (screenshotId) =>
+    apiRequest(`/assessments/session/screenshot/${screenshotId}/url`, { silent: true, noCache: true }),
+  completeAssessment: (sessionId, data) =>
+    apiRequest(`/assessments/session/complete/${sessionId}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      silent: true,
+      timeoutMs: 180000,
+    }),
   runCode: (data) => apiRequest('/code/run', { method: 'POST', body: JSON.stringify(data) }),
   evaluateCode: (data) => apiRequest('/code/evaluate', { method: 'POST', body: JSON.stringify(data) }),
   evaluateAssessmentCandidate: (assessmentId, studentId, data) => apiRequest(`/assessments/evaluate/${assessmentId}/${studentId}`, { method: 'POST', body: JSON.stringify(data) }),
   getAssessmentDashboard: (id) => apiRequest(`/assessments/dashboard/${id}`),
-  getLiveAssessmentSessions: (id) => apiRequest(`/assessments/${id}/live-sessions`),
+  getLiveAssessmentSessions: (id) =>
+    apiRequest(`/assessments/${id}/live-sessions`, { silent: true, noCache: true }),
   getStudentSessionResults: (sessionId) => apiRequest(`/assessments/session/results/${sessionId}`),
 
   // Assessment invite links (public + admin)

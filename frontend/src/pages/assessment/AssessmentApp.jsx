@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Shield, AlertTriangle, Clock, ChevronRight, ChevronLeft, 
   CheckCircle, XCircle, Video, Code, FileText,
-  Maximize2, Terminal, AlertCircle, Save, Send, Ban, ScanFace
+  Maximize2, Terminal, AlertCircle, Save, Send, Ban, ScanFace, Flag
 } from 'lucide-react';
 import api from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
@@ -22,8 +22,10 @@ import CodingProblemPanel from '../../components/coding/CodingProblemPanel';
 import ProctoringConsole from '../../components/assessment/ProctoringConsole';
 import SecureExamStatusBar from '../../components/assessment/SecureExamStatusBar';
 import ViolationTimeline from '../../components/assessment/ViolationTimeline';
+import AssessmentModal from '../../components/assessment/AssessmentModal';
+import { au } from '../../components/assessment/assessmentUi';
 import { ProctoringEngine } from '../../proctoring-engine/ProctoringEngine';
-import { defaultProctoringConfig } from '../../proctoring-engine/constants';
+import { defaultProctoringConfig, formatViolationLabel } from '../../proctoring-engine/constants';
 import {
   getAssessmentEntryStatus,
   formatAssessmentWindow,
@@ -34,7 +36,7 @@ import {
   getRemainingSecondsFromSession,
   resolveSessionRemainingSeconds,
 } from '../../utils/assessmentTimer';
-import { initSocket } from '../../services/socket';
+import { initSocket, subscribeAssessmentSessionControl } from '../../services/socket';
 import { ProctoringBroadcaster } from '../../proctoring-engine/liveProctoringRtc';
 
 const EXAM_DEVICE_KEY = 'pwioi_exam_device_id';
@@ -62,18 +64,22 @@ function readLocalDraft(sessionId) {
     const raw = localStorage.getItem(draftStorageKey(sessionId));
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    return parsed?.answers && typeof parsed.answers === 'object' ? parsed.answers : null;
+    return parsed && typeof parsed === 'object' ? parsed : null;
   } catch {
     return null;
   }
 }
 
-function writeLocalDraft(sessionId, answers) {
+function writeLocalDraft(sessionId, answers, markedForReview = []) {
   if (!sessionId) return;
   try {
     localStorage.setItem(
       draftStorageKey(sessionId),
-      JSON.stringify({ answers, savedAt: new Date().toISOString() })
+      JSON.stringify({
+        answers,
+        markedForReview: Array.isArray(markedForReview) ? markedForReview : [],
+        savedAt: new Date().toISOString(),
+      })
     );
   } catch {
     /* quota / private mode */
@@ -87,6 +93,97 @@ function clearLocalDraft(sessionId) {
   } catch {
     /* ignore */
   }
+}
+
+function hydrateAssessmentDetails(details) {
+  if (!details) return details;
+  const allowedCodingLanguages = parseAllowedCodingLanguages(details.config);
+  const questions = (details.questions || []).map((q) => ({
+    ...q,
+    testCases: parseTestCases(q.testCases),
+    starterCodesByLang: parseStarterCodesByLang(q.starterCode ?? q.starterCodes),
+  }));
+  return { ...details, questions, allowedCodingLanguages };
+}
+
+const STUDENT_ASSESSMENTS_PATH = '/student?tab=assessments';
+const DONE_SESSION_STATUSES = new Set([
+  'COMPLETED',
+  'PENDING_REVIEW',
+  'AUTO_SUBMITTED',
+  'TERMINATED',
+]);
+
+function isAnswered(value) {
+  if (value == null) return false;
+  if (typeof value === 'string') return value.trim() !== '';
+  if (typeof value === 'number') return true;
+  if (typeof value === 'boolean') return true;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === 'object') return Object.keys(value).length > 0;
+  return Boolean(value);
+}
+
+function isQuestionAnswered(question, value) {
+  if (question?.type === 'CODING') {
+    if (value == null || value === '') return false;
+    const parsed = parseCodingAnswer(value, 'javascript');
+    const code = String(parsed.code || '').trim();
+    if (!code) return false;
+    const starter = String(
+      getStarterForLanguage(question.starterCodesByLang, parsed.language) || ''
+    ).trim();
+    if (starter && code === starter) return false;
+    return true;
+  }
+  return isAnswered(value);
+}
+
+function isAlreadySubmittedError(error) {
+  const status = error?.status || error?.response?.status;
+  const data = error?.response?.data || {};
+  if (status === 409) return true;
+  const msg = String(data.error || error?.message || '').toLowerCase();
+  return msg.includes('already submitted') || msg.includes('already completed');
+}
+
+function pauseOverlayCopy(reason) {
+  const r = String(reason || '');
+  if (r.startsWith('ADMIN')) {
+    return {
+      title: 'Exam paused by admin',
+      body: 'A proctor paused your attempt for review. Your answers are saved and the timer is frozen. This screen unlocks automatically when they allow you to continue.',
+    };
+  }
+  return {
+    title: 'Exam paused',
+    body: 'Your attempt was locked after a tab switch. Answers are saved. Ask an admin to click Allow continue on the live monitor. Your timer is frozen until then.',
+  };
+}
+
+function mergeSessionTimer(prev, { remainingSeconds, extraSeconds, paused, pauseReason } = {}) {
+  if (!prev) return prev;
+  let meta = prev.secureModeMeta;
+  if (typeof meta === 'string') {
+    try {
+      meta = JSON.parse(meta);
+    } catch {
+      meta = {};
+    }
+  }
+  if (!meta || typeof meta !== 'object') meta = {};
+  const nextMeta = { ...meta };
+  if (extraSeconds != null && Number.isFinite(Number(extraSeconds))) {
+    nextMeta.extraSeconds = Number(extraSeconds);
+  }
+  return {
+    ...prev,
+    paused: paused == null ? prev.paused : Boolean(paused),
+    pauseReason: pauseReason !== undefined ? pauseReason : prev.pauseReason,
+    remainingSeconds: Number.isFinite(remainingSeconds) ? remainingSeconds : prev.remainingSeconds,
+    extraSeconds: extraSeconds != null ? extraSeconds : prev.extraSeconds,
+    secureModeMeta: nextMeta,
+  };
 }
 
 function MetaSegment({ label, highlight = false }) {
@@ -133,11 +230,11 @@ function QuestionPanelShell({ question, questionIndex, children, layout = 'defau
         <QuestionMetaBar question={question} questionIndex={questionIndex} />
         <section className="bg-white border border-slate-200/80 rounded-lg p-5 space-y-5 shadow-sm flex-1 min-h-0">
           <div className="space-y-3 pb-4 border-b border-slate-100">
-            <h2 className="text-base font-semibold text-slate-900 leading-snug text-balance">
+            <h2 className="text-base font-semibold text-slate-900 leading-snug text-balance select-none">
               {question?.questionText || 'Question'}
             </h2>
             {question?.description ? (
-              <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap">
+              <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap select-none">
                 {question.description}
               </p>
             ) : null}
@@ -170,7 +267,7 @@ function QuestionPanelShell({ question, questionIndex, children, layout = 'defau
               </span>
             )}
           </div>
-          <h2 className="text-base font-semibold text-slate-900 leading-snug">
+          <h2 className="text-base font-semibold text-slate-900 leading-snug select-none">
             {question?.questionText || 'Question'}
           </h2>
         </div>
@@ -178,7 +275,7 @@ function QuestionPanelShell({ question, questionIndex, children, layout = 'defau
           {question?.description ? (
             <section>
               <p className="text-xs font-medium text-slate-500 mb-2">Description</p>
-              <div className="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed">
+              <div className="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed select-none">
                 {question.description}
               </div>
             </section>
@@ -209,6 +306,11 @@ export default function AssessmentApp() {
   const sessionRef = useRef(null);
   const [studentProfile, setStudentProfile] = useState(null);
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
+  const [visitedQuestionIds, setVisitedQuestionIds] = useState(() => new Set());
+  const [markedForReview, setMarkedForReview] = useState(() => new Set());
+  const markedForReviewRef = useRef(new Set());
+  const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
+  const [submitAcknowledged, setSubmitAcknowledged] = useState(false);
   const [answers, setAnswers] = useState({}); // Stores MCQ options or Code snippets
   const [cameraLive, setCameraLive] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
@@ -233,10 +335,13 @@ export default function AssessmentApp() {
     online: true,
     multiMonitor: null,
   });
-  const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [rightPanelOpen, setRightPanelOpen] = useState(
+    () => typeof window === 'undefined' || window.innerWidth >= 1024
+  );
   const [isRecording, setIsRecording] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState(null);
   const submittingRef = useRef(false);
+  const [submitting, setSubmitting] = useState(false);
   const submitAssessmentRef = useRef(null);
   
   // Refs
@@ -270,13 +375,7 @@ export default function AssessmentApp() {
       try {
         setLoading(true);
         const details = await api.getAssessmentDetails(assessmentId);
-        const allowedCodingLanguages = parseAllowedCodingLanguages(details.config);
-        const questions = (details.questions || []).map((q) => ({
-          ...q,
-          testCases: parseTestCases(q.testCases),
-          starterCodesByLang: parseStarterCodesByLang(q.starterCode),
-        }));
-        setAssessment({ ...details, questions, allowedCodingLanguages });
+        setAssessment(hydrateAssessmentDetails(details));
         // Student timer is set from session.startTime when the exam starts / resumes
         setTimeLeft(isInterviewer ? details.duration * 60 : 0);
 
@@ -312,7 +411,7 @@ export default function AssessmentApp() {
     const tick = async () => {
       try {
         const fresh = await api.getAssessmentDetails(assessmentId);
-        setAssessment(fresh);
+        setAssessment(hydrateAssessmentDetails(fresh));
         const entry = getAssessmentEntryStatus(fresh);
         setEntryStatus(entry.status);
       } catch {
@@ -331,7 +430,7 @@ export default function AssessmentApp() {
         setTimeLeft(prev => {
           if (prev <= 1) {
             clearInterval(timerIntervalRef.current);
-            submitAssessment();
+            queueMicrotask(() => submitAssessmentRef.current?.({ fromTimer: true }));
             return 0;
           }
           return prev - 1;
@@ -350,7 +449,7 @@ export default function AssessmentApp() {
       setTimeLeft(remaining);
       if (remaining <= 0) {
         clearInterval(timerIntervalRef.current);
-        submitAssessment();
+        submitAssessmentRef.current?.({ fromTimer: true });
       }
     };
 
@@ -375,18 +474,27 @@ export default function AssessmentApp() {
   }, [answers]);
 
   useEffect(() => {
+    markedForReviewRef.current = markedForReview;
+  }, [markedForReview]);
+
+  useEffect(() => {
     examPausedRef.current = examPaused;
   }, [examPaused]);
 
   const saveProgress = useCallback(async () => {
     const sess = sessionRef.current;
     if (!sess?.id || isInterviewer) return;
-    writeLocalDraft(sess.id, answersRef.current);
+    writeLocalDraft(sess.id, answersRef.current, [...(markedForReviewRef.current || [])]);
     if (typeof navigator !== 'undefined' && !navigator.onLine) return;
     try {
-      await api.saveAssessmentProgress(sess.id, answersRef.current);
+      await api.saveAssessmentProgress(sess.id, answersRef.current, {
+        markedForReview: [...(markedForReviewRef.current || [])],
+      });
     } catch (e) {
       console.error('Progress save failed', e);
+      if (isAlreadySubmittedError(e)) {
+        submitAssessmentRef.current?.({ fromTimer: true });
+      }
     }
   }, [isInterviewer]);
 
@@ -397,40 +505,41 @@ export default function AssessmentApp() {
     }, 800);
   }, [saveProgress]);
 
-  const applyPauseState = useCallback((paused, reason = null, remainingSeconds = null) => {
+  const applyPauseState = useCallback((paused, reason = null, remainingSeconds = null, extraSeconds = null) => {
     setExamPaused(Boolean(paused));
     setPauseReason(reason || (paused ? 'TAB_SWITCH' : null));
     if (Number.isFinite(remainingSeconds)) {
       setTimeLeft(Math.max(0, remainingSeconds));
     }
     setSession((prev) =>
-      prev
-        ? {
-            ...prev,
-            paused: Boolean(paused),
-            pauseReason: reason || null,
-            remainingSeconds: Number.isFinite(remainingSeconds) ? remainingSeconds : prev.remainingSeconds,
-          }
-        : prev
+      mergeSessionTimer(prev, {
+        paused: Boolean(paused),
+        pauseReason: reason || (paused ? 'TAB_SWITCH' : null),
+        remainingSeconds,
+        extraSeconds,
+      })
     );
   }, []);
 
   const logViolation = useCallback(async (type, details, meta) => {
     const sess = sessionRef.current;
     if (!sess || isInterviewer) return;
-    try {
-      const result = await api.logProctoringViolation(sess.id, { type, details, meta });
-      setViolations(v => v + 1);
-      setLastViolationType(type.replace(/_/g, ' '));
+    const severity = meta?.severity || 'MEDIUM';
+    if (severity !== 'LOW') {
+      setViolations((v) => v + 1);
+      setLastViolationType(formatViolationLabel(type));
       setViolationTimeline((prev) => [
         ...prev,
         {
           type,
           details,
-          severity: meta?.severity || 'MEDIUM',
+          severity,
           at: new Date().toISOString(),
         },
       ]);
+    }
+    try {
+      const result = await api.logProctoringViolation(sess.id, { type, details, meta });
       if (result?.paused) {
         await saveProgress();
         applyPauseState(true, result.pauseReason, result.remainingSeconds);
@@ -441,14 +550,83 @@ export default function AssessmentApp() {
     }
   }, [isInterviewer, saveProgress, applyPauseState, toast]);
 
+  const applySessionControl = useCallback((payload) => {
+    if (!payload) return;
+    const remaining = Number(payload.remainingSeconds);
+    const extra = payload.extraSeconds;
+
+    if (payload.kind === 'force_submitted') {
+      submitAssessmentRef.current?.({ fromTimer: true });
+      return;
+    }
+
+    if (payload.kind === 'extended') {
+      if (Number.isFinite(remaining)) setTimeLeft(Math.max(0, remaining));
+      setSession((prev) => mergeSessionTimer(prev, {
+        remainingSeconds: remaining,
+        extraSeconds: extra,
+      }));
+      toast?.success(
+        Number.isFinite(remaining)
+          ? `Time extended · ${Math.ceil(remaining / 60)} min left`
+          : 'Time extended by an admin'
+      );
+      return;
+    }
+
+    if (payload.kind === 'paused' || payload.paused === true) {
+      applyPauseState(true, payload.pauseReason || 'ADMIN_PAUSE', remaining, extra);
+      toast?.error(
+        String(payload.pauseReason || '').startsWith('ADMIN')
+          ? 'An admin paused your exam. Wait to be allowed to continue.'
+          : 'Exam paused. Wait for an admin to allow you to continue.'
+      );
+      return;
+    }
+
+    if (payload.kind === 'unlocked' || payload.paused === false) {
+      applyPauseState(false, null, remaining, extra);
+      toast?.success('Admin unlocked your exam. You may continue.');
+    }
+  }, [applyPauseState, toast]);
+
+  useEffect(() => {
+    if (!isPreCheckDone || isInterviewer || !session?.id) return undefined;
+    initSocket();
+    return subscribeAssessmentSessionControl(session.id, applySessionControl);
+  }, [isPreCheckDone, isInterviewer, session?.id, applySessionControl]);
+
   // Autosave answers while in progress (supports resume after unlock)
   useEffect(() => {
     if (!isPreCheckDone || isInterviewer || !session?.id) return undefined;
-    const id = setInterval(() => {
+    const id = setInterval(async () => {
       saveProgress();
+      const sess = sessionRef.current;
+      if (!sess?.id) return;
+      try {
+        const st = await api.getAssessmentSessionStatus(sess.id);
+        if (DONE_SESSION_STATUSES.has(st?.status)) {
+          submitAssessmentRef.current?.({ fromTimer: true });
+          return;
+        }
+        if (typeof st?.paused === 'boolean' && st.paused !== examPausedRef.current) {
+          applyPauseState(st.paused, st.pauseReason, st.remainingSeconds, st.extraSeconds);
+        } else if (Number.isFinite(st?.remainingSeconds)) {
+          const next = Math.max(0, st.remainingSeconds);
+          setTimeLeft((prev) => (Math.abs(next - prev) >= 2 ? next : prev));
+          if (st.extraSeconds != null) {
+            setSession((prev) => mergeSessionTimer(prev, {
+              remainingSeconds: next,
+              extraSeconds: st.extraSeconds,
+            }));
+          }
+        }
+      } catch {
+        /* ignore */
+      }
     }, 20000);
     return () => clearInterval(id);
-  }, [isPreCheckDone, isInterviewer, session?.id, saveProgress]);
+  }, [isPreCheckDone, isInterviewer, session?.id, saveProgress, applyPauseState]);
 
   // When paused: freeze local countdown + poll until admin unlocks
   useEffect(() => {
@@ -457,11 +635,22 @@ export default function AssessmentApp() {
     const poll = setInterval(async () => {
       try {
         const status = await api.getAssessmentSessionStatus(session.id);
+        if (DONE_SESSION_STATUSES.has(status?.status)) {
+          submitAssessmentRef.current?.({ fromTimer: true });
+          return;
+        }
         if (!status?.paused) {
-          applyPauseState(false, null, status?.remainingSeconds);
+          applyPauseState(false, null, status?.remainingSeconds, status?.extraSeconds);
           toast?.success('Admin unlocked your exam. You may continue.');
         } else if (Number.isFinite(status?.remainingSeconds)) {
           setTimeLeft(Math.max(0, status.remainingSeconds));
+          if (status.extraSeconds != null) {
+            setSession((prev) => mergeSessionTimer(prev, {
+              remainingSeconds: status.remainingSeconds,
+              extraSeconds: status.extraSeconds,
+              paused: true,
+            }));
+          }
         }
       } catch {
         /* ignore */
@@ -569,6 +758,8 @@ export default function AssessmentApp() {
         screenshotDebounceMs: 8000,
         liveFrameToAdmin: false,
         faceMonitoring: true,
+        noFaceGraceMs: 5000,
+        faceCheckIntervalMs: 1000,
         clipboardGuard: true,
         contextMenuGuard: true,
         selectionGuard: true,
@@ -609,7 +800,7 @@ export default function AssessmentApp() {
       },
       onViolation: ({ type, details, severity, count, at }) => {
         setSecureStatus((prev) => ({ ...prev, ...(engine.getSecureStatus?.() || {}) }));
-        setLastViolationType(String(type || '').replace(/_/g, ' '));
+        setLastViolationType(formatViolationLabel(type));
       },
       config: cfg,
     });
@@ -747,7 +938,7 @@ export default function AssessmentApp() {
       }
 
       const fresh = await api.getAssessmentDetails(assessmentId);
-      setAssessment(fresh);
+      setAssessment(hydrateAssessmentDetails(fresh));
       const entry = getAssessmentEntryStatus(fresh);
       if (entry.status === 'TOO_EARLY') {
         setEntryStatus('WAITING');
@@ -776,6 +967,8 @@ export default function AssessmentApp() {
         });
         await proctorRtcRef.current.start();
       }
+    } catch (err) {
+      toast?.error(err.response?.data?.error || err.message || 'Could not start the assessment');
     } finally {
       setStarting(false);
     }
@@ -793,7 +986,7 @@ export default function AssessmentApp() {
 
       if (remaining <= 0) {
         toast?.error('Assessment time has expired');
-        navigate('/student/dashboard');
+        navigate(STUDENT_ASSESSMENTS_PATH);
         return;
       }
 
@@ -804,20 +997,29 @@ export default function AssessmentApp() {
       setOptionOrders(sess.optionOrders && typeof sess.optionOrders === 'object' ? sess.optionOrders : null);
 
       let restored = null;
+      let restoredMarks = [];
       if (sess.responses) {
         try {
           const parsed = typeof sess.responses === 'string' ? JSON.parse(sess.responses) : sess.responses;
           restored = parsed?.rawAnswers && typeof parsed.rawAnswers === 'object' ? parsed.rawAnswers : parsed;
+          if (Array.isArray(parsed?.markedForReview)) restoredMarks = parsed.markedForReview;
         } catch {
           restored = null;
         }
       }
+      const localDraft = readLocalDraft(sess.id);
       if (!restored || !Object.keys(restored).length) {
-        restored = readLocalDraft(sess.id) || {};
+        restored = localDraft?.answers && typeof localDraft.answers === 'object' ? localDraft.answers : {};
+      }
+      if (!restoredMarks.length && Array.isArray(localDraft?.markedForReview)) {
+        restoredMarks = localDraft.markedForReview;
       }
       setAnswers(restored && typeof restored === 'object' ? restored : {});
       answersRef.current = restored && typeof restored === 'object' ? restored : {};
-      writeLocalDraft(sess.id, answersRef.current);
+      const markSet = new Set(restoredMarks.filter(Boolean).map(String));
+      setMarkedForReview(markSet);
+      markedForReviewRef.current = markSet;
+      writeLocalDraft(sess.id, answersRef.current, [...markSet]);
 
       if (sess.paused) {
         setExamPaused(true);
@@ -839,19 +1041,22 @@ export default function AssessmentApp() {
       }
       if (e.response?.data?.code === 'TIME_EXPIRED') {
         toast?.error('Assessment time has expired');
-        navigate('/student/dashboard');
+        navigate(STUDENT_ASSESSMENTS_PATH);
         return;
       }
-      if (e.response?.data?.error === 'Assessment already completed') {
+      if (DONE_SESSION_STATUSES.has(e.response?.data?.status) || e.response?.data?.error === 'Assessment already completed') {
         toast?.error('You have already completed this assessment');
-        navigate('/student/dashboard');
+        navigate(STUDENT_ASSESSMENTS_PATH);
+        return;
       }
+      toast?.error(e.response?.data?.error || e.message || 'Could not start the assessment');
     } finally {
       setLoading(false);
     }
   };
 
   const handleAnswerChange = (questionId, value) => {
+    if (submittingRef.current) return;
     if (examPausedRef.current) {
       toast?.warning('Exam is paused. Wait for an admin to unlock your attempt.');
       return;
@@ -864,7 +1069,7 @@ export default function AssessmentApp() {
       const next = { ...prev, [questionId]: value };
       answersRef.current = next;
       const sess = sessionRef.current;
-      if (sess?.id) writeLocalDraft(sess.id, next);
+      if (sess?.id) writeLocalDraft(sess.id, next, [...(markedForReviewRef.current || [])]);
       return next;
     });
     scheduleSaveProgress();
@@ -872,7 +1077,7 @@ export default function AssessmentApp() {
 
   // Video Recording for VIDEO questions
   const startRecording = () => {
-    if (!videoRef.current?.srcObject) return;
+    if (!videoRef.current?.srcObject || !currentQuestion?.id) return;
     chunksRef.current = [];
     const recorder = new MediaRecorder(videoRef.current.srcObject);
     recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
@@ -893,29 +1098,77 @@ export default function AssessmentApp() {
     setIsRecording(false);
   };
 
-  const submitAssessment = async () => {
-    try {
-      if (submittingRef.current) return;
-      const sess = sessionRef.current;
-      if (!sess?.id) return;
-      submittingRef.current = true;
-      await saveProgress();
-      await api.completeAssessment(sess.id, { answers: JSON.stringify(answersRef.current) });
+  const submitAssessment = async ({ fromTimer = false } = {}) => {
+    if (submittingRef.current) return;
+    const sess = sessionRef.current;
+    if (!sess?.id) {
+      toast?.error('No active session. Rejoin the assessment and try again.');
+      return;
+    }
+    if (!fromTimer && examPausedRef.current) {
+      toast?.warning('Exam is paused. Wait for an admin to unlock before submitting.');
+      return;
+    }
+    submittingRef.current = true;
+    setSubmitting(true);
+
+    const finishSuccessfully = () => {
       clearLocalDraft(sess.id);
-      toast?.success('Assessment submitted successfully');
-      if (document.fullscreenElement) document.exitFullscreen();
       try {
         proctorRtcRef.current?.stop();
         proctorRef.current?.destroy?.();
-      } catch {}
-      navigate('/student/dashboard');
+      } catch {
+        /* ignore */
+      }
+      try {
+        if (document.fullscreenElement) document.exitFullscreen();
+      } catch {
+        /* ignore */
+      }
+      toast?.success('Assessment submitted successfully');
+      navigate(`/assessment/results/${sess.id}`);
+    };
+
+    try {
+      try {
+        await Promise.race([
+          saveProgress().catch(() => {}),
+          new Promise((resolve) => setTimeout(resolve, 4000)),
+        ]);
+      } catch {
+        /* still submit local answers */
+      }
+      const payload =
+        answersRef.current && typeof answersRef.current === 'object' && !Array.isArray(answersRef.current)
+          ? answersRef.current
+          : {};
+      await api.completeAssessment(sess.id, { answers: payload });
+      finishSuccessfully();
     } catch (e) {
-      toast?.error('Submission failed');
+      if (isAlreadySubmittedError(e)) {
+        finishSuccessfully();
+        return;
+      }
+      toast?.error(
+        e.message || 'Submission failed. Your answers are saved on this device — try Submit again.'
+      );
     } finally {
       submittingRef.current = false;
+      setSubmitting(false);
     }
   };
   submitAssessmentRef.current = submitAssessment;
+
+  const openSubmitConfirm = () => {
+    if (submittingRef.current || examPausedRef.current) {
+      if (examPausedRef.current) {
+        toast?.warning('Exam is paused. Wait for an admin to unlock before submitting.');
+      }
+      return;
+    }
+    setSubmitAcknowledged(false);
+    setSubmitConfirmOpen(true);
+  };
 
   // Offline / reconnect: keep drafts local and flush when back online
   useEffect(() => {
@@ -943,7 +1196,7 @@ export default function AssessmentApp() {
     if (!isPreCheckDone || isInterviewer) return undefined;
     const flush = () => {
       const sess = sessionRef.current;
-      if (sess?.id) writeLocalDraft(sess.id, answersRef.current);
+      if (sess?.id) writeLocalDraft(sess.id, answersRef.current, [...(markedForReviewRef.current || [])]);
       if (typeof navigator !== 'undefined' && navigator.onLine) {
         saveProgress();
       }
@@ -982,11 +1235,17 @@ export default function AssessmentApp() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!lastViolationType) return undefined;
+    const id = setTimeout(() => setLastViolationType(null), 6000);
+    return () => clearTimeout(id);
+  }, [lastViolationType]);
+
   const recheckEntryWindow = useCallback(async () => {
     try {
       setLoading(true);
       const fresh = await api.getAssessmentDetails(assessmentId);
-      setAssessment(fresh);
+      setAssessment(hydrateAssessmentDetails(fresh));
       const entry = getAssessmentEntryStatus(fresh);
       setEntryStatus(entry.status);
       if (entry.status === 'ALLOWED') {
@@ -998,6 +1257,103 @@ export default function AssessmentApp() {
       setLoading(false);
     }
   }, [assessmentId, toast]);
+
+  const orderedQuestions = useMemo(() => {
+    const list = Array.isArray(assessment?.questions) ? assessment.questions : [];
+    if (!Array.isArray(questionOrder) || !questionOrder.length) return list;
+    const byId = new Map(list.map((q) => [q.id, q]));
+    const ordered = [];
+    for (const id of questionOrder) {
+      if (byId.has(id)) {
+        ordered.push(byId.get(id));
+        byId.delete(id);
+      }
+    }
+    for (const q of byId.values()) ordered.push(q);
+    return ordered;
+  }, [assessment?.questions, questionOrder]);
+
+  const currentQuestion = orderedQuestions?.[currentQuestionIdx];
+
+  const mcqDisplayOptions = useMemo(() => {
+    if (!currentQuestion || currentQuestion.type !== 'MCQ') return [];
+    let opts = [];
+    try {
+      opts = JSON.parse(currentQuestion.options || '[]');
+    } catch {
+      opts = [];
+    }
+    if (!Array.isArray(opts)) return [];
+    const order = optionOrders?.[currentQuestion.id];
+    if (!Array.isArray(order) || order.length !== opts.length) {
+      return opts.map((opt, originalIndex) => ({ opt, originalIndex }));
+    }
+    return order.map((originalIndex) => ({
+      opt: opts[originalIndex],
+      originalIndex,
+    }));
+  }, [currentQuestion, optionOrders]);
+
+  const questionProgress = useMemo(() => {
+    const list = orderedQuestions || [];
+    let answered = 0;
+    let visitedUnanswered = 0;
+    let notVisited = 0;
+    for (const q of list) {
+      const done = isQuestionAnswered(q, answers[q.id]);
+      const seen = visitedQuestionIds.has(q.id) || done;
+      if (done) answered += 1;
+      else if (seen) visitedUnanswered += 1;
+      else notVisited += 1;
+    }
+    return {
+      total: list.length,
+      answered,
+      visitedUnanswered,
+      notVisited,
+      notAnswered: visitedUnanswered + notVisited,
+      marked: list.filter((q) => markedForReview.has(q.id)).length,
+    };
+  }, [orderedQuestions, answers, visitedQuestionIds, markedForReview]);
+
+  useEffect(() => {
+    setVisitedQuestionIds((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+      if (currentQuestion?.id && !next.has(currentQuestion.id)) {
+        next.add(currentQuestion.id);
+        changed = true;
+      }
+      for (const q of orderedQuestions || []) {
+        if (isQuestionAnswered(q, answers[q.id]) && !next.has(q.id)) {
+          next.add(q.id);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [currentQuestion?.id, orderedQuestions, answers]);
+
+  const goToQuestion = (idx) => {
+    if (examPausedRef.current || submittingRef.current) return;
+    const max = Math.max(0, (orderedQuestions?.length || 1) - 1);
+    setCurrentQuestionIdx(Math.max(0, Math.min(max, idx)));
+  };
+
+  const toggleMarkForReview = () => {
+    const qid = currentQuestion?.id;
+    if (!qid || examPausedRef.current || submittingRef.current) return;
+    setMarkedForReview((prev) => {
+      const next = new Set(prev);
+      if (next.has(qid)) next.delete(qid);
+      else next.add(qid);
+      markedForReviewRef.current = next;
+      const sess = sessionRef.current;
+      if (sess?.id) writeLocalDraft(sess.id, answersRef.current, [...next]);
+      return next;
+    });
+    scheduleSaveProgress();
+  };
 
   if (loading) {
     return (
@@ -1334,43 +1690,6 @@ export default function AssessmentApp() {
     );
   }
 
-  // LIVE ASSESSMENT UI
-  const orderedQuestions = React.useMemo(() => {
-    const list = Array.isArray(assessment?.questions) ? assessment.questions : [];
-    if (!Array.isArray(questionOrder) || !questionOrder.length) return list;
-    const byId = new Map(list.map((q) => [q.id, q]));
-    const ordered = [];
-    for (const id of questionOrder) {
-      if (byId.has(id)) {
-        ordered.push(byId.get(id));
-        byId.delete(id);
-      }
-    }
-    for (const q of byId.values()) ordered.push(q);
-    return ordered;
-  }, [assessment?.questions, questionOrder]);
-
-  const currentQuestion = orderedQuestions?.[currentQuestionIdx];
-
-  const mcqDisplayOptions = React.useMemo(() => {
-    if (!currentQuestion || currentQuestion.type !== 'MCQ') return [];
-    let opts = [];
-    try {
-      opts = JSON.parse(currentQuestion.options || '[]');
-    } catch {
-      opts = [];
-    }
-    if (!Array.isArray(opts)) return [];
-    const order = optionOrders?.[currentQuestion.id];
-    if (!Array.isArray(order) || order.length !== opts.length) {
-      return opts.map((opt, originalIndex) => ({ opt, originalIndex }));
-    }
-    return order.map((originalIndex) => ({
-      opt: opts[originalIndex],
-      originalIndex,
-    }));
-  }, [currentQuestion, optionOrders]);
-
   return (
     <div className="h-screen bg-slate-50 flex flex-col overflow-hidden text-slate-900 relative">
       {(isOffline || multiMonitorBlocked) && !isInterviewer && (
@@ -1386,12 +1705,9 @@ export default function AssessmentApp() {
             <div className="mx-auto w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center">
               <Ban className="w-6 h-6 text-amber-600" />
             </div>
-            <h3 className="text-lg font-semibold text-slate-900">Exam paused</h3>
+            <h3 className="text-lg font-semibold text-slate-900">{pauseOverlayCopy(pauseReason).title}</h3>
             <p className="text-sm text-slate-600 leading-relaxed">
-              Your attempt was locked after a tab switch
-              {pauseReason ? ` (${String(pauseReason).replace(/_/g, ' ')})` : ''}.
-              Answers are saved. Ask an admin to click <strong>Allow continue</strong> on the live monitor.
-              Your timer is frozen until then.
+              {pauseOverlayCopy(pauseReason).body}
             </p>
             <p className="text-xs text-slate-400">Waiting for unlock… this screen updates automatically.</p>
           </div>
@@ -1441,11 +1757,12 @@ export default function AssessmentApp() {
 
           <button
             type="button"
-            onClick={submitAssessment}
-            className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition-colors shadow-sm shadow-indigo-600/20 flex items-center gap-2"
+            onClick={openSubmitConfirm}
+            disabled={submitting || examPaused}
+            className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 disabled:pointer-events-none text-white text-sm font-medium rounded-lg transition-colors shadow-sm shadow-indigo-600/20 flex items-center gap-2"
           >
-            <Send className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Submit</span>
+            {submitting ? <Spinner size="sm" tone="white" /> : <Send className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">{submitting ? 'Submitting…' : 'Submit'}</span>
           </button>
         </div>
         </header>
@@ -1454,6 +1771,11 @@ export default function AssessmentApp() {
             <SecureExamStatusBar
               status={secureStatus}
               violations={violations}
+              lastAlert={
+                secureStatus.face === false && /face/i.test(String(lastViolationType || ''))
+                  ? null
+                  : lastViolationType
+              }
             />
           </div>
         )}
@@ -1464,6 +1786,8 @@ export default function AssessmentApp() {
           <div className="flex-1 flex flex-col overflow-hidden min-h-0 p-4">
             <div className="w-full flex-1 flex flex-col min-h-0">
               <div className="flex-1 min-h-0 flex flex-col">
+                {currentQuestion ? (
+                  <>
                 {currentQuestion?.type === 'MCQ' ? (
                   <QuestionPanelShell
                     question={currentQuestion}
@@ -1679,6 +2003,68 @@ export default function AssessmentApp() {
                      )}
                   </div>
                 )}
+                <nav
+                  className="shrink-0 mt-3 flex items-center gap-2"
+                  aria-label="Question navigation"
+                >
+                  <button
+                    type="button"
+                    disabled={currentQuestionIdx === 0 || submitting}
+                    onClick={() => goToQuestion(currentQuestionIdx - 1)}
+                    className="min-h-11 flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-medium border border-slate-200 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    disabled={submitting || examPaused || !currentQuestion}
+                    onClick={toggleMarkForReview}
+                    aria-pressed={Boolean(currentQuestion && markedForReview.has(currentQuestion.id))}
+                    className={`min-h-11 flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors disabled:opacity-40 disabled:pointer-events-none ${
+                      currentQuestion && markedForReview.has(currentQuestion.id)
+                        ? 'bg-violet-50 border-violet-300 text-violet-800'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Flag className={`w-4 h-4 ${currentQuestion && markedForReview.has(currentQuestion.id) ? 'fill-violet-600 text-violet-700' : ''}`} />
+                    {currentQuestion && markedForReview.has(currentQuestion.id) ? 'Marked' : 'Mark for review'}
+                  </button>
+                  <p className="hidden sm:block text-xs font-medium text-slate-500 tabular-nums px-2">
+                    {currentQuestionIdx + 1} / {orderedQuestions.length || 0}
+                  </p>
+                  {currentQuestionIdx >= (orderedQuestions.length || 1) - 1 ? (
+                    <button
+                      type="button"
+                      disabled={submitting || examPaused}
+                      onClick={openSubmitConfirm}
+                      className="min-h-11 flex-1 sm:flex-none sm:ml-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-60 disabled:pointer-events-none"
+                    >
+                      <Send className="w-4 h-4" />
+                      Submit
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => goToQuestion(currentQuestionIdx + 1)}
+                      className="min-h-11 flex-1 sm:flex-none sm:ml-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-60 disabled:pointer-events-none"
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  )}
+                </nav>
+                  </>
+                ) : (
+                  <div className="h-full bg-white rounded-lg border border-slate-200/80 flex flex-col items-center justify-center p-10 text-center">
+                    <AlertCircle className="w-8 h-8 text-slate-400 mb-3" strokeWidth={1.75} />
+                    <h4 className="text-sm font-semibold text-slate-900 mb-1">No questions available</h4>
+                    <p className="text-xs text-slate-500 max-w-sm">
+                      This assessment has no questions yet. Ask your admin to add questions and try again.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1722,38 +2108,58 @@ export default function AssessmentApp() {
             <div className="flex-1 basis-0 min-h-0 flex flex-col p-3 overflow-hidden">
               <p className="text-xs font-medium text-slate-500 mb-2 shrink-0">Questions</p>
               <div className="flex-1 min-h-0 flex flex-wrap content-start gap-2 overflow-y-auto">
-                {orderedQuestions?.map((q, i) => (
+                {orderedQuestions?.map((q, i) => {
+                  const done = isQuestionAnswered(q, answers[q.id]);
+                  const seen = visitedQuestionIds.has(q.id) || done;
+                  const marked = markedForReview.has(q.id);
+                  return (
                   <button
-                    key={i}
+                    key={q.id || i}
                     type="button"
-                    onClick={() => setCurrentQuestionIdx(i)}
+                    onClick={() => goToQuestion(i)}
                     className={`w-9 h-9 rounded-md flex items-center justify-center text-xs font-medium transition-colors ${
                       currentQuestionIdx === i
                         ? 'bg-indigo-600 text-white'
-                        : answers[q.id]
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                          : 'bg-slate-50 text-slate-500 border border-slate-200 hover:bg-slate-100'
+                        : marked
+                          ? done
+                            ? 'bg-emerald-50 text-emerald-800 border-2 border-violet-400'
+                            : 'bg-violet-50 text-violet-800 border border-violet-300'
+                          : done
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                            : seen
+                              ? 'bg-amber-50 text-amber-800 border border-amber-100'
+                              : 'bg-slate-50 text-slate-500 border border-slate-200 hover:bg-slate-100'
                     }`}
+                    aria-label={`Question ${i + 1}${marked ? ', marked for review' : ''}${done ? ', answered' : seen ? ', seen' : ', not visited'}`}
                   >
                     {i + 1}
                   </button>
-                ))}
+                  );
+                })}
+              </div>
+              <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-500 pt-2 shrink-0">
+                <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-100 border border-emerald-200" /> Answered</span>
+                <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-violet-100 border border-violet-300" /> Review</span>
+                <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-amber-100 border border-amber-200" /> Seen</span>
+                <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-slate-100 border border-slate-200" /> Not visited</span>
               </div>
               <div className="flex gap-2 shrink-0 pt-3">
                 <button
                   type="button"
-                  disabled={currentQuestionIdx === 0}
-                  onClick={() => setCurrentQuestionIdx((v) => v - 1)}
-                  className="flex-1 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors flex items-center justify-center disabled:opacity-30 border border-slate-200"
+                  disabled={currentQuestionIdx === 0 || submitting}
+                  onClick={() => goToQuestion(currentQuestionIdx - 1)}
+                  className="flex-1 min-h-11 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-lg transition-colors flex items-center justify-center gap-1 text-xs font-medium disabled:opacity-30 border border-slate-200"
                 >
                   <ChevronLeft className="w-4 h-4" />
+                  Previous
                 </button>
                 <button
                   type="button"
-                  disabled={currentQuestionIdx === orderedQuestions?.length - 1}
-                  onClick={() => setCurrentQuestionIdx((v) => v + 1)}
-                  className="flex-1 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg transition-colors flex items-center justify-center disabled:opacity-30 border border-slate-200"
+                  disabled={currentQuestionIdx === orderedQuestions?.length - 1 || submitting}
+                  onClick={() => goToQuestion(currentQuestionIdx + 1)}
+                  className="flex-1 min-h-11 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-lg transition-colors flex items-center justify-center gap-1 text-xs font-medium disabled:opacity-30 border border-slate-200"
                 >
+                  Next
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
@@ -1761,6 +2167,73 @@ export default function AssessmentApp() {
           </div>
         </aside>
       </div>
+
+      <AssessmentModal
+        open={submitConfirmOpen}
+        onClose={() => !submitting && setSubmitConfirmOpen(false)}
+        title="Submit assessment?"
+        subtitle="This cannot be undone. Review your attempt first."
+        size="md"
+        className="max-w-md"
+        footer={(
+          <>
+            <button
+              type="button"
+              className={au.btnSecondary}
+              disabled={submitting}
+              onClick={() => setSubmitConfirmOpen(false)}
+            >
+              Review again
+            </button>
+            <button
+              type="button"
+              className={au.btnPrimary}
+              disabled={submitting || !submitAcknowledged}
+              onClick={() => {
+                setSubmitConfirmOpen(false);
+                submitAssessment();
+              }}
+            >
+              {submitting ? <Spinner size="sm" tone="white" /> : <Send className="w-4 h-4" />}
+              Submit exam
+            </button>
+          </>
+        )}
+      >
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { label: 'Total', value: questionProgress.total, tone: 'text-slate-900' },
+            { label: 'Answered', value: questionProgress.answered, tone: 'text-emerald-700' },
+            { label: 'Not answered', value: questionProgress.notAnswered, tone: 'text-amber-700' },
+            { label: 'Not visited', value: questionProgress.notVisited, tone: 'text-slate-600' },
+            { label: 'Marked for review', value: questionProgress.marked, tone: 'text-violet-700' },
+          ].map((stat) => (
+            <div key={stat.label} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+              <p className="text-[11px] text-slate-500">{stat.label}</p>
+              <p className={`text-xl font-semibold tabular-nums leading-tight ${stat.tone}`}>{stat.value}</p>
+            </div>
+          ))}
+        </div>
+        {questionProgress.notAnswered > 0 && (
+          <p className="flex items-start gap-2 text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2.5">
+            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" strokeWidth={1.75} />
+            {questionProgress.notVisited > 0
+              ? `${questionProgress.notAnswered} question${questionProgress.notAnswered === 1 ? '' : 's'} still unanswered, including ${questionProgress.notVisited} not opened yet.`
+              : `${questionProgress.notAnswered} question${questionProgress.notAnswered === 1 ? '' : 's'} still unanswered.`}
+          </p>
+        )}
+        <label className="flex items-start gap-2.5 text-sm text-slate-700 cursor-pointer">
+          <input
+            type="checkbox"
+            className="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            checked={submitAcknowledged}
+            onChange={(e) => setSubmitAcknowledged(e.target.checked)}
+          />
+          <span>
+            I understand that after submitting I cannot change my answers.
+          </span>
+        </label>
+      </AssessmentModal>
 
       <canvas ref={canvasRef} className="hidden" />
     </div>
