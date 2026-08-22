@@ -1,5 +1,5 @@
 # Logs
-loðgs
+logs
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -52,3 +52,17 @@ dump.rdb
 /backend/prisma/schema.e2e.sqlite.prisma
 
 /backend/.env.e2e
+
+# Generated / tooling output
+graphify-out/
+backend/graphify-out/
+
+# Scratch and design mockups (not part of the app)
+backend/scratch/
+*.html
+!frontend/index.html
+!backend/email-templates/**/*.html
+
+# Temp files
+*_tmp.jsx
+replace_icons.js
