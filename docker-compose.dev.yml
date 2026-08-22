@@ -1,17 +1,15 @@
 # =============================================================================
-# PWIOI Placement Portal — developer build & publish
+# PWIOI Placement Portal — local full stack (development)
 #
-# Build local images (includes latest code changes):
-#   docker compose -f docker-compose.dev.yml build
+# Build and run everything locally (Postgres, Redis, Judge0, API, worker, UI):
+#   cp backend/.env.example backend/.env   # edit as needed
+#   docker compose -f docker-compose.dev.yml up -d --build
 #
-# Run full stack from local builds:
-#   docker compose -f docker-compose.dev.yml up -d
-#
-# Publish to Docker Hub (after build):
-#   docker compose -f docker-compose.dev.yml push
+# Optional seed (NOT run on every startup):
+#   docker compose -f docker-compose.dev.yml --profile seed run --rm db-seed
 # =============================================================================
 
-name: placement-portal
+name: placement-portal-dev
 
 x-default-logging: &default-logging
   logging:
@@ -19,25 +17,25 @@ x-default-logging: &default-logging
     options:
       max-size: "100m"
 
-configs:
-  judge0_conf:
-    content: |
-      REDIS_HOST=redis
-      REDIS_PASSWORD=2rx2LZgGJfnqSjHAq7T5nEXwWat5cRuY
-      POSTGRES_HOST=db
-      POSTGRES_DB=judge0
-      POSTGRES_USER=judge0
-      POSTGRES_PASSWORD=4CKnPySHkLKabKqfh2RXDWFxDssYHu9f
+x-backend-common: &backend-common
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
+  env_file:
+    - ./backend/.env
+  networks:
+    - portal-network
+  restart: unless-stopped
+  <<: *default-logging
 
 services:
-
   postgres-db:
     image: postgres:16-alpine
     container_name: portal-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: root123
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-root123}
       POSTGRES_DB: placement_portal
     ports:
       - "5432:5432"
@@ -75,10 +73,8 @@ services:
     image: postgres:16-alpine
     container_name: judge0-db
     restart: unless-stopped
-    environment:
-      POSTGRES_DB: judge0
-      POSTGRES_USER: judge0
-      POSTGRES_PASSWORD: 4CKnPySHkLKabKqfh2RXDWFxDssYHu9f
+    env_file:
+      - ./judge0/judge0.conf
     volumes:
       - judge0-data:/var/lib/postgresql/data
     networks:
@@ -91,13 +87,13 @@ services:
     image: redis:7-alpine
     container_name: judge0-redis
     restart: unless-stopped
-    environment:
-      REDIS_PASSWORD: 2rx2LZgGJfnqSjHAq7T5nEXwWat5cRuY
+    env_file:
+      - ./judge0/judge0.conf
     command:
       [
         "sh",
         "-c",
-        "docker-entrypoint.sh --appendonly no --requirepass \"$$REDIS_PASSWORD\""
+        'docker-entrypoint.sh --appendonly no --requirepass "$$REDIS_PASSWORD"',
       ]
     networks:
       judge0-internal:
@@ -106,18 +102,14 @@ services:
     <<: *default-logging
 
   judge0-server:
-    image: mrkushalsm/judge0:latest
+    image: judge0/judge0:1.13.1
     container_name: judge0-server
     restart: unless-stopped
     privileged: true
-    cgroup: host
-    ports:
-      - "2358:2358"
     volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup:rw
-    configs:
-      - source: judge0_conf
-        target: /judge0.conf
+      - ./judge0/judge0.conf:/judge0.conf:ro
+    ports:
+      - "127.0.0.1:2358:2358"
     depends_on:
       judge0-db:
         condition: service_started
@@ -129,17 +121,13 @@ services:
     <<: *default-logging
 
   judge0-workers:
-    image: mrkushalsm/judge0:latest
+    image: judge0/judge0:1.13.1
     container_name: judge0-workers
     restart: unless-stopped
     privileged: true
-    cgroup: host
     command: ["./scripts/workers"]
     volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup:rw
-    configs:
-      - source: judge0_conf
-        target: /judge0.conf
+      - ./judge0/judge0.conf:/judge0.conf:ro
     depends_on:
       judge0-db:
         condition: service_started
@@ -150,67 +138,21 @@ services:
     <<: *default-logging
 
   backend-api:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    image: munafmd9849/placement-portal-backend:1.0.4
+    <<: *backend-common
     container_name: portal-backend
-    restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      PORT: "3000"
       NODE_ENV: production
-      CORS_ORIGIN: http://localhost:5173
-      FRONTEND_URL: http://localhost:5173
-      SUPER_ADMIN_EMAIL: admin@pwioi.in
-      SUPER_ADMIN_PASSWORD: admin123
-      ADMIN_EMAIL: munafmd9849@gmail.com
-      ADMIN_PASSWORD: qwert123
-      STUDENT_EMAIL: munafmd7407@gmail.com
-      STUDENT_PASSWORD: qwert123
-      DATABASE_URL: postgresql://postgres:root123@postgres-db:5432/placement_portal
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-root123}@postgres-db:5432/placement_portal
       REDIS_URL: redis://redis-cache:6379
-      REDIS_HOST: redis-cache
-      REDIS_PORT: "6379"
       JUDGE0_ENABLED: "true"
       JUDGE0_PROVIDER: selfhosted
       JUDGE0_API_URL: http://judge0-server:2358
-      JWT_SECRET: dev_9fA3xKQpT2mW8ZrE6YJH5sD0C1BvN4L
-      JWT_REFRESH_SECRET: dev-refresh-secret-key-min-32-characters-long-change-in-production
-      JWT_EXPIRES_IN: 1h
-      JWT_REFRESH_EXPIRES_IN: 7d
-      EMAIL_HOST: smtp.gmail.com
-      EMAIL_PORT: "587"
-      EMAIL_SECURE: "false"
-      EMAIL_USER: charansai82140@gmail.com
-      EMAIL_PASS: "yswj utrj jdyt srkq"
-      EMAIL_FROM: "PWIOI Portal <charansai82140@gmail.com>"
-      AI_PROVIDER: google
-      AI_ENABLED: "true"
-      GOOGLE_AI_API_KEY: AIzaSyB8I8jymJfgcPDuOM2YNRs48tuAgU7TQPs
-      GOOGLE_AI_MODEL: gemini-2.5-flash
-      GOOGLE_AI_MAX_TOKENS: "2048"
-      GOOGLE_AI_TEMPERATURE: "0.7"
-      MISTRAL_API_KEY: PnMUBcJ0X3UY6tnoFmhlz26AAM3rqJur
-      MISTRAL_MODEL: mistral-large-latest
-      GOOGLE_CLIENT_ID: 620332349787-2r8h9nbimor0m9ef7ftjfnrnp6j0bpjt.apps.googleusercontent.com
-      GOOGLE_CLIENT_SECRET: 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
-      GOOGLE_REDIRECT_URI: http://localhost:3000/api/calendar/oauth/callback
-      GOOGLE_AUTH_REDIRECT_URI: http://localhost:3000/api/auth/google-login/callback
-      CLOUDINARY_CLOUD_NAME: ds4oikoaf
-      CLOUDINARY_API_KEY: "915818672416539"
-      CLOUDINARY_API_SECRET: V2c66DUmBOGVkxAl6wx-qYWwvFM
-      AWS_ACCESS_KEY_ID: ""
-      AWS_SECRET_ACCESS_KEY: ""
-      AWS_REGION: us-east-1
-      S3_BUCKET_NAME: ""
-    command: >
-      sh -c "
-      npx prisma db push --skip-generate &&
-      node seed-all.js &&
-      npm start
-      "
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      RUN_SCHEMA_SYNC: "true"
+      PRISMA_SCHEMA_SYNC: push
     depends_on:
       postgres-db:
         condition: service_healthy
@@ -219,26 +161,41 @@ services:
       judge0-server:
         condition: service_started
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
       interval: 10s
       timeout: 5s
       retries: 12
       start_period: 90s
-    networks:
-      - portal-network
-    <<: *default-logging
+
+  backend-worker:
+    <<: *backend-common
+    container_name: portal-worker
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-root123}@postgres-db:5432/placement_portal
+      REDIS_URL: redis://redis-cache:6379
+      RUN_SCHEMA_SYNC: "false"
+    command: ["npm", "run", "worker"]
+    depends_on:
+      backend-api:
+        condition: service_healthy
 
   frontend-app:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: http://localhost:3000/api
-        VITE_API_URL: http://localhost:3000/api
-        VITE_SOCKET_URL: http://localhost:3000
-        VITE_GOOGLE_CLIENT_ID: 620332349787-8elql0hf7t3c0mh6kom6md1pt9prdq3q.apps.googleusercontent.com
-        VITE_JITSI_DOMAIN: meet.jit.si
-    image: munafmd9849/placement-portal-frontend:1.0.4
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3000/api}
+        VITE_API_URL: ${VITE_API_BASE_URL:-http://localhost:3000/api}
+        VITE_SOCKET_URL: ${VITE_SOCKET_URL:-http://localhost:3000}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+        VITE_JITSI_DOMAIN: ${VITE_JITSI_DOMAIN:-meet.jit.si}
     container_name: portal-frontend
     restart: unless-stopped
     ports:
@@ -249,6 +206,20 @@ services:
     networks:
       - portal-network
     <<: *default-logging
+
+  db-seed:
+    <<: *backend-common
+    profiles: [seed]
+    container_name: portal-db-seed
+    restart: "no"
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-root123}@postgres-db:5432/placement_portal
+      RUN_SCHEMA_SYNC: "true"
+      PRISMA_SCHEMA_SYNC: push
+    command: ["node", "seed-all.js"]
+    depends_on:
+      postgres-db:
+        condition: service_healthy
 
 volumes:
   pgdata:

@@ -61,13 +61,24 @@ Copy [`backend/.env.production.example`](backend/.env.production.example) and se
 
 Email sends **from the backend** via Nodemailer (no separate email service folder needed on EC2).
 
-Run on deploy:
+Run on deploy (PM2):
 
 ```bash
-npx prisma migrate deploy   # or db push for first setup
+npx prisma db push          # first setup (no migrations folder yet)
 npm start                   # API
 npm run worker              # queues (separate process)
 ```
+
+Or with Docker on EC2:
+
+```bash
+cp backend/.env.production.example backend/.env   # fill Neon, Redis.io, secrets
+# edit judge0/judge0.conf — passwords + AUTHN_TOKEN
+docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml --profile seed run --rm db-seed   # optional
+```
+
+See [`docker-compose.prod.yml`](docker-compose.prod.yml) for the production layout (API + worker + Judge0; no local Postgres/Redis for the portal).
 
 ### Frontend env (Vercel)
 
@@ -77,16 +88,25 @@ VITE_SOCKET_URL=https://your-api-domain.com
 VITE_FRONTEND_URL=https://your-app.vercel.app
 ```
 
-## Docker (optional)
+## Docker
 
-Full stack with Postgres + Redis:
+| File | Use case |
+|------|----------|
+| [`docker-compose.prod.yml`](docker-compose.prod.yml) | **EC2 production** — API + worker + Judge0; Neon + Redis.io via `backend/.env` |
+| [`docker-compose.dev.yml`](docker-compose.dev.yml) | Local full stack (Postgres, Redis, frontend) |
+| [`docker-compose.infra.yml`](docker-compose.infra.yml) | Local infra only; run backend/frontend with `npm run dev` |
+
+Production (EC2):
 
 ```bash
-# Set POSTGRES_PASSWORD, DATABASE_URL, JWT secrets in .env
-docker compose up -d
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-See `docker-compose.yml` for service layout.
+Local full stack:
+
+```bash
+docker compose -f docker-compose.dev.yml up -d --build
+```
 
 ## Tech stack
 
@@ -104,3 +124,14 @@ See `docker-compose.yml` for service layout.
 | `frontend/.env.example` | Frontend (local + production build vars) |
 
 Never commit real `.env` files.
+
+## Self-hosted Judge0 (coding assessments)
+
+See [`judge0/README.md`](judge0/README.md) for production setup on EC2.
+
+Quick summary:
+
+1. Run `docker compose up -d` inside `judge0/`
+2. Set `AUTHN_TOKEN` in `judge0/judge0.conf`
+3. Set matching vars on the backend: `JUDGE0_ENABLED=true`, `JUDGE0_PROVIDER=selfhosted`, `JUDGE0_API_URL`, `JUDGE0_AUTH_TOKEN`
+4. Do not expose port `2358` publicly — backend only

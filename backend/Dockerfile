@@ -54,9 +54,13 @@ COPY --from=builder /app/seed-student-profile.js ./seed-student-profile.js
 COPY --from=builder /app/seed-admin-data.js ./seed-admin-data.js
 COPY --from=builder /app/credentials.js ./credentials.js
 COPY --from=builder /app/prisma.js ./prisma.js
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 3000
 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-# Executed in vector form to handle container OS shutdown signals properly
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["npm", "start"]

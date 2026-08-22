@@ -7,7 +7,6 @@
 import prisma from '../config/database.js';
 import { Prisma } from '@prisma/client';
 import jwt from 'jsonwebtoken';
-import { uploadToS3, deleteFromS3 } from '../config/s3.js';
 import { deleteFromCloudinary } from '../config/cloudinary.js';
 import { generateProjectContent } from '../services/aiService.js';
 import { createNotification } from './notifications.js';
@@ -1170,86 +1169,6 @@ export async function getAllStudents(req, res) {
         code: error.code,
         meta: error.meta,
       }),
-    });
-  }
-}
-
-/**
- * Upload resume - supports multiple resumes
- * Replaces: resumeStorage.uploadResume()
- */
-export async function uploadResume(req, res) {
-  try {
-    const userId = req.userId;
-    const file = req.file;
-
-    if (!file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-
-    // Get student record
-    const student = await prisma.student.findUnique({
-      where: { userId },
-    });
-
-    if (!student) {
-      return res.status(404).json({ error: 'Student not found' });
-    }
-
-    // Upload to S3
-    const key = `resumes/${userId}/${Date.now()}-${file.originalname}`;
-    let fileUrl;
-    try {
-      fileUrl = await uploadToS3(file.buffer, key, file.mimetype);
-    } catch (s3Error) {
-      console.error('S3 upload error:', s3Error);
-      // Check for common S3 errors
-      if (s3Error.name === 'CredentialsProviderError' || s3Error.message?.includes('credentials')) {
-        return res.status(500).json({
-          error: 'S3 configuration error: AWS credentials are missing or invalid. Please check server configuration.'
-        });
-      }
-      if (s3Error.name === 'NoSuchBucket' || s3Error.message?.includes('bucket')) {
-        return res.status(500).json({
-          error: 'S3 configuration error: Bucket not found. Please check S3_BUCKET_NAME configuration.'
-        });
-      }
-      return res.status(500).json({
-        error: `Failed to upload to storage: ${s3Error.message || 'Unknown error'}`
-      });
-    }
-
-    // Save to StudentResumeFile model (supports multiple resumes)
-    let resumeFile;
-    try {
-      resumeFile = await prisma.studentResumeFile.create({
-        data: {
-          studentId: student.id,
-          userId: userId,
-          fileUrl: fileUrl,
-          fileName: file.originalname,
-          fileSize: file.size,
-          uploadedAt: new Date(),
-        },
-      });
-    } catch (dbError) {
-      console.error('Database error:', dbError);
-      return res.status(500).json({
-        error: `Failed to save resume record: ${dbError.message || 'Database error'}`
-      });
-    }
-
-    res.json({
-      id: resumeFile.id,
-      url: fileUrl,
-      fileName: file.originalname,
-      fileSize: file.size,
-      uploadedAt: resumeFile.uploadedAt,
-    });
-  } catch (error) {
-    console.error('Upload resume error:', error);
-    res.status(500).json({
-      error: `Failed to upload resume: ${error.message || 'Unknown error'}`
     });
   }
 }

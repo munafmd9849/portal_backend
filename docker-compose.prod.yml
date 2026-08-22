@@ -1,0 +1,166 @@
+# =============================================================================
+# PWIOI Placement Portal — production (EC2)
+#
+# Architecture:
+#   - Frontend on Vercel (not in this compose file)
+#   - Backend API + BullMQ worker (built from ./backend)
+#   - PostgreSQL on Neon (DATABASE_URL in backend/.env)
+#   - Portal Redis on Redis.io (REDIS_URL in backend/.env)
+#   - Judge0 CE self-hosted (private — port 2358 NOT published)
+#
+# Prerequisites:
+#   1. Copy backend/.env.production.example → backend/.env and fill values
+#   2. Configure judge0/judge0.conf (passwords + AUTHN_TOKEN)
+#   3. Security group: open 3000 (API), NOT 2358
+#
+# Deploy:
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Optional first-time admin seed:
+#   docker compose -f docker-compose.prod.yml --profile seed run --rm db-seed
+# =============================================================================
+
+name: portal-production
+
+x-default-logging: &default-logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "100m"
+
+x-backend-common: &backend-common
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
+  env_file:
+    - ./backend/.env
+  environment:
+    NODE_ENV: production
+  networks:
+    - portal-prod
+  restart: unless-stopped
+  <<: *default-logging
+
+services:
+  backend-api:
+    <<: *backend-common
+    container_name: portal-api
+    ports:
+      - "${API_PORT:-3000}:3000"
+    environment:
+      RUN_SCHEMA_SYNC: ${RUN_SCHEMA_SYNC:-true}
+      PRISMA_SCHEMA_SYNC: ${PRISMA_SCHEMA_SYNC:-push}
+      # Override localhost — API talks to Judge0 on the Docker network
+      JUDGE0_ENABLED: ${JUDGE0_ENABLED:-true}
+      JUDGE0_PROVIDER: ${JUDGE0_PROVIDER:-selfhosted}
+      JUDGE0_API_URL: http://judge0-server:2358
+    depends_on:
+      judge0-server:
+        condition: service_started
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+
+  backend-worker:
+    <<: *backend-common
+    container_name: portal-worker
+    environment:
+      RUN_SCHEMA_SYNC: "false"
+    command: ["npm", "run", "worker"]
+    depends_on:
+      backend-api:
+        condition: service_healthy
+
+  judge0-server:
+    image: judge0/judge0:1.13.1
+    container_name: judge0-server
+    restart: unless-stopped
+    privileged: true
+    volumes:
+      - ./judge0/judge0.conf:/judge0.conf:ro
+    depends_on:
+      judge0-db:
+        condition: service_started
+      judge0-redis:
+        condition: service_started
+    networks:
+      - portal-prod
+      - judge0-internal
+    <<: *default-logging
+
+  judge0-workers:
+    image: judge0/judge0:1.13.1
+    container_name: judge0-workers
+    restart: unless-stopped
+    privileged: true
+    command: ["./scripts/workers"]
+    volumes:
+      - ./judge0/judge0.conf:/judge0.conf:ro
+    depends_on:
+      judge0-db:
+        condition: service_started
+      judge0-redis:
+        condition: service_started
+    networks:
+      - judge0-internal
+    <<: *default-logging
+
+  judge0-db:
+    image: postgres:16.2
+    container_name: judge0-db
+    restart: unless-stopped
+    env_file:
+      - ./judge0/judge0.conf
+    volumes:
+      - judge0-data:/var/lib/postgresql/data
+    networks:
+      judge0-internal:
+        aliases:
+          - db
+    <<: *default-logging
+
+  judge0-redis:
+    image: redis:7.2.4
+    container_name: judge0-redis
+    restart: unless-stopped
+    env_file:
+      - ./judge0/judge0.conf
+    command:
+      [
+        "bash",
+        "-c",
+        'docker-entrypoint.sh --appendonly no --requirepass "$$REDIS_PASSWORD"',
+      ]
+    networks:
+      judge0-internal:
+        aliases:
+          - redis
+    <<: *default-logging
+
+  db-seed:
+    <<: *backend-common
+    profiles: [seed]
+    container_name: portal-db-seed
+    restart: "no"
+    environment:
+      RUN_SCHEMA_SYNC: "true"
+      PRISMA_SCHEMA_SYNC: push
+    command: ["node", "prisma/seed-auth-users.js"]
+
+volumes:
+  judge0-data:
+
+networks:
+  portal-prod:
+    driver: bridge
+  judge0-internal:
+    driver: bridge

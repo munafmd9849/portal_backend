@@ -1,6 +1,6 @@
 /**
  * Resume Storage Service - PLACEHOLDER
- * TODO: Replace all functions with API calls to backend (S3 upload)
+ * TODO: Replace all functions with API calls to backend (Cloudinary upload)
  * This file previously used Firebase Storage
  */
 

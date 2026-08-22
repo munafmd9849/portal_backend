@@ -20,8 +20,9 @@ services:
     restart: always
     volumes:
       - ./judge0.conf:/judge0.conf:ro
+    # Local / PM2 backend: bind to localhost only (never expose publicly)
     ports:
-      - "2358:2358"
+      - "127.0.0.1:2358:2358"
     privileged: true
     depends_on:
       - db

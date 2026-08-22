@@ -51,8 +51,6 @@
     "test:google-ai": "node test-google-ai.js"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.490.0",
-    "@aws-sdk/s3-request-presigner": "^3.490.0",
     "@google/generative-ai": "^0.21.0",
     "@mistralai/mistralai": "^2.2.1",
     "@prisma/client": "^5.0.0",
@@ -71,7 +69,6 @@
     "jsonwebtoken": "^9.0.2",
     "mammoth": "^1.6.0",
     "multer": "^1.4.5-lts.1",
-    "multer-s3": "^3.0.1",
     "multer-storage-cloudinary": "^4.0.0",
     "nodemailer": "^6.9.7",
     "pdf-parse": "^1.1.1",
