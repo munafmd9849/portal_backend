@@ -15,7 +15,9 @@ import { logAction } from '../utils/auditLogger.js';
 import { getAdminScopeFilter } from '../utils/adminScope.js';
 import { isAdminViewer } from '../utils/adminAccess.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+import { getJwtSecret } from '../config/secrets.js';
+
+const JWT_SECRET = getJwtSecret();
 const isSqliteDb = () => (process.env.DATABASE_URL || '').toLowerCase().startsWith('file:');
 
 async function updateUserProfilePhoto(userId, profilePhotoValue) {
@@ -945,6 +947,16 @@ export async function getAllStudents(req, res) {
     
     // BUILD BASE SCOPE FILTER
     const adminScope = getAdminScopeFilter(req.user.admin, req.user.role);
+
+    if (adminScope.id === 'BLOCK_ALL') {
+      return res.json({
+        students: [],
+        total: 0,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: 0,
+      });
+    }
     
     // MERGE WITH REQUEST FILTERS
     if (school) where.school = { in: school.split(',').map(s => s.trim()) };
@@ -974,6 +986,12 @@ export async function getAllStudents(req, res) {
         where.batch.in = where.batch.in.filter(b => adminScope.batch.in.includes(b));
       } else {
         where.batch = adminScope.batch;
+      }
+    }
+
+    for (const dim of ['schoolId', 'centerId', 'batchId']) {
+      if (adminScope[dim]) {
+        where[dim] = adminScope[dim];
       }
     }
 

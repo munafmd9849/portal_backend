@@ -39,20 +39,13 @@ export function isFullAccessScope(admin) {
   const centerIds = safeParseScope(admin.allowedCenterIds);
   const batchIds = safeParseScope(admin.allowedBatchIds);
 
-  const legacyEmpty =
-    schools.length === 0 &&
-    centers.length === 0 &&
-    batches.length === 0 &&
-    schoolIds.length === 0 &&
-    centerIds.length === 0 &&
-    batchIds.length === 0;
-
   const explicitWildcard =
     schools.includes(SCOPE_WILDCARD) &&
     centers.includes(SCOPE_WILDCARD) &&
     batches.includes(SCOPE_WILDCARD);
 
-  return legacyEmpty || explicitWildcard;
+  // Empty scope is NOT full access — must use explicit wildcard (SEC-07).
+  return explicitWildcard;
 }
 
 export function buildFullAccessPayload() {
@@ -157,21 +150,44 @@ export function getAdminScopeFilter(admin, userRole) {
     return {};
   }
 
-  const filter = {};
   const schools = safeParseScope(admin.allowedSchools).filter((v) => v !== SCOPE_WILDCARD);
   const centers = safeParseScope(admin.allowedCenters).filter((v) => v !== SCOPE_WILDCARD);
   const batches = safeParseScope(admin.allowedBatches).filter((v) => v !== SCOPE_WILDCARD);
+  const schoolIds = safeParseScope(admin.allowedSchoolIds).filter((v) => v !== SCOPE_WILDCARD);
+  const centerIds = safeParseScope(admin.allowedCenterIds).filter((v) => v !== SCOPE_WILDCARD);
+  const batchIds = safeParseScope(admin.allowedBatchIds).filter((v) => v !== SCOPE_WILDCARD);
+
+  const hasAnyScope =
+    schools.length ||
+    centers.length ||
+    batches.length ||
+    schoolIds.length ||
+    centerIds.length ||
+    batchIds.length;
+
+  if (!hasAnyScope) {
+    return { id: 'BLOCK_ALL' };
+  }
+
+  const filter = {};
 
   if (!dimensionIsWildcard(safeParseScope(admin.allowedSchools)) && schools.length) {
     filter.school = { in: expandCaseVariants(schools) };
   }
-
   if (!dimensionIsWildcard(safeParseScope(admin.allowedCenters)) && centers.length) {
     filter.center = { in: expandCaseVariants(centers) };
   }
-
   if (!dimensionIsWildcard(safeParseScope(admin.allowedBatches)) && batches.length) {
     filter.batch = { in: expandCaseVariants(batches) };
+  }
+  if (schoolIds.length) {
+    filter.schoolId = { in: schoolIds };
+  }
+  if (centerIds.length) {
+    filter.centerId = { in: centerIds };
+  }
+  if (batchIds.length) {
+    filter.batchId = { in: batchIds };
   }
 
   return filter;
@@ -186,7 +202,7 @@ export function mergeScopeIntoStudentWhere(where = {}, adminScope = {}) {
   }
 
   const next = { ...where };
-  for (const dim of ['school', 'center', 'batch']) {
+  for (const dim of ['school', 'center', 'batch', 'schoolId', 'centerId', 'batchId']) {
     if (!adminScope?.[dim]?.in?.length) continue;
     const allowed = adminScope[dim].in;
     if (next[dim]?.in) {

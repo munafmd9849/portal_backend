@@ -11,6 +11,7 @@ import { generateContent as generateGoogleContent } from '../services/ai/google.
 import { getCachedResponse, setCachedResponse } from '../utils/placementCache.js';
 import { getFallbackGuidance } from '../utils/placementFallback.js';
 import { getDuckDuckGoFallback } from '../services/duckDuckGoFallback.js';
+import { authenticate, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -35,32 +36,62 @@ const placementLimiter = rateLimit({
 router.use('/ai', placementLimiter);
 
 /**
- * POST /api/placement/ai
- * Generate AI-powered placement guidance
- * 
- * Request Body:
- * {
- *   "topic": "string describing the placement topic"
- * }
- * 
- * Response:
- * {
- *   "guidance": "generated text here"
- * }
- * 
- * Error Response (400 - Misconfiguration):
- * {
- *   "message": "AI not configured"
- * }
- * 
- * Error Response (500 - Internal Error):
- * {
- *   "message": "Failed to generate guidance",
- *   "error": "<error details>"
- * }
+ * @openapi
+ * /api/placement/ai:
+ *   post:
+ *     tags: [Placement]
+ *     summary: Generate AI placement guidance
+ *     description: Returns AI-powered placement preparation guidance for a given topic. Rate-limited to 5 requests per 10 minutes per IP. Falls back to curated resources when AI is unavailable.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [topic]
+ *             properties:
+ *               topic:
+ *                 type: string
+ *                 minLength: 1
+ *                 maxLength: 1000
+ *                 description: Placement topic or interview preparation subject
+ *     responses:
+ *       200:
+ *         description: Placement guidance generated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 guidance:
+ *                   type: string
+ *                 success:
+ *                   type: boolean
+ *                 cached:
+ *                   type: boolean
+ *                 fallback:
+ *                   type: boolean
+ *                 source:
+ *                   type: string
+ *                 mode:
+ *                   type: string
+ *                 title:
+ *                   type: string
+ *                 sections:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                 note:
+ *                   type: string
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 router.post(
   '/ai',
+  authenticate,
+  authorize(['STUDENT']),
   [
     body('topic')
       .trim()

@@ -19,6 +19,32 @@ function nowMs() {
   return Date.now();
 }
 
+function isExamInputTarget(node) {
+  if (!node || node === document || node === window) return false;
+  const el = node.nodeType === 3 ? node.parentElement : node;
+  if (!el) return false;
+  if (el.isContentEditable) return true;
+  const tag = String(el.tagName || '').toUpperCase();
+  if (tag === 'TEXTAREA') return true;
+  if (tag === 'INPUT') {
+    const type = String(el.type || 'text').toLowerCase();
+    return !['button', 'submit', 'checkbox', 'radio', 'file', 'hidden', 'range', 'color'].includes(type);
+  }
+  if (typeof el.closest !== 'function') return false;
+  if (el.closest('[contenteditable="true"]')) return true;
+  return Boolean(
+    el.closest(
+      '.cm-editor, .cm-content, .monaco-editor, [data-coding-editor], [data-allow-exam-input]'
+    )
+  );
+}
+
+function isExamChromeTarget(node) {
+  const el = node?.nodeType === 3 ? node.parentElement : node;
+  if (!el || typeof el.closest !== 'function') return false;
+  return Boolean(el.closest('button, a, video, svg, canvas, [role="button"], label, input[type="button"], input[type="submit"]'));
+}
+
 function withTimeout(promise, ms) {
   return Promise.race([
     promise,
@@ -49,7 +75,6 @@ export class ProctoringEngine {
     logViolation,
     uploadScreenshot,
     onWarning,
-    onAutoSubmit,
     onViolation,
     onRiskChange,
     onStatus,
@@ -62,7 +87,6 @@ export class ProctoringEngine {
     this.logViolation = logViolation;
     this.uploadScreenshot = uploadScreenshot;
     this.onWarning = onWarning;
-    this.onAutoSubmit = onAutoSubmit;
     this.onViolation = onViolation;
     this.onRiskChange = onRiskChange;
     this.onStatus = onStatus;
@@ -90,8 +114,8 @@ export class ProctoringEngine {
     this._uploadQueue = Promise.resolve();
     this._noFaceSince = null;
     this._multiFaceSince = null;
+    this._lastFaceCount = null;
     this._violationCount = 0;
-    this._autoSubmitFired = false;
     this._faceDetectorInitPromise = null;
   }
 
@@ -125,9 +149,9 @@ export class ProctoringEngine {
       microphone: this.isMicActive(),
       online: typeof navigator.onLine === 'boolean' ? navigator.onLine : true,
       multiMonitor: screenCount != null ? screenCount > 1 : null,
+      face: this._lastFaceCount == null ? null : this._lastFaceCount > 0,
+      faceCount: this._lastFaceCount,
       violationCount: this._violationCount,
-      autoSubmitThreshold: this.cfg.autoSubmit?.threshold ?? 10,
-      autoSubmitEnabled: Boolean(this.cfg.autoSubmit?.enabled),
     };
   }
 
@@ -365,28 +389,46 @@ export class ProctoringEngine {
 
     const onCopy = (e) => {
       if (!this._running || !this.cfg.clipboardGuard) return;
+      if (isExamInputTarget(e.target) || isExamInputTarget(document.activeElement)) return;
       e.preventDefault();
       this.bumpViolation(ProctoringViolationType.COPY_ATTEMPT, 'Copy blocked during secure exam');
     };
     const onCut = (e) => {
       if (!this._running || !this.cfg.clipboardGuard) return;
+      if (isExamInputTarget(e.target) || isExamInputTarget(document.activeElement)) return;
       e.preventDefault();
       this.bumpViolation(ProctoringViolationType.CUT_ATTEMPT, 'Cut blocked during secure exam');
     };
     const onPaste = (e) => {
       if (!this._running || !this.cfg.clipboardGuard) return;
+      if (isExamInputTarget(e.target) || isExamInputTarget(document.activeElement)) return;
       e.preventDefault();
+      e.stopPropagation();
       this.bumpViolation(ProctoringViolationType.PASTE_ATTEMPT, 'Paste blocked during secure exam');
     };
     const onContext = (e) => {
       if (!this._running || !this.cfg.contextMenuGuard) return;
+      if (isExamInputTarget(e.target)) return;
       e.preventDefault();
       this.bumpViolation(ProctoringViolationType.RIGHT_CLICK, 'Right-click blocked during secure exam');
     };
-    const onSelectStart = () => {
+    const onSelectStart = (e) => {
       if (!this._running || !this.cfg.selectionGuard) return;
-      // Soft log — do not always prevent (coding editors need selection)
-      this.bumpViolation(ProctoringViolationType.TEXT_SELECTION, 'Text selection detected');
+      if (isExamInputTarget(e.target) || isExamChromeTarget(e.target)) return;
+      // Block selecting question text. Do not log — this fires on ordinary clicks.
+      e.preventDefault();
+    };
+    const onDragStart = (e) => {
+      if (!this._running || !this.cfg.clipboardGuard) return;
+      if (isExamInputTarget(e.target)) return;
+      e.preventDefault();
+      this.bumpViolation(ProctoringViolationType.COPY_ATTEMPT, 'Drag-copy blocked during secure exam');
+    };
+    const onDrop = (e) => {
+      if (!this._running || !this.cfg.clipboardGuard) return;
+      if (isExamInputTarget(e.target)) return;
+      e.preventDefault();
+      this.bumpViolation(ProctoringViolationType.PASTE_ATTEMPT, 'Drop-paste blocked during secure exam');
     };
 
     const onKeyDown = (e) => {
@@ -407,22 +449,26 @@ export class ProctoringEngine {
         return;
       }
       if (ctrl && key === 'c') {
+        if (isExamInputTarget(e.target) || isExamInputTarget(document.activeElement)) return;
         e.preventDefault();
         this.bumpViolation(ProctoringViolationType.COPY_ATTEMPT, 'Ctrl/Cmd+C blocked');
         return;
       }
       if (ctrl && key === 'v') {
+        if (isExamInputTarget(e.target) || isExamInputTarget(document.activeElement)) return;
         e.preventDefault();
         this.bumpViolation(ProctoringViolationType.PASTE_ATTEMPT, 'Ctrl/Cmd+V blocked');
         return;
       }
       if (ctrl && key === 'x') {
+        if (isExamInputTarget(e.target) || isExamInputTarget(document.activeElement)) return;
         e.preventDefault();
         this.bumpViolation(ProctoringViolationType.CUT_ATTEMPT, 'Ctrl/Cmd+X blocked');
         return;
       }
       if (ctrl && key === 'a') {
-        this.bumpViolation(ProctoringViolationType.SELECT_ALL, 'Ctrl/Cmd+A detected');
+        if (isExamInputTarget(e.target) || isExamInputTarget(document.activeElement)) return;
+        if (this.cfg.selectionGuard) e.preventDefault();
         return;
       }
       if (ctrl && key === 'u') {
@@ -514,9 +560,11 @@ export class ProctoringEngine {
     document.addEventListener('fullscreenchange', onFs);
     document.addEventListener('copy', onCopy);
     document.addEventListener('cut', onCut);
-    document.addEventListener('paste', onPaste);
+    document.addEventListener('paste', onPaste, true);
     document.addEventListener('contextmenu', onContext);
     document.addEventListener('selectstart', onSelectStart);
+    document.addEventListener('dragstart', onDragStart);
+    document.addEventListener('drop', onDrop);
     document.addEventListener('keydown', onKeyDown, true);
     window.addEventListener('resize', onResize);
     window.addEventListener('beforeunload', onBeforeUnload);
@@ -528,9 +576,11 @@ export class ProctoringEngine {
     this._listeners.push(['fullscreenchange', onFs, document]);
     this._listeners.push(['copy', onCopy, document]);
     this._listeners.push(['cut', onCut, document]);
-    this._listeners.push(['paste', onPaste, document]);
+    this._listeners.push(['paste', onPaste, document, true]);
     this._listeners.push(['contextmenu', onContext, document]);
     this._listeners.push(['selectstart', onSelectStart, document]);
+    this._listeners.push(['dragstart', onDragStart, document]);
+    this._listeners.push(['drop', onDrop, document]);
     this._listeners.push(['keydown', onKeyDown, document, true]);
     this._listeners.push(['resize', onResize, window]);
     this._listeners.push(['beforeunload', onBeforeUnload, window]);
@@ -561,8 +611,6 @@ export class ProctoringEngine {
 
   async bumpViolation(type, details, meta) {
     if (!this._running) return;
-    const sessionId = await this.getSessionId?.();
-    if (!sessionId) return;
     if (!this._canLogViolation(type)) return;
 
     this._lastViolationAt.set(type, nowMs());
@@ -571,43 +619,40 @@ export class ProctoringEngine {
     const severity = getViolationSeverity(type);
     const payloadMeta = { ...(meta && typeof meta === 'object' ? meta : {}), severity };
 
-    const threshold = this.cfg.autoSubmit?.threshold ?? 10;
-    const remaining = Math.max(0, threshold - (this._violationCount + 1));
-    if (this.cfg.softWarningBeforeCount) {
-      this.onWarning?.({
-        level: severity === 'CRITICAL' || severity === 'HIGH' ? 'error' : 'warn',
-        message: `${details || type}${remaining > 0 && this.cfg.autoSubmit?.enabled ? ` — ${remaining} warning(s) remaining` : ''}`,
-      });
+    this._violationCount += 1;
+
+    // Warn immediately — do not wait on the network or a missing session id.
+    if (severity !== 'LOW') {
+      try {
+        if (this.cfg.softWarningBeforeCount) {
+          this.onWarning?.({
+            level: severity === 'CRITICAL' || severity === 'HIGH' ? 'error' : 'warn',
+            message: details || type,
+          });
+        }
+        this.onViolation?.({
+          type,
+          details,
+          meta: payloadMeta,
+          severity,
+          count: this._violationCount,
+          at: new Date().toISOString(),
+        });
+      } catch {
+        // ignore
+      }
     }
 
     try {
-      await this.logViolation?.(type, details, payloadMeta);
+      const sessionId = await this.getSessionId?.();
+      if (sessionId) {
+        await this.logViolation?.(type, details, payloadMeta);
+      }
     } catch (e) {
       this._emitError(e);
     }
 
-    this._violationCount += 1;
-    try {
-      this.onViolation?.({
-        type,
-        details,
-        meta: payloadMeta,
-        severity,
-        count: this._violationCount,
-        at: new Date().toISOString(),
-      });
-    } catch {
-      // ignore
-    }
-
-    if (
-      this.cfg.autoSubmit?.enabled &&
-      !this._autoSubmitFired &&
-      this._violationCount >= threshold
-    ) {
-      this._autoSubmitFired = true;
-      this.onAutoSubmit?.({ reason: 'Violation threshold exceeded', count: this._violationCount, threshold });
-    }
+    // Auto-submit on violation threshold removed — exams pause (opt-in) or warn only.
 
     if (EVENT_SCREENSHOT_VIOLATIONS.has(type)) {
       this._queueEventScreenshot(type);
@@ -810,10 +855,11 @@ export class ProctoringEngine {
         if (!video) return;
         const faces = await this._faceDetector.detect(video, nowMs());
         const count = Array.isArray(faces) ? faces.length : 0;
+        this._lastFaceCount = count;
 
         if (count === 0) {
           const since = this._noFaceSince || (this._noFaceSince = nowMs());
-          if (nowMs() - since >= (this.cfg.noFaceGraceMs || 6500)) {
+          if (nowMs() - since >= (this.cfg.noFaceGraceMs || 5000)) {
             this.bumpViolation(ProctoringViolationType.NO_FACE_DETECTED, 'No face detected');
             this._noFaceSince = null;
           }
@@ -837,7 +883,7 @@ export class ProctoringEngine {
         this._emitError(e);
       } finally {
         if (this._running) {
-          this._faceLoopTimer = setTimeout(tick, this.cfg.faceCheckIntervalMs || 2500);
+          this._faceLoopTimer = setTimeout(tick, this.cfg.faceCheckIntervalMs || 1000);
         }
       }
     };

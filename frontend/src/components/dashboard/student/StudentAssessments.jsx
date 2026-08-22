@@ -165,19 +165,23 @@ export default function StudentAssessments() {
           <div className="space-y-2.5">
             {assessments.map((item) => {
               const session = item.sessions?.[0];
-              const isCompleted = session?.status === 'COMPLETED';
+              const sessionStatus = session?.status;
+              const isCompleted = ['COMPLETED', 'PENDING_REVIEW', 'AUTO_SUBMITTED', 'TERMINATED'].includes(
+                sessionStatus
+              );
+              const isInProgress = sessionStatus === 'IN_PROGRESS';
               const assignment =
                 item.assignments?.find((a) => a.scheduledAt) ||
                 item.assignments?.find((a) => a.studentId) ||
                 item.assignments?.[0];
               const scheduledAt = assignment?.scheduledAt;
-              const status = statusMeta(session?.status);
+              const status = statusMeta(isInProgress ? 'IN_PROGRESS' : isCompleted ? 'COMPLETED' : sessionStatus);
               const entry = getAssessmentEntryStatus(item);
               const canJoin =
                 !isCompleted &&
-                (entry.status === 'ALLOWED' || entry.status === 'UNSCHEDULED');
-              const isEarly = entry.status === 'TOO_EARLY';
-              const isLate = entry.status === 'TOO_LATE';
+                (isInProgress || entry.status === 'ALLOWED' || entry.status === 'UNSCHEDULED');
+              const isEarly = !isInProgress && entry.status === 'TOO_EARLY';
+              const isLate = !isInProgress && entry.status === 'TOO_LATE';
               const when =
                 item.startTime
                   ? formatAssessmentWindow(item.startTime)
@@ -254,7 +258,11 @@ export default function StudentAssessments() {
                           ) : (
                             <>
                               <PlayCircle className="w-4 h-4" strokeWidth={1.75} />
-                              {item.type?.includes('INTERVIEW') ? 'Join' : 'Start'}
+                              {isInProgress
+                                ? 'Continue'
+                                : item.type?.includes('INTERVIEW')
+                                  ? 'Join'
+                                  : 'Start'}
                             </>
                           )}
                         </button>

@@ -1,6 +1,10 @@
 import prisma from '../config/database.js';
 import { findStudentsForBatchIds } from './studentAssignmentScope.js';
 
+// Prisma "mode: insensitive" is PostgreSQL-only — omit on SQLite.
+const isSqliteDb = () => (process.env.DATABASE_URL || '').toLowerCase().startsWith('file:');
+const inCI = (values) => (isSqliteDb() ? { in: values } : { in: values, mode: 'insensitive' });
+
 function parseJsonArray(val) {
   if (!val) return [];
   if (Array.isArray(val)) return val;
@@ -40,10 +44,10 @@ export async function resolveAiInterviewStudentIds({
   if (branchList.length || centerList.length || schoolList.length) {
     const or = [];
     if (branchList.length) {
-      or.push({ branch: { in: branchList, mode: 'insensitive' } });
+      or.push({ branch: inCI(branchList) });
     }
     if (centerList.length) {
-      or.push({ center: { in: centerList, mode: 'insensitive' } });
+      or.push({ center: inCI(centerList) });
     }
     if (schoolList.length) {
       or.push({ schoolId: { in: schoolList } });

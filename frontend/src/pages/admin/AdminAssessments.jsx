@@ -7,11 +7,12 @@ import {
   FileText, Camera,
   Video, Shield, Maximize2, Mic,
   Layout, BookOpen, Terminal, ChevronRight,
-  Activity, Calendar, Layers
+  Activity, Calendar, Layers, Link2
 } from 'lucide-react';
 import api from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
 import AssessmentSettingsModal from '../../components/dashboard/admin/AssessmentSettingsModal';
+import AssessmentInviteModal from '../../components/assessment/AssessmentInviteModal';
 import { fromDatetimeLocalValue } from '../../utils/assessmentEntryWindow';
 import { SkeletonTable } from '../../components/ui/loading';
 import CodingQuestionEditor from '../../components/admin/CodingQuestionEditor';
@@ -60,7 +61,17 @@ const INITIAL_FORM = {
   targetCenterIds: [],
   scheduledAtMap: {},
   config: {
-    proctoring: { webcam: true, mic: true, tabSwitch: true, fullscreen: true, snapshotInterval: 60 },
+    proctoring: {
+      webcam: true,
+      mic: true,
+      tabSwitch: true,
+      fullscreen: true,
+      pauseOnTabSwitch: false,
+      tabSwitchGraceCount: 2,
+      snapshotInterval: 60,
+    },
+    shuffleQuestions: false,
+    shuffleOptions: false,
     joinWindow: { opensMinutesBeforeStart: 10, closesMinutesAfterStart: 10 },
     coding: { allowedLanguages: [...ALL_CODING_LANGUAGE_IDS] },
   },
@@ -150,6 +161,7 @@ export default function AdminAssessments() {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [settingsAssessment, setSettingsAssessment] = useState(null);
+  const [inviteAssessment, setInviteAssessment] = useState(null);
   const [step, setStep] = useState(1);
   const [batches, setBatches] = useState([]);
   const [schools, setSchools] = useState([]);
@@ -655,6 +667,13 @@ export default function AdminAssessments() {
                                   </button>
                                   <button
                                     type="button"
+                                    onClick={() => setInviteAssessment(item)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-indigo-200 text-indigo-700 hover:bg-indigo-50 text-xs font-medium rounded-md"
+                                  >
+                                    <Link2 className="w-3.5 h-3.5" /> Invite
+                                  </button>
+                                  <button
+                                    type="button"
                                     onClick={() =>
                                       navigate(
                                         `${basePath}?tab=assessmentResults&assessmentId=${item.id}`,
@@ -985,6 +1004,35 @@ export default function AdminAssessments() {
               {step === 3 && (
                 <div className="max-w-4xl mx-auto space-y-5">
                   <WizardSection
+                    title="Question bank delivery"
+                    description="Randomize order per student so shared papers are harder to coordinate."
+                  >
+                    <ToggleList>
+                      {[
+                        { key: 'shuffleQuestions', label: 'Shuffle questions', desc: 'Each student gets questions in a different order (locked for resume)' },
+                        { key: 'shuffleOptions', label: 'Shuffle MCQ options', desc: 'Each student sees answer choices in a different order' },
+                      ].map((feature) => (
+                        <ToggleRow
+                          key={feature.key}
+                          icon={Layers}
+                          label={feature.label}
+                          description={feature.desc}
+                          enabled={Boolean(formData.config[feature.key])}
+                          onToggle={() =>
+                            setFormData({
+                              ...formData,
+                              config: {
+                                ...formData.config,
+                                [feature.key]: !formData.config[feature.key],
+                              },
+                            })
+                          }
+                        />
+                      ))}
+                    </ToggleList>
+                  </WizardSection>
+
+                  <WizardSection
                     title="Proctoring & security"
                     description="Choose what to monitor while students take this assessment."
                   >
@@ -993,6 +1041,7 @@ export default function AdminAssessments() {
                         { key: 'webcam', label: 'Webcam snapshots', icon: Camera, desc: 'Capture periodic images during the session' },
                         { key: 'mic', label: 'Microphone monitoring', icon: Mic, desc: 'Flag speech or sustained background noise' },
                         { key: 'tabSwitch', label: 'Tab switching', icon: Layers, desc: 'Log when the candidate leaves the assessment tab' },
+                        { key: 'pauseOnTabSwitch', label: 'Pause on tab switch', icon: Maximize2, desc: 'After 2 warnings, lock the exam until an admin allows continue (timer freezes)' },
                         { key: 'fullscreen', label: 'Require fullscreen', icon: Maximize2, desc: 'Keep the assessment in fullscreen mode' },
                       ].map((feature) => (
                         <ToggleRow
@@ -1084,6 +1133,15 @@ export default function AdminAssessments() {
           onClose={() => setSettingsAssessment(null)}
         />
       )}
+      {inviteAssessment && (
+        <AssessmentInviteModal
+          open
+          assessmentId={inviteAssessment.id}
+          assessmentTitle={inviteAssessment.title}
+          onClose={() => setInviteAssessment(null)}
+        />
+      )}
+
     </>
   );
 }

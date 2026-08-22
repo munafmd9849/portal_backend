@@ -1,5 +1,11 @@
 import prisma from '../config/database.js';
 
+// Prisma "mode: insensitive" is PostgreSQL-only — omit on SQLite.
+const isSqliteDb = () => (process.env.DATABASE_URL || '').toLowerCase().startsWith('file:');
+const eqCI = (value) => (isSqliteDb() ? { equals: value } : { equals: value, mode: 'insensitive' });
+const containsCI = (value) => (isSqliteDb() ? { contains: value } : { contains: value, mode: 'insensitive' });
+const inCI = (values) => (isSqliteDb() ? { in: values } : { in: values, mode: 'insensitive' });
+
 /**
  * Resolve batch/school IDs for a student so batch- and school-level
  * AssessmentAssignment rows match even when only string fields are set.
@@ -16,8 +22,8 @@ export async function resolveStudentAssignmentScope(student) {
     const batches = await prisma.batch.findMany({
       where: {
         OR: [
-          { year: { equals: batchLabel, mode: 'insensitive' } },
-          { label: { equals: batchLabel, mode: 'insensitive' } },
+          { year: eqCI(batchLabel) },
+          { label: eqCI(batchLabel) },
         ],
       },
       select: { id: true },
@@ -30,9 +36,9 @@ export async function resolveStudentAssignmentScope(student) {
     const schools = await prisma.school.findMany({
       where: {
         OR: [
-          { name: { equals: schoolLabel, mode: 'insensitive' } },
-          { code: { equals: schoolLabel, mode: 'insensitive' } },
-          { name: { contains: schoolLabel, mode: 'insensitive' } },
+          { name: eqCI(schoolLabel) },
+          { code: eqCI(schoolLabel) },
+          { name: containsCI(schoolLabel) },
         ],
       },
       select: { id: true },
@@ -72,9 +78,7 @@ export async function findStudentsForBatchIds(targetBatchIds = []) {
     where: {
       OR: [
         { batchId: { in: targetBatchIds } },
-        ...(batchLabels.length
-          ? [{ batch: { in: batchLabels, mode: 'insensitive' } }]
-          : []),
+        ...(batchLabels.length ? [{ batch: inCI(batchLabels) }] : []),
       ],
     },
     include: { user: { select: { email: true } } },

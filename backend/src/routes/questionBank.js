@@ -25,10 +25,74 @@ const generateLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/**
+ * @openapi
+ * /api/placement/question-bank/meta:
+ *   get:
+ *     tags: [Question Bank]
+ *     summary: Get question bank metadata
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Metadata (categories, companies, difficulties)
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 router.get('/meta', (_req, res) => {
   res.json(getQuestionBankMeta());
 });
 
+/**
+ * @openapi
+ * /api/placement/question-bank:
+ *   get:
+ *     tags: [Question Bank]
+ *     summary: List question bank questions
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: company
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: difficulty
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [all, attempted, unattempted]
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: attemptedIds
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Filtered question list
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 router.get(
   '/',
   [
@@ -49,6 +113,39 @@ router.get(
   },
 );
 
+/**
+ * @openapi
+ * /api/placement/question-bank/generate:
+ *   post:
+ *     tags: [Question Bank]
+ *     summary: Generate personalized questions from resume and job description
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               jobId: { type: string }
+ *               jobTitle: { type: string }
+ *               company: { type: string }
+ *               companyName: { type: string }
+ *               jobDescription: { type: string }
+ *     responses:
+ *       200:
+ *         description: Generated questions
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       429:
+ *         description: Rate limit exceeded
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 router.post(
   '/generate',
   generateLimiter,

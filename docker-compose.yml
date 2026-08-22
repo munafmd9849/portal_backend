@@ -1,0 +1,491 @@
+name: portal-main
+
+# ============================================================
+# COMMON LOGGING
+# ============================================================
+
+x-default-logging: &default-logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "100m"
+
+
+# ============================================================
+# SERVICES
+# ============================================================
+
+services:
+
+  # ==========================================================
+  # PLACEMENT PORTAL - POSTGRESQL
+  # ==========================================================
+
+  postgres-db:
+    image: postgres:16-alpine
+    container_name: portal-postgres
+    restart: always
+
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in environment or .env}
+      POSTGRES_DB: placement_portal
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d placement_portal"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    networks:
+      - portal-network
+
+    <<: *default-logging
+
+
+  # ==========================================================
+  # PLACEMENT PORTAL - REDIS
+  # ==========================================================
+
+  redis-cache:
+    image: redis:7-alpine
+    container_name: portal-redis
+    restart: always
+
+    volumes:
+      - redisdata:/data
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "redis-cli",
+          "ping"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    networks:
+      - portal-network
+
+    <<: *default-logging
+
+
+  # ==========================================================
+  # PLACEMENT PORTAL - BACKEND
+  # ==========================================================
+
+  backend-api:
+    image: munafmd9849/placement-portal-backend:1.0.0
+    platform: linux/amd64
+    pull_policy: always
+
+    container_name: portal-backend
+    restart: always
+
+    ports:
+      - "3000:3000"
+
+    environment:
+
+      # --------------------------------------------------------
+      # Application
+      # --------------------------------------------------------
+
+      PORT: "3000"
+      NODE_ENV: production
+
+      CORS_ORIGIN: "http://localhost:5173"
+      FRONTEND_URL: "http://localhost:5173"
+
+
+      # --------------------------------------------------------
+      # Authentication Users
+      # --------------------------------------------------------
+
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-admin@localhost.dev}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-changeme}
+
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@localhost.dev}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-changeme}
+
+      STUDENT_EMAIL: ${STUDENT_EMAIL:-student@localhost.dev}
+      STUDENT_PASSWORD: ${STUDENT_PASSWORD:-changeme}
+
+
+      # --------------------------------------------------------
+      # PostgreSQL
+      # --------------------------------------------------------
+
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in environment or .env}
+
+
+      # --------------------------------------------------------
+      # Redis
+      # --------------------------------------------------------
+
+      REDIS_URL: "redis://redis-cache:6379"
+      REDIS_HOST: "redis-cache"
+      REDIS_PORT: "6379"
+
+
+      # --------------------------------------------------------
+      # Judge0 (portal code reads JUDGE0_API_URL + JUDGE0_ENABLED)
+      # --------------------------------------------------------
+
+      JUDGE0_ENABLED: "true"
+      JUDGE0_PROVIDER: "selfhosted"
+      JUDGE0_API_URL: "http://judge0-server:2358"
+      JUDGE0_URL: "http://judge0-server:2358"
+
+
+      # --------------------------------------------------------
+      # JWT
+      # --------------------------------------------------------
+
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in environment or .env}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in environment or .env}
+
+      JWT_EXPIRES_IN: "1h"
+      JWT_REFRESH_EXPIRES_IN: "7d"
+
+
+      # --------------------------------------------------------
+      # Email / Gmail
+      # --------------------------------------------------------
+
+      EMAIL_HOST: "smtp.gmail.com"
+      EMAIL_PORT: "587"
+      EMAIL_SECURE: "false"
+      EMAIL_USER: ${EMAIL_USER:-}
+      EMAIL_PASS: ${EMAIL_PASS:-}
+      EMAIL_FROM: ${EMAIL_FROM:-PWIOI Portal <noreply@localhost.dev>}
+
+
+      # --------------------------------------------------------
+      # Google AI / Gemini
+      # --------------------------------------------------------
+
+      AI_PROVIDER: "google"
+      AI_ENABLED: "true"
+
+      GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY:-}
+      GOOGLE_AI_MODEL: "gemini-2.5-flash"
+      GOOGLE_AI_MAX_TOKENS: "2048"
+      GOOGLE_AI_TEMPERATURE: "0.7"
+
+
+      # --------------------------------------------------------
+      # Mistral AI
+      # --------------------------------------------------------
+
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      MISTRAL_MODEL: "mistral-large-latest"
+
+
+      # --------------------------------------------------------
+      # Google OAuth
+      # --------------------------------------------------------
+
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+
+      GOOGLE_REDIRECT_URI: "http://localhost:3000/api/calendar/oauth/callback"
+
+      GOOGLE_AUTH_REDIRECT_URI: "http://localhost:3000/api/auth/google-login/callback"
+
+
+      # --------------------------------------------------------
+      # Cloudinary
+      # --------------------------------------------------------
+
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+
+
+      # --------------------------------------------------------
+      # AWS
+      # --------------------------------------------------------
+
+      AWS_ACCESS_KEY_ID: ""
+
+      AWS_SECRET_ACCESS_KEY: ""
+
+      AWS_REGION: "us-east-1"
+
+      S3_BUCKET_NAME: ""
+
+    volumes:
+      # Local rich seed scripts (users, student profile, jobs, assessments, interviews)
+      - ./backend/data:/app/data:ro
+
+    command: >
+      sh -c "
+      npx prisma db push --skip-generate &&
+      node seed-all.js &&
+      npm start
+      "
+
+    depends_on:
+
+      postgres-db:
+        condition: service_healthy
+
+      redis-cache:
+        condition: service_healthy
+
+      judge0-server:
+        condition: service_started
+
+    networks:
+      - portal-network
+
+    <<: *default-logging
+
+
+  # ==========================================================
+  # PLACEMENT PORTAL - FRONTEND
+  # ==========================================================
+
+  frontend-app:
+    image: munafmd9849/placement-portal-frontend:1.0.2
+    platform: linux/amd64
+    pull_policy: always
+
+    container_name: portal-frontend
+    restart: always
+
+    ports:
+      - "5173:80"
+
+    depends_on:
+
+      backend-api:
+        condition: service_started
+
+    networks:
+      - portal-network
+
+    <<: *default-logging
+
+
+  # ==========================================================
+  # JUDGE0 - SERVER
+  # ==========================================================
+
+  judge0-server:
+    image: judge0/judge0:1.13.1
+    platform: linux/amd64
+
+    container_name: judge0-server
+
+    restart: always
+
+    volumes:
+      - ./judge0/judge0.conf:/judge0.conf:ro
+
+    ports:
+      - "2358:2358"
+
+    privileged: true
+
+    depends_on:
+
+      judge0-db:
+        condition: service_started
+
+      judge0-redis:
+        condition: service_started
+
+    networks:
+      portal-network:
+
+      judge0-internal:
+
+    <<: *default-logging
+
+
+  # ==========================================================
+  # JUDGE0 - WORKERS
+  # ==========================================================
+
+  judge0-workers:
+    image: judge0/judge0:1.13.1
+    platform: linux/amd64
+
+    container_name: judge0-workers
+
+    restart: always
+
+    command:
+      - "./scripts/workers"
+
+    volumes:
+      - ./judge0/judge0.conf:/judge0.conf:ro
+
+    privileged: true
+
+    depends_on:
+
+      judge0-db:
+        condition: service_started
+
+      judge0-redis:
+        condition: service_started
+
+    networks:
+      - judge0-internal
+
+    <<: *default-logging
+
+
+  # ==========================================================
+  # JUDGE0 - POSTGRESQL
+  # ==========================================================
+
+  judge0-db:
+    image: postgres:16.2
+
+    container_name: judge0-db
+
+    restart: always
+
+    env_file:
+      - ./judge0/judge0.conf
+
+    volumes:
+      - judge0-data:/var/lib/postgresql/data
+
+    networks:
+
+      judge0-internal:
+        aliases:
+          - db
+
+    <<: *default-logging
+
+
+  # ==========================================================
+  # JUDGE0 - REDIS
+  # ==========================================================
+
+  judge0-redis:
+    image: redis:7.2.4
+
+    container_name: judge0-redis
+
+    restart: always
+
+    command:
+      [
+        "bash",
+        "-c",
+        "docker-entrypoint.sh --appendonly no --requirepass \"$$REDIS_PASSWORD\""
+      ]
+
+    env_file:
+      - ./judge0/judge0.conf
+
+    networks:
+
+      judge0-internal:
+        aliases:
+          - redis
+
+    <<: *default-logging
+
+
+  # ==========================================================
+  # OPTIONAL FULL SEED (same scripts as backend startup)
+  #
+  # docker compose --profile seed run --rm seed
+  # ==========================================================
+
+  seed:
+    image: munafmd9849/placement-portal-backend:1.0.0
+    platform: linux/amd64
+
+    container_name: portal-seed
+
+    profiles:
+      - seed
+
+    restart: "no"
+
+    environment:
+
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in environment or .env}
+
+    volumes:
+      - ./backend/data:/app/data:ro
+
+    depends_on:
+
+      postgres-db:
+        condition: service_healthy
+
+    networks:
+      - portal-network
+
+    command:
+      - "node"
+      - "data/seed-all.js"
+
+
+# ============================================================
+# VOLUMES
+# ============================================================
+
+volumes:
+
+  # Placement Portal PostgreSQL
+  pgdata:
+
+  # Placement Portal Redis
+  redisdata:
+
+  # Judge0 PostgreSQL
+  judge0-data:
+
+
+# ============================================================
+# NETWORKS
+# ============================================================
+
+networks:
+
+  # Shared network between:
+  #
+  # frontend
+  # backend
+  # portal postgres
+  # portal redis
+  # judge0 server
+  #
+  portal-network:
+    driver: bridge
+
+  # Private Judge0 network:
+  #
+  # judge0-server
+  # judge0-workers
+  # judge0-db
+  # judge0-redis
+  #
+  judge0-internal:
+    driver: bridge

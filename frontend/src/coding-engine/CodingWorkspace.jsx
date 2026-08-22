@@ -130,7 +130,7 @@ export default function CodingWorkspace({
   };
 
   return (
-    <div className={`flex flex-col h-full min-h-0 bg-[#0d1117] ${className}`}>
+    <div data-coding-editor className={`flex flex-col h-full min-h-0 bg-[#0d1117] ${className}`}>
       {showProblemHeader && (questionTitle || questionDescription) && (
         <div className="px-4 py-3 border-b border-white/10 bg-[#161b22] shrink-0">
           {questionTitle ? <p className="text-xs font-bold text-white">{questionTitle}</p> : null}

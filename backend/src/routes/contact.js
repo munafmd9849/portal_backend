@@ -21,8 +21,51 @@ const handleValidation = (req, res, next) => {
 };
 
 /**
- * POST /api/contact
- * Submit contact form (public endpoint)
+ * @openapi
+ * /api/contact:
+ *   post:
+ *     tags: [Contact]
+ *     summary: Submit contact form
+ *     description: Public endpoint for recruiter or company inquiries. Creates notifications for active admins.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [companyName, contactNumber, email, message]
+ *             properties:
+ *               companyName:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 100
+ *               contactNumber:
+ *                 type: string
+ *                 minLength: 10
+ *                 maxLength: 20
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               message:
+ *                 type: string
+ *                 minLength: 10
+ *                 maxLength: 1000
+ *     responses:
+ *       200:
+ *         description: Contact form submitted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 router.post(
   '/',
@@ -58,4 +101,3 @@ router.post(
 );
 
 export default router;
-

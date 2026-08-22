@@ -4,15 +4,7 @@
  * Supports SQLite (local dev) and PostgreSQL (production)
  */
 
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import dotenv from 'dotenv';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-dotenv.config({ path: join(__dirname, '../../.env'), override: true });
-
+import './loadEnv.js';
 import { PrismaClient } from '@prisma/client';
 
 function getOptimizedDatabaseUrl() {
@@ -85,6 +77,32 @@ process.on('SIGTERM', async () => {
   await prisma.$disconnect();
   process.exit(0);
 });
+
+export function isRetryableDatabaseError(error) {
+  const combinedText = `${error?.message || ''} ${error?.code || ''}`.toLowerCase();
+
+  if (!combinedText) {
+    return false;
+  }
+
+  return [
+    'p1001',
+    'p1017',
+    'p2024',
+    'econnreset',
+    'econnrefused',
+    'etimedout',
+    'socket hang up',
+    'timed out',
+    'server has closed the connection',
+    'connection terminated unexpectedly',
+    'connection pool',
+    "can't reach database",
+    'closed the connection',
+    'connection refused',
+    'temporary failure in name resolution',
+  ].some((token) => combinedText.includes(token));
+}
 
 export function handleDatabaseError(error) {
   if (error?.code === 'P2024') {

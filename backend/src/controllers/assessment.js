@@ -32,6 +32,29 @@ import {
   enrichSessionWithTimer,
   allowsPracticeTimerReset,
 } from '../utils/assessmentTimer.js';
+import {
+  parseSecureModeMeta,
+  serializeSecureModeMeta,
+  parseProctoringConfig,
+  buildPausedMeta,
+  buildUnlockedMeta,
+  pauseSnapshot,
+  isSessionPaused,
+} from '../utils/assessmentPauseLock.js';
+import { buildShufflePlan } from '../utils/assessmentShuffle.js';
+import {
+  sanitizeAssessmentForStudent,
+  studentIsAssignedToAssessment,
+  redactHiddenEvaluationResults,
+} from '../utils/assessmentStudentDto.js';
+import {
+  buildAssessmentListWhere,
+  adminCanAccessSessionById,
+  adminCanAccessAssessmentById,
+  adminCanAccessStudentById,
+  buildScopedStudentWhere,
+  isAdminScopeBlocked,
+} from '../utils/adminResourceScope.js';
 import multer from 'multer';
 import { uploadToCloudinary } from '../config/cloudinary.js';
 import { signedScreenshotUrl } from '../utils/proctoringScreenshots.js';
@@ -96,6 +119,15 @@ function emitProctoringLiveUpdate(assessmentId, payload) {
     .catch(() => {});
 }
 
+function emitStudentSessionControl(userId, payload) {
+  if (!userId) return;
+  import('../config/socket.js')
+    .then(({ getIO }) => {
+      getIO().to(`user:${userId}`).emit('assessment:session-control', payload);
+    })
+    .catch(() => {});
+}
+
 // --- ADMIN MODULES ---
 
 async function notifyAssessmentAssigned(assessment, { targetBatchIds = [], targetStudentIds = [] }) {
@@ -125,8 +157,10 @@ async function notifyAssessmentAssigned(assessment, { targetBatchIds = [], targe
         userId: s.userId,
         title: 'New Assessment Assigned',
         body: `You have been assigned a new ${type.replace('_', ' ').toLowerCase()}: ${title}`,
-        type: 'ASSESSMENT',
-        link: `/student?tab=assessments`,
+        data: JSON.stringify({
+          type: 'ASSESSMENT',
+          link: '/student?tab=assessments',
+        }),
       })),
     });
 
@@ -279,8 +313,14 @@ export async function createAssessment(req, res) {
 // Get All Assessments (Admin)
 export async function getAssessments(req, res) {
   try {
-    console.log('[DEBUG] Fetching all assessments...');
+    const role = req.user?.role;
+    const scopeWhere =
+      role === 'ADMIN'
+        ? await buildAssessmentListWhere(req.user.admin, role)
+        : {};
+
     const assessments = await prisma.assessment.findMany({
+      where: scopeWhere,
       include: {
         sessions: { select: { id: true, studentId: true, status: true, score: true } },
         questions: { select: { id: true } },
@@ -299,7 +339,6 @@ export async function getAssessments(req, res) {
       },
       orderBy: { createdAt: 'desc' },
     });
-    console.log(`[DEBUG] Found ${assessments.length} assessments`);
     res.json(assessments);
   } catch (error) {
     console.error('[ERROR] getAssessments failed:', error);
@@ -313,14 +352,41 @@ export async function getAssessmentDetails(req, res) {
     const { id } = req.params;
     const assessment = await prisma.assessment.findUnique({
       where: { id },
-      include: { questions: true }
+      include: { questions: { orderBy: { order: 'asc' } } },
     });
     if (!assessment) return res.status(404).json({ error: 'Assessment not found' });
+
     const role = req.user?.role;
     const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
-    if (!isAdmin && assessment.status === 'DRAFT') {
-      return res.status(403).json({ error: 'Assessment not available' });
+
+    if (!isAdmin) {
+      if (assessment.status === 'DRAFT') {
+        return res.status(403).json({ error: 'Assessment not available' });
+      }
+      const student = await prisma.student.findUnique({
+        where: { userId: req.userId || req.user.id },
+      });
+      if (!student) {
+        return res.status(404).json({ error: 'Student profile not found' });
+      }
+      const assigned = await studentIsAssignedToAssessment(student, id);
+      if (!assigned) {
+        return res.status(403).json({ error: 'Assessment not assigned to you' });
+      }
+      return res.json(sanitizeAssessmentForStudent(assessment));
     }
+
+    if (role === 'ADMIN') {
+      const scopeWhere = await buildAssessmentListWhere(req.user.admin, role);
+      const allowed = await prisma.assessment.findFirst({
+        where: { id, ...scopeWhere },
+        select: { id: true },
+      });
+      if (!allowed) {
+        return res.status(403).json({ error: 'Assessment not in your scope' });
+      }
+    }
+
     res.json(assessment);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch assessment details' });
@@ -499,34 +565,91 @@ export async function getStudentAssessments(req, res) {
 }
 
 async function markSessionAutoSubmitted(sessionId) {
-  await prisma.assessmentSession.update({
+  const session = await prisma.assessmentSession.findUnique({
     where: { id: sessionId },
+    include: { assessment: { include: { questions: true } } },
+  });
+  if (!session || session.status !== 'IN_PROGRESS') return;
+
+  const stored = parseStoredResponses(session.responses);
+  const answers = coerceAnswersPayload(stored.rawAnswers ?? stored);
+  const questions = session.assessment?.questions || [];
+  const { calculatedScore, hasDescriptive, executionLogs } = await evaluateSubmittedAnswers(
+    questions,
+    answers,
+    { skipCoding: true }
+  );
+  const maxPoints = totalQuestionPoints(questions);
+  const scorePercent = pointsToPercent(calculatedScore, questions);
+
+  await prisma.assessmentSession.updateMany({
+    where: { id: sessionId, status: 'IN_PROGRESS' },
     data: {
-      status: 'COMPLETED',
+      status: hasDescriptive ? 'PENDING_REVIEW' : 'COMPLETED',
       endTime: new Date(),
+      score: scorePercent,
+      responses: JSON.stringify({
+        rawAnswers: answers,
+        executionLogs,
+        pointsEarned: calculatedScore,
+        maxPoints,
+        autoSubmitted: true,
+      }),
     },
   });
 }
 
-async function respondWithExistingSession(session, assessment, res) {
+async function respondWithExistingSession(session, assessment, res, { clientDeviceId, forceDeviceTakeover } = {}) {
   if (session.status !== 'IN_PROGRESS') {
-    return res.status(403).json({ error: 'Assessment already completed' });
+    return res.status(403).json({
+      error: 'Assessment already completed',
+      status: session.status,
+      sessionId: session.id,
+    });
   }
 
-  const payload = enrichSessionWithTimer(session, assessment.duration);
+  const meta = parseSecureModeMeta(session.secureModeMeta);
+  if (
+    clientDeviceId &&
+    meta.clientDeviceId &&
+    meta.clientDeviceId !== clientDeviceId &&
+    !forceDeviceTakeover
+  ) {
+    return res.status(409).json({
+      error: 'This attempt is active on another device/browser',
+      code: 'DEVICE_CONFLICT',
+      sessionId: session.id,
+    });
+  }
+
+  let working = session;
+  if (clientDeviceId && (forceDeviceTakeover || !meta.clientDeviceId || meta.clientDeviceId !== clientDeviceId)) {
+    working = await prisma.assessmentSession.update({
+      where: { id: session.id },
+      data: {
+        secureModeMeta: serializeSecureModeMeta({
+          ...meta,
+          clientDeviceId: String(clientDeviceId).slice(0, 128),
+          deviceClaimedAt: new Date().toISOString(),
+        }),
+      },
+    });
+  }
+
+  const payload = enrichSessionWithTimer(working, assessment.duration);
   if (!payload.timeExpired) {
     return res.json(payload);
   }
 
   if (allowsPracticeTimerReset(assessment)) {
     const reset = await prisma.assessmentSession.update({
-      where: { id: session.id },
+      where: { id: working.id },
       data: { startTime: new Date() },
     });
     return res.json(enrichSessionWithTimer(reset, assessment.duration));
   }
 
-  await markSessionAutoSubmitted(session.id);
+  await markSessionAutoSubmitted(working.id);
   return res.status(403).json({
     error: 'Assessment time has expired',
     code: 'TIME_EXPIRED',
@@ -539,6 +662,9 @@ async function respondWithExistingSession(session, assessment, res) {
 export async function startSession(req, res) {
   try {
     const { assessmentId } = req.params;
+    const clientDeviceId = req.body?.clientDeviceId ? String(req.body.clientDeviceId).slice(0, 128) : null;
+    const forceDeviceTakeover = req.body?.forceDeviceTakeover === true;
+
     const assessment = await prisma.assessment.findUnique({
       where: { id: assessmentId },
       select: {
@@ -550,6 +676,7 @@ export async function startSession(req, res) {
         status: true,
         duration: true,
         type: true,
+        questions: { select: { id: true, type: true, options: true } },
       },
     });
     if (!assessment) {
@@ -557,6 +684,28 @@ export async function startSession(req, res) {
     }
     if (assessment.status === 'DRAFT') {
       return res.status(403).json({ error: 'This assessment is not published yet', code: 'DRAFT' });
+    }
+
+    const student = await prisma.student.findUnique({
+      where: { userId: req.userId || req.user.id },
+    });
+
+    if (!student) {
+      console.error(`❌ startSession failed: Student profile not found for userId ${req.userId || req.user.id}`);
+      return res.status(404).json({ error: 'Student profile not found. Please complete your onboarding.' });
+    }
+
+    const assigned = await studentIsAssignedToAssessment(student, assessmentId);
+    if (!assigned) {
+      return res.status(403).json({ error: 'Assessment not assigned to you' });
+    }
+
+    let session = await prisma.assessmentSession.findUnique({
+      where: { assessmentId_studentId: { assessmentId, studentId: student.id } },
+    });
+
+    if (session) {
+      return respondWithExistingSession(session, assessment, res, { clientDeviceId, forceDeviceTakeover });
     }
 
     const entry = getAssessmentEntryStatus(assessment);
@@ -576,16 +725,6 @@ export async function startSession(req, res) {
       });
     }
 
-    const student = await prisma.student.findUnique({ 
-      where: { userId: req.userId || req.user.id } 
-    });
-
-    if (!student) {
-      console.error(`❌ startSession failed: Student profile not found for userId ${req.userId || req.user.id}`);
-      return res.status(404).json({ error: 'Student profile not found. Please complete your onboarding.' });
-    }
-
-    // SECURITY: one active attempt per student (across assessments)
     const otherActive = await prisma.assessmentSession.findFirst({
       where: {
         studentId: student.id,
@@ -596,26 +735,35 @@ export async function startSession(req, res) {
     });
     if (otherActive) {
       return res.status(409).json({
-        error: 'Another assessment attempt is already active',
+        error: 'Another assessment attempt is already active. Finish or submit it before starting a new one.',
+        code: 'OTHER_ASSESSMENT_ACTIVE',
         activeSessionId: otherActive.id,
         activeAssessmentId: otherActive.assessmentId,
       });
     }
 
-    let session = await prisma.assessmentSession.findUnique({
-      where: { assessmentId_studentId: { assessmentId, studentId: student.id } }
-    });
-
-    if (session) {
-      return respondWithExistingSession(session, assessment, res);
-    }
-
     try {
+      const shufflePlan = buildShufflePlan({
+        assessmentConfig: assessment.config,
+        questions: assessment.questions,
+        sessionId: `${assessmentId}:${student.id}`,
+        studentId: student.id,
+      });
+      const secureMeta = {
+        ...(shufflePlan || {}),
+        ...(clientDeviceId
+          ? { clientDeviceId, deviceClaimedAt: new Date().toISOString() }
+          : {}),
+      };
+
       session = await prisma.assessmentSession.create({
         data: {
           assessmentId,
           studentId: student.id,
-          status: 'IN_PROGRESS'
+          status: 'IN_PROGRESS',
+          ...(Object.keys(secureMeta).length
+            ? { secureModeMeta: serializeSecureModeMeta(secureMeta) }
+            : {}),
         }
       });
     } catch (createError) {
@@ -625,7 +773,7 @@ export async function startSession(req, res) {
           where: { assessmentId_studentId: { assessmentId, studentId: student.id } }
         });
         if (session) {
-          return respondWithExistingSession(session, assessment, res);
+          return respondWithExistingSession(session, assessment, res, { clientDeviceId, forceDeviceTakeover });
         }
       } else {
         throw createError;
@@ -634,6 +782,7 @@ export async function startSession(req, res) {
 
     res.status(201).json(enrichSessionWithTimer(session, assessment.duration));
   } catch (error) {
+    console.error('startSession error:', error);
     res.status(500).json({ error: 'Failed to start session' });
   }
 }
@@ -650,7 +799,10 @@ export async function logViolation(req, res) {
 
     const session = await prisma.assessmentSession.findUnique({
       where: { id: sessionId },
-      include: { student: { select: { userId: true, fullName: true } } },
+      include: {
+        student: { select: { userId: true, fullName: true } },
+        assessment: { select: { id: true, config: true, duration: true } },
+      },
     });
     if (!session) return res.status(404).json({ error: 'Session not found' });
     if (session.student?.userId !== (req.userId || req.user?.id)) {
@@ -661,11 +813,12 @@ export async function logViolation(req, res) {
       ? (typeof meta === 'string' ? (() => { try { return JSON.parse(meta); } catch { return {}; } })() : meta)
       : {};
     const severity = metaObj.severity || 'MEDIUM';
+    const violationType = String(type).slice(0, 64);
 
     await prisma.assessmentViolation.create({
       data: {
         sessionId,
-        type: String(type).slice(0, 64),
+        type: violationType,
         severity: String(severity).slice(0, 16),
         details: details ? String(details).slice(0, 2000) : null,
         meta: JSON.stringify(metaObj),
@@ -673,7 +826,7 @@ export async function logViolation(req, res) {
     });
 
     // Increment violation count in session
-    const updated = await prisma.assessmentSession.update({
+    let updated = await prisma.assessmentSession.update({
       where: { id: sessionId },
       data: {
         violationsCount: { increment: 1 },
@@ -681,6 +834,28 @@ export async function logViolation(req, res) {
         lastWarningAt: new Date(),
       }
     });
+
+    // Opt-in: pause + lock after tab-switch grace (default OFF — no behavior change)
+    let pauseInfo = pauseSnapshot(updated.secureModeMeta);
+    const proctorCfg = parseProctoringConfig(session.assessment?.config);
+    if (
+      session.status === 'IN_PROGRESS' &&
+      proctorCfg.pauseOnTabSwitch &&
+      violationType === 'TAB_SWITCH' &&
+      !pauseInfo.paused
+    ) {
+      const secure = parseSecureModeMeta(updated.secureModeMeta);
+      const tabSwitchCount = (Number(secure.tabSwitchCount) || 0) + 1;
+      let nextMeta = { ...secure, tabSwitchCount };
+      if (tabSwitchCount > proctorCfg.tabSwitchGraceCount) {
+        nextMeta = buildPausedMeta(nextMeta, { reason: 'TAB_SWITCH', tabSwitchCount });
+      }
+      updated = await prisma.assessmentSession.update({
+        where: { id: sessionId },
+        data: { secureModeMeta: serializeSecureModeMeta(nextMeta) },
+      });
+      pauseInfo = pauseSnapshot(updated.secureModeMeta);
+    }
 
     // Risk engine (server-side single source of truth)
     await prisma.assessmentSession.update({
@@ -700,17 +875,449 @@ export async function logViolation(req, res) {
       sessionId,
       violation: latest,
       violationsCount: updated.violationsCount,
+      paused: pauseInfo.paused,
+      pauseReason: pauseInfo.pauseReason,
+      tabSwitchCount: pauseInfo.tabSwitchCount,
     });
+
+    if (pauseInfo.paused) {
+      const pausePayload = {
+        assessmentId: session.assessmentId,
+        kind: 'paused',
+        sessionId,
+        paused: true,
+        pauseReason: pauseInfo.pauseReason,
+        remainingSeconds: enrichSessionWithTimer(updated, session.assessment?.duration).remainingSeconds,
+        studentName: session.student?.fullName,
+        tabSwitchCount: pauseInfo.tabSwitchCount,
+      };
+      emitProctoringLiveUpdate(session.assessmentId, pausePayload);
+      emitStudentSessionControl(session.student?.userId, pausePayload);
+    }
 
     res.json({
       success: true,
       violation: latest,
       violationsCount: updated.violationsCount,
       riskLevel: computeRiskLevel(updated.violationsCount),
+      paused: pauseInfo.paused,
+      pauseReason: pauseInfo.pauseReason,
+      tabSwitchCount: pauseInfo.tabSwitchCount,
+      remainingSeconds: enrichSessionWithTimer(updated, session.assessment?.duration).remainingSeconds,
     });
   } catch (error) {
     console.error('logViolation error:', error);
     res.status(500).json({ error: 'Failed to log violation' });
+  }
+}
+
+/** Student autosave — keeps answers so unlock can resume mid-exam. */
+export async function saveSessionProgress(req, res) {
+  try {
+    const { sessionId } = req.params;
+    const { answers, markedForReview } = req.body || {};
+
+    const session = await prisma.assessmentSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        student: { select: { userId: true } },
+        assessment: { select: { duration: true } },
+      },
+    });
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+    if (session.student?.userId !== (req.userId || req.user?.id)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    if (session.status !== 'IN_PROGRESS') {
+      return res.status(409).json({
+        error: 'Assessment already submitted',
+        status: session.status,
+        sessionId: session.id,
+      });
+    }
+
+    const rawAnswers = coerceAnswersPayload(answers);
+    if (!rawAnswers || typeof rawAnswers !== 'object' || Array.isArray(rawAnswers)) {
+      return res.status(400).json({ error: 'Answers object required' });
+    }
+
+    const existing = parseStoredResponses(session.responses);
+    const updateResult = await prisma.assessmentSession.updateMany({
+      where: { id: sessionId, status: 'IN_PROGRESS' },
+      data: {
+        responses: JSON.stringify({
+          ...existing,
+          rawAnswers,
+          ...(Array.isArray(markedForReview) ? { markedForReview } : {}),
+          draft: true,
+          savedAt: new Date().toISOString(),
+        }),
+      },
+    });
+
+    if (updateResult.count === 0) {
+      const current = await prisma.assessmentSession.findUnique({
+        where: { id: sessionId },
+        select: { status: true },
+      });
+      return res.status(409).json({
+        error: 'Assessment already submitted',
+        status: current?.status,
+        sessionId,
+      });
+    }
+
+    const updated = await prisma.assessmentSession.findUnique({
+      where: { id: sessionId },
+    });
+
+    const pause = pauseSnapshot(updated?.secureModeMeta);
+    res.json({
+      success: true,
+      paused: pause.paused,
+      remainingSeconds: enrichSessionWithTimer(updated || session, session.assessment?.duration).remainingSeconds,
+    });
+  } catch (error) {
+    console.error('saveSessionProgress error:', error);
+    res.status(500).json({ error: 'Failed to save progress' });
+  }
+}
+
+/** Student poll — pause / timer state without mutating the session. */
+export async function getStudentSessionStatus(req, res) {
+  try {
+    const { sessionId } = req.params;
+    const session = await prisma.assessmentSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        student: { select: { userId: true } },
+        assessment: { select: { duration: true } },
+      },
+    });
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+    if (session.student?.userId !== (req.userId || req.user?.id)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const enriched = enrichSessionWithTimer(session, session.assessment?.duration);
+    const meta = parseSecureModeMeta(session.secureModeMeta);
+    res.json({
+      id: session.id,
+      status: session.status,
+      paused: enriched.paused,
+      pauseReason: enriched.pauseReason,
+      tabSwitchCount: enriched.tabSwitchCount,
+      remainingSeconds: enriched.remainingSeconds,
+      extraSeconds: Number(meta.extraSeconds) || 0,
+      timeExpired: enriched.timeExpired,
+      violationsCount: session.violationsCount,
+      riskLevel: session.riskLevel,
+    });
+  } catch (error) {
+    console.error('getStudentSessionStatus error:', error);
+    res.status(500).json({ error: 'Failed to fetch session status' });
+  }
+}
+
+/** Admin unlock — student can continue same attempt with saved answers; timer stays frozen during pause. */
+export async function unlockAssessmentSession(req, res) {
+  try {
+    const { sessionId } = req.params;
+    const role = req.user?.role;
+
+    const session = await prisma.assessmentSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        student: { select: { id: true, fullName: true, userId: true } },
+        assessment: { select: { id: true, duration: true } },
+      },
+    });
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+
+    if (role === 'ADMIN') {
+      const allowed = await adminCanAccessSessionById(sessionId, req.user.admin, role);
+      if (!allowed) {
+        return res.status(403).json({ error: 'Session not in your scope' });
+      }
+    }
+
+    if (session.status !== 'IN_PROGRESS') {
+      return res.status(400).json({ error: 'Only in-progress sessions can be unlocked' });
+    }
+
+    if (!isSessionPaused(session)) {
+      const enriched = enrichSessionWithTimer(session, session.assessment?.duration);
+      return res.json({
+        success: true,
+        alreadyUnlocked: true,
+        paused: false,
+        remainingSeconds: enriched.remainingSeconds,
+      });
+    }
+
+    const nextMeta = {
+      ...buildUnlockedMeta(session.secureModeMeta),
+      unlockedBy: req.userId || req.user?.id || null,
+    };
+
+    const updated = await prisma.assessmentSession.update({
+      where: { id: sessionId },
+      data: { secureModeMeta: serializeSecureModeMeta(nextMeta) },
+    });
+
+    const enriched = enrichSessionWithTimer(updated, session.assessment?.duration);
+
+    const unlockPayload = {
+      assessmentId: session.assessmentId,
+      kind: 'unlocked',
+      sessionId,
+      paused: false,
+      remainingSeconds: enriched.remainingSeconds,
+      studentName: session.student?.fullName,
+      unlockedBy: nextMeta.unlockedBy,
+    };
+    emitProctoringLiveUpdate(session.assessmentId, unlockPayload);
+    emitStudentSessionControl(session.student?.userId, unlockPayload);
+
+    res.json({
+      success: true,
+      paused: false,
+      remainingSeconds: enriched.remainingSeconds,
+      sessionId,
+    });
+  } catch (error) {
+    console.error('unlockAssessmentSession error:', error);
+    res.status(500).json({ error: 'Failed to unlock session' });
+  }
+}
+
+/** Admin: add extra minutes to an in-progress attempt (timer extension). */
+export async function extendAssessmentSession(req, res) {
+  try {
+    const { sessionId } = req.params;
+    const role = req.user?.role;
+    const minutes = Number(req.body?.minutes);
+    if (!Number.isFinite(minutes) || minutes <= 0 || minutes > 180) {
+      return res.status(400).json({ error: 'minutes must be between 1 and 180' });
+    }
+
+    const session = await prisma.assessmentSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        student: { select: { fullName: true, userId: true } },
+        assessment: { select: { id: true, duration: true } },
+      },
+    });
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+    if (role === 'ADMIN') {
+      const allowed = await adminCanAccessSessionById(sessionId, req.user.admin, role);
+      if (!allowed) return res.status(403).json({ error: 'Session not in your scope' });
+    }
+    if (session.status !== 'IN_PROGRESS') {
+      return res.status(400).json({ error: 'Only in-progress sessions can be extended' });
+    }
+
+    const meta = parseSecureModeMeta(session.secureModeMeta);
+    const extraSeconds = (Number(meta.extraSeconds) || 0) + Math.round(minutes * 60);
+    const updated = await prisma.assessmentSession.update({
+      where: { id: sessionId },
+      data: {
+        secureModeMeta: serializeSecureModeMeta({
+          ...meta,
+          extraSeconds,
+          lastExtendedAt: new Date().toISOString(),
+          lastExtendedBy: req.userId || req.user?.id || null,
+        }),
+      },
+    });
+
+    const enriched = enrichSessionWithTimer(updated, session.assessment?.duration);
+    const extendPayload = {
+      assessmentId: session.assessmentId,
+      kind: 'extended',
+      sessionId,
+      studentName: session.student?.fullName,
+      extraSeconds,
+      remainingSeconds: enriched.remainingSeconds,
+    };
+    emitProctoringLiveUpdate(session.assessmentId, extendPayload);
+    emitStudentSessionControl(session.student?.userId, extendPayload);
+
+    res.json({
+      success: true,
+      extraSeconds,
+      remainingSeconds: enriched.remainingSeconds,
+    });
+  } catch (error) {
+    console.error('extendAssessmentSession error:', error);
+    res.status(500).json({ error: 'Failed to extend session' });
+  }
+}
+
+/** Admin: freeze a live attempt until unlocked (timer pauses). */
+export async function pauseAssessmentSession(req, res) {
+  try {
+    const { sessionId } = req.params;
+    const role = req.user?.role;
+    const reason = String(req.body?.reason || 'ADMIN_PAUSE').slice(0, 32) || 'ADMIN_PAUSE';
+
+    const session = await prisma.assessmentSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        student: { select: { userId: true, fullName: true } },
+        assessment: { select: { id: true, duration: true } },
+      },
+    });
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+    if (role === 'ADMIN') {
+      const allowed = await adminCanAccessSessionById(sessionId, req.user.admin, role);
+      if (!allowed) return res.status(403).json({ error: 'Session not in your scope' });
+    }
+    if (session.status !== 'IN_PROGRESS') {
+      return res.status(400).json({ error: 'Only in-progress sessions can be paused' });
+    }
+
+    if (isSessionPaused(session)) {
+      const enriched = enrichSessionWithTimer(session, session.assessment?.duration);
+      const snap = pauseSnapshot(session.secureModeMeta);
+      return res.json({
+        success: true,
+        alreadyPaused: true,
+        paused: true,
+        pauseReason: snap.pauseReason,
+        remainingSeconds: enriched.remainingSeconds,
+      });
+    }
+
+    const nextMeta = {
+      ...buildPausedMeta(session.secureModeMeta, { reason }),
+      pausedBy: req.userId || req.user?.id || null,
+    };
+    const updated = await prisma.assessmentSession.update({
+      where: { id: sessionId },
+      data: { secureModeMeta: serializeSecureModeMeta(nextMeta) },
+    });
+    const enriched = enrichSessionWithTimer(updated, session.assessment?.duration);
+    const payload = {
+      assessmentId: session.assessmentId,
+      kind: 'paused',
+      sessionId,
+      paused: true,
+      pauseReason: reason,
+      remainingSeconds: enriched.remainingSeconds,
+      studentName: session.student?.fullName,
+    };
+    emitProctoringLiveUpdate(session.assessmentId, payload);
+    emitStudentSessionControl(session.student?.userId, payload);
+
+    res.json({
+      success: true,
+      paused: true,
+      pauseReason: reason,
+      remainingSeconds: enriched.remainingSeconds,
+      sessionId,
+    });
+  } catch (error) {
+    console.error('pauseAssessmentSession error:', error);
+    res.status(500).json({ error: 'Failed to pause session' });
+  }
+}
+
+/** Admin: force-submit using latest drafted answers (or empty). */
+export async function forceSubmitAssessmentSession(req, res) {
+  try {
+    const { sessionId } = req.params;
+    const role = req.user?.role;
+
+    const session = await prisma.assessmentSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        student: { select: { fullName: true, email: true, userId: true } },
+        assessment: {
+          include: { questions: true },
+        },
+      },
+    });
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+    if (role === 'ADMIN') {
+      const allowed = await adminCanAccessSessionById(sessionId, req.user.admin, role);
+      if (!allowed) return res.status(403).json({ error: 'Session not in your scope' });
+    }
+    if (session.status !== 'IN_PROGRESS') {
+      return res.status(400).json({ error: 'Session is not in progress' });
+    }
+
+    const stored = parseStoredResponses(session.responses);
+    let answers = coerceAnswersPayload(stored.rawAnswers ?? stored);
+    if (req.body?.answers) {
+      answers = { ...answers, ...coerceAnswersPayload(req.body.answers) };
+    }
+
+    const questions = session.assessment.questions || [];
+    const { calculatedScore, hasDescriptive, executionLogs } = await evaluateSubmittedAnswers(
+      questions,
+      answers
+    );
+    const maxPoints = totalQuestionPoints(questions);
+    const scorePercent = pointsToPercent(calculatedScore, questions);
+    const updateResult = await prisma.assessmentSession.updateMany({
+      where: { id: sessionId, status: 'IN_PROGRESS' },
+      data: {
+        status: hasDescriptive ? 'PENDING_REVIEW' : 'COMPLETED',
+        endTime: new Date(),
+        score: scorePercent,
+        responses: JSON.stringify({
+          rawAnswers: answers,
+          executionLogs,
+          pointsEarned: calculatedScore,
+          maxPoints,
+          forceSubmitted: true,
+          forceSubmittedBy: req.userId || req.user?.id || null,
+          forceSubmittedAt: new Date().toISOString(),
+        }),
+      },
+    });
+
+    if (!updateResult.count) {
+      return res.status(409).json({ error: 'Session already completed' });
+    }
+
+    emitProctoringLiveUpdate(session.assessmentId, {
+      assessmentId: session.assessmentId,
+      kind: 'force_submitted',
+      sessionId,
+      studentName: session.student?.fullName,
+    });
+    emitStudentSessionControl(session.student?.userId, {
+      assessmentId: session.assessmentId,
+      kind: 'force_submitted',
+      sessionId,
+    });
+
+    if (session.student?.email || session.studentId) {
+      const email = session.student?.email
+        ? String(session.student.email).trim().toLowerCase()
+        : null;
+      if (email) {
+        try {
+          await prisma.assessmentInviteEmail.updateMany({
+            where: { assessmentId: session.assessmentId, email },
+            data: { status: 'COMPLETED', studentId: session.studentId },
+          });
+        } catch (inviteErr) {
+          console.error('Invite email status update failed:', inviteErr);
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      status: hasDescriptive ? 'PENDING_REVIEW' : 'COMPLETED',
+      score: scorePercent,
+    });
+  } catch (error) {
+    console.error('forceSubmitAssessmentSession error:', error);
+    res.status(500).json({ error: 'Failed to force-submit session' });
   }
 }
 
@@ -804,6 +1411,15 @@ export async function uploadScreenshot(req, res) {
 export async function getProctoringSessionDetails(req, res) {
   try {
     const { sessionId } = req.params;
+    const role = req.user?.role;
+
+    if (role === 'ADMIN') {
+      const allowed = await adminCanAccessSessionById(sessionId, req.user.admin, role);
+      if (!allowed) {
+        return res.status(403).json({ error: 'Session not in your scope' });
+      }
+    }
+
     const session = await prisma.assessmentSession.findUnique({
       where: { id: sessionId },
       include: {
@@ -814,7 +1430,17 @@ export async function getProctoringSessionDetails(req, res) {
       },
     });
     if (!session) return res.status(404).json({ error: 'Session not found' });
-    res.json(session);
+    const pause = pauseSnapshot(session.secureModeMeta);
+    res.json({
+      ...session,
+      paused: pause.paused,
+      pauseReason: pause.pauseReason,
+      tabSwitchCount: pause.tabSwitchCount,
+      screenshots: (session.screenshots || []).map((s) => {
+        const url = signedScreenshotUrl(s);
+        return { ...s, signedUrl: url, imageUrl: url || s.imageUrl };
+      }),
+    });
   } catch (error) {
     console.error('getProctoringSessionDetails error:', error);
     res.status(500).json({ error: 'Failed to fetch proctoring details' });
@@ -824,11 +1450,20 @@ export async function getProctoringSessionDetails(req, res) {
 export async function getSignedScreenshotUrl(req, res) {
   try {
     const { screenshotId } = req.params;
+    const role = req.user?.role;
     const row = await prisma.assessmentScreenshot.findUnique({
       where: { id: screenshotId },
-      select: { id: true, publicId: true, imageUrl: true },
+      select: { id: true, publicId: true, imageUrl: true, sessionId: true },
     });
     if (!row) return res.status(404).json({ error: 'Screenshot not found' });
+
+    if (role === 'ADMIN') {
+      const allowed = await adminCanAccessSessionById(row.sessionId, req.user.admin, role);
+      if (!allowed) {
+        return res.status(403).json({ error: 'Screenshot not in your scope' });
+      }
+    }
+
     const url = signedScreenshotUrl(row);
     res.json({ url, expiresAt: Math.floor(Date.now() / 1000) + 60 * 5 });
   } catch (error) {
@@ -857,61 +1492,157 @@ export async function uploadMedia(req, res) {
   }
 }
 
-// Complete Assessment & Auto-Grader Engine
+const REVIEW_QUESTION_TYPES = new Set(['DESCRIPTIVE', 'SQL', 'CASE_STUDY', 'PROGRAMMING_CHALLENGE']);
+const GRADE_FAIL = { pointsEarned: 0, passed: 0, total: 0, results: [], language: null };
+
+function coerceAnswersPayload(raw) {
+  if (raw == null || raw === '') return {};
+  if (typeof raw === 'object' && !Array.isArray(raw)) {
+    if (raw.rawAnswers && typeof raw.rawAnswers === 'object' && !Array.isArray(raw.rawAnswers)) {
+      return raw.rawAnswers;
+    }
+    return raw;
+  }
+  if (typeof raw === 'string') {
+    try {
+      return coerceAnswersPayload(JSON.parse(raw));
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+function parseStoredResponses(raw) {
+  if (raw == null || raw === '') return {};
+  if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
+    try {
+      return parseStoredResponses(JSON.parse(raw));
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+function hasAnswerValue(value) {
+  if (value == null) return false;
+  if (typeof value === 'string') return value.trim() !== '';
+  if (typeof value === 'number') return true;
+  if (typeof value === 'boolean') return true;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === 'object') return Object.keys(value).length > 0;
+  return Boolean(value);
+}
+
+function answerForQuestion(answers, question) {
+  if (!answers || !question) return undefined;
+  if (Object.prototype.hasOwnProperty.call(answers, question.id)) return answers[question.id];
+  const asString = String(question.id);
+  if (Object.prototype.hasOwnProperty.call(answers, asString)) return answers[asString];
+  return undefined;
+}
+
+async function withTimeout(promise, ms, fallback) {
+  let timer;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((resolve) => {
+        timer = setTimeout(() => resolve(fallback), ms);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function evaluateSubmittedAnswers(questions, answers, { skipCoding = false } = {}) {
+  let calculatedScore = 0;
+  let hasDescriptive = false;
+  const executionLogs = {};
+
+  for (const q of questions || []) {
+    const studentAnswer = answerForQuestion(answers, q);
+    if (!hasAnswerValue(studentAnswer)) continue;
+
+    if (q.type === 'MCQ') {
+      if (mcqAnswersMatch(studentAnswer, q.correctAnswer, q.options)) {
+        calculatedScore += q.points;
+      }
+    } else if (q.type === 'CODING') {
+      if (skipCoding) {
+        executionLogs[q.id] = { skipped: true, reason: 'auto_submit' };
+        continue;
+      }
+      try {
+        const graded = await withTimeout(gradeCodingAnswer(q, studentAnswer), 12000, GRADE_FAIL);
+        calculatedScore += Number(graded?.pointsEarned) || 0;
+        const redacted = redactHiddenEvaluationResults(graded?.results || []);
+        executionLogs[q.id] = {
+          passed: graded?.passed,
+          total: graded?.total,
+          logs: redacted.results,
+          hiddenTestsPassed: redacted.hiddenTestsPassed,
+          hiddenTestsTotal: redacted.hiddenTestsTotal,
+          language: graded?.language,
+        };
+      } catch (e) {
+        console.error(`Coding evaluation failed for Q${q.id}:`, e);
+        executionLogs[q.id] = { error: 'Evaluation skipped' };
+      }
+    } else if (REVIEW_QUESTION_TYPES.has(q.type)) {
+      hasDescriptive = true;
+    }
+  }
+
+  return { calculatedScore, hasDescriptive, executionLogs };
+}
+
 export async function completeAssessment(req, res) {
   try {
     const { sessionId } = req.params;
-    const { answers: rawAnswers } = req.body;
-    const answers = JSON.parse(rawAnswers || '{}');
+    const student = await prisma.student.findUnique({
+      where: { userId: req.userId || req.user.id },
+      select: { id: true, email: true },
+    });
+    if (!student) {
+      return res.status(404).json({ error: 'Student profile not found' });
+    }
 
-    // Fetch session and questions for auto-grading
     const session = await prisma.assessmentSession.findUnique({
       where: { id: sessionId },
-      include: { assessment: { include: { questions: true } } }
+      include: { assessment: { include: { questions: true } } },
     });
 
     if (!session) return res.status(404).json({ error: 'Session not found' });
-
-    let calculatedScore = 0;
-    let hasDescriptive = false;
-    let executionLogs = {}; // Store test case results
-    const questions = session.assessment.questions;
-
-    // The Grading Pipeline
-    for (const q of questions) {
-      const studentAnswer = answers[q.id];
-      if (!studentAnswer) continue;
-
-      if (q.type === 'MCQ') {
-        if (mcqAnswersMatch(studentAnswer, q.correctAnswer, q.options)) {
-          calculatedScore += q.points;
-        }
-      } 
-      else if (q.type === 'CODING') {
-        try {
-          const graded = await gradeCodingAnswer(q, studentAnswer);
-          calculatedScore += graded.pointsEarned;
-          executionLogs[q.id] = {
-            passed: graded.passed,
-            total: graded.total,
-            logs: graded.results,
-            language: graded.language,
-          };
-        } catch (e) {
-          console.error(`Coding evaluation failed for Q${q.id}:`, e);
-          executionLogs[q.id] = { error: 'Evaluation Engine Failure' };
-        }
-      } 
-      else if (q.type === 'DESCRIPTIVE') {
-        hasDescriptive = true;
-      }
+    if (session.studentId !== student.id) {
+      return res.status(403).json({ error: 'Access denied: This session belongs to another student' });
+    }
+    if (session.status !== 'IN_PROGRESS') {
+      return res.status(409).json({
+        error: 'Assessment already submitted',
+        status: session.status,
+        sessionId: session.id,
+      });
     }
 
+    const stored = parseStoredResponses(session.responses);
+    const storedAnswers = coerceAnswersPayload(stored.rawAnswers ?? stored);
+    const incoming = coerceAnswersPayload(req.body?.answers ?? req.body?.rawAnswers);
+    const answers = { ...storedAnswers, ...incoming };
+
+    const questions = session.assessment?.questions || [];
+    const { calculatedScore, hasDescriptive, executionLogs } = await evaluateSubmittedAnswers(
+      questions,
+      answers
+    );
     const maxPoints = totalQuestionPoints(questions);
     const scorePercent = pointsToPercent(calculatedScore, questions);
 
-    const updatedSession = await prisma.assessmentSession.update({
-      where: { id: sessionId },
+    const updateResult = await prisma.assessmentSession.updateMany({
+      where: { id: sessionId, status: 'IN_PROGRESS' },
       data: {
         status: hasDescriptive ? 'PENDING_REVIEW' : 'COMPLETED',
         endTime: new Date(),
@@ -923,16 +1654,41 @@ export async function completeAssessment(req, res) {
           maxPoints,
         }),
       },
-      include: { student: { select: { id: true } } },
     });
 
-    if (!hasDescriptive && updatedSession.student?.id) {
+    if (updateResult.count === 0) {
+      const current = await prisma.assessmentSession.findUnique({
+        where: { id: sessionId },
+        select: { status: true },
+      });
+      return res.status(409).json({
+        error: 'Assessment already submitted',
+        status: current?.status,
+        sessionId,
+      });
+    }
+
+    const updatedSession = await prisma.assessmentSession.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (student.email) {
       try {
-        await syncJobApplicationsFromAssessment(
-          updatedSession.student.id,
-          session.assessmentId,
-          scorePercent,
-        );
+        await prisma.assessmentInviteEmail.updateMany({
+          where: {
+            assessmentId: session.assessmentId,
+            email: String(student.email).trim().toLowerCase(),
+          },
+          data: { status: 'COMPLETED', studentId: student.id },
+        });
+      } catch (inviteErr) {
+        console.error('Invite email status update failed:', inviteErr);
+      }
+    }
+
+    if (!hasDescriptive && student.id) {
+      try {
+        await syncJobApplicationsFromAssessment(student.id, session.assessmentId, scorePercent);
       } catch (bridgeError) {
         console.error('Job assessment bridge sync failed:', bridgeError);
       }
@@ -940,13 +1696,13 @@ export async function completeAssessment(req, res) {
 
     res.json(
       withNormalizedScore({
-        ...updatedSession,
-        assessment: session.assessment,
+        ...(updatedSession || {}),
+        assessment: sanitizeAssessmentForStudent(session.assessment),
       }),
     );
   } catch (error) {
     console.error('Complete Assessment Error:', error);
-    res.status(500).json({ error: 'Failed to complete assessment' });
+    res.status(500).json({ error: error.message || 'Failed to complete assessment' });
   }
 }
 
@@ -956,6 +1712,15 @@ export async function completeAssessment(req, res) {
 export async function getSessionResults(req, res) {
   try {
     const { sessionId } = req.params;
+    const role = req.user?.role;
+
+    if (role === 'ADMIN') {
+      const allowed = await adminCanAccessSessionById(sessionId, req.user.admin, role);
+      if (!allowed) {
+        return res.status(403).json({ error: 'Session not in your scope' });
+      }
+    }
+
     const session = await prisma.assessmentSession.findUnique({
       where: { id: sessionId },
       include: {
@@ -975,8 +1740,15 @@ export async function getSessionResults(req, res) {
 export async function getAssessmentResults(req, res) {
   try {
     const { id } = req.params;
-    
-    // Fetch the assessment and all its sessions
+    const role = req.user?.role;
+
+    if (role === 'ADMIN') {
+      const allowed = await adminCanAccessAssessmentById(id, req.user.admin, role);
+      if (!allowed) {
+        return res.status(403).json({ error: 'Assessment not in your scope' });
+      }
+    }
+
     const assessment = await prisma.assessment.findUnique({
       where: { id },
       include: {
@@ -1002,13 +1774,30 @@ export async function getAssessmentResults(req, res) {
       console.log(`[DEBUG] getAssessmentResults: Assessment not found for id ${id}`);
       return res.status(404).json({ error: 'Assessment not found' });
     }
+
+    let sessions = assessment.sessions || [];
+    if (role === 'ADMIN') {
+      const studentWhere = buildScopedStudentWhere(req.user.admin, role);
+      if (studentWhere.id === '__BLOCKED__') {
+        sessions = [];
+      } else {
+        const scopedStudents = await prisma.student.findMany({
+          where: studentWhere,
+          select: { id: true },
+          take: 5000,
+        });
+        const scopedIds = new Set(scopedStudents.map((s) => s.id));
+        sessions = sessions.filter((s) => scopedIds.has(s.studentId));
+      }
+    }
+
     const questions = assessment.questions || [];
-    const sessions = (assessment.sessions || []).map((s) => ({
+    const normalizedSessions = sessions.map((s) => ({
       ...s,
-      score: normalizeStoredScore(s.score, questions),
+      score: normalizeStoredScore(s.score, questions, s.responses),
     }));
     console.log(`[DEBUG] getAssessmentResults: Successfully fetched leaderboard for ${id}`);
-    res.json({ ...assessment, sessions });
+    res.json({ ...assessment, sessions: normalizedSessions });
   } catch (error) {
     console.error(`[ERROR] Failed to fetch assessment leaderboard for ${req.params.id}:`, error);
     console.error('Failed to fetch assessment leaderboard:', error);
@@ -1020,12 +1809,33 @@ export async function getAssessmentResults(req, res) {
 export async function getLiveAssessmentSessions(req, res) {
   try {
     const { id } = req.params;
-    
+    const role = req.user?.role;
+
+    if (role === 'ADMIN') {
+      const allowed = await adminCanAccessAssessmentById(id, req.user.admin, role);
+      if (!allowed) {
+        return res.status(403).json({ error: 'Assessment not in your scope' });
+      }
+    }
+
+    const sessionWhere = {
+      assessmentId: id,
+      status: 'IN_PROGRESS',
+    };
+
+    if (role === 'ADMIN') {
+      if (isAdminScopeBlocked(req.user.admin, role)) {
+        return res.json([]);
+      }
+      const studentWhere = buildScopedStudentWhere(req.user.admin, role);
+      if (studentWhere?.id === '__BLOCKED__') {
+        return res.json([]);
+      }
+      sessionWhere.student = studentWhere;
+    }
+
     const activeSessions = await prisma.assessmentSession.findMany({
-      where: { 
-        assessmentId: id,
-        status: 'IN_PROGRESS'
-      },
+      where: sessionWhere,
       include: {
         student: { select: { fullName: true } },
         violations: {
@@ -1062,10 +1872,15 @@ export async function getLiveAssessmentSessions(req, res) {
       if (secondsAgo > 60) lastPing = `${Math.floor(secondsAgo / 60)}m ago`;
 
       const latest = session.screenshots?.[0] || null;
+      const pause = pauseSnapshot(session.secureModeMeta);
       return {
         id: session.id,
         studentName: session.student.fullName,
-        status: session.riskLevel || (session.violationsCount > 3 ? 'CRITICAL' : session.violationsCount > 0 ? 'WARNING' : 'ACTIVE'),
+        status: pause.paused
+          ? 'PAUSED'
+          : session.riskLevel || (session.violationsCount > 3 ? 'CRITICAL' : session.violationsCount > 0 ? 'WARNING' : 'ACTIVE'),
+        paused: pause.paused,
+        pauseReason: pause.pauseReason,
         violations: session.violationsCount,
         screenshots: session._count?.screenshots || 0,
         lastPing,
@@ -1222,7 +2037,14 @@ export async function getStudentSessionResults(req, res) {
     }
 
     res.json({
-      ...withNormalizedScore(session),
+      ...withNormalizedScore({
+        ...session,
+        assessment: sanitizeAssessmentForStudent(session.assessment, {
+          revealAnswers: ['COMPLETED', 'PENDING_REVIEW', 'AUTO_SUBMITTED', 'TERMINATED'].includes(
+            session.status
+          ),
+        }),
+      }),
       duration,
     });
   } catch (error) {

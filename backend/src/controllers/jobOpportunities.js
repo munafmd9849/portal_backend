@@ -8,7 +8,7 @@ import {
 
 export async function getOverview(req, res) {
   try {
-    const data = await getJobOpportunitiesOverview(req.query);
+    const data = await getJobOpportunitiesOverview(req.query, req.user);
     const { _meta, ...publicData } = data;
     res.json(publicData);
   } catch (error) {
@@ -20,7 +20,7 @@ export async function getOverview(req, res) {
 export async function getBreakdown(req, res) {
   try {
     const { cardKey } = req.params;
-    const data = await getCardBreakdown(cardKey, req.query);
+    const data = await getCardBreakdown(cardKey, req.query, req.user);
     res.json(data);
   } catch (error) {
     console.error('jobOpportunities breakdown:', error);
@@ -30,7 +30,7 @@ export async function getBreakdown(req, res) {
 
 export async function getCrManagers(req, res) {
   try {
-    res.json(await getCrManagerOverview(req.query));
+    res.json(await getCrManagerOverview(req.query, req.user));
   } catch (error) {
     console.error('jobOpportunities crManagers:', error);
     res.status(500).json({ error: 'Failed to load CR managers' });
@@ -40,7 +40,7 @@ export async function getCrManagers(req, res) {
 export async function getMom(req, res) {
   try {
     const { search, ...rest } = req.query;
-    res.json(await getMomTable({ ...rest, search }));
+    res.json(await getMomTable({ ...rest, search }, req.user));
   } catch (error) {
     console.error('jobOpportunities mom:', error);
     res.status(500).json({ error: 'Failed to load MoM table' });
@@ -49,7 +49,7 @@ export async function getMom(req, res) {
 
 export async function getFilters(req, res) {
   try {
-    res.json(await getFilterOptions());
+    res.json(await getFilterOptions(req.user));
   } catch (error) {
     console.error('jobOpportunities filters:', error);
     res.status(500).json({ error: 'Failed to load filter options' });

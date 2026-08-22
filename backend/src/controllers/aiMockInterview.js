@@ -13,6 +13,7 @@ import {
   regenerateAiInterviewInsightsSync,
 } from '../services/aiInterviewInsightsJob.js';
 import { deleteAiMockInterviewWithAssets } from '../utils/aiMockInterviewCleanup.js';
+import { buildAiMockInterviewListWhere } from '../utils/adminResourceScope.js';
 
 function getFirstUnansweredIndex(questions, answers) {
   const submitted = new Set(
@@ -305,8 +306,17 @@ export async function deleteAiMockInterview(req, res) {
 
 export async function listAiMockInterviews(req, res) {
   try {
+    const role = req.user?.role;
+    const scopeWhere =
+      role === 'ADMIN'
+        ? await buildAiMockInterviewListWhere(req.user.admin, role)
+        : {};
+
     const interviews = await prisma.aiMockInterview.findMany({
-      where: { sessionMode: { not: 'CONVERSATIONAL' } },
+      where: {
+        sessionMode: { not: 'CONVERSATIONAL' },
+        ...scopeWhere,
+      },
       include: {
         questions: { orderBy: { orderIndex: 'asc' } },
         _count: { select: { enrollments: true } },

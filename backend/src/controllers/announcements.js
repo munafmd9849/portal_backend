@@ -6,6 +6,11 @@
 import prisma from '../config/database.js';
 import { sendAnnouncementEmail } from '../services/emailService.js';
 import logger from '../config/logger.js';
+import {
+  buildAnnouncementListWhere,
+  assertAnnouncementTargetingWithinScope,
+  buildScopedStudentWhere,
+} from '../utils/adminResourceScope.js';
 
 function parseTargeting(value) {
   if (value == null || value === '') return [];
@@ -58,6 +63,16 @@ export async function createAnnouncement(req, res) {
       return res.status(400).json({ error: 'Description is required' });
     }
 
+    const role = req.user?.role;
+    const targetingError = assertAnnouncementTargetingWithinScope(
+      { targetSchools, targetBatches, targetCenters },
+      req.user?.admin,
+      role,
+    );
+    if (targetingError) {
+      return res.status(403).json({ error: targetingError });
+    }
+
     let imageUrl = null;
     let imagePublicId = null;
     if (req.file?.url || req.file?.secure_url) {
@@ -83,15 +98,21 @@ export async function createAnnouncement(req, res) {
       },
     });
 
-    const studentWhere = { emailNotificationsDisabled: false };
-    if (targetSchools.length > 0 && !targetSchools.includes('ALL')) {
-      studentWhere.school = { in: targetSchools };
-    }
-    if (targetBatches.length > 0 && !targetBatches.includes('ALL')) {
-      studentWhere.batch = { in: targetBatches };
-    }
-    if (targetCenters.length > 0 && !targetCenters.includes('ALL')) {
-      studentWhere.center = { in: targetCenters };
+    const studentWhere = buildScopedStudentWhere(req.user?.admin, role, {
+      emailNotificationsDisabled: false,
+      ...(targetSchools.length > 0 && !targetSchools.includes('ALL')
+        ? { school: { in: targetSchools } }
+        : {}),
+      ...(targetBatches.length > 0 && !targetBatches.includes('ALL')
+        ? { batch: { in: targetBatches } }
+        : {}),
+      ...(targetCenters.length > 0 && !targetCenters.includes('ALL')
+        ? { center: { in: targetCenters } }
+        : {}),
+    });
+
+    if (studentWhere.id === '__BLOCKED__') {
+      return res.status(403).json({ error: 'No students in scope for this announcement' });
     }
 
     const students = await prisma.student.findMany({
@@ -169,7 +190,13 @@ export async function createAnnouncement(req, res) {
 export async function listAnnouncements(req, res) {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const role = req.user?.role;
+    const scopeWhere = role === 'ADMIN'
+      ? buildAnnouncementListWhere(req.user.admin, role, req.user.id)
+      : {};
+
     const announcements = await prisma.announcement.findMany({
+      where: scopeWhere,
       orderBy: { createdAt: 'desc' },
       take: limit,
       select: {

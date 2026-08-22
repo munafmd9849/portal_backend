@@ -1,0 +1,17 @@
+{
+  "name": "portal-main",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "e2e": "playwright test",
+    "e2e:postgres": "E2E_DB=postgres playwright test -c playwright.postgres.config.js",
+    "e2e:postgres:p0p1": "E2E_DB=postgres playwright test e2e/specs/p0-*.spec.js e2e/specs/p1-*.spec.js -c playwright.postgres.config.js",
+    "e2e:seed": "E2E=1 node backend/scripts/seed-e2e.js",
+    "e2e:seed:postgres": "E2E=1 E2E_DB=postgres node backend/scripts/seed-e2e.js",
+    "e2e:ui": "playwright test --ui",
+    "e2e:install": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0"
+  }
+}

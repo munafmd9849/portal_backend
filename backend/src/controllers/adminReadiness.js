@@ -8,6 +8,7 @@ import {
   getStudentsWithScores,
   getStudentScoreDetail,
 } from '../services/placementReadinessService.js';
+import { adminCanAccessStudentById } from '../utils/adminResourceScope.js';
 
 export async function getSummary(req, res) {
   try {
@@ -32,6 +33,15 @@ export async function getStudents(req, res) {
 export async function getStudentDetail(req, res) {
   try {
     const { studentId } = req.params;
+    const role = req.user?.role;
+
+    if (role === 'ADMIN') {
+      const allowed = await adminCanAccessStudentById(studentId, req.user.admin, role);
+      if (!allowed) {
+        return res.status(403).json({ error: 'Not authorized to view this student (out of scope)' });
+      }
+    }
+
     const data = await getStudentScoreDetail(studentId);
     if (!data) {
       return res.status(404).json({ error: 'Student not found' });

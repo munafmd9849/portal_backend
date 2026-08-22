@@ -40,6 +40,7 @@ import AuthRedirect from './components/AuthRedirect'
 import { LoadingPage } from './components/ui/loading'
 import { isAllowedCalendarOAuthOrigin } from './utils/calendarOAuth'
 import AssessmentApp from './pages/assessment/AssessmentApp'
+import AssessmentInviteEntry from './pages/assessment/AssessmentInviteEntry'
 import AdminAssessments from './pages/admin/AdminAssessments'
 import AdminAssessmentResults from './pages/admin/AdminAssessmentResults'
 import AdminAssessmentLiveMonitor from './pages/admin/AdminAssessmentLiveMonitor'
@@ -228,6 +229,7 @@ function AppContent() {
         <Route path="/interview/round/:roundId" element={<InterviewerRoundEvaluation />} /> {/* Interviewer round evaluation */}
         <Route path="/recruiter/screening" element={<RecruiterScreening />} /> {/* Token-based recruiter screening (no login) */}
         <Route path="/job/:jobId" element={<JobDescriptionPage />} /> {/* Job Description Page */}
+        <Route path="/invite/:token" element={<AssessmentInviteEntry />} />
 
         {/* Protected routes */}
         <Route element={<ProtectedRoute allowRoles={['student']} />}>

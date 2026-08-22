@@ -46,10 +46,29 @@ const publicLimiter = rateLimit({
 // ============================================================================
 
 /**
- * GET /api/endorsements/student
- * Get student's endorsements (received, pending, expired)
- * Auth: Student only
- * NOTE: This must be defined BEFORE /:token to prevent route conflicts
+ * @openapi
+ * /api/endorsements/student:
+ *   get:
+ *     tags: [Endorsements]
+ *     summary: Get student endorsements
+ *     description: Student only — list received, pending, and expired endorsements.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Student endorsements
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 router.get(
   '/student',
@@ -58,6 +77,31 @@ router.get(
   getStudentEndorsements
 );
 
+/**
+ * @openapi
+ * /api/endorsements/teachers:
+ *   get:
+ *     tags: [Endorsements]
+ *     summary: Get endorsement teachers
+ *     description: Student only — list teachers associated with endorsement requests.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Endorsement teachers
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 router.get(
   '/teachers',
   authenticate,
@@ -70,17 +114,75 @@ router.get(
 // ============================================================================
 
 /**
- * GET /api/endorsements/:token
- * Get endorsement request details by token (public)
- * Used by teachers to view the endorsement form
- * NOTE: This must come AFTER specific routes like /student
+ * @openapi
+ * /api/endorsements/{token}:
+ *   get:
+ *     tags: [Endorsements]
+ *     summary: Get endorsement request by token
+ *     description: Public — teachers view endorsement form details via magic link token.
+ *     parameters:
+ *       - in: path
+ *         name: token
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Endorsement request details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 router.get('/:token', publicLimiter, getEndorsementByToken);
 
 /**
- * POST /api/endorsements/submit/:token
- * Submit endorsement (public, no auth required)
- * Teachers submit their endorsement through this endpoint
+ * @openapi
+ * /api/endorsements/submit/{token}:
+ *   post:
+ *     tags: [Endorsements]
+ *     summary: Submit an endorsement
+ *     description: Public — teachers submit endorsement via magic link token (no auth required).
+ *     parameters:
+ *       - in: path
+ *         name: token
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [endorsementMessage, relationship, consent]
+ *             properties:
+ *               endorsementMessage: { type: string, minLength: 10, maxLength: 2000 }
+ *               endorserName: { type: string }
+ *               endorserRole: { type: string }
+ *               organization: { type: string }
+ *               relationship:
+ *                 type: string
+ *                 enum: [Professor, Manager, Mentor, Guide, Supervisor, Colleague]
+ *               context: { type: string }
+ *               consent: { type: boolean }
+ *               relatedSkills:
+ *                 type: array
+ *                 items: { type: string }
+ *               strengthRating: { type: integer, minimum: 1, maximum: 5 }
+ *     responses:
+ *       200:
+ *         description: Endorsement submitted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 router.post(
   '/submit/:token',
@@ -152,9 +254,41 @@ router.post(
 // ============================================================================
 
 /**
- * POST /api/endorsements/request
- * Request new endorsement (generate magic link)
- * Auth: Student only
+ * @openapi
+ * /api/endorsements/request:
+ *   post:
+ *     tags: [Endorsements]
+ *     summary: Request an endorsement
+ *     description: Student only — generate a magic link endorsement request for a teacher.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [teacherName, teacherEmail]
+ *             properties:
+ *               teacherName: { type: string }
+ *               teacherEmail: { type: string, format: email }
+ *               role: { type: string }
+ *               organization: { type: string }
+ *     responses:
+ *       201:
+ *         description: Endorsement request created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 router.post(
   '/request',
@@ -189,9 +323,32 @@ router.post(
 );
 
 /**
- * DELETE /api/endorsements/request/:tokenId
- * Delete/cancel endorsement request (before it's used)
- * Auth: Student only
+ * @openapi
+ * /api/endorsements/request/{tokenId}:
+ *   delete:
+ *     tags: [Endorsements]
+ *     summary: Cancel endorsement request
+ *     description: Student only — delete/cancel a pending endorsement request before it is used.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: tokenId
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: Endorsement request cancelled
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
  */
 router.delete(
   '/request/:tokenId',
@@ -201,4 +358,3 @@ router.delete(
 );
 
 export default router;
-

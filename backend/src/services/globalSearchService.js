@@ -68,10 +68,18 @@ function containsFilter(fields, q) {
   return fields.map((field) => ({ [field]: { contains: q } }));
 }
 
-async function searchStudents(q, take) {
+async function searchStudents(q, take, studentWhere) {
+  const blocked = studentWhere?.id === '__BLOCKED__';
+  if (blocked) return [];
+
   const rows = await prisma.student.findMany({
     where: {
-      OR: containsFilter(['fullName', 'enrollmentId', 'email', 'branch', 'center', 'school', 'batch'], q),
+      AND: [
+        {
+          OR: containsFilter(['fullName', 'enrollmentId', 'email', 'branch', 'center', 'school', 'batch'], q),
+        },
+        ...(studentWhere ? [studentWhere] : []),
+      ],
     },
     take,
     select: {
@@ -101,9 +109,10 @@ async function searchStudents(q, take) {
   }));
 }
 
-async function searchJobs(q, take) {
+async function searchJobs(q, take, jobWhere) {
   const rows = await prisma.job.findMany({
     where: {
+      ...(jobWhere && Object.keys(jobWhere).length ? jobWhere : {}),
       OR: [
         ...containsFilter(['jobTitle', 'companyName', 'location', 'jobDescription'], q),
       ],
@@ -128,9 +137,10 @@ async function searchJobs(q, take) {
   }));
 }
 
-async function searchRecruiters(q, take) {
+async function searchRecruiters(q, take, recruiterWhere) {
   const rows = await prisma.recruiter.findMany({
     where: {
+      ...(recruiterWhere && Object.keys(recruiterWhere).length ? recruiterWhere : {}),
       OR: [
         { companyName: { contains: q } },
         { user: { is: { email: { contains: q } } } },
@@ -168,14 +178,21 @@ async function searchCompanies(q, take) {
   }));
 }
 
-async function searchApplications(q, take) {
+async function searchApplications(q, take, studentWhere) {
+  if (studentWhere?.id === '__BLOCKED__') return [];
+
   const rows = await prisma.application.findMany({
     where: {
-      OR: [
-        { status: { contains: q } },
-        { student: { is: { fullName: { contains: q } } } },
-        { job: { is: { jobTitle: { contains: q } } } },
-        { job: { is: { companyName: { contains: q } } } },
+      AND: [
+        {
+          OR: [
+            { status: { contains: q } },
+            { student: { is: { fullName: { contains: q } } } },
+            { job: { is: { jobTitle: { contains: q } } } },
+            { job: { is: { companyName: { contains: q } } } },
+          ],
+        },
+        ...(studentWhere ? [{ student: studentWhere }] : []),
       ],
     },
     take,
@@ -237,14 +254,21 @@ async function searchInterviews(q, take) {
   }
 }
 
-async function searchResumes(q, take) {
+async function searchResumes(q, take, studentWhere) {
+  if (studentWhere?.id === '__BLOCKED__') return [];
+
   try {
     const rows = await prisma.studentResumeFile.findMany({
       where: {
-        OR: [
-          { fileName: { contains: q } },
-          { title: { contains: q } },
-          { student: { is: { fullName: { contains: q } } } },
+        AND: [
+          {
+            OR: [
+              { fileName: { contains: q } },
+              { title: { contains: q } },
+              { student: { is: { fullName: { contains: q } } } },
+            ],
+          },
+          ...(studentWhere ? [{ student: studentWhere }] : []),
         ],
       },
       take,
@@ -357,7 +381,7 @@ const SEARCHERS = {
 };
 
 /**
- * @param {{ q: string, types?: string[], limit?: number, offset?: number, sort?: 'relevance'|'title' }} opts
+ * @param {{ q: string, types?: string[], limit?: number, offset?: number, sort?: 'relevance'|'title', studentWhere?: object, jobWhere?: object, recruiterWhere?: object }} opts
  */
 export async function globalSearch({
   q,
@@ -365,6 +389,9 @@ export async function globalSearch({
   limit = 20,
   offset = 0,
   sort = 'relevance',
+  studentWhere,
+  jobWhere,
+  recruiterWhere,
 } = {}) {
   const query = normalizeQuery(q);
   if (query.length < 2) {
@@ -377,12 +404,17 @@ export async function globalSearch({
     .filter((t) => ENTITY_TYPES.includes(t));
 
   const perType = Math.min(Math.max(Number(limit) || 20, 5), 50);
+  const scopedTypes = new Set(['STUDENT', 'RESUME', 'APPLICATION']);
   const settled = await Promise.all(
     selected.map(async (type) => {
       try {
         const fn = SEARCHERS[type];
         if (!fn) return [];
-        return await fn(query, perType);
+        let scopeArg;
+        if (scopedTypes.has(type)) scopeArg = studentWhere;
+        else if (type === 'JOB') scopeArg = jobWhere;
+        else if (type === 'RECRUITER') scopeArg = recruiterWhere;
+        return await fn(query, perType, scopeArg);
       } catch (err) {
         console.warn(`[globalSearch] ${type} failed:`, err.message);
         return [];
@@ -418,8 +450,19 @@ export async function globalSearch({
   };
 }
 
-export async function autocomplete(q, { limit = 8 } = {}) {
-  const result = await globalSearch({ q, limit: Math.min(Number(limit) || 8, 12) });
+export async function autocomplete(q, { limit = 8, studentWhere, jobWhere, recruiterWhere, userRole } = {}) {
+  const types =
+    userRole === 'RECRUITER'
+      ? ['JOB', 'COMPANY', 'RECRUITER', 'ASSESSMENT', 'INTERVIEW']
+      : undefined;
+  const result = await globalSearch({
+    q,
+    limit: Math.min(Number(limit) || 8, 12),
+    studentWhere,
+    jobWhere,
+    recruiterWhere,
+    types,
+  });
   return {
     q: result.q,
     suggestions: result.items.map((i) => ({

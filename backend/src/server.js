@@ -5,17 +5,10 @@
  */
 
 // CRITICAL: Load environment variables FIRST before any imports that use them
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import dotenv from 'dotenv';
+import './config/loadEnv.js';
+import { assertProductionSecrets } from './config/secrets.js';
 
-// Get the directory of the current module
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-// Load .env file from the backend root directory (parent of src/)
-// Override any already-set env vars so switching DB providers works reliably.
-dotenv.config({ path: join(__dirname, '../.env'), override: true });
+assertProductionSecrets();
 
 // Now import modules that depend on environment variables
 import express from 'express';
@@ -25,7 +18,7 @@ import rateLimit from 'express-rate-limit';
 import http from 'http';
 
 import { initSocket } from './config/socket.js';
-import prisma from './config/database.js';
+import prisma, { isRetryableDatabaseError } from './config/database.js';
 
 // Routes
 import authRoutes from './routes/auth.js';
@@ -74,11 +67,30 @@ import successStoriesRoutes from './routes/successStories.js';
 import globalSearchRoutes from './routes/globalSearch.js';
 import assessmentBulkImportRoutes from './routes/assessmentBulkImport.js';
 import { getJudge0Status } from './services/judge0.js';
+import { setupSwagger } from './config/swagger.js';
 
 // ============================================
 // STARTUP VALIDATION: Required Environment Variables
 // ============================================
 const isDevelopment = process.env.NODE_ENV !== 'production';
+
+function isPrivateLanHostname(hostname) {
+  if (!hostname) return false;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
+  if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true;
+  if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true;
+  if (/^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true;
+  return false;
+}
+
+function isAllowedDevOrigin(origin) {
+  if (!isDevelopment || !origin) return false;
+  try {
+    return isPrivateLanHostname(new URL(origin).hostname);
+  } catch {
+    return false;
+  }
+}
 const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET', 'FRONTEND_URL'];
 const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
@@ -130,14 +142,12 @@ function logDatabaseTarget() {
   }
 }
 
-// DEBUG: Verify .env loading for Google AI
-console.log('🔍 [DEBUG] Environment Variables Check:');
-console.log('  - GOOGLE_AI_API_KEY:', process.env.GOOGLE_AI_API_KEY ? `${process.env.GOOGLE_AI_API_KEY.substring(0, 10)}...${process.env.GOOGLE_AI_API_KEY.substring(process.env.GOOGLE_AI_API_KEY.length - 5)} (${process.env.GOOGLE_AI_API_KEY.length} chars)` : '❌ NOT SET');
-console.log('  - GOOGLE_AI_MODEL:', process.env.GOOGLE_AI_MODEL || process.env.GEMINI_MODEL || 'gemini-2.5-flash (default)');
-console.log('  - GOOGLE_AI_MAX_TOKENS:', process.env.GOOGLE_AI_MAX_TOKENS || '2048 (default)');
-console.log('  - GOOGLE_AI_TEMPERATURE:', process.env.GOOGLE_AI_TEMPERATURE || '0.7 (default)');
-console.log('  - AI_ENABLED:', process.env.AI_ENABLED !== 'false' ? 'true' : 'false');
-console.log('  - FRONTEND_URL:', process.env.FRONTEND_URL);
+if (process.env.NODE_ENV !== 'production') {
+  console.log('🔍 [DEBUG] Environment Variables Check:');
+  console.log('  - GOOGLE_AI_API_KEY:', process.env.GOOGLE_AI_API_KEY ? `${process.env.GOOGLE_AI_API_KEY.substring(0, 10)}... (${process.env.GOOGLE_AI_API_KEY.length} chars)` : '❌ NOT SET');
+  console.log('  - AI_ENABLED:', process.env.AI_ENABLED !== 'false' ? 'true' : 'false');
+  console.log('  - FRONTEND_URL:', process.env.FRONTEND_URL);
+}
 logDatabaseTarget();
 const judge0Status = getJudge0Status();
 if (judge0Status.enabled) {
@@ -188,8 +198,8 @@ app.use(cors({
       }
     }
 
-    // In development, also allow localhost on any port
-    if (isDevelopment && origin && (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:'))) {
+    // In development, allow localhost / LAN over http and https (camera needs https on LAN).
+    if (isDevelopment && isAllowedDevOrigin(origin)) {
       return callback(null, true);
     }
 
@@ -250,6 +260,31 @@ app.use('/api/auth/send-otp', authLimiter);
 app.use('/api/auth/verify-otp', authLimiter);
 app.use('/api/', generalLimiter);
 
+// Interactive OpenAPI documentation (Swagger UI)
+setupSwagger(app);
+
+/**
+ * @openapi
+ * /:
+ *   get:
+ *     tags: [Health]
+ *     summary: API root — service info
+ *     description: Returns basic API metadata and available entry points.
+ *     responses:
+ *       200:
+ *         description: API information
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message: { type: string }
+ *                 version: { type: string }
+ *                 status: { type: string }
+ *                 timestamp: { type: string, format: date-time }
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Root route - API information
 app.get('/', (req, res) => {
   res.json({
@@ -260,12 +295,29 @@ app.get('/', (req, res) => {
     endpoints: {
       health: '/health',
       api: '/api',
-      documentation: 'See API documentation for available endpoints'
+      documentation: '/api-docs'
     },
     environment: process.env.NODE_ENV || 'development'
   });
 });
 
+/**
+ * @openapi
+ * /health:
+ *   get:
+ *     tags: [Health]
+ *     summary: Health check
+ *     description: Lightweight liveness probe for load balancers and monitoring.
+ *     responses:
+ *       200:
+ *         description: Service is healthy
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/HealthResponse'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -320,6 +372,30 @@ app.use('/api/success-stories', successStoriesRoutes);
 app.use('/api/search', globalSearchRoutes);
 app.use('/api/assessment-imports', assessmentBulkImportRoutes);
 
+/**
+ * @openapi
+ * /auth/google/calendar/callback:
+ *   get:
+ *     tags: [OAuth Callbacks]
+ *     summary: Google Calendar OAuth callback (calendar path)
+ *     description: Handles Google OAuth redirect with authorization code for calendar connection.
+ *     parameters:
+ *       - in: query
+ *         name: code
+ *         schema: { type: string }
+ *         description: Authorization code from Google
+ *       - in: query
+ *         name: state
+ *         schema: { type: string }
+ *         description: OAuth state parameter
+ *     responses:
+ *       200:
+ *         description: OAuth callback processed (HTML redirect or JSON)
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Google Calendar OAuth callback for popup flow
 // This route is called by Google with the authorization code
 // CRITICAL: Use secure handler with email validation
@@ -330,6 +406,27 @@ app.get('/auth/google/calendar/callback', async (req, res) => {
   return handleOAuthCallback(req, res);
 });
 
+/**
+ * @openapi
+ * /auth/google/callback:
+ *   get:
+ *     tags: [OAuth Callbacks]
+ *     summary: Google OAuth callback (legacy path)
+ *     parameters:
+ *       - in: query
+ *         name: code
+ *         schema: { type: string }
+ *       - in: query
+ *         name: state
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: OAuth callback processed
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Legacy callback route (for backward compatibility)
 // If Google Cloud Console is configured with /auth/google/callback
 // CRITICAL: Use secure handler with email validation
@@ -339,6 +436,27 @@ app.get('/auth/google/callback', async (req, res) => {
   return handleOAuthCallback(req, res);
 });
 
+/**
+ * @openapi
+ * /api/calendar/oauth/callback:
+ *   get:
+ *     tags: [OAuth Callbacks]
+ *     summary: Google Calendar OAuth callback (API path)
+ *     parameters:
+ *       - in: query
+ *         name: code
+ *         schema: { type: string }
+ *       - in: query
+ *         name: state
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: OAuth callback processed
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Additional callback route for /api/calendar/oauth/callback
 // This handles redirects from Google Cloud Console if configured with this path
 app.get('/api/calendar/oauth/callback', async (req, res) => {
@@ -410,12 +528,17 @@ async function start() {
         break;
       }
 
-      // For connection errors (P1001, P1017), retry (database might be sleeping)
-      if (errorCode === 'P1001' || errorCode === 'P1017' || errorCode === 'P2024' ||
+      // Retry transient connection issues, but allow startup to continue in degraded mode
+      if (
+        errorCode === 'P1001' ||
+        errorCode === 'P1017' ||
+        errorCode === 'P2024' ||
         errorMessage.includes("Can't reach database") ||
         errorMessage.includes('Server has closed the connection') ||
         errorMessage.includes('connection pool') ||
-        errorMessage.includes('Timed out')) {
+        errorMessage.includes('Timed out') ||
+        isRetryableDatabaseError(dbErr)
+      ) {
         if (attempt < maxRetries) {
           console.warn(`⚠️  Database connection failed (attempt ${attempt}/${maxRetries}):`);
           console.warn(`   ${errorMessage.substring(0, 100)}...`);
@@ -424,28 +547,20 @@ async function start() {
           console.warn(`   ⏳ Retrying in ${retryDelay / 1000} seconds...`);
           await new Promise(resolve => setTimeout(resolve, retryDelay));
           continue;
-        } else {
-          // Final attempt failed
-          console.error('\n❌ CRITICAL: Failed to connect to database after all retries.');
-          console.error(`   Error: ${errorMessage}`);
-          console.error(`   Code: ${errorCode}`);
-          console.error('\n💡 Troubleshooting steps:');
-          console.error('   1. Check Render dashboard - database may be paused/stopped');
-          console.error('   2. Render free tier databases spin down after ~90s inactivity');
-          console.error('   3. Database needs 30-60 seconds to wake up (first query triggers wake-up)');
-          console.error('   4. Verify DATABASE_URL in .env file is correct');
-          console.error('   5. Try accessing database from Render dashboard to wake it up');
-          console.error('   6. Check network connectivity');
-          console.error('   7. If using free tier, consider upgrading or using a different database');
-          process.exit(1);
         }
-      } else {
-        // For other errors, fail fast
-        console.error('❌ CRITICAL: Failed to connect to database. Server will not start.');
-        console.error(`   Error: ${errorMessage}`);
-        console.error(`   Code: ${errorCode}`);
-        process.exit(1);
+
+        console.warn('\n⚠️  Database remained unavailable after retries. Starting server in degraded mode.');
+        console.warn(`   Error: ${errorMessage}`);
+        console.warn(`   Code: ${errorCode}`);
+        console.warn('   Some API routes will fail until the database becomes reachable again.');
+        break;
       }
+
+      // For other errors, fail fast
+      console.error('❌ CRITICAL: Failed to connect to database. Server will not start.');
+      console.error(`   Error: ${errorMessage}`);
+      console.error(`   Code: ${errorCode}`);
+      process.exit(1);
     }
   }
 
@@ -454,7 +569,7 @@ async function start() {
     server.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Server running on port ${PORT}`);
       if (!dbConnected) {
-        console.log(`   ⚠️  Database quota exceeded - limited functionality until quota resets`);
+        console.log('   ⚠️  Database unavailable - limited functionality until connectivity is restored');
       }
       console.log(`📡 Socket.IO enabled`);
       console.log(`🌐 CORS origin: ${process.env.CORS_ORIGIN || 'NOT SET (CRITICAL)'}`);

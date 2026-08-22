@@ -214,8 +214,9 @@ export default function InterviewScheduling() {
       const jobsList = data.jobs || (Array.isArray(data) ? data : []);
       setJobs(jobsList);
       
+      const validJobs = jobsList.filter(job => job.id && !job.id.startsWith('verify_'));
       const sessionResults = await Promise.allSettled(
-        jobsList.map(job => api.get(`/interview-sessions/${job.id}`, { silent: true }))
+        validJobs.map(job => api.get(`/interview-sessions/${job.id}`, { silent: true }))
       );
       
       const sessionMap = {};
@@ -223,7 +224,7 @@ export default function InterviewScheduling() {
         if (res.status === 'fulfilled' && res.value) {
           const sessionData = res.value.session ?? res.value.data?.session;
           if (sessionData) {
-            sessionMap[jobsList[index].id] = {
+            sessionMap[validJobs[index].id] = {
               status: sessionData.status,
               rounds: Array.isArray(sessionData.rounds) ? sessionData.rounds : [],
             };

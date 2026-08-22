@@ -11,7 +11,9 @@ import prisma from '../config/database.js';
 import jwt from 'jsonwebtoken';
 import { getAdminScopeFilter, mergeScopeIntoStudentWhere } from '../utils/adminScope.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+import { getJwtSecret } from '../config/secrets.js';
+
+const JWT_SECRET = getJwtSecret();
 import { getGoogleSheetsSpreadsheetId } from '../services/googleSheetsConfig.js';
 import {
   DIRECTORY_EXPORT_HEADERS,

@@ -12,7 +12,9 @@ import { notifyStudentApplicationUpdate } from './applications.js';
 import { assertApplicationEditable, patchApplication } from '../services/applicationStateService.js';
 import { logAction, logSystemAction } from '../utils/auditLogger.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+import { getJwtSecret } from '../config/secrets.js';
+
+const JWT_SECRET = getJwtSecret();
 
 /**
  * Generate secure token for recruiter screening session

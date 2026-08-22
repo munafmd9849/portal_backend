@@ -117,9 +117,7 @@ export async function createAdmin(req, res) {
       asIdList(allowedSchoolIds).length > 0 ||
       asIdList(allowedCenterIds).length > 0 ||
       asIdList(allowedBatchIds).length > 0;
-    const isFullAccess =
-      fullAccess === true ||
-      (fullAccess !== false && !hasIdScope && !allowedSchools?.length && !allowedCenters?.length && !allowedBatches?.length);
+    const isFullAccess = fullAccess === true;
 
     const scopeError = validateRestrictedScope(
       isFullAccess,

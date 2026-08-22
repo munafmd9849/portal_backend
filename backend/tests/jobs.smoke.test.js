@@ -45,6 +45,10 @@ describe('applicationTransitionService', () => {
     expect(() => validateScreeningTransition('SCREENING_REJECTED', 'INTERVIEW_ELIGIBLE')).toThrow();
   });
 
+  test('blocks APPLIED to JOINED status jump', () => {
+    expect(() => validateStatusTransition('APPLIED', 'JOINED')).toThrow(/Invalid status transition/i);
+  });
+
   test('allows offer status update', () => {
     expect(() => validateStatusTransition('SELECTED', 'OFFERED')).not.toThrow();
   });

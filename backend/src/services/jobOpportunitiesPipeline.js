@@ -5,6 +5,11 @@
  */
 
 import prisma from '../config/database.js';
+import {
+  buildJobListWhere,
+  buildScopedStudentWhere,
+  isAdminScopeBlocked,
+} from '../utils/adminResourceScope.js';
 import { applyAcademicStudentFilters } from '../utils/academicFilter.js';
 
 export const PIPELINE_STATUS = {
@@ -142,6 +147,53 @@ export function buildFilters(query = {}) {
   return { studentWhere, jobWhere, appWhere, search };
 }
 
+/** Merge admin scope into pipeline filters (students + jobs + applications). */
+export function buildScopedPipelineFilters(query = {}, user = null) {
+  const base = buildFilters(query);
+  if (!user || user.role === 'SUPER_ADMIN') {
+    return { ...base, blocked: false };
+  }
+
+  if (user.role === 'ADMIN') {
+    if (isAdminScopeBlocked(user.admin, user.role)) {
+      return {
+        studentWhere: { id: '__BLOCKED__' },
+        jobWhere: { id: '__BLOCKED__' },
+        appWhere: { id: '__BLOCKED__' },
+        search: base.search,
+        blocked: true,
+      };
+    }
+
+    const adminUserId = user.id;
+    const scopedStudent = buildScopedStudentWhere(user.admin, user.role, base.studentWhere);
+    const jobScope = buildJobListWhere(user.admin, user.role, adminUserId);
+    const scopedJob = Object.keys(base.jobWhere).length
+      ? { AND: [base.jobWhere, jobScope] }
+      : jobScope;
+
+    const scopedApp = { ...base.appWhere };
+    if (scopedStudent.id === '__BLOCKED__') {
+      scopedApp.id = '__BLOCKED__';
+    } else if (Object.keys(scopedStudent).length) {
+      scopedApp.student = scopedStudent;
+    }
+    if (Object.keys(scopedJob).length) {
+      scopedApp.job = scopedJob;
+    }
+
+    return {
+      studentWhere: scopedStudent,
+      jobWhere: scopedJob,
+      appWhere: scopedApp,
+      search: base.search,
+      blocked: scopedStudent.id === '__BLOCKED__' || jobScope.id === '__BLOCKED__',
+    };
+  }
+
+  return { ...base, blocked: false };
+}
+
 async function countStudents(studentWhere, extra = {}) {
   return prisma.student.count({ where: { ...studentWhere, ...extra } });
 }
@@ -153,8 +205,28 @@ async function countJobs(jobWhere, extra = {}) {
 /**
  * Overview stats — all from filtered queries on students, jobs, applications.
  */
-export async function getJobOpportunitiesOverview(query = {}) {
-  const { studentWhere, jobWhere, appWhere } = buildFilters(query);
+export async function getJobOpportunitiesOverview(query = {}, user = null) {
+  const { studentWhere, jobWhere, appWhere, blocked } = buildScopedPipelineFilters(query, user);
+  if (blocked) {
+    return {
+      totalCsPool: 0,
+      activeCsPool: 0,
+      inactiveCsPool: 0,
+      companiesOnboarded: 0,
+      jdsAnnounced: 0,
+      openPositions: 0,
+      applicationsShared: 0,
+      transitions: 0,
+      jobsActive: 0,
+      jobsHold: 0,
+      jobsInProcess: 0,
+      jobsYetToStart: 0,
+      jobsClosed: 0,
+      studentsNotApplied: 0,
+      jobsNotDeliverable: 0,
+      _meta: { blocked: true },
+    };
+  }
 
   const postedJobFilter = {
     ...jobWhere,
@@ -275,8 +347,8 @@ export async function getJobOpportunitiesOverview(query = {}) {
 /**
  * Lazy breakdown for hover cards (cached on client).
  */
-export async function getCardBreakdown(cardKey, query = {}) {
-  const overview = await getJobOpportunitiesOverview(query);
+export async function getCardBreakdown(cardKey, query = {}, user = null) {
+  const overview = await getJobOpportunitiesOverview(query, user);
   const meta = overview._meta || {};
 
   switch (cardKey) {
@@ -322,8 +394,11 @@ export async function getCardBreakdown(cardKey, query = {}) {
   }
 }
 
-export async function getCrManagerOverview(query = {}) {
-  const { jobWhere, appWhere, search } = buildFilters(query);
+export async function getCrManagerOverview(query = {}, user = null) {
+  const { jobWhere, appWhere, search, blocked } = buildScopedPipelineFilters(query, user);
+  if (blocked) {
+    return { jdsPunched: 0, managers: [] };
+  }
 
   const PLACED = ['SELECTED', 'ACCEPTED', 'OFFERED'];
   const SHORTLIST = ['SHORTLISTED', 'INTERVIEWED', ...PLACED];
@@ -578,8 +653,11 @@ export async function getCrManagerOverview(query = {}) {
 /**
  * MoM table: CR Manager × Segment with pipeline counts.
  */
-export async function getMomTable(query = {}) {
-  const { appWhere, search } = buildFilters(query);
+export async function getMomTable(query = {}, user = null) {
+  const { appWhere, search, blocked } = buildScopedPipelineFilters(query, user);
+  if (blocked) {
+    return { rows: [] };
+  }
 
   const applications = await prisma.application.findMany({
     where: appWhere,
@@ -688,16 +766,23 @@ export async function getMomTable(query = {}) {
   return { rows };
 }
 
-export async function getFilterOptions() {
+export async function getFilterOptions(user = null) {
+  const jobScope = user?.role === 'ADMIN'
+    ? buildJobListWhere(user.admin, user.role, user.id)
+    : {};
+  const jobWhere = jobScope.id === '__BLOCKED__' ? { id: '__BLOCKED__' } : jobScope;
+
   const [segments, recruiters] = await Promise.all([
     prisma.job.findMany({
-      where: { specialization: { not: null } },
+      where: { ...jobWhere, specialization: { not: null } },
       select: { specialization: true },
       distinct: ['specialization'],
       take: 50,
     }),
     prisma.recruiter.findMany({
-      where: { jobs: { some: {} } },
+      where: {
+        jobs: { some: jobWhere.id === '__BLOCKED__' ? { id: '__BLOCKED__' } : jobWhere },
+      },
       select: {
         id: true,
         companyName: true,

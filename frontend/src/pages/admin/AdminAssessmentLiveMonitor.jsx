@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Filter, Grid3x3, List, Radio, TriangleAlert, Video, X, ZoomIn } from 'lucide-react';
+import { ArrowLeft, Filter, Grid3x3, List, Radio, TriangleAlert, Video, X, ZoomIn, Unlock, Clock, Send, Pause } from 'lucide-react';
 import api from '../../services/api';
 import { initSocket, subscribeProctoringMonitor } from '../../services/socket';
 import { ProctoringViewer } from '../../proctoring-engine/liveProctoringRtc';
 import { Spinner, Skeleton, SkeletonMediaRowList } from '../../components/ui/loading';
+import { useToast } from '../../components/ui/Toast';
 
 function formatTime(ts) {
   if (!ts) return '—';
@@ -45,6 +46,7 @@ export default function AdminAssessmentLiveMonitor() {
   const location = useLocation();
   const basePath = location.pathname.startsWith('/super-admin') ? '/super-admin' : '/admin';
 
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState([]);
   const [selectedSessionId, setSelectedSessionId] = useState(null);
@@ -56,6 +58,10 @@ export default function AdminAssessmentLiveMonitor() {
   const [rtcConnected, setRtcConnected] = useState(false);
   const [rtcConnecting, setRtcConnecting] = useState(false);
   const [liveVideoEl, setLiveVideoEl] = useState(null);
+  const [unlocking, setUnlocking] = useState(false);
+  const [pausing, setPausing] = useState(false);
+  const [extending, setExtending] = useState(false);
+  const [forceSubmitting, setForceSubmitting] = useState(false);
   const rtcViewerRef = useRef(null);
 
   const setLiveVideoRef = useCallback((el) => {
@@ -71,6 +77,8 @@ export default function AdminAssessmentLiveMonitor() {
       if (list.length > 0) {
         setSelectedSessionId((prev) => prev || list[0].id);
       }
+    } catch (e) {
+      console.error('Live sessions refresh failed', e);
     } finally {
       if (showSpinner) setLoading(false);
     }
@@ -99,33 +107,77 @@ export default function AdminAssessmentLiveMonitor() {
       )
     );
 
-    if (payload.sessionId === selectedSessionId) {
-      setDetails((prev) => {
-        if (!prev) return prev;
-        const exists = prev.screenshots?.some((x) => x.id === shot.id);
-        const signed = { ...shot, signedUrl: shot.url, imageUrl: shot.url };
-        const screenshots = exists
-          ? prev.screenshots
-          : [...(prev.screenshots || []), signed];
-        return { ...prev, screenshots };
-      });
-    }
-  }, [selectedSessionId]);
+    setDetails((prev) => {
+      if (!prev || prev.id !== payload.sessionId) return prev;
+      const exists = prev.screenshots?.some((x) => x.id === shot.id);
+      const signed = { ...shot, signedUrl: shot.url, imageUrl: shot.url };
+      const screenshots = exists
+        ? prev.screenshots
+        : [...(prev.screenshots || []), signed];
+      return { ...prev, screenshots };
+    });
+  }, []);
+
+  const applyLiveViolation = useCallback((payload) => {
+    if (!payload?.sessionId) return;
+    const typeLabel = payload.violation?.type
+      ? String(payload.violation.type).replace(/_/g, ' ')
+      : null;
+
+    setSessions((prev) =>
+      prev.map((s) =>
+        s.id === payload.sessionId
+          ? {
+              ...s,
+              violations: payload.violationsCount ?? (s.violations || 0) + 1,
+              lastViolation: typeLabel || s.lastViolation,
+              lastPing: 'Just now',
+              paused: payload.paused ?? s.paused,
+              pauseReason: payload.pauseReason ?? s.pauseReason,
+              status: payload.paused
+                ? 'PAUSED'
+                : payload.violationsCount > 3
+                  ? 'CRITICAL'
+                  : payload.violationsCount > 0
+                    ? 'WARNING'
+                    : s.status,
+            }
+          : s
+      )
+    );
+
+    setDetails((prev) => {
+      if (!prev || prev.id !== payload.sessionId) return prev;
+      const incoming = payload.violation;
+      const exists = incoming?.id && prev.violations?.some((x) => x.id === incoming.id);
+      return {
+        ...prev,
+        violationsCount: payload.violationsCount ?? prev.violationsCount,
+        paused: payload.paused ?? prev.paused,
+        pauseReason: payload.pauseReason ?? prev.pauseReason,
+        violations:
+          incoming && !exists ? [...(prev.violations || []), incoming] : prev.violations,
+      };
+    });
+  }, []);
 
   useEffect(() => {
     initSocket();
     refreshSessions(true);
-    const interval = setInterval(() => refreshSessions(false), 2500);
+    const interval = setInterval(() => refreshSessions(false), 10000);
     return () => clearInterval(interval);
   }, [refreshSessions]);
 
   useEffect(() => {
     const unsub = subscribeProctoringMonitor(id, {
       onScreenshot: applyLiveScreenshot,
-      onViolation: () => refreshSessions(false),
+      onViolation: applyLiveViolation,
+      onPaused: applyLiveViolation,
+      onUnlocked: () => refreshSessions(false),
+      onExtended: () => refreshSessions(false),
     });
     return unsub;
-  }, [id, applyLiveScreenshot, refreshSessions]);
+  }, [id, applyLiveScreenshot, applyLiveViolation, refreshSessions]);
 
   useEffect(() => {
     if (!selectedSessionId || !liveVideoEl) {
@@ -181,31 +233,38 @@ export default function AdminAssessmentLiveMonitor() {
       try {
         setDetailLoading(true);
         const d = await api.getProctoringSessionDetails(selectedSessionId);
-
         const screenshots = Array.isArray(d?.screenshots) ? d.screenshots : [];
-        const urls = await Promise.all(
-          screenshots.map(async (s) => {
-            try {
-              const r = await api.getProctoringScreenshotUrl(s.id);
-              return { id: s.id, url: r?.url || s.imageUrl };
-            } catch {
-              return { id: s.id, url: s.imageUrl };
-            }
-          })
-        );
-        const urlById = new Map(urls.map((u) => [u.id, u.url]));
+        const missing = screenshots.filter((s) => !s.signedUrl && !s.imageUrl);
+        const extraUrls = missing.length
+          ? await Promise.all(
+              missing.map(async (s) => {
+                try {
+                  const r = await api.getProctoringScreenshotUrl(s.id);
+                  return { id: s.id, url: r?.url || s.imageUrl };
+                } catch {
+                  return { id: s.id, url: s.imageUrl };
+                }
+              })
+            )
+          : [];
+        const urlById = new Map(extraUrls.map((u) => [u.id, u.url]));
         const hydrated = {
           ...d,
-          screenshots: screenshots.map((s) => ({ ...s, signedUrl: urlById.get(s.id) || s.imageUrl })),
+          screenshots: screenshots.map((s) => ({
+            ...s,
+            signedUrl: s.signedUrl || urlById.get(s.id) || s.imageUrl,
+          })),
         };
 
         if (!cancelled) setDetails(hydrated);
+      } catch (e) {
+        console.error('Proctoring details load failed', e);
       } finally {
         if (!cancelled) setDetailLoading(false);
       }
     };
     load();
-    const poll = setInterval(load, 3000);
+    const poll = setInterval(load, 12000);
     return () => {
       cancelled = true;
       clearInterval(poll);
@@ -213,6 +272,89 @@ export default function AdminAssessmentLiveMonitor() {
   }, [selectedSessionId]);
 
   const selectedRow = useMemo(() => sessions.find((s) => s.id === selectedSessionId) || null, [sessions, selectedSessionId]);
+
+  const handleAllowContinue = useCallback(async () => {
+    if (!selectedSessionId || unlocking) return;
+    try {
+      setUnlocking(true);
+      await api.unlockAssessmentSession(selectedSessionId);
+      await refreshSessions(false);
+      if (details) {
+        setDetails((prev) => (prev ? { ...prev, paused: false, pauseReason: null } : prev));
+      }
+      toast?.success('Session unlocked');
+    } catch (e) {
+      console.error('Unlock failed', e);
+      toast?.error('Unlock failed');
+    } finally {
+      setUnlocking(false);
+    }
+  }, [selectedSessionId, unlocking, refreshSessions, details, toast]);
+
+  const handlePauseExam = useCallback(async () => {
+    if (!selectedSessionId || pausing) return;
+    const ok = window.confirm(
+      'Pause this student’s exam now? Their timer freezes until you allow them to continue.'
+    );
+    if (!ok) return;
+    try {
+      setPausing(true);
+      await api.pauseAssessmentSession(selectedSessionId, 'ADMIN_PAUSE');
+      await refreshSessions(false);
+      setDetails((prev) => (prev ? { ...prev, paused: true, pauseReason: 'ADMIN_PAUSE' } : prev));
+      toast?.success('Exam paused for this student');
+    } catch (e) {
+      console.error('Pause failed', e);
+      toast?.error('Could not pause exam');
+    } finally {
+      setPausing(false);
+    }
+  }, [selectedSessionId, pausing, refreshSessions, toast]);
+
+  const handleExtendTime = useCallback(async () => {
+    if (!selectedSessionId || extending) return;
+    const raw = window.prompt('Extend time by how many minutes? (1–180)', '15');
+    if (raw == null) return;
+    const minutes = Number(raw);
+    if (!Number.isFinite(minutes) || minutes <= 0) {
+      toast?.error('Enter a valid number of minutes');
+      return;
+    }
+    try {
+      setExtending(true);
+      const res = await api.extendAssessmentSession(selectedSessionId, minutes);
+      await refreshSessions(false);
+      toast?.success(`Extended by ${minutes} min · ${Math.ceil((res?.remainingSeconds || 0) / 60)} min left`);
+    } catch (e) {
+      console.error('Extend failed', e);
+      toast?.error('Could not extend time');
+    } finally {
+      setExtending(false);
+    }
+  }, [selectedSessionId, extending, refreshSessions, toast]);
+
+  const handleForceSubmit = useCallback(async () => {
+    if (!selectedSessionId || forceSubmitting) return;
+    const ok = window.confirm(
+      'Force-submit this attempt with the latest saved answers? The student will not be able to continue.'
+    );
+    if (!ok) return;
+    try {
+      setForceSubmitting(true);
+      await api.forceSubmitAssessmentSession(selectedSessionId);
+      await refreshSessions(false);
+      setSelectedSessionId(null);
+      setDetails(null);
+      toast?.success('Attempt force-submitted');
+    } catch (e) {
+      console.error('Force submit failed', e);
+      toast?.error('Force submit failed');
+    } finally {
+      setForceSubmitting(false);
+    }
+  }, [selectedSessionId, forceSubmitting, refreshSessions, toast]);
+
+  const isSelectedPaused = Boolean(selectedRow?.paused || details?.paused);
 
   const evidenceTimeline = useMemo(
     () => buildEvidenceTimeline(details?.screenshots),
@@ -308,7 +450,9 @@ export default function AdminAssessmentLiveMonitor() {
                     <td className="px-3 py-2.5">
                       <span
                         className={`inline-flex px-2 py-0.5 rounded-md text-xs font-medium border ${
-                          s.status === 'CRITICAL' || s.status === 'HIGH'
+                          s.status === 'PAUSED'
+                            ? 'bg-amber-50 text-amber-800 border-amber-300'
+                            : s.status === 'CRITICAL' || s.status === 'HIGH'
                             ? 'bg-rose-50 text-rose-700 border-rose-200'
                             : s.status === 'WARNING' || s.status === 'MEDIUM'
                               ? 'bg-amber-50 text-amber-700 border-amber-200'
@@ -335,14 +479,60 @@ export default function AdminAssessmentLiveMonitor() {
         </div>
 
         <div className="lg:col-span-7 bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-            <div>
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+            <div className="min-w-0">
               <div className="text-sm font-semibold text-slate-900">Evidence timeline</div>
               <div className="text-xs font-medium text-gray-500 ">
                 {selectedRow ? selectedRow.studentName : 'Select a candidate'}
+                {isSelectedPaused ? ' · paused (awaiting unlock)' : ''}
               </div>
             </div>
-            {detailLoading && <Spinner size="sm" tone="muted" />}
+            <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+              {selectedSessionId && (
+                <>
+                  {isSelectedPaused ? (
+                    <button
+                      type="button"
+                      onClick={handleAllowContinue}
+                      disabled={unlocking}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white disabled:opacity-60"
+                    >
+                      <Unlock className="w-3.5 h-3.5" />
+                      {unlocking ? 'Unlocking…' : 'Allow continue'}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handlePauseExam}
+                      disabled={pausing}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 disabled:opacity-60"
+                    >
+                      <Pause className="w-3.5 h-3.5" />
+                      {pausing ? 'Pausing…' : 'Pause exam'}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleExtendTime}
+                    disabled={extending}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white disabled:opacity-60"
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    {extending ? 'Extending…' : 'Extend time'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleForceSubmit}
+                    disabled={forceSubmitting}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-60"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    {forceSubmitting ? 'Submitting…' : 'Force submit'}
+                  </button>
+                </>
+              )}
+              {detailLoading && <Spinner size="sm" tone="muted" />}
+            </div>
           </div>
 
           {!selectedSessionId ? (

@@ -49,7 +49,10 @@ export async function evaluateCodeHandler(req, res) {
 
     sanitizeCode(code);
 
-    const evaluation = await evaluateTestCases({ language, code, testCases });
+    const evaluation = await evaluateTestCases(
+      { language, code, testCases },
+      { redactHidden: true },
+    );
     res.json(evaluation);
   } catch (err) {
     res.status(400).json({

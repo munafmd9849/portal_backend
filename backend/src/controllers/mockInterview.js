@@ -8,6 +8,7 @@ import {
 import { buildMockSlotResult, feedbackScorePercent } from '../utils/mockInterviewFeedback.js';
 import { ensureMockCodeSession, updateStudentCode } from '../utils/mockCodeSession.js';
 import { getIO } from '../config/socket.js';
+import { buildMockDriveListWhere } from '../utils/adminResourceScope.js';
 
 async function assertMockCodeSlotAccess(req, slotId) {
   const slot = await prisma.mockInterviewSlot.findUnique({
@@ -235,7 +236,14 @@ export async function publishMockInterviewDrive(req, res) {
  */
 export async function getMockInterviewDrives(req, res) {
   try {
+    const role = req.user?.role;
+    const scopeWhere =
+      role === 'ADMIN'
+        ? await buildMockDriveListWhere(req.user.admin, role)
+        : {};
+
     const drives = await prisma.mockInterviewDrive.findMany({
+      where: scopeWhere,
       include: {
         _count: {
           select: { slots: true }

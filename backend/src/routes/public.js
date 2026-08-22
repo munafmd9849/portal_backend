@@ -18,6 +18,39 @@ const publicProfileRateLimit = rateLimit({
   legacyHeaders: false,
 });
 
+/**
+ * @openapi
+ * /api/public/profile/{publicProfileId}:
+ *   get:
+ *     tags: [Public]
+ *     summary: Get public student profile
+ *     description: Returns a read-only student profile by shareable public profile ID. No authentication required.
+ *     parameters:
+ *       - in: path
+ *         name: publicProfileId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Shareable public profile identifier
+ *     responses:
+ *       200:
+ *         description: Public profile data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 profile:
+ *                   type: object
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Public profile access (NO AUTH)
 router.get('/profile/:publicProfileId', 
   publicProfileRateLimit,

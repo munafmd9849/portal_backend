@@ -107,6 +107,17 @@ export function requireActive(req, res, next) {
 }
 
 /**
+ * Pending/blocked recruiters must not perform privileged write actions.
+ * Admins and super admins are not subject to recruiter activation checks.
+ */
+export function requireActiveRecruiter(req, res, next) {
+  if (req.user?.role === 'RECRUITER') {
+    return requireActive(req, res, next);
+  }
+  next();
+}
+
+/**
  * Verify user owns the resource or is admin
  */
 export function requireOwnershipOrAdmin(resourceIdGetter, resourceUserIdField = 'userId') {
