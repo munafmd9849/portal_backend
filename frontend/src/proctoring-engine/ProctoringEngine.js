@@ -10,6 +10,7 @@ import {
   getFaceDetectorState,
   resetFaceDetector,
 } from './mediapipeFaceDetector';
+import { auditDisplayEnvironment, installScreenShareGuard } from './screenShareGuard';
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
@@ -80,6 +81,7 @@ export class ProctoringEngine {
     onStatus,
     onError,
     onLiveFrame,
+    onDisplayRiskChange,
     config = {},
   }) {
     this.getVideoEl = getVideoEl;
@@ -92,6 +94,7 @@ export class ProctoringEngine {
     this.onStatus = onStatus;
     this.onError = onError;
     this.onLiveFrame = onLiveFrame;
+    this.onDisplayRiskChange = onDisplayRiskChange;
     this.cfg = { ...defaultProctoringConfig, ...config };
 
     this._stream = null;
@@ -117,6 +120,10 @@ export class ProctoringEngine {
     this._lastFaceCount = null;
     this._violationCount = 0;
     this._faceDetectorInitPromise = null;
+    this._displayRisk = false;
+    this._displayRiskReason = null;
+    this._screenShareUninstall = null;
+    this._displayPollTimer = null;
   }
 
   get isFullscreen() {
@@ -134,25 +141,32 @@ export class ProctoringEngine {
   }
 
   getSecureStatus() {
-    const screenCount =
-      typeof window.screen?.isExtended === 'boolean'
-        ? window.screen.isExtended
-          ? 2
-          : 1
-        : typeof window.screen?.availWidth === 'number' && window.screen.width !== window.innerWidth
-          ? null
-          : 1;
+    const extended = typeof window.screen?.isExtended === 'boolean' ? window.screen.isExtended : false;
+    const multiMonitor = Boolean(
+      this._displayRisk ||
+        (this._detectedScreenCount != null && this._detectedScreenCount > 1) ||
+        extended
+    );
+
     return {
       secureMode: this._monitoring,
       fullscreen: this.isFullscreen,
       camera: this.isCameraActive(),
       microphone: this.isMicActive(),
       online: typeof navigator.onLine === 'boolean' ? navigator.onLine : true,
-      multiMonitor: screenCount != null ? screenCount > 1 : null,
+      multiMonitor,
+      screenSharing: Boolean(this._displayRisk),
+      screenSharingReason: this._displayRiskReason || null,
       face: this._lastFaceCount == null ? null : this._lastFaceCount > 0,
       faceCount: this._lastFaceCount,
       violationCount: this._violationCount,
     };
+  }
+
+  /** Restore server-side count after re-login / resume so UI matches admin. */
+  seedViolationCount(count) {
+    const n = Number(count);
+    if (Number.isFinite(n) && n >= 0) this._violationCount = Math.floor(n);
   }
 
   getStream() {
@@ -185,6 +199,24 @@ export class ProctoringEngine {
 
   async initCamera({ withAudio } = {}) {
     const wantAudio = withAudio ?? this.cfg.micRequired ?? false;
+    if (typeof window !== 'undefined' && !window.isSecureContext) {
+      const host = window.location.host || '';
+      const hint = host.includes(':5178')
+        ? 'Open the HTTPS URL on port 5173 instead (e.g. https://192.168.x.x:5173) — camera needs a secure context.'
+        : 'Camera requires HTTPS (or localhost). Open this page over https:// and try again.';
+      const err = new Error(hint);
+      err.name = 'InsecureContextError';
+      err.code = 'INSECURE_CONTEXT';
+      throw err;
+    }
+    if (!navigator?.mediaDevices?.getUserMedia) {
+      const err = new Error(
+        'Camera API is unavailable in this browser/context. Use Chrome/Edge on https://localhost:5173 or https://<your-lan-ip>:5173.'
+      );
+      err.name = 'MediaDevicesUnavailable';
+      err.code = 'MEDIA_DEVICES_UNAVAILABLE';
+      throw err;
+    }
     this._stream = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: 'user',
@@ -214,9 +246,17 @@ export class ProctoringEngine {
   reattachVideo() {
     const video = this.getVideoEl?.();
     if (!video || !this._stream) return false;
-    video.srcObject = this._stream;
+    if (video.srcObject !== this._stream) {
+      video.srcObject = this._stream;
+    }
     video.play().catch(() => {});
     return true;
+  }
+
+  async reattachVideoAndWait(timeoutMs = 4000) {
+    if (!this.reattachVideo()) return false;
+    const video = this.getVideoEl?.();
+    return this._waitForVideoFrames(video, timeoutMs);
   }
 
   async _waitForVideoFrames(video, timeoutMs = 8000) {
@@ -241,8 +281,11 @@ export class ProctoringEngine {
   async detectFacesOnce() {
     const video = this.getVideoEl?.();
     if (!video) return 0;
-    if (!video.videoWidth) {
+    if (!(video.videoWidth > 0 && video.videoHeight > 0)) {
       await this._waitForVideoFrames(video, 3000);
+    }
+    if (!(video.videoWidth > 0 && video.videoHeight > 0) || (video.readyState ?? 0) < 2) {
+      return 0;
     }
     if (!this._faceDetector && this.cfg.faceMonitoring) {
       const { state } = getFaceDetectorState();
@@ -270,6 +313,8 @@ export class ProctoringEngine {
       const faces = await this._faceDetector.detect(video, nowMs());
       return Array.isArray(faces) ? faces.length : 0;
     } catch {
+      // Detector may have been reset after a bad frame — clear local handle.
+      this._faceDetector = null;
       return 0;
     }
   }
@@ -310,6 +355,33 @@ export class ProctoringEngine {
     this._monitoring = true;
     this._running = true;
     this._attachDomListeners();
+    if (this.cfg.screenShareGuard !== false) {
+      this._screenShareUninstall = installScreenShareGuard({
+        onBlockedAttempt: (source) => {
+          this._applyDisplayAudit(
+            {
+              risk: true,
+              reason: 'Screen sharing detected',
+              screenCount: this._detectedScreenCount,
+              mirrored: false,
+              source,
+            },
+            { violationType: ProctoringViolationType.SCREEN_SHARE_ATTEMPT }
+          );
+        },
+        onDisplayRisk: (audit) => {
+          this._applyDisplayAudit(audit, {
+            violationType: audit.mirrored
+              ? ProctoringViolationType.SCREEN_MIRRORING
+              : ProctoringViolationType.MULTI_MONITOR,
+          });
+        },
+        onDisplayClear: () => {
+          this._applyDisplayAudit({ risk: false });
+        },
+      });
+    }
+    this._refreshDisplayAudit().catch(() => {});
     if (this.cfg.faceMonitoring) this._startFaceLoop();
     if (this.cfg.audioMonitoring) this._startAudioMonitor();
     // Immediate evidence capture when session monitoring starts
@@ -330,6 +402,13 @@ export class ProctoringEngine {
     this._running = false;
     this._monitoring = false;
     this._detachDomListeners();
+    if (this._screenShareUninstall) {
+      this._screenShareUninstall();
+      this._screenShareUninstall = null;
+    }
+    this._displayRisk = false;
+    this._displayRiskReason = null;
+    this._detectedScreenCount = null;
     if (this._faceLoopTimer) clearTimeout(this._faceLoopTimer);
     if (this._periodicTimer) clearTimeout(this._periodicTimer);
     if (this._eventDebounceTimer) clearTimeout(this._eventDebounceTimer);
@@ -357,6 +436,52 @@ export class ProctoringEngine {
       this.onError?.(err);
     } catch {
       // ignore
+    }
+  }
+
+  async _refreshDisplayAudit({ force = false } = {}) {
+    if (!force && (!this._running || this.cfg.screenShareGuard === false)) return;
+    const audit = await auditDisplayEnvironment();
+    this._applyDisplayAudit(audit);
+  }
+
+  /**
+   * Blank exam when display capture / mirroring is active; auto-restore when cleared.
+   * Logs one violation per incident (false → true transition).
+   */
+  _applyDisplayAudit(audit, { violationType } = {}) {
+    const wasRisk = Boolean(this._displayRisk);
+    const isRisk = Boolean(audit?.risk);
+
+    if (isRisk) {
+      this._displayRisk = true;
+      this._displayRiskReason = audit.reason || 'Screen sharing detected';
+      if (audit.screenCount != null) this._detectedScreenCount = audit.screenCount;
+
+      if (!wasRisk) {
+        const type =
+          violationType ||
+          ProctoringViolationType.SCREEN_CAPTURE_DETECTED;
+        const details =
+          audit.source
+            ? `Screen sharing blocked (${audit.source})`
+            : audit.reason || 'Screen sharing detected';
+        this.bumpViolation(type, details, {
+          screenCount: audit.screenCount,
+          mirrored: audit.mirrored,
+        });
+        this.onDisplayRiskChange?.({
+          active: true,
+          reason: this._displayRiskReason,
+        });
+      }
+      return;
+    }
+
+    if (wasRisk) {
+      this._displayRisk = false;
+      this._displayRiskReason = null;
+      this.onDisplayRiskChange?.({ active: false });
     }
   }
 
@@ -389,19 +514,16 @@ export class ProctoringEngine {
 
     const onCopy = (e) => {
       if (!this._running || !this.cfg.clipboardGuard) return;
-      if (isExamInputTarget(e.target) || isExamInputTarget(document.activeElement)) return;
       e.preventDefault();
       this.bumpViolation(ProctoringViolationType.COPY_ATTEMPT, 'Copy blocked during secure exam');
     };
     const onCut = (e) => {
       if (!this._running || !this.cfg.clipboardGuard) return;
-      if (isExamInputTarget(e.target) || isExamInputTarget(document.activeElement)) return;
       e.preventDefault();
       this.bumpViolation(ProctoringViolationType.CUT_ATTEMPT, 'Cut blocked during secure exam');
     };
     const onPaste = (e) => {
       if (!this._running || !this.cfg.clipboardGuard) return;
-      if (isExamInputTarget(e.target) || isExamInputTarget(document.activeElement)) return;
       e.preventDefault();
       e.stopPropagation();
       this.bumpViolation(ProctoringViolationType.PASTE_ATTEMPT, 'Paste blocked during secure exam');
@@ -420,13 +542,11 @@ export class ProctoringEngine {
     };
     const onDragStart = (e) => {
       if (!this._running || !this.cfg.clipboardGuard) return;
-      if (isExamInputTarget(e.target)) return;
       e.preventDefault();
       this.bumpViolation(ProctoringViolationType.COPY_ATTEMPT, 'Drag-copy blocked during secure exam');
     };
     const onDrop = (e) => {
       if (!this._running || !this.cfg.clipboardGuard) return;
-      if (isExamInputTarget(e.target)) return;
       e.preventDefault();
       this.bumpViolation(ProctoringViolationType.PASTE_ATTEMPT, 'Drop-paste blocked during secure exam');
     };
@@ -449,19 +569,16 @@ export class ProctoringEngine {
         return;
       }
       if (ctrl && key === 'c') {
-        if (isExamInputTarget(e.target) || isExamInputTarget(document.activeElement)) return;
         e.preventDefault();
         this.bumpViolation(ProctoringViolationType.COPY_ATTEMPT, 'Ctrl/Cmd+C blocked');
         return;
       }
       if (ctrl && key === 'v') {
-        if (isExamInputTarget(e.target) || isExamInputTarget(document.activeElement)) return;
         e.preventDefault();
         this.bumpViolation(ProctoringViolationType.PASTE_ATTEMPT, 'Ctrl/Cmd+V blocked');
         return;
       }
       if (ctrl && key === 'x') {
-        if (isExamInputTarget(e.target) || isExamInputTarget(document.activeElement)) return;
         e.preventDefault();
         this.bumpViolation(ProctoringViolationType.CUT_ATTEMPT, 'Ctrl/Cmd+X blocked');
         return;
@@ -536,23 +653,8 @@ export class ProctoringEngine {
     };
 
     const checkMultiMonitor = async () => {
-      if (!this._running || !this.cfg.multiMonitorWarn) return;
-      try {
-        if (typeof window.getScreenDetails === 'function') {
-          const details = await window.getScreenDetails();
-          if (details?.screens?.length > 1) {
-            this.bumpViolation(
-              ProctoringViolationType.MULTI_MONITOR,
-              `Multiple displays detected (${details.screens.length})`,
-              { screenCount: details.screens.length }
-            );
-          }
-        } else if (window.screen?.isExtended) {
-          this.bumpViolation(ProctoringViolationType.MULTI_MONITOR, 'Extended display detected');
-        }
-      } catch {
-        // Permission denied — skip silently
-      }
+      if (!this._running || (!this.cfg.multiMonitorWarn && this.cfg.screenShareGuard === false)) return;
+      await this._refreshDisplayAudit();
     };
 
     document.addEventListener('visibilitychange', onVis);
@@ -593,9 +695,16 @@ export class ProctoringEngine {
       // ignore
     }
     checkMultiMonitor();
+    this._displayPollTimer = setInterval(() => {
+      checkMultiMonitor().catch(() => {});
+    }, 8000);
   }
 
   _detachDomListeners() {
+    if (this._displayPollTimer) {
+      clearInterval(this._displayPollTimer);
+      this._displayPollTimer = null;
+    }
     for (const entry of this._listeners) {
       const [evt, fn, target, useCapture] = entry;
       target.removeEventListener(evt, fn, useCapture || false);
@@ -604,6 +713,13 @@ export class ProctoringEngine {
   }
 
   _canLogViolation(type) {
+    if (
+      type === ProctoringViolationType.FULLSCREEN_EXIT ||
+      type === ProctoringViolationType.WINDOW_BLUR
+    ) {
+      const last = this._lastViolationAt.get('FOCUS_STRIKE') || 0;
+      return nowMs() - last >= 3000;
+    }
     const last = this._lastViolationAt.get(type) || 0;
     const cd = this.cfg.violationCooldownMs || 8000;
     return nowMs() - last >= cd;
@@ -614,6 +730,12 @@ export class ProctoringEngine {
     if (!this._canLogViolation(type)) return;
 
     this._lastViolationAt.set(type, nowMs());
+    if (
+      type === ProctoringViolationType.FULLSCREEN_EXIT ||
+      type === ProctoringViolationType.WINDOW_BLUR
+    ) {
+      this._lastViolationAt.set('FOCUS_STRIKE', nowMs());
+    }
     if (type === ProctoringViolationType.TAB_SWITCH) this._tabSwitchCount += 1;
 
     const severity = getViolationSeverity(type);
@@ -624,7 +746,7 @@ export class ProctoringEngine {
     // Warn immediately — do not wait on the network or a missing session id.
     if (severity !== 'LOW') {
       try {
-        if (this.cfg.softWarningBeforeCount) {
+        if (this.cfg.softWarningBeforeCount && type !== ProctoringViolationType.FULLSCREEN_EXIT && type !== ProctoringViolationType.WINDOW_BLUR) {
           this.onWarning?.({
             level: severity === 'CRITICAL' || severity === 'HIGH' ? 'error' : 'warn',
             message: details || type,

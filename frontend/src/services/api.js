@@ -5,6 +5,7 @@
  */
 
 import { API_BASE_URL } from '../config/api.js';
+import { getExamDeviceHeaders } from '../utils/examDevice.js';
 
 // Lazy import toast utility to avoid circular dependency
 let toastUtils = null;
@@ -489,6 +490,10 @@ async function uploadProctoringScreenshot(sessionId, blob, { flags, faceCount, c
     xhr.addEventListener('error', () => reject(new Error('Upload failed')));
     xhr.open('POST', `${API_BASE_URL}/assessments/session/screenshot/${sessionId}`);
     if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    const deviceHeaders = getExamDeviceHeaders();
+    Object.entries(deviceHeaders).forEach(([key, value]) => {
+      xhr.setRequestHeader(key, value);
+    });
     xhr.send(formData);
   });
 }
@@ -1303,6 +1308,7 @@ export const api = {
     apiRequest(`/assessments/session/violation/${sessionId}`, {
       method: 'POST',
       body: JSON.stringify(data),
+      headers: getExamDeviceHeaders(),
       silent: true,
       timeoutMs: 8000,
     }),
@@ -1310,11 +1316,38 @@ export const api = {
     apiRequest(`/assessments/session/progress/${sessionId}`, {
       method: 'POST',
       body: JSON.stringify({ answers, ...extra }),
+      headers: getExamDeviceHeaders(),
       silent: true,
       timeoutMs: 20000,
     }),
   getAssessmentSessionStatus: (sessionId) =>
-    apiRequest(`/assessments/session/status/${sessionId}`, { silent: true, noCache: true }),
+    apiRequest(`/assessments/session/status/${sessionId}`, {
+      silent: true,
+      noCache: true,
+      headers: getExamDeviceHeaders(),
+    }),
+  postAssessmentHeartbeat: (sessionId) =>
+    apiRequest(`/assessments/session/heartbeat/${sessionId}`, {
+      method: 'POST',
+      headers: getExamDeviceHeaders(),
+      silent: true,
+      timeoutMs: 8000,
+    }),
+  postSecurityReady: (sessionId) =>
+    apiRequest(`/assessments/session/security-ready/${sessionId}`, {
+      method: 'POST',
+      headers: getExamDeviceHeaders(),
+    }),
+  postSecurityRecovery: (sessionId, body = {}) =>
+    apiRequest(`/assessments/session/security-recovery/${sessionId}`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+      headers: getExamDeviceHeaders(),
+    }),
+  getActiveAssessmentSession: (assessmentId) =>
+    apiRequest(`/assessments/session/active/${assessmentId}`, { silent: true, noCache: true }),
+  resumeAssessmentAfterFullscreen: (sessionId) =>
+    apiRequest(`/assessments/session/resume-fullscreen/${sessionId}`, { method: 'POST' }),
   unlockAssessmentSession: (sessionId) =>
     apiRequest(`/assessments/session/unlock/${sessionId}`, { method: 'POST' }),
   pauseAssessmentSession: (sessionId, reason = 'ADMIN_PAUSE') =>
@@ -1329,7 +1362,12 @@ export const api = {
     }),
   forceSubmitAssessmentSession: (sessionId) =>
     apiRequest(`/assessments/session/force-submit/${sessionId}`, { method: 'POST' }),
-  uploadProctoringMedia: (sessionId, data) => apiRequest(`/assessments/session/media/${sessionId}`, { method: 'POST', body: JSON.stringify(data) }),
+  uploadProctoringMedia: (sessionId, data) =>
+    apiRequest(`/assessments/session/media/${sessionId}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: getExamDeviceHeaders(),
+    }),
   uploadProctoringScreenshot: (sessionId, blob, meta) => uploadProctoringScreenshot(sessionId, blob, meta),
   getProctoringSessionDetails: (sessionId) =>
     apiRequest(`/assessments/session/proctoring/${sessionId}`, { silent: true, noCache: true }),
@@ -1339,11 +1377,22 @@ export const api = {
     apiRequest(`/assessments/session/complete/${sessionId}`, {
       method: 'POST',
       body: JSON.stringify(data),
+      headers: getExamDeviceHeaders(),
       silent: true,
       timeoutMs: 180000,
     }),
-  runCode: (data) => apiRequest('/code/run', { method: 'POST', body: JSON.stringify(data) }),
-  evaluateCode: (data) => apiRequest('/code/evaluate', { method: 'POST', body: JSON.stringify(data) }),
+  runCode: (data) =>
+    apiRequest('/code/run', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: getExamDeviceHeaders(),
+    }),
+  evaluateCode: (data) =>
+    apiRequest('/code/evaluate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: getExamDeviceHeaders(),
+    }),
   evaluateAssessmentCandidate: (assessmentId, studentId, data) => apiRequest(`/assessments/evaluate/${assessmentId}/${studentId}`, { method: 'POST', body: JSON.stringify(data) }),
   getAssessmentDashboard: (id) => apiRequest(`/assessments/dashboard/${id}`),
   getLiveAssessmentSessions: (id) =>

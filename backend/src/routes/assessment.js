@@ -8,6 +8,11 @@ import {
   logViolation, 
   saveSessionProgress,
   getStudentSessionStatus,
+  getActiveAssessmentSession,
+  postSessionHeartbeat,
+  postSecurityReady,
+  postSecurityRecovery,
+  resumeAssessmentAfterFullscreen,
   unlockAssessmentSession,
   extendAssessmentSession,
   pauseAssessmentSession,
@@ -502,8 +507,13 @@ router.post('/session/start/:assessmentId', authenticate, authorize(['STUDENT'])
  *         $ref: '#/components/responses/InternalServerError'
  */
 router.post('/session/violation/:sessionId', authenticate, authorize(['STUDENT']), logViolation);
+router.post('/session/resume-fullscreen/:sessionId', authenticate, authorize(['STUDENT']), resumeAssessmentAfterFullscreen);
 router.post('/session/progress/:sessionId', authenticate, authorize(['STUDENT']), saveSessionProgress);
+router.get('/session/active/:assessmentId', authenticate, authorize(['STUDENT']), getActiveAssessmentSession);
 router.get('/session/status/:sessionId', authenticate, authorize(['STUDENT']), getStudentSessionStatus);
+router.post('/session/heartbeat/:sessionId', authenticate, authorize(['STUDENT']), postSessionHeartbeat);
+router.post('/session/security-ready/:sessionId', authenticate, authorize(['STUDENT']), postSecurityReady);
+router.post('/session/security-recovery/:sessionId', authenticate, authorize(['STUDENT']), postSecurityRecovery);
 
 /**
  * @openapi

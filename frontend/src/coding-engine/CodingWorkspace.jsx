@@ -32,6 +32,10 @@ export default function CodingWorkspace({
   onError,
   compact = false,
   className = '',
+  blockPaste = false,
+  onPasteBlocked,
+  sessionId = null,
+  questionId = null,
 }) {
   const [running, setRunning] = useState(false);
   const [evaluating, setEvaluating] = useState(false);
@@ -39,6 +43,26 @@ export default function CodingWorkspace({
   const [evalResult, setEvalResult] = useState(evaluation);
   const runLockRef = useRef(false);
   const lastRunAtRef = useRef(0);
+  const editorRef = useRef(null);
+
+  const handleEditorMount = useCallback(
+    (editor, monaco) => {
+      editorRef.current = editor;
+      if (!blockPaste) return;
+      const block = () => onPasteBlocked?.();
+      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyV, block);
+      editor.addCommand(monaco.KeyMod.WinCtrl | monaco.KeyCode.KeyV, block);
+      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyC, block);
+      editor.addCommand(monaco.KeyMod.WinCtrl | monaco.KeyCode.KeyC, block);
+      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyX, block);
+      editor.addCommand(monaco.KeyMod.WinCtrl | monaco.KeyCode.KeyX, block);
+      editor.onDidPaste(() => {
+        editor.trigger('keyboard', 'undo', null);
+        onPasteBlocked?.();
+      });
+    },
+    [blockPaste, onPasteBlocked]
+  );
 
   const monacoLang = useMemo(
     () => CODING_LANGUAGES.find((l) => l.id === language)?.monaco || 'javascript',
@@ -70,7 +94,13 @@ export default function CodingWorkspace({
     }
     setEvaluating(true);
     try {
-      const result = await evaluateCode({ language, code, testCases: cases });
+      const result = await evaluateCode({
+        language,
+        code,
+        testCases: cases,
+        sessionId,
+        questionId,
+      });
       setEvalResult(result);
       onEvaluateComplete?.(result);
       if (result.error) onError?.(result.error);
@@ -84,7 +114,7 @@ export default function CodingWorkspace({
     } finally {
       setEvaluating(false);
     }
-  }, [language, code, testCases, onEvaluateComplete, onTestsEmpty, onError]);
+  }, [language, code, testCases, sessionId, questionId, onEvaluateComplete, onTestsEmpty, onError]);
 
   const handleRun = useCallback(async () => {
     const now = Date.now();
@@ -93,7 +123,7 @@ export default function CodingWorkspace({
     runLockRef.current = true;
     setRunning(true);
     try {
-      const result = await runCode({ language, code, input: customInput });
+      const result = await runCode({ language, code, input: customInput, sessionId });
       setRunResult(result);
       onRunComplete?.(result);
       if (result.error) onError?.(result.error);
@@ -106,7 +136,7 @@ export default function CodingWorkspace({
       setRunning(false);
       runLockRef.current = false;
     }
-  }, [language, code, customInput, onRunComplete, onError]);
+  }, [language, code, customInput, sessionId, onRunComplete, onError]);
 
   const handleSubmitClick = useCallback(async () => {
     let latestEval = evalResult;
@@ -212,9 +242,11 @@ export default function CodingWorkspace({
           theme="vs-dark"
           language={monacoLang}
           value={code}
+          onMount={handleEditorMount}
           onChange={(v) => !readOnly && onCodeChange?.(v ?? '')}
           options={{
             readOnly,
+            contextmenu: !blockPaste,
             minimap: { enabled: false },
             fontSize: compact ? 12 : 14,
             lineNumbers: 'on',

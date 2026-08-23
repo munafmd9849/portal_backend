@@ -84,8 +84,21 @@ export async function createMediaPipeFaceDetector() {
   const detector = await ensureFaceDetector();
   return {
     async detect(video, timestampMs) {
-      const result = detector.detectForVideo(video, timestampMs);
-      return result?.detections ?? [];
+      // MediaPipe crashes the graph if ROI is 0×0 (video not ready / remounted).
+      const w = Number(video?.videoWidth) || 0;
+      const h = Number(video?.videoHeight) || 0;
+      if (!video || w <= 0 || h <= 0 || (video.readyState ?? 0) < 2) {
+        return [];
+      }
+      try {
+        const result = detector.detectForVideo(video, timestampMs);
+        return result?.detections ?? [];
+      } catch (err) {
+        // Graph often stays broken after a bad frame — force re-init next time.
+        console.warn('[FaceDetector] detect skipped after error:', err?.message || err);
+        resetFaceDetector();
+        throw err;
+      }
     },
     async close() {
       // singleton kept for session reuse

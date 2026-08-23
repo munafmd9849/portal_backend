@@ -173,7 +173,33 @@ export default function AdminAssessmentLiveMonitor() {
       onScreenshot: applyLiveScreenshot,
       onViolation: applyLiveViolation,
       onPaused: applyLiveViolation,
-      onUnlocked: () => refreshSessions(false),
+      onUnlocked: (payload) => {
+        if (payload?.sessionId) {
+          setSessions((prev) =>
+            prev.map((s) =>
+              s.id === payload.sessionId
+                ? {
+                    ...s,
+                    paused: false,
+                    pauseReason: null,
+                    status:
+                      (s.violations || 0) > 3
+                        ? 'CRITICAL'
+                        : (s.violations || 0) > 0
+                          ? 'WARNING'
+                          : 'ACTIVE',
+                  }
+                : s
+            )
+          );
+          setDetails((prev) =>
+            prev?.id === payload.sessionId
+              ? { ...prev, paused: false, pauseReason: null }
+              : prev
+          );
+        }
+        refreshSessions(false);
+      },
       onExtended: () => refreshSessions(false),
     });
     return unsub;

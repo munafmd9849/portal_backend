@@ -51,6 +51,7 @@ export default function SecureExamStatusBar({
     microphone = false,
     online = true,
     multiMonitor = null,
+    screenSharing = false,
     face = null,
   } = status;
 
@@ -99,9 +100,15 @@ export default function SecureExamStatusBar({
       />
       {multiMonitor != null && (
         <StatusItem
-          ok={!multiMonitor}
-          warn={multiMonitor}
-          label={multiMonitor ? 'Extra display' : 'One display'}
+          ok={!multiMonitor && !screenSharing}
+          warn={multiMonitor || screenSharing}
+          label={
+            screenSharing
+              ? 'Screen share'
+              : multiMonitor
+                ? 'Extra display'
+                : 'One display'
+          }
           icon={Monitor}
         />
       )}

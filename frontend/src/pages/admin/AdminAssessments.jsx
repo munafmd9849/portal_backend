@@ -66,7 +66,7 @@ const INITIAL_FORM = {
       mic: true,
       tabSwitch: true,
       fullscreen: true,
-      pauseOnTabSwitch: false,
+      pauseOnTabSwitch: true,
       tabSwitchGraceCount: 2,
       snapshotInterval: 60,
     },

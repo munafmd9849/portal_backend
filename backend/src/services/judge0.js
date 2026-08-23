@@ -74,8 +74,18 @@ function b64(value) {
 }
 
 function fromB64(value) {
-  if (!value) return '';
-  return Buffer.from(value, 'base64').toString('utf8');
+  if (value == null || value === '') return '';
+  const raw = String(value).trim();
+  // Already plain text (local runners / some error paths)
+  if (!/^[A-Za-z0-9+/=\r\n]+$/.test(raw) || raw.length < 8) return raw;
+  try {
+    const decoded = Buffer.from(raw, 'base64').toString('utf8');
+    // Heuristic: if decode looks like binary garbage, keep original
+    if (decoded.includes('\u0000')) return raw;
+    return decoded;
+  } catch {
+    return raw;
+  }
 }
 
 function buildErrorMessage(result) {
@@ -83,13 +93,13 @@ function buildErrorMessage(result) {
   const statusDesc = result?.status?.description || 'Execution failed';
   const compile = fromB64(result?.compile_output || '').trim();
   const stderr = fromB64(result?.stderr || '').trim();
-  const message = result?.message?.trim();
+  const message = fromB64(result?.message || '').trim();
 
   if (statusId === STATUS_COMPILATION_ERROR) {
-    return compile || stderr || statusDesc;
+    return compile || stderr || message || statusDesc;
   }
   if (statusId === STATUS_RUNTIME_ERROR || statusId === STATUS_TLE) {
-    return stderr || statusDesc;
+    return stderr || message || statusDesc;
   }
   if (statusId === STATUS_WRONG_ANSWER) {
     return null;
@@ -97,7 +107,22 @@ function buildErrorMessage(result) {
   if (statusId === STATUS_ACCEPTED) {
     return null;
   }
+  // Internal Error (13) etc.
   return message || stderr || compile || statusDesc;
+}
+
+const STATUS_INTERNAL_ERROR = 13;
+
+function isJudge0InfrastructureFailure(result) {
+  const statusId = result?.status?.id;
+  if (statusId === STATUS_INTERNAL_ERROR) return true;
+  const msg = fromB64(result?.message || '').toLowerCase();
+  return (
+    msg.includes('rb_sysopen') ||
+    msg.includes('/box/') ||
+    msg.includes('control group') ||
+    msg.includes('cgroup')
+  );
 }
 
 function mapJudge0Result(result) {
@@ -193,8 +218,20 @@ export async function runViaJudge0({ language, code, input = '' }, options = {})
       output: '',
       error: `Judge0 error ${response.status}: ${detail}`,
       executionTime: Date.now() - start,
+      infrastructureFailure: true,
     };
   }
 
-  return mapJudge0Result(data);
+  const mapped = mapJudge0Result(data);
+  if (isJudge0InfrastructureFailure(data)) {
+    return {
+      ...mapped,
+      error:
+        mapped.error ||
+        'Judge0 sandbox failed (isolate/cgroup). On macOS Docker Desktop this is common — use a Linux host or local runners.',
+      infrastructureFailure: true,
+      judge0: mapped.judge0,
+    };
+  }
+  return mapped;
 }

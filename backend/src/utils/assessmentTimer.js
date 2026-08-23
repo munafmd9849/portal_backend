@@ -4,6 +4,7 @@
  */
 
 import { getEffectiveElapsedSeconds, pauseSnapshot, parseSecureModeMeta } from './assessmentPauseLock.js';
+import { isTimerStarted } from './assessmentSecurityPolicy.js';
 
 export function getSessionTotalSeconds(session, durationMinutes) {
   const duration = Number(durationMinutes);
@@ -15,10 +16,19 @@ export function getSessionTotalSeconds(session, durationMinutes) {
 
 export function getSessionRemainingSeconds(session, durationMinutes, now = new Date()) {
   const totalSeconds = getSessionTotalSeconds(session, durationMinutes);
-  if (!session?.startTime) return totalSeconds;
-
   const elapsed = getEffectiveElapsedSeconds(session, now);
+  if (!getTimerAnchorNeeded(session)) return totalSeconds;
   return Math.max(0, totalSeconds - elapsed);
+}
+
+function getTimerAnchorNeeded(session) {
+  const meta = parseSecureModeMeta(session?.secureModeMeta);
+  if (meta.timerStartedAt || meta.readyAt) return true;
+  if (meta.securityState === 'IN_PROGRESS' || meta.securityState === 'SECURITY_PAUSED') {
+    return Boolean(session?.startTime);
+  }
+  if (!meta.securityState && session?.startTime) return true;
+  return false;
 }
 
 export function isSessionTimeExpired(session, durationMinutes, now = new Date()) {
@@ -38,7 +48,11 @@ export function enrichSessionWithTimer(session, durationMinutes, now = new Date(
     paused: pause.paused,
     pauseReason: pause.pauseReason,
     tabSwitchCount: pause.tabSwitchCount,
+    focusStrikeCount: pause.focusStrikeCount,
     extraSeconds: Number(meta.extraSeconds) || 0,
+    timerStarted: isTimerStarted(session),
+    timerStartedAt: pause.timerStartedAt,
+    securityState: pause.securityState,
     questionOrder: Array.isArray(meta.questionOrder) ? meta.questionOrder : null,
     optionOrders: meta.optionOrders && typeof meta.optionOrders === 'object' ? meta.optionOrders : null,
     clientDeviceId: meta.clientDeviceId || null,

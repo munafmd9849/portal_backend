@@ -40,7 +40,33 @@ import {
   buildUnlockedMeta,
   pauseSnapshot,
   isSessionPaused,
+  applyAdminFocusPause,
+  applyAdminStrictPause,
+  ADMIN_FOCUS_VIOLATIONS,
+  ADMIN_STRICT_VIOLATIONS,
 } from '../utils/assessmentPauseLock.js';
+import {
+  resolveActiveExamSession,
+  getClientDeviceIdFromRequest,
+  touchHeartbeatMeta,
+  initialSecureMetaExtras,
+  mergeDeviceBindingMeta,
+  ALLOWED_VIOLATION_TYPES,
+} from '../utils/assertActiveExamSession.js';
+import {
+  parseAssessmentSecurityPolicy,
+  evaluateViolationPolicy,
+  markTimerReady,
+  applySecurityRecovery,
+  CaptureEventType,
+  SecurityState,
+  normalizeSecurityEventType,
+  isTimerStarted,
+  sessionHasExamActivity,
+  getSecurityState,
+  shouldDedupeCaptureEvent,
+  CAPTURE_VIOLATION_TYPES,
+} from '../utils/assessmentSecurityPolicy.js';
 import { buildShufflePlan } from '../utils/assessmentShuffle.js';
 import {
   sanitizeAssessmentForStudent,
@@ -627,11 +653,7 @@ async function respondWithExistingSession(session, assessment, res, { clientDevi
     working = await prisma.assessmentSession.update({
       where: { id: session.id },
       data: {
-        secureModeMeta: serializeSecureModeMeta({
-          ...meta,
-          clientDeviceId: String(clientDeviceId).slice(0, 128),
-          deviceClaimedAt: new Date().toISOString(),
-        }),
+        secureModeMeta: serializeSecureModeMeta(mergeDeviceBindingMeta(meta, clientDeviceId)),
       },
     });
   }
@@ -751,9 +773,7 @@ export async function startSession(req, res) {
       });
       const secureMeta = {
         ...(shufflePlan || {}),
-        ...(clientDeviceId
-          ? { clientDeviceId, deviceClaimedAt: new Date().toISOString() }
-          : {}),
+        ...initialSecureMetaExtras(clientDeviceId),
       };
 
       session = await prisma.assessmentSession.create({
@@ -788,6 +808,20 @@ export async function startSession(req, res) {
 }
 
 // Submit Violation
+const violationRateBuckets = new Map();
+function violationRateOk(sessionId) {
+  const now = Date.now();
+  const windowMs = 60_000;
+  const max = 80;
+  let bucket = violationRateBuckets.get(sessionId);
+  if (!bucket || now - bucket.start > windowMs) {
+    bucket = { start: now, count: 0 };
+    violationRateBuckets.set(sessionId, bucket);
+  }
+  bucket.count += 1;
+  return bucket.count <= max;
+}
+
 export async function logViolation(req, res) {
   try {
     const { sessionId } = req.params;
@@ -796,32 +830,61 @@ export async function logViolation(req, res) {
     if (!type || typeof type !== 'string') {
       return res.status(400).json({ error: 'Violation type is required' });
     }
+    const violationType = String(type).slice(0, 64);
+    if (!ALLOWED_VIOLATION_TYPES.has(violationType)) {
+      return res.status(400).json({ error: 'Invalid violation type' });
+    }
+    if (!violationRateOk(sessionId)) {
+      return res.status(429).json({ error: 'Too many violation reports' });
+    }
 
-    const session = await prisma.assessmentSession.findUnique({
-      where: { id: sessionId },
-      include: {
-        student: { select: { userId: true, fullName: true } },
-        assessment: { select: { id: true, config: true, duration: true } },
-      },
+    const resolved = await resolveActiveExamSession(prisma, {
+      sessionId,
+      userId: req.userId || req.user?.id,
+      clientDeviceId: getClientDeviceIdFromRequest(req),
+      requireUnpaused: false,
+      requireNotExpired: false,
+      checkHeartbeat: true,
+      bindDevice: true,
     });
-    if (!session) return res.status(404).json({ error: 'Session not found' });
-    if (session.student?.userId !== (req.userId || req.user?.id)) {
-      return res.status(403).json({ error: 'Forbidden' });
+    if (!resolved.ok) {
+      return res.status(resolved.status).json(resolved.body);
+    }
+
+    const session = resolved.session;
+    const secureBefore = parseSecureModeMeta(session.secureModeMeta);
+    const normalizedType = normalizeSecurityEventType(violationType);
+
+    if (
+      (CAPTURE_VIOLATION_TYPES.has(violationType) ||
+        normalizedType === CaptureEventType.DETECTED) &&
+      shouldDedupeCaptureEvent(secureBefore)
+    ) {
+      const snap = pauseSnapshot(session.secureModeMeta);
+      const enriched = enrichSessionWithTimer(session, session.assessment?.duration);
+      return res.json({
+        success: true,
+        deduped: true,
+        violationsCount: session.violationsCount,
+        paused: snap.paused,
+        pauseReason: snap.pauseReason,
+        securityState: snap.securityState,
+        remainingSeconds: enriched.remainingSeconds,
+      });
     }
 
     const metaObj = meta
       ? (typeof meta === 'string' ? (() => { try { return JSON.parse(meta); } catch { return {}; } })() : meta)
       : {};
     const severity = metaObj.severity || 'MEDIUM';
-    const violationType = String(type).slice(0, 64);
 
     await prisma.assessmentViolation.create({
       data: {
         sessionId,
-        type: violationType,
+        type: normalizedType === CaptureEventType.DETECTED ? CaptureEventType.DETECTED : violationType,
         severity: String(severity).slice(0, 16),
         details: details ? String(details).slice(0, 2000) : null,
-        meta: JSON.stringify(metaObj),
+        meta: JSON.stringify({ ...metaObj, originalType: violationType }),
       }
     });
 
@@ -835,26 +898,67 @@ export async function logViolation(req, res) {
       }
     });
 
-    // Opt-in: pause + lock after tab-switch grace (default OFF — no behavior change)
+    // Pause lock: tab-switch grace, fullscreen exit, window blur, capture policy
     let pauseInfo = pauseSnapshot(updated.secureModeMeta);
+    const policy = parseAssessmentSecurityPolicy(session.assessment?.config);
     const proctorCfg = parseProctoringConfig(session.assessment?.config);
-    if (
-      session.status === 'IN_PROGRESS' &&
-      proctorCfg.pauseOnTabSwitch &&
-      violationType === 'TAB_SWITCH' &&
-      !pauseInfo.paused
-    ) {
+    if (session.status === 'IN_PROGRESS') {
       const secure = parseSecureModeMeta(updated.secureModeMeta);
-      const tabSwitchCount = (Number(secure.tabSwitchCount) || 0) + 1;
-      let nextMeta = { ...secure, tabSwitchCount };
-      if (tabSwitchCount > proctorCfg.tabSwitchGraceCount) {
-        nextMeta = buildPausedMeta(nextMeta, { reason: 'TAB_SWITCH', tabSwitchCount });
+
+      if (!pauseInfo.paused) {
+        if (proctorCfg.pauseOnTabSwitch && violationType === 'TAB_SWITCH') {
+          const tabSwitchCount = (Number(secure.tabSwitchCount) || 0) + 1;
+          let nextMeta = { ...secure, tabSwitchCount };
+          if (tabSwitchCount > proctorCfg.tabSwitchGraceCount) {
+            nextMeta = buildPausedMeta(nextMeta, { reason: 'TAB_SWITCH', tabSwitchCount });
+          }
+          updated = await prisma.assessmentSession.update({
+            where: { id: sessionId },
+            data: { secureModeMeta: serializeSecureModeMeta(nextMeta) },
+          });
+          pauseInfo = pauseSnapshot(updated.secureModeMeta);
+        } else if (
+          ADMIN_FOCUS_VIOLATIONS.has(violationType) &&
+          (violationType !== 'FULLSCREEN_EXIT' || proctorCfg.fullscreenRequired)
+        ) {
+          const focus = applyAdminFocusPause(secure, { violationType });
+          if (!focus.deduped && focus.paused) {
+            updated = await prisma.assessmentSession.update({
+              where: { id: sessionId },
+              data: { secureModeMeta: serializeSecureModeMeta(focus.nextMeta) },
+            });
+            pauseInfo = pauseSnapshot(updated.secureModeMeta);
+          }
+        } else if (ADMIN_STRICT_VIOLATIONS.has(violationType)) {
+          const strict = applyAdminStrictPause(secure, { violationType });
+          if (!strict.deduped && strict.paused) {
+            updated = await prisma.assessmentSession.update({
+              where: { id: sessionId },
+              data: { secureModeMeta: serializeSecureModeMeta(strict.nextMeta) },
+            });
+            pauseInfo = pauseSnapshot(updated.secureModeMeta);
+          }
+        }
       }
-      updated = await prisma.assessmentSession.update({
-        where: { id: sessionId },
-        data: { secureModeMeta: serializeSecureModeMeta(nextMeta) },
+
+      const policyResult = evaluateViolationPolicy({
+        policy,
+        violationType,
+        secureMeta: updated.secureModeMeta,
+        violationsCount: updated.violationsCount,
       });
-      pauseInfo = pauseSnapshot(updated.secureModeMeta);
+      if (policyResult.securityPaused || policyResult.terminate) {
+        updated = await prisma.assessmentSession.update({
+          where: { id: sessionId },
+          data: {
+            secureModeMeta: serializeSecureModeMeta(policyResult.nextMeta),
+            ...(policyResult.terminate
+              ? { status: 'TERMINATED', endTime: new Date() }
+              : {}),
+          },
+        });
+        pauseInfo = pauseSnapshot(updated.secureModeMeta);
+      }
     }
 
     // Risk engine (server-side single source of truth)
@@ -878,6 +982,7 @@ export async function logViolation(req, res) {
       paused: pauseInfo.paused,
       pauseReason: pauseInfo.pauseReason,
       tabSwitchCount: pauseInfo.tabSwitchCount,
+      focusStrikeCount: pauseInfo.focusStrikeCount,
     });
 
     if (pauseInfo.paused) {
@@ -890,6 +995,7 @@ export async function logViolation(req, res) {
         remainingSeconds: enrichSessionWithTimer(updated, session.assessment?.duration).remainingSeconds,
         studentName: session.student?.fullName,
         tabSwitchCount: pauseInfo.tabSwitchCount,
+        focusStrikeCount: pauseInfo.focusStrikeCount,
       };
       emitProctoringLiveUpdate(session.assessmentId, pausePayload);
       emitStudentSessionControl(session.student?.userId, pausePayload);
@@ -903,6 +1009,7 @@ export async function logViolation(req, res) {
       paused: pauseInfo.paused,
       pauseReason: pauseInfo.pauseReason,
       tabSwitchCount: pauseInfo.tabSwitchCount,
+      focusStrikeCount: pauseInfo.focusStrikeCount,
       remainingSeconds: enrichSessionWithTimer(updated, session.assessment?.duration).remainingSeconds,
     });
   } catch (error) {
@@ -917,25 +1024,20 @@ export async function saveSessionProgress(req, res) {
     const { sessionId } = req.params;
     const { answers, markedForReview } = req.body || {};
 
-    const session = await prisma.assessmentSession.findUnique({
-      where: { id: sessionId },
-      include: {
-        student: { select: { userId: true } },
-        assessment: { select: { duration: true } },
-      },
+    const resolved = await resolveActiveExamSession(prisma, {
+      sessionId,
+      userId: req.userId || req.user?.id,
+      clientDeviceId: getClientDeviceIdFromRequest(req),
+      requireUnpaused: true,
+      requireNotExpired: true,
+      checkHeartbeat: true,
+      bindDevice: true,
     });
-    if (!session) return res.status(404).json({ error: 'Session not found' });
-    if (session.student?.userId !== (req.userId || req.user?.id)) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-    if (session.status !== 'IN_PROGRESS') {
-      return res.status(409).json({
-        error: 'Assessment already submitted',
-        status: session.status,
-        sessionId: session.id,
-      });
+    if (!resolved.ok) {
+      return res.status(resolved.status).json(resolved.body);
     }
 
+    const session = resolved.session;
     const rawAnswers = coerceAnswersPayload(answers);
     if (!rawAnswers || typeof rawAnswers !== 'object' || Array.isArray(rawAnswers)) {
       return res.status(400).json({ error: 'Answers object required' });
@@ -983,11 +1085,80 @@ export async function saveSessionProgress(req, res) {
   }
 }
 
+/** Student: fetch in-progress attempt for resume after reload (does not create a session). */
+export async function getActiveAssessmentSession(req, res) {
+  try {
+    const { assessmentId } = req.params;
+
+    const student = await prisma.student.findUnique({
+      where: { userId: req.userId || req.user.id },
+    });
+    if (!student) return res.status(404).json({ error: 'Student profile not found' });
+
+    const assigned = await studentIsAssignedToAssessment(student, assessmentId);
+    if (!assigned) return res.status(403).json({ error: 'Assessment not assigned to you' });
+
+    const session = await prisma.assessmentSession.findUnique({
+      where: { assessmentId_studentId: { assessmentId, studentId: student.id } },
+      include: {
+        assessment: { select: { duration: true, type: true } },
+        violations: {
+          orderBy: { timestamp: 'asc' },
+          select: { id: true, type: true, severity: true, details: true, timestamp: true },
+        },
+      },
+    });
+
+    if (!session || session.status !== 'IN_PROGRESS') {
+      return res.json({ active: false });
+    }
+
+    const enriched = enrichSessionWithTimer(session, session.assessment?.duration);
+    if (enriched.timeExpired && !allowsPracticeTimerReset(session.assessment)) {
+      return res.json({ active: false, expired: true });
+    }
+
+    res.json({
+      active: true,
+      session: {
+        ...enriched,
+        responses: session.responses,
+        violationsCount: session.violationsCount,
+      },
+      violations: session.violations || [],
+    });
+  } catch (error) {
+    console.error('getActiveAssessmentSession error:', error);
+    res.status(500).json({ error: 'Failed to fetch active session' });
+  }
+}
+
 /** Student poll — pause / timer state without mutating the session. */
 export async function getStudentSessionStatus(req, res) {
   try {
     const { sessionId } = req.params;
-    const session = await prisma.assessmentSession.findUnique({
+    const resolved = await resolveActiveExamSession(prisma, {
+      sessionId,
+      userId: req.userId || req.user?.id,
+      clientDeviceId: getClientDeviceIdFromRequest(req),
+      requireUnpaused: false,
+      requireNotExpired: false,
+      checkHeartbeat: true,
+      bindDevice: false,
+    });
+    if (!resolved.ok) {
+      if (resolved.status === 409) {
+        return res.status(409).json(resolved.body);
+      }
+      if (resolved.status === 404) {
+        return res.status(404).json(resolved.body);
+      }
+      if (resolved.status === 403) {
+        return res.status(403).json(resolved.body);
+      }
+    }
+
+    const session = resolved.ok ? resolved.session : await prisma.assessmentSession.findUnique({
       where: { id: sessionId },
       include: {
         student: { select: { userId: true } },
@@ -1007,15 +1178,220 @@ export async function getStudentSessionStatus(req, res) {
       paused: enriched.paused,
       pauseReason: enriched.pauseReason,
       tabSwitchCount: enriched.tabSwitchCount,
+      focusStrikeCount: enriched.focusStrikeCount,
       remainingSeconds: enriched.remainingSeconds,
       extraSeconds: Number(meta.extraSeconds) || 0,
       timeExpired: enriched.timeExpired,
       violationsCount: session.violationsCount,
       riskLevel: session.riskLevel,
+      securityState: getSecurityState(session.secureModeMeta),
+      timerStarted: isTimerStarted(session),
     });
   } catch (error) {
     console.error('getStudentSessionStatus error:', error);
     res.status(500).json({ error: 'Failed to fetch session status' });
+  }
+}
+
+/** Student heartbeat — keeps server aware the exam tab is alive. */
+export async function postSessionHeartbeat(req, res) {
+  try {
+    const { sessionId } = req.params;
+    const resolved = await resolveActiveExamSession(prisma, {
+      sessionId,
+      userId: req.userId || req.user?.id,
+      clientDeviceId: getClientDeviceIdFromRequest(req),
+      requireUnpaused: true,
+      requireNotExpired: true,
+      checkHeartbeat: false,
+      bindDevice: true,
+    });
+    if (!resolved.ok) {
+      return res.status(resolved.status).json(resolved.body);
+    }
+
+    const meta = touchHeartbeatMeta(resolved.meta);
+    const updated = await prisma.assessmentSession.update({
+      where: { id: sessionId },
+      data: { secureModeMeta: serializeSecureModeMeta(meta) },
+    });
+
+    const enriched = enrichSessionWithTimer(updated, resolved.assessment?.duration);
+    res.json({
+      ok: true,
+      remainingSeconds: enriched.remainingSeconds,
+      paused: enriched.paused,
+      pauseReason: enriched.pauseReason,
+      securityState: getSecurityState(updated.secureModeMeta),
+      timerStarted: isTimerStarted(updated),
+    });
+  } catch (error) {
+    console.error('postSessionHeartbeat error:', error);
+    res.status(500).json({ error: 'Failed to record heartbeat' });
+  }
+}
+
+/** Start authoritative timer after pre-assessment security gate passes. */
+export async function postSecurityReady(req, res) {
+  try {
+    const { sessionId } = req.params;
+    const session = await prisma.assessmentSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        student: { select: { userId: true } },
+        assessment: { select: { duration: true, config: true } },
+      },
+    });
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+    if (session.student?.userId !== (req.userId || req.user?.id)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    if (session.status !== 'IN_PROGRESS') {
+      return res.status(409).json({ error: 'Session not in progress', status: session.status });
+    }
+
+    const meta = parseSecureModeMeta(session.secureModeMeta);
+    if (isTimerStarted(session)) {
+      const enriched = enrichSessionWithTimer(session, session.assessment?.duration);
+      return res.json({
+        success: true,
+        alreadyReady: true,
+        securityState: getSecurityState(meta),
+        timerStarted: true,
+        remainingSeconds: enriched.remainingSeconds,
+      });
+    }
+
+    let nextMeta;
+    if (sessionHasExamActivity(session)) {
+      const anchor =
+        meta.timerStartedAt ||
+        meta.readyAt ||
+        (session.startTime ? new Date(session.startTime).toISOString() : null);
+      nextMeta = markTimerReady(anchor ? { ...meta, timerStartedAt: anchor, readyAt: meta.readyAt || anchor } : meta);
+    } else {
+      nextMeta = markTimerReady(meta);
+    }
+    const updated = await prisma.assessmentSession.update({
+      where: { id: sessionId },
+      data: { secureModeMeta: serializeSecureModeMeta(nextMeta) },
+    });
+    const enriched = enrichSessionWithTimer(updated, session.assessment?.duration);
+    res.json({
+      success: true,
+      securityState: SecurityState.IN_PROGRESS,
+      timerStarted: true,
+      remainingSeconds: enriched.remainingSeconds,
+    });
+  } catch (error) {
+    console.error('postSecurityReady error:', error);
+    res.status(500).json({ error: 'Failed to start assessment timer' });
+  }
+}
+
+/** Server-authorized recovery after capture stops and client re-check passes. */
+export async function postSecurityRecovery(req, res) {
+  try {
+    const { sessionId } = req.params;
+    const resolved = await resolveActiveExamSession(prisma, {
+      sessionId,
+      userId: req.userId || req.user?.id,
+      clientDeviceId: getClientDeviceIdFromRequest(req),
+      requireUnpaused: false,
+      requireNotExpired: false,
+      checkHeartbeat: false,
+      bindDevice: true,
+    });
+    if (!resolved.ok) {
+      return res.status(resolved.status).json(resolved.body);
+    }
+
+    const session = resolved.session;
+    const policy = parseAssessmentSecurityPolicy(session.assessment?.config);
+    const meta = parseSecureModeMeta(session.secureModeMeta);
+
+    if (!meta.paused || meta.pauseReason !== 'SCREEN_CAPTURE') {
+      const enriched = enrichSessionWithTimer(session, session.assessment?.duration);
+      return res.json({
+        success: true,
+        alreadyActive: true,
+        paused: enriched.paused,
+        securityState: getSecurityState(meta),
+        remainingSeconds: enriched.remainingSeconds,
+      });
+    }
+
+    if (!policy.recovery.enabled) {
+      return res.status(403).json({
+        error: 'Security recovery is disabled for this assessment. Contact an admin.',
+      });
+    }
+
+    if (policy.recovery.requireSecurityCheck && req.body?.checksPassed !== true) {
+      return res.status(400).json({
+        error: 'Security re-check must pass before recovery',
+        code: 'SECURITY_CHECK_REQUIRED',
+      });
+    }
+
+    const nextMeta = applySecurityRecovery(meta);
+    const updated = await prisma.assessmentSession.update({
+      where: { id: sessionId },
+      data: { secureModeMeta: serializeSecureModeMeta(nextMeta) },
+    });
+
+    const enriched = enrichSessionWithTimer(updated, session.assessment?.duration);
+    const payload = {
+      assessmentId: session.assessmentId,
+      kind: 'unlocked',
+      sessionId,
+      paused: false,
+      pauseReason: null,
+      remainingSeconds: enriched.remainingSeconds,
+      securityState: SecurityState.IN_PROGRESS,
+    };
+    emitStudentSessionControl(session.student?.userId, payload);
+
+    res.json({
+      success: true,
+      paused: false,
+      securityState: SecurityState.IN_PROGRESS,
+      remainingSeconds: enriched.remainingSeconds,
+    });
+  } catch (error) {
+    console.error('postSecurityRecovery error:', error);
+    res.status(500).json({ error: 'Failed to recover session' });
+  }
+}
+
+/** Student self-resume disabled — all server pauses require admin unlock. */
+export async function resumeAssessmentAfterFullscreen(req, res) {
+  try {
+    const { sessionId } = req.params;
+
+    const session = await prisma.assessmentSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        student: { select: { userId: true } },
+        assessment: { select: { duration: true } },
+      },
+    });
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+    if (session.student?.userId !== (req.userId || req.user?.id)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const snap = pauseSnapshot(session.secureModeMeta);
+    const enriched = enrichSessionWithTimer(session, session.assessment?.duration);
+    return res.status(403).json({
+      error: 'This exam can only be resumed by an admin from the live monitor.',
+      paused: snap.paused,
+      pauseReason: snap.pauseReason,
+      remainingSeconds: enriched.remainingSeconds,
+    });
+  } catch (error) {
+    console.error('resumeAssessmentAfterFullscreen error:', error);
+    res.status(500).json({ error: 'Failed to resume exam' });
   }
 }
 
@@ -1325,6 +1701,18 @@ export async function uploadScreenshot(req, res) {
   try {
     const { sessionId } = req.params;
 
+    const resolved = await resolveActiveExamSession(prisma, {
+      sessionId,
+      userId: req.userId || req.user?.id,
+      clientDeviceId: getClientDeviceIdFromRequest(req),
+      requireUnpaused: false,
+      requireNotExpired: false,
+      checkHeartbeat: false,
+      bindDevice: true,
+    });
+    if (!resolved.ok) {
+      return res.status(resolved.status).json(resolved.body);
+    }
     const session = await prisma.assessmentSession.findUnique({
       where: { id: sessionId },
       include: {
@@ -1332,10 +1720,6 @@ export async function uploadScreenshot(req, res) {
         assessment: { select: { id: true } },
       },
     });
-    if (!session) return res.status(404).json({ error: 'Session not found' });
-    if (session.student?.userId !== (req.userId || req.user?.id)) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
 
     screenshotUpload.single('screenshot')(req, res, async (err) => {
       if (err) return res.status(400).json({ error: err.message || 'Upload failed' });
@@ -1476,13 +1860,26 @@ export async function getSignedScreenshotUrl(req, res) {
 export async function uploadMedia(req, res) {
   try {
     const { sessionId } = req.params;
-    const { type, url } = req.body;
+    const { type, url } = req.body || {};
+
+    const resolved = await resolveActiveExamSession(prisma, {
+      sessionId,
+      userId: req.userId || req.user?.id,
+      clientDeviceId: getClientDeviceIdFromRequest(req),
+      requireUnpaused: false,
+      requireNotExpired: false,
+      checkHeartbeat: false,
+      bindDevice: true,
+    });
+    if (!resolved.ok) {
+      return res.status(resolved.status).json(resolved.body);
+    }
 
     const media = await prisma.assessmentMedia.create({
       data: {
         sessionId,
-        type,
-        url
+        type: type ? String(type).slice(0, 64) : 'UNKNOWN',
+        url: url ? String(url).slice(0, 2000) : '',
       }
     });
 
@@ -1603,6 +2000,26 @@ async function evaluateSubmittedAnswers(questions, answers, { skipCoding = false
 export async function completeAssessment(req, res) {
   try {
     const { sessionId } = req.params;
+
+    const resolved = await resolveActiveExamSession(prisma, {
+      sessionId,
+      userId: req.userId || req.user?.id,
+      clientDeviceId: getClientDeviceIdFromRequest(req),
+      requireUnpaused: true,
+      requireNotExpired: true,
+      checkHeartbeat: true,
+      bindDevice: true,
+    });
+    if (!resolved.ok) {
+      return res.status(resolved.status).json(resolved.body);
+    }
+
+    const session = await prisma.assessmentSession.findUnique({
+      where: { id: sessionId },
+      include: { assessment: { include: { questions: true } } },
+    });
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+
     const student = await prisma.student.findUnique({
       where: { userId: req.userId || req.user.id },
       select: { id: true, email: true },
@@ -1610,22 +2027,8 @@ export async function completeAssessment(req, res) {
     if (!student) {
       return res.status(404).json({ error: 'Student profile not found' });
     }
-
-    const session = await prisma.assessmentSession.findUnique({
-      where: { id: sessionId },
-      include: { assessment: { include: { questions: true } } },
-    });
-
-    if (!session) return res.status(404).json({ error: 'Session not found' });
     if (session.studentId !== student.id) {
       return res.status(403).json({ error: 'Access denied: This session belongs to another student' });
-    }
-    if (session.status !== 'IN_PROGRESS') {
-      return res.status(409).json({
-        error: 'Assessment already submitted',
-        status: session.status,
-        sessionId: session.id,
-      });
     }
 
     const stored = parseStoredResponses(session.responses);
