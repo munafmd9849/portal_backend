@@ -153,17 +153,22 @@ function assessmentIsPast(assessment) {
   return start ? start < new Date() : false;
 }
 
+const assessmentsPageCache = {
+  assessments: null,
+  batches: null,
+};
+
 export default function AdminAssessments() {
   const navigate = useNavigate();
   const location = useLocation();
   const basePath = location.pathname.startsWith('/super-admin') ? '/super-admin' : '/admin';
-  const [assessments, setAssessments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [assessments, setAssessments] = useState(() => assessmentsPageCache.assessments || []);
+  const [loading, setLoading] = useState(() => !assessmentsPageCache.assessments);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [settingsAssessment, setSettingsAssessment] = useState(null);
   const [inviteAssessment, setInviteAssessment] = useState(null);
   const [step, setStep] = useState(1);
-  const [batches, setBatches] = useState([]);
+  const [batches, setBatches] = useState(() => assessmentsPageCache.batches || []);
   const [schools, setSchools] = useState([]);
   const [centers, setCenters] = useState([]);
   const [activeTab, setActiveTab] = useState('all');
@@ -179,21 +184,31 @@ export default function AdminAssessments() {
   const fetchBatches = useCallback(async () => {
     try {
       const data = await api.getBatches();
+      assessmentsPageCache.batches = data;
       setBatches(data);
     } catch (e) {
+      if (assessmentsPageCache.batches) setBatches(assessmentsPageCache.batches);
       console.error('Failed to load batches');
     }
   }, []);
 
   const fetchAssessments = useCallback(async () => {
+    const hasCache = Array.isArray(assessmentsPageCache.assessments);
     try {
-      setLoading(true);
-      const data = await api.getAssessments();
+      if (!hasCache) setLoading(true);
+      const data = await api.getAssessments({ silent: hasCache });
       const list = Array.isArray(data) ? data : (data?.assessments || []);
+      assessmentsPageCache.assessments = list;
       setAssessments(list);
     } catch (e) {
-      toast?.error(e?.message || 'Failed to load assessments');
-      setAssessments([]);
+      if (hasCache) {
+        setAssessments(assessmentsPageCache.assessments);
+      } else {
+        setAssessments([]);
+      }
+      if (e?.status !== 429 || !hasCache) {
+        toast?.error(e?.message || 'Failed to load assessments');
+      }
     } finally {
       setLoading(false);
     }

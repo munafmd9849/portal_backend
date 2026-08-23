@@ -78,7 +78,7 @@ export default function AdminAssessmentLiveMonitor() {
         setSelectedSessionId((prev) => prev || list[0].id);
       }
     } catch (e) {
-      console.error('Live sessions refresh failed', e);
+      if (e?.status !== 429) console.error('Live sessions refresh failed', e);
     } finally {
       if (showSpinner) setLoading(false);
     }
@@ -164,7 +164,7 @@ export default function AdminAssessmentLiveMonitor() {
   useEffect(() => {
     initSocket();
     refreshSessions(true);
-    const interval = setInterval(() => refreshSessions(false), 10000);
+    const interval = setInterval(() => refreshSessions(false), 20000);
     return () => clearInterval(interval);
   }, [refreshSessions]);
 
@@ -255,12 +255,15 @@ export default function AdminAssessmentLiveMonitor() {
       return;
     }
     let cancelled = false;
+    let firstLoad = true;
     const load = async () => {
       try {
-        setDetailLoading(true);
+        if (firstLoad) setDetailLoading(true);
         const d = await api.getProctoringSessionDetails(selectedSessionId);
         const screenshots = Array.isArray(d?.screenshots) ? d.screenshots : [];
-        const missing = screenshots.filter((s) => !s.signedUrl && !s.imageUrl);
+        const missing = firstLoad
+          ? screenshots.filter((s) => !s.signedUrl && !s.imageUrl)
+          : [];
         const extraUrls = missing.length
           ? await Promise.all(
               missing.map(async (s) => {
@@ -284,13 +287,14 @@ export default function AdminAssessmentLiveMonitor() {
 
         if (!cancelled) setDetails(hydrated);
       } catch (e) {
-        console.error('Proctoring details load failed', e);
+        if (e?.status !== 429) console.error('Proctoring details load failed', e);
       } finally {
-        if (!cancelled) setDetailLoading(false);
+        if (!cancelled && firstLoad) setDetailLoading(false);
+        firstLoad = false;
       }
     };
     load();
-    const poll = setInterval(load, 12000);
+    const poll = setInterval(load, 25000);
     return () => {
       cancelled = true;
       clearInterval(poll);

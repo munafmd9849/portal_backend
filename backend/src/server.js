@@ -16,6 +16,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import http from 'http';
+import { generalApiLimiter } from './middleware/apiRateLimit.js';
 
 import { initSocket } from './config/socket.js';
 import prisma, { isRetryableDatabaseError } from './config/database.js';
@@ -215,42 +216,13 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Rate limiting - more lenient for development
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-  skip: (req) => {
-    // Skip rate limiting in development mode
-    if (process.env.NODE_ENV === 'development') {
-      return false; // Still apply in development, but we'll increase the limit
-    }
-    return false;
-  },
-});
-
-// More lenient rate limiting for auth endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'development' ? 10000 : 50, // Very high limit in dev (effectively disabled)
+  max: process.env.NODE_ENV === 'development' ? 10000 : 50,
   message: 'Too many authentication attempts, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => {
-    // In development, allow unlimited auth requests
-    return process.env.NODE_ENV === 'development';
-  },
-});
-
-// General API rate limiting - more lenient in development
-const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'development' ? 10000 : 100, // Much higher in dev
-  message: 'Too many requests from this IP, please try again later.',
-  standardHeaders: true,
-  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === 'development',
 });
 
 // Apply rate limits (auth endpoints are effectively unlimited in dev)
@@ -258,7 +230,7 @@ app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 app.use('/api/auth/send-otp', authLimiter);
 app.use('/api/auth/verify-otp', authLimiter);
-app.use('/api/', generalLimiter);
+app.use('/api/', generalApiLimiter);
 
 // Interactive OpenAPI documentation (Swagger UI)
 setupSwagger(app);

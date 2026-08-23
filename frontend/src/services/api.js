@@ -112,6 +112,25 @@ async function refreshAccessToken() {
   }
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function parseRetryAfterMs(header) {
+  if (!header) return 1500;
+  const asNumber = Number(header);
+  if (Number.isFinite(asNumber) && asNumber >= 0) {
+    return Math.min(Math.max(asNumber * 1000, 400), 8000);
+  }
+  const when = Date.parse(header);
+  if (!Number.isNaN(when)) {
+    return Math.min(Math.max(when - Date.now(), 400), 8000);
+  }
+  return 1500;
+}
+
+const inflightGets = new Map();
+
 /**
  * API request wrapper with auth and error handling
  * Automatically shows toast notifications for errors and optional success messages
@@ -123,6 +142,20 @@ async function refreshAccessToken() {
  * @returns {Promise} API response data
  */
 async function apiRequest(endpoint, options = {}) {
+  const method = (options.method || 'GET').toUpperCase();
+  if (method === 'GET' && !options.body) {
+    const existing = inflightGets.get(endpoint);
+    if (existing) return existing;
+    const pending = apiRequestUncached(endpoint, options).finally(() => {
+      if (inflightGets.get(endpoint) === pending) inflightGets.delete(endpoint);
+    });
+    inflightGets.set(endpoint, pending);
+    return pending;
+  }
+  return apiRequestUncached(endpoint, options);
+}
+
+async function apiRequestUncached(endpoint, options = {}) {
   const { silent = false, showSuccess = false, noCache = false, timeoutMs = 30000, ...fetchOptions } = options;
   const method = (fetchOptions.method || 'GET').toUpperCase();
   const token = getAuthToken();
@@ -217,15 +250,22 @@ async function apiRequest(endpoint, options = {}) {
 
   const url = `${API_BASE_URL}${endpoint}`;
 
+  const doFetch = () =>
+    fetch(url, {
+      ...fetchOptions,
+      headers,
+      credentials: 'include', // Include credentials for CORS (cookies, auth headers)
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+
   try {
     let response;
     try {
-      response = await fetch(url, {
-        ...fetchOptions,
-        headers,
-        credentials: 'include', // Include credentials for CORS (cookies, auth headers)
-        signal: AbortSignal.timeout(timeoutMs),
-      });
+      response = await doFetch();
+      if (response.status === 429) {
+        await sleep(parseRetryAfterMs(response.headers.get('Retry-After')));
+        response = await doFetch();
+      }
     } catch (fetchError) {
       // Network error - server not reachable, CORS issue, or connection failed
       console.error('Network Error (Failed to Fetch):', {
@@ -271,11 +311,11 @@ async function apiRequest(endpoint, options = {}) {
       try {
         const newToken = await refreshAccessToken();
         headers.Authorization = `Bearer ${newToken}`;
-        response = await fetch(url, {
-          ...fetchOptions,
-          headers,
-          credentials: 'include', // Include credentials for retry
-        });
+        response = await doFetch();
+        if (response.status === 429) {
+          await sleep(parseRetryAfterMs(response.headers.get('Retry-After')));
+          response = await doFetch();
+        }
       } catch (error) {
         throw error;
       }
@@ -299,7 +339,10 @@ async function apiRequest(endpoint, options = {}) {
       });
 
       // Use exact backend error message (backend is source of truth)
-      const errorMessage = errorData.error || errorData.message || errorData.details || `HTTP ${response.status}: ${response.statusText}`;
+      let errorMessage = errorData.error || errorData.message || errorData.details || `HTTP ${response.status}: ${response.statusText}`;
+      if (response.status === 429) {
+        errorMessage = 'Too many requests. Please wait a moment and try again.';
+      }
 
       if (response.status === 401 && errorData.code === 'SESSION_SUPERSEDED') {
         clearAuthTokens();
@@ -325,6 +368,9 @@ async function apiRequest(endpoint, options = {}) {
         if (!errorData.error && !errorData.message) {
           error.message = 'Access denied. You do not have permission to perform this action.';
         }
+      }
+      if (response.status === 429) {
+        error.isRateLimit = true;
       }
 
       // Automatically show error toast unless silent
@@ -1285,7 +1331,7 @@ export const api = {
   updateAssessment: (id, data) => apiRequest(`/assessments/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   publishAssessment: (id) => apiRequest(`/assessments/${id}/publish`, { method: 'POST' }),
   deleteAssessment: (id) => apiRequest(`/assessments/${id}`, { method: 'DELETE' }),
-  getAssessments: () => apiRequest('/assessments/all', { noCache: true }),
+  getAssessments: (opts = {}) => apiRequest('/assessments/all', { noCache: true, ...opts }),
   getAssessmentDetails: (id) => apiRequest(`/assessments/details/${id}`),
   getAssessmentResults: (sessionId) => apiRequest(`/assessments/results/${sessionId}`),
   getStudentAssessments: () =>
