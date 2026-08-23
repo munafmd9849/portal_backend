@@ -1,0 +1,94 @@
+SMALL CASES — paste one-by-one in the coding editor (Input / Expected output).
+Tick Hidden for tests 3–8. Tests 1–2 stay public.
+
+For tests 9 (n=200) and 10 (n=1000) use minimize-max-pair-sum-testcases-paste.txt
+or upload minimize-max-pair-sum-coding.xlsx instead.
+
+========== Test 1 — LeetCode example 1 ==========
+Hidden: NO
+Weight: 1
+
+INPUT
+4
+3 5 2 3
+
+EXPECTED OUTPUT
+7
+
+========== Test 2 — LeetCode example 2 ==========
+Hidden: NO
+Weight: 1
+
+INPUT
+6
+3 5 4 2 4 6
+
+EXPECTED OUTPUT
+8
+
+========== Test 3 — Minimum n = 2 ==========
+Hidden: YES
+Weight: 1
+
+INPUT
+2
+1 1
+
+EXPECTED OUTPUT
+2
+
+========== Test 4 — Max values, n = 2 ==========
+Hidden: YES
+Weight: 1
+
+INPUT
+2
+1 100000
+
+EXPECTED OUTPUT
+100001
+
+========== Test 5 — All equal ==========
+Hidden: YES
+Weight: 1
+
+INPUT
+4
+1 1 1 1
+
+EXPECTED OUTPUT
+2
+
+========== Test 6 — Greedy trap ==========
+Hidden: YES
+Weight: 2
+
+INPUT
+4
+1 2 3 6
+
+EXPECTED OUTPUT
+7
+
+========== Test 7 — Reverse sorted ==========
+Hidden: YES
+Weight: 1
+
+INPUT
+4
+4 3 2 1
+
+EXPECTED OUTPUT
+5
+
+========== Test 8 — Duplicates ==========
+Hidden: YES
+Weight: 1
+
+INPUT
+4
+5 5 5 1
+
+EXPECTED OUTPUT
+10
+

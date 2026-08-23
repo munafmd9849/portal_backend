@@ -12,3 +12,5 @@ export {
 } from './starterCodeStorage';
 export { parseTestCases as parseTestCasesFromUtils, getPublicTestCases, emptyTestCase, emptyExample } from './testCaseUtils';
 export { runCode, evaluateCode } from './api';
+export { default as TestResultsPanel } from './TestResultsPanel';
+export { VERDICT_LABEL } from './judgeLimits';

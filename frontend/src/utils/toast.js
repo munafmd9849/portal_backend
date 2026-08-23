@@ -193,9 +193,13 @@ export function handleApiError(error, defaultMessage = 'An error occurred') {
     message = error.message || 'Network error. Please check your connection and try again.';
   }
 
-  // Timeout errors
-  if (error?.name === 'AbortError' || error?.message?.includes('timeout')) {
-    message = 'Request timed out. Please try again.';
+  if (
+    error?.name === 'TimeoutError' ||
+    error?.name === 'AbortError' ||
+    error?.originalError?.name === 'TimeoutError' ||
+    error?.isNetworkError
+  ) {
+    message = error.message || 'The server took too long. Your answers are kept on this device — try again.';
   }
   // Suppress noisy server message when there's simply no auth token.
   // Many dev workflows call protected endpoints (health checks) without a token;

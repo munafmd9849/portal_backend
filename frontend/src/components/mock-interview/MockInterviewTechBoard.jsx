@@ -198,6 +198,7 @@ export default function MockInterviewTechBoard({
             onLanguageChange={onLanguageChange}
             customInput={customInput}
             onCustomInputChange={setCustomInput}
+            showCustomIo
             readOnly={readOnly}
             questionTitle={activeQuestion?.title}
             questionDescription={activeQuestion?.description}

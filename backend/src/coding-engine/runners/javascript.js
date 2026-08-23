@@ -40,7 +40,7 @@ export async function runJavaScript(code, input, timeoutMs = 3000) {
   } catch (err) {
     return {
       output: logs.join('\n'),
-      error: err.message || 'Runtime error',
+      error: /timed out/i.test(err.message || '') ? 'Time Limit Exceeded' : (err.message || 'Runtime error'),
       executionTime: Date.now() - start,
     };
   }

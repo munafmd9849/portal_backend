@@ -1,0 +1,55 @@
+{
+  "questions": 21,
+  "publicTests": [
+    {
+      "in": "4 | 3 5 2 3",
+      "out": "7"
+    },
+    {
+      "in": "6 | 3 5 4 2 4 6",
+      "out": "8"
+    }
+  ],
+  "hiddenExpected": [
+    {
+      "n": 2,
+      "out": "2",
+      "note": "Minimum n = 2"
+    },
+    {
+      "n": 2,
+      "out": "100001",
+      "note": "Max values, n = 2"
+    },
+    {
+      "n": 4,
+      "out": "2",
+      "note": "All equal"
+    },
+    {
+      "n": 4,
+      "out": "7",
+      "note": "Greedy trap (pair largest two is wrong)"
+    },
+    {
+      "n": 4,
+      "out": "5",
+      "note": "Reverse sorted"
+    },
+    {
+      "n": 4,
+      "out": "10",
+      "note": "Duplicates"
+    },
+    {
+      "n": 200,
+      "out": "1028",
+      "note": "n = 200 mixed"
+    },
+    {
+      "n": 1000,
+      "out": "103933",
+      "note": "n = 1000 (catches very slow solutions)"
+    }
+  ]
+}

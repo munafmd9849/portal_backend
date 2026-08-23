@@ -23,6 +23,7 @@ export function parseTestCases(raw) {
     expectedOutput: String(tc.expectedOutput ?? tc.output ?? tc.expected ?? ''),
     label: tc.label || `Case ${i + 1}`,
     hidden: Boolean(tc.hidden ?? tc.isPublic === false),
+    weight: Math.max(1, Number(tc.weight) || 1),
   }));
 }
 
@@ -61,6 +62,7 @@ export const emptyTestCase = () => ({
   expectedOutput: '',
   hidden: false,
   label: '',
+  weight: 1,
 });
 
 export const emptyExample = () => ({

@@ -1,33 +1,17 @@
-import { spawn } from 'child_process';
 import { writeFile, mkdtemp, rm } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
+import { timedProcess } from './timedProcess.js';
 
-function exec(cmd, args, cwd, timeoutMs) {
-  return new Promise((resolve) => {
-    const start = Date.now();
-    const child = spawn(cmd, args, { cwd, timeout: timeoutMs });
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', (d) => { stdout += d.toString(); });
-    child.stderr.on('data', (d) => { stderr += d.toString(); });
-    child.on('error', (err) => {
-      resolve({
-        ok: false,
-        stdout: '',
-        stderr: err.code === 'ENOENT' ? `${cmd} is not installed on the server` : err.message,
-        ms: Date.now() - start,
-      });
-    });
-    child.on('close', (code) => {
-      resolve({
-        ok: code === 0,
-        stdout: stdout.trimEnd(),
-        stderr: stderr.trim(),
-        ms: Date.now() - start,
-      });
-    });
-  });
+async function exec(cmd, args, cwd, timeoutMs) {
+  const result = await timedProcess(cmd, args, { cwd, timeoutMs });
+  return {
+    ok: result.ok,
+    stdout: result.output,
+    stderr: result.timedOut ? 'Time Limit Exceeded' : result.stderr,
+    ms: result.executionTime,
+    timedOut: result.timedOut,
+  };
 }
 
 function splitImportsAndBody(code) {
@@ -52,11 +36,13 @@ function splitImportsAndBody(code) {
   return { imports, body: body.join('\n').trim() };
 }
 
-/** Injected main: finds static solution(?) and invokes with coerced input (any primitive/Object). */
-function runnerMainBlock(rawInputLiteral) {
+/** Injected main: reads stdin (same bytes Judge0 sends), then calls solution(...). */
+function runnerMainBlock() {
   return `
   public static void main(String[] args) throws Exception {
-    runWithInput(${rawInputLiteral});
+    byte[] buf = System.in.readAllBytes();
+    String rawInput = new String(buf, java.nio.charset.StandardCharsets.UTF_8);
+    runWithInput(rawInput);
   }
 
   static void runWithInput(String rawInput) throws Exception {
@@ -87,10 +73,10 @@ function runnerMainBlock(rawInputLiteral) {
   }`;
 }
 
-export function buildJavaSource(code, rawInputLiteral) {
+export function buildJavaSource(code) {
   const { imports, body } = splitImportsAndBody(code);
   const importBlock = imports.length ? `${imports.join('\n')}\n\n` : '';
-  const mainBlock = runnerMainBlock(rawInputLiteral);
+  const mainBlock = runnerMainBlock();
 
   if (/^\s*(?:public\s+)?class\s+Main\b/m.test(body)) {
     if (/\bpublic\s+static\s+void\s+main\s*\(/m.test(body)) {
@@ -109,26 +95,48 @@ ${mainBlock}
 }`;
 }
 
-export async function runJava(code, input, timeoutMs = 5000) {
-  const rawLiteral =
-    typeof input === 'string' ? JSON.stringify(input) : JSON.stringify(String(input ?? ''));
-  const source = buildJavaSource(code, rawLiteral);
+const COMPILE_TIMEOUT_MS = 20_000;
 
+function compileErrorResult(compile) {
+  return {
+    output: '',
+    error: compile.timedOut ? 'Time Limit Exceeded' : compile.stderr || 'Compilation failed',
+    executionTime: compile.ms,
+  };
+}
+
+export async function runJava(code, input, timeoutMs = 5000) {
+  const results = await runJavaSuite(code, [input], timeoutMs);
+  return results[0];
+}
+
+/** Compile once, then run each stdin. Submit was recompiling Java on every hidden test. */
+export async function runJavaSuite(code, inputs, timeoutMs = 5000) {
+  const source = buildJavaSource(code);
+  const stdinList = (inputs || []).map((v) => String(v ?? ''));
   let dir;
   try {
     dir = await mkdtemp(join(tmpdir(), 'portal-java-'));
     const src = join(dir, 'Main.java');
     await writeFile(src, source, 'utf8');
-    const compile = await exec('javac', [src], dir, timeoutMs);
+    const compile = await exec('javac', [src], dir, COMPILE_TIMEOUT_MS);
     if (!compile.ok) {
-      return { output: '', error: compile.stderr || 'Compilation failed', executionTime: compile.ms };
+      return stdinList.map(() => compileErrorResult(compile));
     }
-    const run = await exec('java', ['-cp', dir, 'Main'], dir, timeoutMs);
-    return {
-      output: run.stdout,
-      error: run.ok ? null : run.stderr || 'Runtime error',
-      executionTime: run.ms,
-    };
+    const runs = [];
+    for (const stdin of stdinList) {
+      const run = await timedProcess('java', ['-cp', dir, 'Main'], {
+        cwd: dir,
+        timeoutMs,
+        stdin,
+      });
+      runs.push({
+        output: run.output,
+        error: run.ok ? null : run.timedOut ? 'Time Limit Exceeded' : run.stderr || 'Runtime error',
+        executionTime: run.executionTime,
+      });
+    }
+    return runs;
   } finally {
     if (dir) {
       try { await rm(dir, { recursive: true, force: true }); } catch { /* ignore */ }

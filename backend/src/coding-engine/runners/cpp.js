@@ -1,71 +1,67 @@
-import { spawn } from 'child_process';
 import { writeFile, mkdtemp, rm } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { sanitizeInput } from '../sanitize.js';
+import { timedProcess } from './timedProcess.js';
 
-function exec(cmd, args, cwd, timeoutMs) {
-  return new Promise((resolve) => {
-    const start = Date.now();
-    const child = spawn(cmd, args, { cwd, timeout: timeoutMs });
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', (d) => { stdout += d.toString(); });
-    child.stderr.on('data', (d) => { stderr += d.toString(); });
-    child.on('error', (err) => {
-      resolve({ ok: false, stdout: '', stderr: err.code === 'ENOENT' ? `${cmd} not installed` : err.message, ms: Date.now() - start });
-    });
-    child.on('close', (code) => {
-      resolve({ ok: code === 0, stdout: stdout.trimEnd(), stderr: stderr.trim(), ms: Date.now() - start });
-    });
-  });
-}
+const COMPILE_TIMEOUT_MS = 20_000;
 
-export async function runCpp(code, input, timeoutMs = 5000) {
-  const stdin = sanitizeInput(input);
+function cppSource(code) {
   const hasMain = /\bint\s+main\s*\(/.test(code);
-  const source = hasMain
-    ? code
-    : `#include <iostream>
+  if (hasMain) return code;
+  return `#include <iostream>
 #include <string>
+#include <iterator>
 using namespace std;
 ${code}
 int main() {
-  // Provide solution() if defined
+  ios::sync_with_stdio(false);
+  cin.tie(nullptr);
+  string input((istreambuf_iterator<char>(cin)), istreambuf_iterator<char>());
+  cout << solution(input);
   return 0;
 }`;
+}
 
+function compileErrorResult(compile) {
+  return {
+    output: '',
+    error: compile.timedOut ? 'Time Limit Exceeded' : compile.stderr || 'Compilation failed',
+    executionTime: compile.executionTime,
+  };
+}
+
+export async function runCpp(code, input, timeoutMs = 5000) {
+  const results = await runCppSuite(code, [input], timeoutMs);
+  return results[0];
+}
+
+/** Compile once, then run each stdin. Submit was recompiling C++ on every hidden test via Judge0. */
+export async function runCppSuite(code, inputs, timeoutMs = 5000) {
+  const source = cppSource(code);
+  const stdinList = (inputs || []).map((v) => sanitizeInput(v));
   let dir;
   try {
     dir = await mkdtemp(join(tmpdir(), 'portal-cpp-'));
     const src = join(dir, 'main.cpp');
     const out = join(dir, 'main');
     await writeFile(src, source, 'utf8');
-    const compile = await exec('g++', ['-std=c++17', '-O0', src, '-o', out], dir, timeoutMs);
-    if (!compile.ok) {
-      return { output: '', error: compile.stderr || 'Compilation failed', executionTime: compile.ms };
-    }
-    const run = await new Promise((resolve) => {
-      const start = Date.now();
-      const child = spawn(out, [], { cwd: dir, timeout: timeoutMs });
-      let stdout = '';
-      let stderr = '';
-      if (stdin) child.stdin.write(stdin);
-      child.stdin.end();
-      child.stdout.on('data', (d) => { stdout += d.toString(); });
-      child.stderr.on('data', (d) => { stderr += d.toString(); });
-      child.on('error', (err) => {
-        resolve({ output: '', error: err.message, executionTime: Date.now() - start });
-      });
-      child.on('close', (code) => {
-        resolve({
-          output: stdout.trimEnd(),
-          error: code !== 0 ? stderr || `Exit code ${code}` : null,
-          executionTime: Date.now() - start,
-        });
-      });
+    const compile = await timedProcess('g++', ['-std=c++17', '-O0', src, '-o', out], {
+      cwd: dir,
+      timeoutMs: COMPILE_TIMEOUT_MS,
     });
-    return run;
+    if (!compile.ok) {
+      return stdinList.map(() => compileErrorResult(compile));
+    }
+    const runs = [];
+    for (const stdin of stdinList) {
+      runs.push(await timedProcess(out, [], { cwd: dir, timeoutMs, stdin }));
+    }
+    return runs.map((run) => ({
+      output: run.output,
+      error: run.ok ? null : run.timedOut ? 'Time Limit Exceeded' : run.stderr || 'Runtime error',
+      executionTime: run.executionTime,
+    }));
   } finally {
     if (dir) {
       try { await rm(dir, { recursive: true, force: true }); } catch { /* ignore */ }

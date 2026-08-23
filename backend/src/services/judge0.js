@@ -29,7 +29,7 @@ function envBool(name, fallback = false) {
 
 function getProvider() {
   const explicit = (process.env.JUDGE0_PROVIDER || '').trim().toLowerCase();
-  if (explicit === 'rapidapi' || explicit === 'selfhosted') return explicit;
+  if (explicit === 'rapidapi' || explicit === 'selfhosted' || explicit === 'self-hosted') return explicit === 'rapidapi' ? 'rapidapi' : 'selfhosted';
   if (process.env.JUDGE0_RAPIDAPI_KEY) return 'rapidapi';
   if (process.env.JUDGE0_API_URL) return 'selfhosted';
   return null;
@@ -73,18 +73,29 @@ function b64(value) {
   return Buffer.from(String(value ?? ''), 'utf8').toString('base64');
 }
 
-function fromB64(value) {
+/**
+ * Judge0 is always called with base64_encoded=true, so stdout like "7" arrives as "Nw==".
+ * Do not skip short strings: 1–3 byte outputs are valid 4-char base64 (padding included).
+ */
+export function fromB64(value) {
   if (value == null || value === '') return '';
-  const raw = String(value).trim();
-  // Already plain text (local runners / some error paths)
-  if (!/^[A-Za-z0-9+/=\r\n]+$/.test(raw) || raw.length < 8) return raw;
+  const original = String(value);
+  const compact = original.replace(/\s+/g, '');
+  if (!compact) return '';
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(compact) || compact.length % 4 !== 0) {
+    return original.trim();
+  }
   try {
-    const decoded = Buffer.from(raw, 'base64').toString('utf8');
-    // Heuristic: if decode looks like binary garbage, keep original
-    if (decoded.includes('\u0000')) return raw;
+    const buf = Buffer.from(compact, 'base64');
+    const decoded = buf.toString('utf8');
+    if (decoded.includes('\u0000')) return original.trim();
+    const reencoded = buf.toString('base64');
+    if (reencoded.replace(/=+$/, '') !== compact.replace(/=+$/, '')) {
+      return original.trim();
+    }
     return decoded;
   } catch {
-    return raw;
+    return original.trim();
   }
 }
 
@@ -129,11 +140,13 @@ function mapJudge0Result(result) {
   const stdout = fromB64(result?.stdout || '').trimEnd();
   const error = buildErrorMessage(result);
   const executionTime = Math.round(Number(result?.time || 0) * 1000);
+  const memoryKb = result?.memory != null ? Number(result.memory) : null;
 
   return {
     output: stdout,
     error,
     executionTime,
+    memoryKb,
     judge0: {
       status: result?.status?.description,
       statusId: result?.status?.id,
@@ -143,9 +156,28 @@ function mapJudge0Result(result) {
   };
 }
 
+/** After a hang/timeout, skip Judge0 for a cooldown so each test case does not wait again. */
+let judge0SkipUntil = 0;
+const JUDGE0_COOLDOWN_MS = Math.max(
+  15_000,
+  Number(process.env.JUDGE0_COOLDOWN_MS) || 120_000,
+);
+
 export function isJudge0Enabled() {
-  if (!envBool('JUDGE0_ENABLED', false)) return false;
+  if (!envBool('JUDGE0_ENABLED', envBool('JUDGE0_ENABLED', false))) return false;
   return Boolean(getConfig());
+}
+
+export function shouldAttemptJudge0() {
+  return isJudge0Enabled() && Date.now() >= judge0SkipUntil;
+}
+
+export function noteJudge0InfrastructureFailure() {
+  judge0SkipUntil = Date.now() + JUDGE0_COOLDOWN_MS;
+}
+
+export function noteJudge0Success() {
+  judge0SkipUntil = 0;
 }
 
 export function getJudge0Status() {
@@ -170,9 +202,9 @@ export async function runViaJudge0({ language, code, input = '' }, options = {})
   }
 
   const { sourceCode, stdin } = resolveWrappedSubmission(language, code, input);
-  const cpuTimeLimit = Number(process.env.JUDGE0_CPU_TIME_LIMIT || options.cpuTimeLimit || 2);
-  const memoryLimit = Number(process.env.JUDGE0_MEMORY_LIMIT || options.memoryLimit || 128000);
-  const wallTimeLimit = Number(process.env.JUDGE0_WALL_TIME_LIMIT || options.wallTimeLimit || 5);
+  const cpuTimeLimit = Number(options.cpuTimeLimit || process.env.JUDGE0_CPU_TIME_LIMIT || 2);
+  const memoryLimit = Number(options.memoryLimit || process.env.JUDGE0_MEMORY_LIMIT || 256000);
+  const wallTimeLimit = Number(options.wallTimeLimit || process.env.JUDGE0_WALL_TIME_LIMIT || 5);
 
   const url = `${config.baseUrl}/submissions?base64_encoded=true&wait=true`;
   const body = {
@@ -185,18 +217,25 @@ export async function runViaJudge0({ language, code, input = '' }, options = {})
   };
 
   const start = Date.now();
+  // wait=true includes isolate compile. Cold g++ often takes 8–20s, which is
+  // longer than cpu_time_limit. Aborting that is not a Judge0 outage.
+  const fetchTimeoutMs =
+    Number(process.env.JUDGE0_FETCH_TIMEOUT_MS) ||
+    Math.min(60_000, Math.max(25_000, (Number(wallTimeLimit) + Number(cpuTimeLimit) + 15) * 1000));
   let response;
   try {
     response = await fetch(url, {
       method: 'POST',
       headers: config.headers,
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(fetchTimeoutMs),
     });
   } catch (err) {
     return {
       output: '',
       error: `Judge0 request failed: ${err.message}`,
       executionTime: Date.now() - start,
+      infrastructureFailure: true,
     };
   }
 
@@ -234,4 +273,145 @@ export async function runViaJudge0({ language, code, input = '' }, options = {})
     };
   }
   return mapped;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function postJudge0Token(config, { language, code, input }, options) {
+  const languageId = getLanguageId(language);
+  if (!languageId) {
+    return { error: `Unsupported language for Judge0: ${language}` };
+  }
+  const { sourceCode, stdin } = resolveWrappedSubmission(language, code, input);
+  const cpuTimeLimit = Number(options.cpuTimeLimit || process.env.JUDGE0_CPU_TIME_LIMIT || 2);
+  const memoryLimit = Number(options.memoryLimit || process.env.JUDGE0_MEMORY_LIMIT || 256000);
+  const wallTimeLimit = Number(options.wallTimeLimit || process.env.JUDGE0_WALL_TIME_LIMIT || 5);
+  const url = `${config.baseUrl}/submissions?base64_encoded=true&wait=false`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: config.headers,
+    body: JSON.stringify({
+      language_id: languageId,
+      source_code: b64(sourceCode),
+      stdin: b64(stdin),
+      cpu_time_limit: cpuTimeLimit,
+      memory_limit: memoryLimit,
+      wall_time_limit: wallTimeLimit,
+    }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const text = await response.text();
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    return { error: `Judge0 returned invalid JSON (${response.status})`, infrastructureFailure: true };
+  }
+  if (!response.ok || !data.token) {
+    const detail = data?.error || data?.message || text.slice(0, 200);
+    return { error: `Judge0 error ${response.status}: ${detail}`, infrastructureFailure: true };
+  }
+  return { token: data.token };
+}
+
+async function fetchJudge0ByToken(config, token) {
+  const url = `${config.baseUrl}/submissions/${encodeURIComponent(token)}?base64_encoded=true`;
+  const response = await fetch(url, {
+    headers: config.headers,
+    signal: AbortSignal.timeout(10_000),
+  });
+  const data = await response.json();
+  return data;
+}
+
+/**
+ * Submit every test case with wait=false, then poll.
+ * Submit was doing 10 sequential wait=true C++ compiles and aborting the HTTP wait.
+ */
+export async function runManyViaJudge0(jobs, options = {}) {
+  const config = getConfig();
+  if (!config) {
+    return { infrastructureFailure: true, results: [], error: 'Judge0 is not configured' };
+  }
+
+  const posted = [];
+  for (const job of jobs) {
+    try {
+      posted.push(await postJudge0Token(config, job, options));
+    } catch (err) {
+      posted.push({
+        error: `Judge0 request failed: ${err.message}`,
+        infrastructureFailure: true,
+      });
+    }
+  }
+
+  if (posted.every((p) => p.infrastructureFailure || !p.token)) {
+    return {
+      infrastructureFailure: true,
+      results: posted.map((p) => ({
+        output: '',
+        error: p.error || 'Judge0 submit failed',
+        executionTime: 0,
+        infrastructureFailure: true,
+      })),
+      error: posted[0]?.error || 'Judge0 submit failed',
+    };
+  }
+
+  const tokens = posted.map((p) => p.token).filter(Boolean);
+  const done = new Map();
+  const pollUntil = Date.now() + (Number(options.pollTimeoutMs) || 45_000);
+
+  while (Date.now() < pollUntil && done.size < tokens.length) {
+    for (const token of tokens) {
+      if (done.has(token)) continue;
+      try {
+        const data = await fetchJudge0ByToken(config, token);
+        if (data?.status?.id > 2) {
+          const mapped = mapJudge0Result(data);
+          if (isJudge0InfrastructureFailure(data)) {
+            done.set(token, {
+              ...mapped,
+              error:
+                mapped.error ||
+                'Judge0 sandbox failed (isolate/cgroup). On macOS Docker Desktop this is common — use a Linux host or local runners.',
+              infrastructureFailure: true,
+            });
+          } else {
+            done.set(token, mapped);
+          }
+        }
+      } catch {
+        /* retry on next poll */
+      }
+    }
+    if (done.size < tokens.length) await sleep(300);
+  }
+
+  const results = posted.map((p) => {
+    if (!p.token) {
+      return {
+        output: '',
+        error: p.error || 'Judge0 submit failed',
+        executionTime: 0,
+        infrastructureFailure: true,
+      };
+    }
+    return (
+      done.get(p.token) || {
+        output: '',
+        error: 'Judge0 poll timed out',
+        executionTime: 0,
+        infrastructureFailure: true,
+      }
+    );
+  });
+
+  return {
+    infrastructureFailure: results.every((r) => r.infrastructureFailure),
+    results,
+  };
 }

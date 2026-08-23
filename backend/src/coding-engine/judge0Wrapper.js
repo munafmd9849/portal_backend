@@ -34,9 +34,8 @@ if "solution" in dir() and callable(solution):
   }
 
   if (lang === 'java') {
-    const rawLiteral =
-      typeof input === 'string' ? JSON.stringify(input) : JSON.stringify(String(input ?? ''));
-    return buildJavaSource(code, rawLiteral);
+    const stdin = typeof input === 'string' ? input : String(input ?? '');
+    return { source: buildJavaSource(code), stdin };
   }
 
   if (lang === 'cpp' || lang === 'c++') {
@@ -48,9 +47,14 @@ if "solution" in dir() and callable(solution):
     return {
       source: `#include <iostream>
 #include <string>
+#include <iterator>
 using namespace std;
 ${code}
 int main() {
+  ios::sync_with_stdio(false);
+  cin.tie(nullptr);
+  string input((istreambuf_iterator<char>(cin)), istreambuf_iterator<char>());
+  cout << solution(input);
   return 0;
 }`,
       stdin,

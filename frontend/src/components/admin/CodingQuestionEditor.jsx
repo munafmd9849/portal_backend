@@ -6,13 +6,41 @@ import {
   createEmptyStarterCodesByLang,
 } from '../../coding-engine/starterCodeStorage';
 import { emptyExample, emptyTestCase } from '../../coding-engine/testCaseUtils';
+import { parseJudgeLimits, DEFAULT_TIME_LIMIT_SEC, DEFAULT_MEMORY_LIMIT_MB } from '../../coding-engine/judgeLimits';
+
+function parseBulkTestCases(raw) {
+  const blocks = String(raw || '')
+    .split(/\n---+\n/)
+    .map((b) => b.trim())
+    .filter(Boolean);
+  return blocks.map((block, i) => {
+    let hidden = false;
+    let body = block;
+    const hiddenMatch = body.match(/^hidden:\s*(true|false|1|0|yes|no)\s*\n/i);
+    if (hiddenMatch) {
+      hidden = /true|1|yes/i.test(hiddenMatch[1]);
+      body = body.slice(hiddenMatch[0].length);
+    }
+    const [inputPart, outputPart] = body.split(/\n===\n/);
+    return {
+      ...emptyTestCase(),
+      input: (inputPart || '').trim(),
+      expectedOutput: (outputPart || '').trim(),
+      hidden,
+      label: `Case ${i + 1}`,
+      weight: 1,
+    };
+  }).filter((tc) => tc.input || tc.expectedOutput);
+}
 
 export default function CodingQuestionEditor({ question, onChange }) {
   const q = question || {};
   const examples = Array.isArray(q.examples) ? q.examples : [];
   const testCases = Array.isArray(q.testCases) ? q.testCases : [];
   const starterCodes = parseStarterCodesByLang(q.starterCodes ?? q.starterCode);
+  const judge = parseJudgeLimits(q);
   const [activeLang, setActiveLang] = useState('javascript');
+  const [bulkText, setBulkText] = useState('');
 
   const patch = (field, value) => onChange({ ...q, [field]: value });
 
@@ -64,11 +92,44 @@ export default function CodingQuestionEditor({ question, onChange }) {
           Constraints
         </label>
         <textarea
-          value={q.constraints || ''}
+          value={judge.constraintsText}
           onChange={(e) => patch('constraints', e.target.value)}
           className="w-full p-4 bg-white border border-slate-200 rounded-xl text-sm font-mono h-24 resize-none"
           placeholder={'1 <= n <= 10^5\n-10^9 <= nums[i] <= 10^9'}
         />
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+            Time limit (seconds)
+          </label>
+          <input
+            type="number"
+            min={0.5}
+            max={30}
+            step={0.5}
+            value={judge.timeLimitSec}
+            onChange={(e) => patch('timeLimitSec', Number(e.target.value) || DEFAULT_TIME_LIMIT_SEC)}
+            className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-semibold"
+          />
+          <p className="text-[10px] text-slate-500 px-1">CPU time per test case. Exceeding it is TLE.</p>
+        </div>
+        <div className="space-y-1">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+            Memory limit (MB)
+          </label>
+          <input
+            type="number"
+            min={16}
+            max={1024}
+            step={16}
+            value={judge.memoryLimitMb}
+            onChange={(e) => patch('memoryLimitMb', Number(e.target.value) || DEFAULT_MEMORY_LIMIT_MB)}
+            className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-semibold"
+          />
+          <p className="text-[10px] text-slate-500 px-1">Enforced by Judge0 (MLE). Local fallback only times out.</p>
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -175,12 +236,46 @@ export default function CodingQuestionEditor({ question, onChange }) {
             <Plus className="w-3.5 h-3.5" /> Add case
           </button>
         </div>
+        <p className="text-[10px] text-slate-500">
+          Hidden cases are not shown to students. Weight is used for partial scoring (like HackerRank).
+        </p>
+        <div className="p-3 bg-white border border-dashed border-slate-300 rounded-xl space-y-2">
+          <label className="text-[10px] font-bold text-slate-400 uppercase">Bulk paste</label>
+          <textarea
+            value={bulkText}
+            onChange={(e) => setBulkText(e.target.value)}
+            className="w-full p-2 border rounded font-mono text-[11px] h-20"
+            placeholder={'stdin for case 1\n===\nexpected output\n---\nhidden: true\nstdin for case 2\n===\nexpected'}
+          />
+          <button
+            type="button"
+            className="text-[10px] font-bold text-indigo-600"
+            onClick={() => {
+              const parsed = parseBulkTestCases(bulkText);
+              if (!parsed.length) return;
+              patch('testCases', [...testCases, ...parsed]);
+              setBulkText('');
+            }}
+          >
+            Import pasted cases
+          </button>
+        </div>
         <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
           {testCases.map((tc, idx) => (
             <div key={idx} className="p-3 bg-white border border-slate-200 rounded-xl text-xs space-y-2">
               <div className="flex justify-between items-center">
                 <span className="font-bold text-slate-500">Case {idx + 1}</span>
                 <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-1 text-[10px]">
+                    Weight
+                    <input
+                      type="number"
+                      min={1}
+                      className="w-12 border rounded px-1 py-0.5"
+                      value={tc.weight || 1}
+                      onChange={(e) => updateTestCase(idx, 'weight', Math.max(1, Number(e.target.value) || 1))}
+                    />
+                  </label>
                   <label className="flex items-center gap-1 text-[10px]">
                     <input
                       type="checkbox"

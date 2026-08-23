@@ -7,10 +7,13 @@ import {
   resolveStudentAssignmentScope,
 } from '../utils/studentAssignmentScope.js';
 import { gradeCodingAnswer } from '../coding-engine/index.js';
+import { overallVerdict } from '../coding-engine/studentResults.js';
 import {
   serializeTestCasesForStorage,
   serializeExamplesForStorage,
+  parseTestCasesRaw,
 } from '../coding-engine/testCaseStorage.js';
+import { serializeJudgeLimits, parseJudgeLimits } from '../coding-engine/judgeLimits.js';
 import {
   serializeStarterCodesForStorage,
   mergeCodingIntoConfig,
@@ -70,8 +73,8 @@ import {
 import { buildShufflePlan } from '../utils/assessmentShuffle.js';
 import {
   sanitizeAssessmentForStudent,
+  sanitizeSessionResponsesForStudent,
   studentIsAssignedToAssessment,
-  redactHiddenEvaluationResults,
 } from '../utils/assessmentStudentDto.js';
 import {
   buildAssessmentListWhere,
@@ -313,9 +316,20 @@ export async function createAssessment(req, res) {
               q.type === 'CODING'
                 ? serializeStarterCodesForStorage(q.starterCodes ?? q.starterCode)
                 : null,
-            constraints: q.constraints || null,
+            constraints:
+              q.type === 'CODING'
+                ? serializeJudgeLimits({
+                    constraintsText: q.constraints,
+                    timeLimitSec: q.timeLimitSec,
+                    memoryLimitMb: q.memoryLimitMb,
+                  })
+                : q.constraints || null,
             examples: serializeExamplesForStorage(q.examples || []),
             testCases: serializeTestCasesForStorage(q.testCases || []),
+            timeLimitSec:
+              q.type === 'CODING'
+                ? Math.round(Number(q.timeLimitSec) || 2)
+                : q.timeLimitSec || null,
             order: index
           }))
         },
@@ -1122,7 +1136,7 @@ export async function getActiveAssessmentSession(req, res) {
       active: true,
       session: {
         ...enriched,
-        responses: session.responses,
+        responses: sanitizeSessionResponsesForStudent(session.responses),
         violationsCount: session.violationsCount,
       },
       violations: session.violations || [],
@@ -1974,16 +1988,26 @@ async function evaluateSubmittedAnswers(questions, answers, { skipCoding = false
         continue;
       }
       try {
-        const graded = await withTimeout(gradeCodingAnswer(q, studentAnswer), 12000, GRADE_FAIL);
+        const cases = parseTestCasesRaw(q.testCases);
+        const cfg = parseJudgeLimits(q);
+        const budgetMs = Math.min(
+          180_000,
+          Math.max(30_000, cases.length * ((cfg.timeoutMs || 2000) + 800) + 20_000),
+        );
+        const graded = await withTimeout(gradeCodingAnswer(q, studentAnswer), budgetMs, GRADE_FAIL);
         calculatedScore += Number(graded?.pointsEarned) || 0;
-        const redacted = redactHiddenEvaluationResults(graded?.results || []);
+        const results = graded?.results || graded?.logs || [];
         executionLogs[q.id] = {
-          passed: graded?.passed,
-          total: graded?.total,
-          logs: redacted.results,
-          hiddenTestsPassed: redacted.hiddenTestsPassed,
-          hiddenTestsTotal: redacted.hiddenTestsTotal,
+          passed: graded?.passed ?? 0,
+          total: graded?.total ?? results.length,
+          score: graded?.score ?? null,
+          verdict: overallVerdict(results),
+          mode: 'submit',
+          logs: results,
+          hiddenTestsPassed: graded?.hiddenTestsPassed,
+          hiddenTestsTotal: graded?.hiddenTestsTotal,
           language: graded?.language,
+          error: graded?.total === 0 && !results.length ? 'Official grading timed out or failed' : null,
         };
       } catch (e) {
         console.error(`Coding evaluation failed for Q${q.id}:`, e);
@@ -2442,6 +2466,7 @@ export async function getStudentSessionResults(req, res) {
     res.json({
       ...withNormalizedScore({
         ...session,
+        responses: sanitizeSessionResponsesForStudent(session.responses),
         assessment: sanitizeAssessmentForStudent(session.assessment, {
           revealAnswers: ['COMPLETED', 'PENDING_REVIEW', 'AUTO_SUBMITTED', 'TERMINATED'].includes(
             session.status

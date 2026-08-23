@@ -43,22 +43,40 @@ function sheetToRows(buffer, fileName = '') {
       else if (['tags', 'tag'].includes(key)) mapped.tags = String(v).split(',').map((t) => t.trim()).filter(Boolean);
       else if (['topic'].includes(key)) mapped.topic = v;
       else if (['category', 'assessment category'].includes(key)) mapped.category = v;
-      else if (['time', 'time limit', 'timelimit'].includes(key)) mapped.time = v;
+      else if (['time', 'time limit', 'timelimit', 'time limit (s)', 'time limit sec'].includes(key)) {
+        mapped.time = v;
+        mapped.timeLimitSec = v;
+      }
+      else if (['memory limit (mb)', 'memory limit', 'memorylimit', 'memory mb'].includes(key)) mapped.memoryLimitMb = v;
       else if (['language', 'programming language'].includes(key)) mapped.language = v;
       else if (['starter code', 'startercode'].includes(key)) mapped.starterCode = v;
-      else if (key.startsWith('test 1 input')) mapped.test1In = v;
-      else if (key.startsWith('test 1 output')) mapped.test1Out = v;
-      else if (key.startsWith('test 2 input')) mapped.test2In = v;
-      else if (key.startsWith('test 2 output')) mapped.test2Out = v;
-      else mapped[k] = v;
+      else {
+        const testMatch = key.match(/^test\s*(\d+)\s*(input|output|hidden|weight)$/);
+        if (testMatch) {
+          const n = Number(testMatch[1]);
+          mapped._tests = mapped._tests || {};
+          mapped._tests[n] = mapped._tests[n] || {};
+          mapped._tests[n][testMatch[2]] = v;
+        } else {
+          mapped[k] = v;
+        }
+      }
     }
-    const testCases = [];
-    if (mapped.test1In || mapped.test1Out) {
-      testCases.push({ input: mapped.test1In || '', expectedOutput: mapped.test1Out || '', hidden: false });
-    }
-    if (mapped.test2In || mapped.test2Out) {
-      testCases.push({ input: mapped.test2In || '', expectedOutput: mapped.test2Out || '', hidden: false });
-    }
+    const testCases = Object.keys(mapped._tests || {})
+      .sort((a, b) => Number(a) - Number(b))
+      .map((n) => {
+        const t = mapped._tests[n];
+        const hiddenRaw = String(t.hidden || '').trim().toLowerCase();
+        return {
+          input: t.input || '',
+          expectedOutput: t.output || '',
+          hidden: hiddenRaw === 'true' || hiddenRaw === 'yes' || hiddenRaw === '1' || hiddenRaw === 'hidden',
+          weight: Math.max(1, parseInt(t.weight, 10) || 1),
+          label: `Case ${n}`,
+        };
+      })
+      .filter((tc) => tc.input || tc.expectedOutput);
+    delete mapped._tests;
     if (testCases.length) mapped.testCases = testCases;
     return mapped;
   });
@@ -174,8 +192,16 @@ export async function downloadTemplate(_req, res) {
       Constraints: '2 <= n <= 10^4',
       Difficulty: 'MEDIUM',
       Language: 'javascript',
-      'Test 1 Input': 'nums = [2,7,11,15], target = 9',
-      'Test 1 Output': '[0,1]',
+      'Time Limit (s)': 2,
+      'Memory Limit (MB)': 256,
+      'Test 1 Input': '2 7 11 15\n9',
+      'Test 1 Output': '0 1',
+      'Test 1 Hidden': 'FALSE',
+      'Test 1 Weight': 1,
+      'Test 2 Input': '3 2 4\n6',
+      'Test 2 Output': '1 2',
+      'Test 2 Hidden': 'TRUE',
+      'Test 2 Weight': 1,
     },
     {
       Type: 'SQL',

@@ -14,9 +14,11 @@ import {
   serializeCodingAnswer,
   parseTestCases,
   parseExamples,
+  getPublicTestCases,
   parseStarterCodesByLang,
   getStarterForLanguage,
   parseAllowedCodingLanguages,
+  VERDICT_LABEL,
 } from '../../coding-engine';
 import CodingProblemPanel from '../../components/coding/CodingProblemPanel';
 import ProctoringConsole from '../../components/assessment/ProctoringConsole';
@@ -1560,7 +1562,7 @@ export default function AssessmentApp() {
       try {
         await Promise.race([
           saveProgress().catch(() => {}),
-          new Promise((resolve) => setTimeout(resolve, 4000)),
+          new Promise((resolve) => setTimeout(resolve, 8000)),
         ]);
       } catch {
         /* still submit local answers */
@@ -2312,6 +2314,9 @@ export default function AssessmentApp() {
                         problem={currentQuestion.description}
                         constraints={currentQuestion.constraints}
                         examples={parseExamples(currentQuestion.examples)}
+                        publicTests={getPublicTestCases(currentQuestion.testCases)}
+                        timeLimitSec={currentQuestion.timeLimitSec}
+                        memoryLimitMb={currentQuestion.memoryLimitMb}
                         hideHeaderMeta
                       />
                     </div>
@@ -2321,6 +2326,9 @@ export default function AssessmentApp() {
                         problem={currentQuestion.description}
                         constraints={currentQuestion.constraints}
                         examples={parseExamples(currentQuestion.examples)}
+                        publicTests={getPublicTestCases(currentQuestion.testCases)}
+                        timeLimitSec={currentQuestion.timeLimitSec}
+                        memoryLimitMb={currentQuestion.memoryLimitMb}
                         hideHeaderMeta
                         className="h-full"
                       />
@@ -2344,6 +2352,9 @@ export default function AssessmentApp() {
                         : parsed.codesByLang?.[lang] ?? getStarterForLanguage(starters, lang);
                       return (
                         <CodingWorkspace
+                          key={currentQuestion.id}
+                          lastRun={parsed.lastRun}
+                          evaluation={parsed.evaluation}
                           readOnly={interactionBlocked}
                           sessionId={session?.id}
                           questionId={currentQuestion.id}
@@ -2404,8 +2415,9 @@ export default function AssessmentApp() {
                             );
                             const ev = payload.evaluation;
                             if (ev?.total > 0) {
+                              const verdict = VERDICT_LABEL[ev.verdict] || ev.verdict || 'Submitted';
                               toast?.success(
-                                `Saved · Tests ${ev.passed}/${ev.total}${ev.score != null ? ` (${ev.score}%)` : ''}`
+                                `${verdict} · ${ev.passed}/${ev.total} tests`
                               );
                             } else {
                               toast?.success('Coding answer saved');

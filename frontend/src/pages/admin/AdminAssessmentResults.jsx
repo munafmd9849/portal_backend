@@ -15,6 +15,7 @@ import { useToast } from '../../components/ui/Toast';
 import { SkeletonTable, SkeletonStatsGrid } from '../../components/ui/loading';
 import { ErrorBoundary } from '../../components/ui/ErrorBoundary';
 import { au } from '../../components/assessment/assessmentUi';
+import { TestResultsPanel, parseCodingAnswer } from '../../coding-engine';
 
 function formatSessionTime(ts) {
   if (!ts) return '—';
@@ -642,35 +643,23 @@ function AdminAssessmentResultsComponent() {
                                           <Terminal className="w-3.5 h-3.5" /> Source Code Submission
                                        </p>
                                        <pre className="text-xs font-mono text-emerald-400/90 overflow-x-auto custom-scrollbar leading-relaxed">
-                                         {studentAnswer || '// No code submitted for this problem'}
+                                         {parseCodingAnswer(studentAnswer).code || studentAnswer || '// No code submitted for this problem'}
                                        </pre>
                                     </div>
-                                    
-                                    {logData && (
-                                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-5">
-                                         <div className="flex items-center justify-between mb-4">
-                                            <p className="text-[10px] font-bold text-slate-400 font-medium">Compiler Result</p>
-                                            <div className="flex gap-2">
-                                              <span className="px-2 py-0.5 bg-emerald-500 text-white text-[9px] font-bold rounded uppercase tracking-wider shadow-sm">{logData.passed} Passed</span>
-                                              <span className="px-2 py-0.5 bg-slate-200 text-slate-600 text-[9px] font-bold rounded uppercase tracking-wider">{logData.total} Total</span>
-                                            </div>
-                                         </div>
-                                         <div className="grid gap-2">
-                                           {logData.logs?.map((log, lidx) => (
-                                             <div key={lidx} className={`p-3 rounded-xl text-[10px] font-mono border transition-all ${log.passed ? 'bg-white border-emerald-100 text-emerald-700' : 'bg-white border-rose-100 text-rose-700'}`}>
-                                               <div className="flex items-center gap-2 font-bold mb-1 opacity-80">
-                                                  <div className={`w-1.5 h-1.5 rounded-full ${log.passed ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                                                  Input: {log.input}
-                                               </div>
-                                               <div className="grid grid-cols-2 gap-4 mt-2 border-t border-slate-50 pt-2">
-                                                  <p className="opacity-60">Expected: {log.expected}</p>
-                                                  <p className="font-bold">Actual: {log.actual || log.error}</p>
-                                               </div>
-                                             </div>
-                                           ))}
-                                         </div>
-                                      </div>
-                                    )}
+                                    <TestResultsPanel
+                                      theme="light"
+                                      evaluation={{
+                                        ...(logData || {}),
+                                        results: logData?.logs || logData?.results,
+                                        passed: logData?.passed,
+                                        total: logData?.total,
+                                        score: logData?.score,
+                                        error: logData?.error || (logData?.skipped ? 'Official coding tests were skipped on auto-submit.' : null),
+                                        hiddenTestsPassed: logData?.hiddenTestsPassed,
+                                        hiddenTestsTotal: logData?.hiddenTestsTotal,
+                                      }}
+                                      emptyHint="No test results stored for this submission."
+                                    />
                                  </div>
                                )}
 

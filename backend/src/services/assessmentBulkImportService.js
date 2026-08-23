@@ -3,6 +3,7 @@
  */
 
 import prisma from '../config/database.js';
+import { serializeJudgeLimits } from '../coding-engine/judgeLimits.js';
 
 const QUESTION_TYPES = new Set([
   'MCQ',
@@ -111,7 +112,14 @@ export function validateQuestionRows(rows = [], { existingFingerprints = new Set
       points,
       difficulty: String(raw.difficulty || raw.Difficulty || 'MEDIUM').toUpperCase(),
       starterCode: raw.starterCode || null,
-      constraints: raw.constraints || raw.Constraints || null,
+      constraints:
+        type === 'CODING' || type === 'PROGRAMMING_CHALLENGE'
+          ? serializeJudgeLimits({
+              constraintsText: raw.constraints || raw.Constraints || '',
+              timeLimitSec: raw.timeLimitSec || raw.time,
+              memoryLimitMb: raw.memoryLimitMb,
+            })
+          : raw.constraints || raw.Constraints || null,
       testCases: raw.testCases
         ? typeof raw.testCases === 'string'
           ? raw.testCases

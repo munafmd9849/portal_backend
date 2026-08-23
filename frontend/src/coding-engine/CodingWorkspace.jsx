@@ -1,13 +1,15 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Editor from '@monaco-editor/react';
-import { Play, Send, Terminal, AlertCircle, CheckCircle2, FlaskConical } from 'lucide-react';
+import { Send, Terminal, FlaskConical, Play } from 'lucide-react';
 import { Spinner } from '../components/ui/loading';
-import { CODING_LANGUAGES, DEFAULT_STARTERS, RUN_DEBOUNCE_MS } from './constants';
+import { CODING_LANGUAGES, RUN_DEBOUNCE_MS } from './constants';
 import { runCode, evaluateCode } from './api';
 import { parseTestCases } from './testCaseUtils';
+import TestResultsPanel from './TestResultsPanel';
 
 /**
- * LeetCode-style code workspace: editor, custom I/O, run, run all tests, submit.
+ * Exam workspace: Run Tests (public cases + I/O) and Submit (full judge, hidden I/O never shown).
+ * Optional custom stdin via `showCustomIo` for mock interviews.
  */
 export default function CodingWorkspace({
   code,
@@ -36,14 +38,34 @@ export default function CodingWorkspace({
   onPasteBlocked,
   sessionId = null,
   questionId = null,
+  showCustomIo = false,
 }) {
   const [running, setRunning] = useState(false);
   const [evaluating, setEvaluating] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [runResult, setRunResult] = useState(lastRun);
   const [evalResult, setEvalResult] = useState(evaluation);
+  const [busyMode, setBusyMode] = useState(null);
   const runLockRef = useRef(false);
   const lastRunAtRef = useRef(0);
   const editorRef = useRef(null);
+
+  useEffect(() => {
+    setRunResult(lastRun);
+    setEvalResult(evaluation);
+  }, [questionId]);
+
+  useEffect(() => {
+    if (readOnly || !questionId || !code) return;
+    try {
+      sessionStorage.setItem(
+        `coding-local-draft:${sessionId || 'na'}:${questionId}:${language}`,
+        code
+      );
+    } catch {
+      /* ignore quota */
+    }
+  }, [code, language, questionId, readOnly, sessionId]);
 
   const handleEditorMount = useCallback(
     (editor, monaco) => {
@@ -70,6 +92,7 @@ export default function CodingWorkspace({
   );
 
   const parsedCases = useMemo(() => parseTestCases(testCases), [testCases]);
+  const publicCount = useMemo(() => parsedCases.filter((c) => !c.hidden).length, [parsedCases]);
 
   const languageOptions = useMemo(() => {
     if (!allowedLanguages?.length) return CODING_LANGUAGES;
@@ -77,53 +100,56 @@ export default function CodingWorkspace({
   }, [allowedLanguages]);
 
   const displayOutput = useMemo(() => {
-    if (runResult?.error) {
-      return { type: 'error', text: runResult.error };
-    }
-    if (runResult?.output != null && runResult.output !== '') {
-      return { type: 'ok', text: runResult.output };
-    }
-    return { type: 'muted', text: 'Output will appear here after you run.' };
+    if (runResult?.error) return { type: 'error', text: runResult.error };
+    if (runResult?.output != null && runResult.output !== '') return { type: 'ok', text: runResult.output };
+    return { type: 'muted', text: 'Output will appear here after you run custom input.' };
   }, [runResult]);
 
-  const runEvaluation = useCallback(async () => {
-    const cases = parseTestCases(testCases);
-    if (cases.length === 0) {
-      onTestsEmpty?.();
-      return null;
-    }
-    setEvaluating(true);
-    try {
-      const result = await evaluateCode({
-        language,
-        code,
-        testCases: cases,
-        sessionId,
-        questionId,
-      });
-      setEvalResult(result);
-      onEvaluateComplete?.(result);
-      if (result.error) onError?.(result.error);
-      return result;
-    } catch (err) {
-      const fail = { passed: 0, total: 0, score: 0, results: [], error: err.message };
-      setEvalResult(fail);
-      onEvaluateComplete?.(fail);
-      onError?.(err.message || 'Evaluation failed');
-      return fail;
-    } finally {
-      setEvaluating(false);
-    }
-  }, [language, code, testCases, sessionId, questionId, onEvaluateComplete, onTestsEmpty, onError]);
+  const runJudge = useCallback(
+    async (mode) => {
+      if (!questionId && parsedCases.length === 0) {
+        onTestsEmpty?.();
+        return null;
+      }
+      setEvaluating(true);
+      setBusyMode(mode);
+      try {
+        const result = await evaluateCode({
+          language,
+          code,
+          testCases: parsedCases,
+          sessionId,
+          questionId,
+          mode,
+        });
+        setEvalResult(result);
+        onEvaluateComplete?.(result);
+        if (result.error) onError?.(result.error);
+        return result;
+      } catch (err) {
+        const fail = { passed: 0, total: 0, score: 0, results: [], error: err.message, mode };
+        setEvalResult(fail);
+        onEvaluateComplete?.(fail);
+        onError?.(err.message || 'Evaluation failed');
+        return fail;
+      } finally {
+        setEvaluating(false);
+        setBusyMode(null);
+      }
+    },
+    [language, code, parsedCases, sessionId, questionId, onEvaluateComplete, onTestsEmpty, onError]
+  );
 
-  const handleRun = useCallback(async () => {
+  const handleRunTests = useCallback(() => runJudge('run_tests'), [runJudge]);
+
+  const handleCustomRun = useCallback(async () => {
     const now = Date.now();
     if (runLockRef.current || now - lastRunAtRef.current < RUN_DEBOUNCE_MS) return;
     lastRunAtRef.current = now;
     runLockRef.current = true;
     setRunning(true);
     try {
-      const result = await runCode({ language, code, input: customInput, sessionId });
+      const result = await runCode({ language, code, input: customInput, sessionId, questionId });
       setRunResult(result);
       onRunComplete?.(result);
       if (result.error) onError?.(result.error);
@@ -136,12 +162,15 @@ export default function CodingWorkspace({
       setRunning(false);
       runLockRef.current = false;
     }
-  }, [language, code, customInput, sessionId, onRunComplete, onError]);
+  }, [language, code, customInput, sessionId, questionId, onRunComplete, onError]);
 
   const handleSubmitClick = useCallback(async () => {
+    setSubmitting(true);
     let latestEval = evalResult;
-    if (parsedCases.length > 0) {
-      latestEval = await runEvaluation();
+    try {
+      latestEval = await runJudge('submit');
+    } finally {
+      setSubmitting(false);
     }
     onSubmit?.({
       code,
@@ -151,13 +180,15 @@ export default function CodingWorkspace({
       evaluation: latestEval,
       submittedAt: new Date().toISOString(),
     });
-  }, [parsedCases.length, runEvaluation, onSubmit, code, language, customInput, runResult, evalResult]);
+  }, [runJudge, onSubmit, code, language, customInput, runResult, evalResult]);
 
   const handleLanguageSwitch = (lang) => {
     if (readOnly) return;
     if (!languageOptions.some((l) => l.id === lang)) return;
     onLanguageChange?.(lang);
   };
+
+  const busy = evaluating || submitting;
 
   return (
     <div data-coding-editor className={`flex flex-col h-full min-h-0 bg-[#0d1117] ${className}`}>
@@ -173,9 +204,10 @@ export default function CodingWorkspace({
       )}
 
       {!readOnly && (
-        <p className="px-3 py-1.5 text-[9px] text-slate-500 bg-[#161b22] border-b border-white/5 shrink-0">
-          Use <code className="text-indigo-400">solution(input)</code> — input can be plain text or JSON (e.g.{' '}
-          <code className="text-indigo-400">[2,7,11,15]</code>).
+        <p className="px-3 py-1.5 text-[10px] text-slate-400 bg-[#161b22] border-b border-white/5 shrink-0">
+          Implement <code className="text-indigo-300">solution(input)</code>. Use{' '}
+          <span className="text-slate-200 font-semibold">Run Tests</span> on public cases, then{' '}
+          <span className="text-slate-200 font-semibold">Submit</span> to grade hidden tests too.
         </p>
       )}
 
@@ -199,45 +231,47 @@ export default function CodingWorkspace({
           </select>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleRun}
-            disabled={running || !code}
-            className="h-8 px-3 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white text-[10px] font-bold uppercase rounded-lg flex items-center gap-1.5"
-          >
-            {running ? <Spinner size="sm" tone="white" /> : <Play className="w-3.5 h-3.5" />}
-            Run
-          </button>
-          {!readOnly && parsedCases.length > 0 && (
+          {showCustomIo && (
             <button
               type="button"
-              onClick={runEvaluation}
-              disabled={evaluating || !code}
+              onClick={handleCustomRun}
+              disabled={running || !code || busy}
+              className="h-8 px-3 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white text-[10px] font-bold uppercase rounded-lg flex items-center gap-1.5"
+            >
+              {running ? <Spinner size="sm" tone="white" /> : <Play className="w-3.5 h-3.5" />}
+              Run
+            </button>
+          )}
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={handleRunTests}
+              disabled={busy || !code}
               className="h-8 px-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-[10px] font-bold uppercase rounded-lg flex items-center gap-1.5"
             >
-              {evaluating ? (
+              {busyMode === 'run_tests' ? (
                 <Spinner size="sm" tone="white" />
               ) : (
                 <FlaskConical className="w-3.5 h-3.5" />
               )}
-              Run tests
+              Run Tests
             </button>
           )}
           {showSubmit && !readOnly && (
             <button
               type="button"
               onClick={handleSubmitClick}
-              disabled={evaluating}
+              disabled={busy || !code}
               className="h-8 px-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-[10px] font-bold uppercase rounded-lg flex items-center gap-1.5"
             >
-              {evaluating ? <Spinner size="sm" tone="white" /> : <Send className="w-3.5 h-3.5" />}
+              {busyMode === 'submit' ? <Spinner size="sm" tone="white" /> : <Send className="w-3.5 h-3.5" />}
               Submit
             </button>
           )}
         </div>
       </div>
 
-      <div className={`flex-1 min-h-0 ${compact ? 'min-h-[200px]' : 'min-h-[240px]'}`}>
+      <div className={`flex-1 min-h-0 ${compact ? 'min-h-[180px]' : 'min-h-[220px]'}`}>
         <Editor
           theme="vs-dark"
           language={monacoLang}
@@ -261,74 +295,55 @@ export default function CodingWorkspace({
         />
       </div>
 
-      <div
-        className={`grid grid-cols-1 ${compact ? '' : 'md:grid-cols-2'} border-t border-white/10 shrink-0 min-h-[120px]`}
-      >
-        <div className="border-b md:border-b-0 md:border-r border-white/10 flex flex-col">
-          <div className="px-3 py-1.5 text-[9px] font-bold text-slate-500 uppercase tracking-widest bg-[#161b22]">
-            Custom input
+      {showCustomIo && (
+        <div className={`grid grid-cols-1 ${compact ? '' : 'md:grid-cols-2'} border-t border-white/10 shrink-0 min-h-[100px] max-h-[22vh] bg-[#0d1117]`}>
+          <div className="border-b md:border-b-0 md:border-r border-white/10 flex flex-col">
+            <div className="px-3 py-1.5 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Custom input</div>
+            <textarea
+              value={customInput}
+              onChange={(e) => !readOnly && onCustomInputChange?.(e.target.value)}
+              readOnly={readOnly}
+              placeholder="stdin / function argument"
+              className="flex-1 min-h-[64px] p-3 bg-[#0d1117] text-emerald-400/90 font-mono text-xs resize-none outline-none border-0"
+            />
           </div>
-          <textarea
-            value={customInput}
-            onChange={(e) => !readOnly && onCustomInputChange?.(e.target.value)}
-            readOnly={readOnly}
-            placeholder="stdin / function argument (JSON supported)"
-            className="flex-1 min-h-[72px] p-3 bg-[#0d1117] text-emerald-400/90 font-mono text-xs resize-none outline-none border-0"
-          />
-        </div>
-        <div className="flex flex-col min-h-[88px]">
-          <div className="px-3 py-1.5 text-[9px] font-bold text-slate-500 uppercase tracking-widest bg-[#161b22] flex justify-between">
-            <span>Output</span>
-            {runResult?.executionTime != null && (
-              <span className="text-slate-600 tabular-nums">{runResult.executionTime}ms</span>
-            )}
+          <div className="flex flex-col min-h-[64px]">
+            <div className="px-3 py-1.5 text-[9px] font-bold text-slate-500 uppercase tracking-widest flex justify-between">
+              <span>Output</span>
+              {runResult?.executionTime != null && (
+                <span className="text-slate-600 tabular-nums">{runResult.executionTime}ms</span>
+              )}
+            </div>
+            <pre
+              className={`flex-1 p-3 m-0 overflow-auto font-mono text-xs whitespace-pre-wrap ${
+                displayOutput.type === 'error'
+                  ? 'text-rose-400'
+                  : displayOutput.type === 'ok'
+                    ? 'text-emerald-300'
+                    : 'text-slate-500'
+              }`}
+            >
+              {displayOutput.text}
+            </pre>
           </div>
-          <pre
-            className={`flex-1 p-3 m-0 overflow-auto font-mono text-xs whitespace-pre-wrap ${
-              displayOutput.type === 'error'
-                ? 'text-rose-400'
-                : displayOutput.type === 'ok'
-                  ? 'text-emerald-300'
-                  : 'text-slate-500'
-            }`}
-          >
-            {displayOutput.text}
-          </pre>
-        </div>
-      </div>
-
-      {evalResult && (evalResult.total > 0 || evalResult.error) && (
-        <div className="px-3 py-2 border-t border-white/10 bg-[#161b22] shrink-0 max-h-40 overflow-y-auto">
-          <div className="flex items-center gap-2 mb-1">
-            {evalResult.passed === evalResult.total && evalResult.total > 0 ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            ) : (
-              <AlertCircle className="w-4 h-4 text-amber-400" />
-            )}
-            <span className="text-[10px] font-bold text-white uppercase">
-              Tests {evalResult.passed}/{evalResult.total}
-              {evalResult.score != null ? ` · ${evalResult.score}%` : ''}
-            </span>
-          </div>
-          {evalResult.error && <p className="text-[10px] text-rose-400">{evalResult.error}</p>}
-          <ul className="space-y-1 mt-1">
-            {(evalResult.results || []).map((r, i) => (
-              <li key={i} className="text-[10px] text-slate-400 font-mono">
-                <span className={r.passed ? 'text-emerald-400' : 'text-rose-400'}>
-                  {r.passed ? '✓' : '✗'} {r.label}
-                </span>
-                {!r.passed && (
-                  <span className="block text-slate-500 pl-3 mt-0.5">
-                    {r.error
-                      ? `Error: ${r.error}`
-                      : `Expected: ${r.expectedOutput} · Got: ${r.actualOutput || '(empty)'}`}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
         </div>
       )}
+
+      <div className="border-t border-white/10 shrink-0 bg-[#161b22] flex flex-col max-h-[min(42vh,380px)]">
+        <div className="px-3 py-1.5 flex items-center justify-between gap-2">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Test results</p>
+          {publicCount > 0 && (
+            <span className="text-[10px] text-slate-500">{publicCount} public</span>
+          )}
+        </div>
+        <div className="overflow-y-auto px-3 pb-3 min-h-[140px]">
+          <TestResultsPanel
+            theme="dark"
+            evaluation={evalResult}
+            emptyHint="Run Tests to debug public cases (input, expected, your output). Submit grades public and hidden tests; hidden details stay hidden."
+          />
+        </div>
+      </div>
     </div>
   );
 }

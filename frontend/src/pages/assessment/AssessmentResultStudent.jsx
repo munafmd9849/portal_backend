@@ -13,6 +13,7 @@ import { mcqAnswersMatch, resolveMcqOptionLabel } from '../../utils/mcqAnswers';
 import { useToast } from '../../components/ui/Toast';
 import { LoadingPage } from '../../components/ui/loading';
 import { ErrorBoundary } from '../../components/ui/ErrorBoundary';
+import { TestResultsPanel } from '../../coding-engine';
 
 function formatDuration(seconds) {
   if (!seconds && seconds !== 0) return '—';
@@ -302,14 +303,26 @@ function AssessmentResultStudentComponent() {
                             <pre className="text-[12px] leading-relaxed font-mono text-slate-700 bg-slate-50 border border-slate-200/80 rounded-md p-3.5 overflow-x-auto whitespace-pre-wrap break-words">
                               {coding?.code || studentAnswer || '// No solution submitted'}
                             </pre>
-                            {logData?.total > 0 && (
-                              <p className="text-xs text-slate-500 tabular-nums">
-                                Tests{' '}
-                                <span className="font-medium text-slate-800">
-                                  {logData.passed}/{logData.total}
-                                </span>
-                              </p>
-                            )}
+                            <TestResultsPanel
+                              theme="light"
+                              evaluation={{
+                                ...(logData || {}),
+                                results: logData?.logs || logData?.results || coding?.evaluation?.results,
+                                passed: logData?.passed ?? coding?.evaluation?.passed,
+                                total: logData?.total ?? coding?.evaluation?.total,
+                                score: logData?.score ?? coding?.evaluation?.score,
+                                error:
+                                  logData?.error ||
+                                  (logData?.skipped
+                                    ? 'Official coding tests were skipped on auto-submit.'
+                                    : coding?.evaluation?.error),
+                                hiddenTestsPassed:
+                                  logData?.hiddenTestsPassed ?? coding?.evaluation?.hiddenTestsPassed,
+                                hiddenTestsTotal:
+                                  logData?.hiddenTestsTotal ?? coding?.evaluation?.hiddenTestsTotal,
+                              }}
+                              emptyHint="No test results were stored for this question."
+                            />
                           </div>
                         )}
 

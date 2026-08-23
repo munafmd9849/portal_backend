@@ -32,7 +32,7 @@ export function sanitizeCode(code) {
 export function sanitizeInput(input) {
   if (input == null) return '';
   const s = String(input);
-  if (s.length > 10_000) {
+  if (s.length > 100_000) {
     throw new Error('Input exceeds maximum length');
   }
   return s;

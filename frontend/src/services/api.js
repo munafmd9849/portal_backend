@@ -155,8 +155,51 @@ async function apiRequest(endpoint, options = {}) {
   return apiRequestUncached(endpoint, options);
 }
 
+function isRetryableFetchError(err) {
+  const name = err?.name || '';
+  const msg = String(err?.message || '').toLowerCase();
+  return (
+    name === 'TimeoutError' ||
+    name === 'AbortError' ||
+    msg.includes('timeout') ||
+    msg.includes('timed out') ||
+    msg.includes('failed to fetch') ||
+    msg.includes('networkerror') ||
+    msg.includes('failed to connect')
+  );
+}
+
+function networkErrorMessage(fetchError) {
+  const name = fetchError?.name || '';
+  const msg = String(fetchError?.message || '');
+  if (
+    name === 'TimeoutError' ||
+    name === 'AbortError' ||
+    /timeout|timed out/i.test(msg)
+  ) {
+    return 'The server took too long to respond. Your code is kept locally — please try again.';
+  }
+  if (/cors/i.test(msg)) {
+    return 'Connection blocked. Please refresh and try again.';
+  }
+  if (/failed to fetch|networkerror/i.test(msg)) {
+    return 'Cannot reach the server. Check your connection and try again.';
+  }
+  return `Failed to connect to server. ${msg || 'Unknown network error.'}`;
+}
+
 async function apiRequestUncached(endpoint, options = {}) {
-  const { silent = false, showSuccess = false, noCache = false, timeoutMs = 30000, ...fetchOptions } = options;
+  const {
+    silent = false,
+    showSuccess = false,
+    noCache = false,
+    retries = 0,
+    timeoutMs: timeoutMsOption,
+    ...fetchOptions
+  } = options;
+  const timeoutMs = Number(timeoutMsOption ?? options.timeoutMs) > 0
+    ? Number(timeoutMsOption ?? options.timeoutMs)
+    : 30000;
   const method = (fetchOptions.method || 'GET').toUpperCase();
   const token = getAuthToken();
 
@@ -261,13 +304,28 @@ async function apiRequestUncached(endpoint, options = {}) {
   try {
     let response;
     try {
-      response = await doFetch();
-      if (response.status === 429) {
-        await sleep(parseRetryAfterMs(response.headers.get('Retry-After')));
-        response = await doFetch();
+      const maxAttempts = Math.max(1, Number(retries) + 1);
+      let lastFetchError;
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        try {
+          response = await doFetch();
+          if (response.status === 429) {
+            await sleep(parseRetryAfterMs(response.headers.get('Retry-After')));
+            response = await doFetch();
+          }
+          lastFetchError = null;
+          break;
+        } catch (fetchError) {
+          lastFetchError = fetchError;
+          if (attempt < maxAttempts && isRetryableFetchError(fetchError)) {
+            await sleep(400 * attempt);
+            continue;
+          }
+          throw fetchError;
+        }
       }
+      if (lastFetchError) throw lastFetchError;
     } catch (fetchError) {
-      // Network error - server not reachable, CORS issue, or connection failed
       console.error('Network Error (Failed to Fetch):', {
         endpoint,
         url,
@@ -275,30 +333,16 @@ async function apiRequestUncached(endpoint, options = {}) {
         type: fetchError.name,
       });
 
-      // Provide helpful error message (production-safe, no localhost references)
-      let errorMessage = 'Failed to connect to server. ';
-      if (fetchError.name === 'AbortError' || fetchError.message.includes('timeout')) {
-        errorMessage += 'Request timed out. Please try again.';
-      } else if (fetchError.message.includes('CORS') || fetchError.message.includes('cors')) {
-        errorMessage += 'Connection error. Please check your network connection and try again.';
-      } else if (fetchError.message.includes('Failed to fetch') || fetchError.message.includes('NetworkError')) {
-        errorMessage += 'Cannot reach the server. Please check your network connection and ensure the service is available.';
-      } else {
-        errorMessage += fetchError.message || 'Unknown network error.';
-      }
-
-      const error = new Error(errorMessage);
+      const error = new Error(networkErrorMessage(fetchError));
       error.isNetworkError = true;
       error.originalError = fetchError;
       error.endpoint = endpoint;
       error.url = url;
 
-      // Automatically show network error toast unless silent
       if (!silent) {
         getToastUtils().then(utils => {
           utils.handleApiError(error);
         }).catch(() => {
-          // Toast not initialized yet, just log
           console.error('Network Error:', error.message);
         });
       }
@@ -1364,7 +1408,8 @@ export const api = {
       body: JSON.stringify({ answers, ...extra }),
       headers: getExamDeviceHeaders(),
       silent: true,
-      timeoutMs: 20000,
+      timeoutMs: 45000,
+      retries: 2,
     }),
   getAssessmentSessionStatus: (sessionId) =>
     apiRequest(`/assessments/session/status/${sessionId}`, {
@@ -1426,18 +1471,23 @@ export const api = {
       headers: getExamDeviceHeaders(),
       silent: true,
       timeoutMs: 180000,
+      retries: 1,
     }),
   runCode: (data) =>
     apiRequest('/code/run', {
       method: 'POST',
       body: JSON.stringify(data),
       headers: getExamDeviceHeaders(),
+      timeoutMs: 120000,
+      retries: 0,
     }),
   evaluateCode: (data) =>
     apiRequest('/code/evaluate', {
       method: 'POST',
       body: JSON.stringify(data),
       headers: getExamDeviceHeaders(),
+      timeoutMs: 180000,
+      retries: 0,
     }),
   evaluateAssessmentCandidate: (assessmentId, studentId, data) => apiRequest(`/assessments/evaluate/${assessmentId}/${studentId}`, { method: 'POST', body: JSON.stringify(data) }),
   getAssessmentDashboard: (id) => apiRequest(`/assessments/dashboard/${id}`),

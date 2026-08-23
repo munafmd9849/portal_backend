@@ -47,10 +47,20 @@ export const ASSESSMENT_QUESTION_TEMPLATE_ROWS = [
     Correct: '',
     Description: 'Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.',
     Constraints: '2 <= nums.length <= 10^4',
-    'Test 1 Input': 'nums = [2,7,11,15], target = 9',
-    'Test 1 Output': '[0,1]',
-    'Test 2 Input': 'nums = [3,2,4], target = 6',
-    'Test 2 Output': '[1,2]',
+    'Test 1 Input': '2 7 11 15\n9',
+    'Test 1 Output': '0 1',
+    'Test 1 Hidden': 'FALSE',
+    'Test 1 Weight': 1,
+    'Test 2 Input': '3 2 4\n6',
+    'Test 2 Output': '1 2',
+    'Test 2 Hidden': 'TRUE',
+    'Test 2 Weight': 1,
+    'Test 3 Input': '3 3\n6',
+    'Test 3 Output': '0 1',
+    'Test 3 Hidden': 'TRUE',
+    'Test 3 Weight': 2,
+    'Time Limit (s)': 2,
+    'Memory Limit (MB)': 256,
   },
 ];
 
@@ -65,11 +75,22 @@ const COL = {
   correct: ['correct', 'correct answer', 'answer', 'key'],
   description: ['description', 'problem statement', 'details'],
   constraints: ['constraints', 'constraint'],
-  test1In: ['test 1 input', 'testcase1 input', 'tc1 input'],
-  test1Out: ['test 1 output', 'testcase1 output', 'tc1 output'],
-  test2In: ['test 2 input', 'testcase2 input', 'tc2 input'],
-  test2Out: ['test 2 output', 'testcase2 output', 'tc2 output'],
+  timeLimit: ['time limit (s)', 'time limit', 'timelimit', 'time limit sec'],
+  memoryLimit: ['memory limit (mb)', 'memory limit', 'memorylimit', 'memory mb'],
 };
+
+function collectTestColumns(headerRow) {
+  const tests = [];
+  headerRow.forEach((cell, i) => {
+    const key = normKey(cell);
+    const m = key.match(/^test\s*(\d+)\s*(input|output|hidden|weight)$/);
+    if (!m) return;
+    const n = Number(m[1]);
+    tests[n] = tests[n] || {};
+    tests[n][m[2]] = i;
+  });
+  return tests;
+}
 
 function normKey(value) {
   return String(value ?? '')
@@ -122,7 +143,7 @@ function normalizeType(raw) {
   return '';
 }
 
-function rowToQuestion(row, headerIndex, rowNum) {
+function rowToQuestion(row, headerIndex, rowNum, testCols = []) {
   const text = cell(row, headerIndex.text);
   if (!text) return null;
 
@@ -137,7 +158,7 @@ function rowToQuestion(row, headerIndex, rowNum) {
 
   if (!type) {
     if (nonEmptyOptions.length >= 2) type = 'MCQ';
-    else if (cell(row, headerIndex.test1In) || cell(row, headerIndex.description)) type = 'CODING';
+    else if (cell(row, headerIndex.description) || testCols.some((t) => t && cell(row, t.input))) type = 'CODING';
     else type = 'DESCRIPTIVE';
   }
 
@@ -186,19 +207,21 @@ function rowToQuestion(row, headerIndex, rowNum) {
   if (type === 'CODING') {
     const description = cell(row, headerIndex.description) || text;
     const testCases = [];
-    const pairs = [
-      [headerIndex.test1In, headerIndex.test1Out],
-      [headerIndex.test2In, headerIndex.test2Out],
-    ];
-    pairs.forEach(([inIdx, outIdx], i) => {
-      const input = cell(row, inIdx);
-      const expectedOutput = cell(row, outIdx);
+    testCols.forEach((col, n) => {
+      if (!col) return;
+      const input = cell(row, col.input);
+      const expectedOutput = cell(row, col.output);
+      const hiddenRaw = cell(row, col.hidden).toLowerCase();
+      const hidden = hiddenRaw === 'true' || hiddenRaw === 'yes' || hiddenRaw === '1' || hiddenRaw === 'hidden';
+      const weight = Math.max(1, parseInt(cell(row, col.weight), 10) || 1);
       if (input || expectedOutput) {
         testCases.push({
           ...emptyTestCase(),
           input,
           expectedOutput,
-          label: `Case ${i + 1}`,
+          hidden,
+          weight,
+          label: `Case ${n}`,
         });
       }
     });
@@ -216,6 +239,8 @@ function rowToQuestion(row, headerIndex, rowNum) {
         points,
         difficulty: 'MEDIUM',
         constraints: cell(row, headerIndex.constraints) || '',
+        timeLimitSec: Number(cell(row, headerIndex.timeLimit)) || 2,
+        memoryLimitMb: Number(cell(row, headerIndex.memoryLimit)) || 256,
         starterCodes: createEmptyStarterCodesByLang(),
         examples: [{ ...emptyExample() }],
         testCases,
@@ -247,6 +272,7 @@ export function parseAssessmentQuestionsWorkbook(workbook) {
   }
 
   const headerIndex = buildHeaderIndex(rows[0]);
+  const testCols = collectTestColumns(rows[0]);
   if (headerIndex.text == null) {
     return {
       questions,
@@ -259,7 +285,7 @@ export function parseAssessmentQuestionsWorkbook(workbook) {
     const row = rows[i];
     if (!row || row.every((c) => String(c ?? '').trim() === '')) continue;
 
-    const result = rowToQuestion(row, headerIndex, i + 1);
+    const result = rowToQuestion(row, headerIndex, i + 1, testCols);
     if (!result) continue;
     if (result.error) {
       errors.push(result.error);

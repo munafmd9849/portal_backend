@@ -418,8 +418,10 @@ export default function AdminAssessments() {
           difficulty: 'MEDIUM',
           starterCodes: createEmptyStarterCodesByLang(),
           constraints: '',
+          timeLimitSec: 2,
+          memoryLimitMb: 256,
           examples: [{ input: '', output: '', explanation: '' }],
-          testCases: [{ input: '', expectedOutput: '', hidden: false }]
+          testCases: [{ input: '', expectedOutput: '', hidden: false, weight: 1 }]
         }
       ]
     });
