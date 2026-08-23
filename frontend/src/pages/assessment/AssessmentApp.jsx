@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Shield, AlertTriangle, Clock, ChevronRight, ChevronLeft, 
   CheckCircle, XCircle, Video, Code, FileText,
-  Maximize2, Terminal, AlertCircle, Save, Send, Ban, ScanFace, Flag
+  Maximize2, Terminal, AlertCircle, Save, Send, Ban, ScanFace, Flag, Monitor
 } from 'lucide-react';
 import api from '../../services/api';
 import { useToast } from '../../components/ui/Toast';
@@ -26,6 +26,8 @@ import AssessmentModal from '../../components/assessment/AssessmentModal';
 import { au } from '../../components/assessment/assessmentUi';
 import { ProctoringEngine } from '../../proctoring-engine/ProctoringEngine';
 import { defaultProctoringConfig, formatViolationLabel } from '../../proctoring-engine/constants';
+import { auditDisplayEnvironment } from '../../proctoring-engine/screenShareGuard';
+import { createAssessmentSecurityMonitor } from '../../proctoring-engine/assessmentSecurityMonitor';
 import {
   getAssessmentEntryStatus,
   formatAssessmentWindow,
@@ -38,21 +40,7 @@ import {
 } from '../../utils/assessmentTimer';
 import { initSocket, subscribeAssessmentSessionControl } from '../../services/socket';
 import { ProctoringBroadcaster } from '../../proctoring-engine/liveProctoringRtc';
-
-const EXAM_DEVICE_KEY = 'pwioi_exam_device_id';
-
-function getExamDeviceId() {
-  try {
-    let id = localStorage.getItem(EXAM_DEVICE_KEY);
-    if (!id) {
-      id = `dev_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`;
-      localStorage.setItem(EXAM_DEVICE_KEY, id);
-    }
-    return id;
-  } catch {
-    return `dev_mem_${Date.now()}`;
-  }
-}
+import { getExamDeviceId } from '../../utils/examDevice';
 
 function draftStorageKey(sessionId) {
   return `pwioi_exam_draft_${sessionId}`;
@@ -147,18 +135,110 @@ function isAlreadySubmittedError(error) {
   return msg.includes('already submitted') || msg.includes('already completed');
 }
 
+const FULLSCREEN_PAUSE_REASON = 'FULLSCREEN_EXIT';
+const FOCUS_LOST_PAUSE_REASON = 'FOCUS_LOST';
+const SCREEN_CAPTURE_PAUSE_REASON = 'SCREEN_CAPTURE';
+
+function getIntegrityFailure(secureStatus, proctorCfg) {
+  if (!proctorCfg || !secureStatus) return null;
+  if (proctorCfg.fullscreenRequired && !secureStatus.fullscreen) return 'fullscreen';
+  if (proctorCfg.cameraRequired && !secureStatus.camera) return 'camera';
+  if (proctorCfg.micRequired && !secureStatus.microphone) return 'mic';
+  return null;
+}
+
 function pauseOverlayCopy(reason) {
   const r = String(reason || '');
+  if (r === FULLSCREEN_PAUSE_REASON) {
+    return {
+      title: 'Exam locked — left fullscreen',
+      body: 'You exited fullscreen mode. Your answers are saved and the timer is frozen. An admin must click Allow continue on the live monitor.',
+      adminOnly: true,
+    };
+  }
+  if (r === FOCUS_LOST_PAUSE_REASON) {
+    return {
+      title: 'Exam locked — focus lost',
+      body: 'The exam window lost focus. Your answers are saved and the timer is frozen. An admin must click Allow continue on the live monitor.',
+      adminOnly: true,
+    };
+  }
   if (r.startsWith('ADMIN')) {
     return {
       title: 'Exam paused by admin',
       body: 'A proctor paused your attempt for review. Your answers are saved and the timer is frozen. This screen unlocks automatically when they allow you to continue.',
+      adminOnly: true,
+    };
+  }
+  if (r === 'DEVTOOLS') {
+    return {
+      title: 'Exam locked — developer tools',
+      body: 'Developer tools or view-source was detected. Your answers are saved and the timer is frozen. An admin must click Allow continue on the live monitor.',
+      adminOnly: true,
+    };
+  }
+  if (r === 'HEARTBEAT_MISSED') {
+    return {
+      title: 'Exam locked — connection lost',
+      body: 'The exam lost contact with this browser tab for too long. Your answers are saved. An admin must click Allow continue on the live monitor.',
+      adminOnly: true,
+    };
+  }
+  if (r === 'SCREEN_SHARE' || r === SCREEN_CAPTURE_PAUSE_REASON) {
+    return {
+      title: 'Security violation',
+      body: 'Screen capture/sharing activity was detected. Your assessment has been paused. Stop the capture and complete the security re-check to continue.',
+      adminOnly: false,
+      showSecurityRecovery: true,
     };
   }
   return {
-    title: 'Exam paused',
-    body: 'Your attempt was locked after a tab switch. Answers are saved. Ask an admin to click Allow continue on the live monitor. Your timer is frozen until then.',
+    title: 'Exam locked — tab switch limit',
+    body: 'You switched tabs or windows more than allowed. Answers are saved. Ask an admin to click Allow continue on the live monitor. Your timer is frozen until then.',
+    adminOnly: true,
   };
+}
+
+function integrityOverlayCopy(kind) {
+  if (kind === 'camera') {
+    return {
+      title: 'Camera required',
+      body: 'Your camera must stay on for the entire exam. Turn it back on to continue answering.',
+      action: 'Enable camera',
+    };
+  }
+  if (kind === 'mic') {
+    return {
+      title: 'Microphone required',
+      body: 'Your microphone must stay on for the entire exam. Re-enable it to continue answering.',
+      action: 'Enable microphone',
+    };
+  }
+  return {
+    title: 'Fullscreen required',
+    body: 'The exam must run in fullscreen. Return to fullscreen to continue answering.',
+    action: 'Enter fullscreen',
+  };
+}
+
+function sessionTimerAlreadyStarted(sess) {
+  if (!sess) return false;
+  if (sess.timerStarted === true) return true;
+  let meta = sess.secureModeMeta;
+  if (typeof meta === 'string') {
+    try {
+      meta = JSON.parse(meta);
+    } catch {
+      meta = {};
+    }
+  }
+  meta = meta && typeof meta === 'object' ? meta : {};
+  return Boolean(
+    meta.timerStartedAt ||
+      meta.readyAt ||
+      meta.securityState === 'IN_PROGRESS' ||
+      meta.securityState === 'SECURITY_PAUSED'
+  );
 }
 
 function mergeSessionTimer(prev, { remainingSeconds, extraSeconds, paused, pauseReason } = {}) {
@@ -320,12 +400,19 @@ export default function AssessmentApp() {
   const [violationTimeline, setViolationTimeline] = useState([]);
   const [examPaused, setExamPaused] = useState(false);
   const [pauseReason, setPauseReason] = useState(null);
+  const [focusStrikeCount, setFocusStrikeCount] = useState(0);
   const [isOffline, setIsOffline] = useState(typeof navigator !== 'undefined' ? !navigator.onLine : false);
-  const [multiMonitorBlocked, setMultiMonitorBlocked] = useState(false);
+  const [screenShareBlocked, setScreenShareBlocked] = useState(false);
+  const [captureRecoveryPending, setCaptureRecoveryPending] = useState(false);
+  const screenShareBlockedRef = useRef(false);
+  const captureRecoveryPendingRef = useRef(false);
+  const securityMonitorRef = useRef(null);
   const [questionOrder, setQuestionOrder] = useState(null);
   const [optionOrders, setOptionOrders] = useState(null);
   const answersRef = useRef({});
   const examPausedRef = useRef(false);
+  const pauseReasonRef = useRef(null);
+  const sessionHydratingRef = useRef(false);
   const saveTimerRef = useRef(null);
   const [secureStatus, setSecureStatus] = useState({
     secureMode: false,
@@ -334,6 +421,7 @@ export default function AssessmentApp() {
     microphone: false,
     online: true,
     multiMonitor: null,
+    screenSharing: false,
   });
   const [rightPanelOpen, setRightPanelOpen] = useState(
     () => typeof window === 'undefined' || window.innerWidth >= 1024
@@ -362,12 +450,35 @@ export default function AssessmentApp() {
     faceLoading: false,
     faceDetectorFailed: false,
     faceHint: '',
+    displayOk: true,
+    displayHint: '',
     error: '',
   });
   const [starting, setStarting] = useState(false);
+  const [needsProctorBoot, setNeedsProctorBoot] = useState(false);
   const precheckIntervalRef = useRef(null);
 
   const [entryStatus, setEntryStatus] = useState('ALLOWED'); // ALLOWED, TOO_EARLY, TOO_LATE, WAITING
+
+  const hydrateViolationsFromServer = useCallback((sessionViolations, violationsCount) => {
+    const list = Array.isArray(sessionViolations) ? sessionViolations : [];
+    const timeline = list
+      .filter((v) => String(v?.severity || 'MEDIUM') !== 'LOW')
+      .map((v) => ({
+        type: v.type,
+        details: v.details,
+        severity: v.severity || 'MEDIUM',
+        at: v.timestamp,
+      }));
+    setViolationTimeline(timeline);
+    const count = Number.isFinite(Number(violationsCount))
+      ? Math.max(0, Number(violationsCount))
+      : timeline.length;
+    setViolations(count);
+    if (timeline.length) {
+      setLastViolationType(formatViolationLabel(timeline[timeline.length - 1].type));
+    }
+  }, []);
 
   // 1. Initialize Assessment & Session
   useEffect(() => {
@@ -481,6 +592,10 @@ export default function AssessmentApp() {
     examPausedRef.current = examPaused;
   }, [examPaused]);
 
+  useEffect(() => {
+    pauseReasonRef.current = pauseReason;
+  }, [pauseReason]);
+
   const saveProgress = useCallback(async () => {
     const sess = sessionRef.current;
     if (!sess?.id || isInterviewer) return;
@@ -506,15 +621,19 @@ export default function AssessmentApp() {
   }, [saveProgress]);
 
   const applyPauseState = useCallback((paused, reason = null, remainingSeconds = null, extraSeconds = null) => {
-    setExamPaused(Boolean(paused));
-    setPauseReason(reason || (paused ? 'TAB_SWITCH' : null));
+    const nextPaused = Boolean(paused);
+    const nextReason = nextPaused ? (reason || 'TAB_SWITCH') : null;
+    examPausedRef.current = nextPaused;
+    pauseReasonRef.current = nextReason;
+    setExamPaused(nextPaused);
+    setPauseReason(nextReason);
     if (Number.isFinite(remainingSeconds)) {
       setTimeLeft(Math.max(0, remainingSeconds));
     }
     setSession((prev) =>
       mergeSessionTimer(prev, {
-        paused: Boolean(paused),
-        pauseReason: reason || (paused ? 'TAB_SWITCH' : null),
+        paused: nextPaused,
+        pauseReason: nextReason,
         remainingSeconds,
         extraSeconds,
       })
@@ -526,7 +645,6 @@ export default function AssessmentApp() {
     if (!sess || isInterviewer) return;
     const severity = meta?.severity || 'MEDIUM';
     if (severity !== 'LOW') {
-      setViolations((v) => v + 1);
       setLastViolationType(formatViolationLabel(type));
       setViolationTimeline((prev) => [
         ...prev,
@@ -540,10 +658,31 @@ export default function AssessmentApp() {
     }
     try {
       const result = await api.logProctoringViolation(sess.id, { type, details, meta });
+      if (Number.isFinite(result?.violationsCount)) {
+        setViolations(Math.max(0, Number(result.violationsCount)));
+        proctorRef.current?.seedViolationCount?.(result.violationsCount);
+      } else if (severity !== 'LOW') {
+        setViolations((v) => v + 1);
+      }
       if (result?.paused) {
+        const reason = result.pauseReason || 'TAB_SWITCH';
+        if (examPausedRef.current && pauseReasonRef.current === reason) return;
         await saveProgress();
-        applyPauseState(true, result.pauseReason, result.remainingSeconds);
-        toast?.error('Exam paused after tab switch. Wait for an admin to allow you to continue.');
+        if (typeof result.focusStrikeCount === 'number') {
+          setFocusStrikeCount(result.focusStrikeCount);
+        }
+        applyPauseState(true, reason, result.remainingSeconds);
+        if (reason === SCREEN_CAPTURE_PAUSE_REASON) {
+          setCaptureRecoveryPending(true);
+          captureRecoveryPendingRef.current = true;
+          setScreenShareBlocked(true);
+          screenShareBlockedRef.current = true;
+        }
+        if (String(reason).startsWith('ADMIN')) {
+          toast?.error('An admin paused your exam. Wait to be allowed to continue.');
+        } else if (reason !== FULLSCREEN_PAUSE_REASON && reason !== FOCUS_LOST_PAUSE_REASON) {
+          toast?.error('Exam locked. Wait for an admin to allow you to continue.');
+        }
       }
     } catch (e) {
       console.error('Violation log failed', e);
@@ -575,17 +714,35 @@ export default function AssessmentApp() {
     }
 
     if (payload.kind === 'paused' || payload.paused === true) {
-      applyPauseState(true, payload.pauseReason || 'ADMIN_PAUSE', remaining, extra);
-      toast?.error(
-        String(payload.pauseReason || '').startsWith('ADMIN')
-          ? 'An admin paused your exam. Wait to be allowed to continue.'
-          : 'Exam paused. Wait for an admin to allow you to continue.'
-      );
+      const reason = payload.pauseReason || 'ADMIN_PAUSE';
+      if (examPausedRef.current && pauseReasonRef.current === reason) return;
+      if (typeof payload.focusStrikeCount === 'number') {
+        setFocusStrikeCount(payload.focusStrikeCount);
+      }
+      applyPauseState(true, reason, remaining, extra);
+      if (
+        !String(reason).startsWith('ADMIN') &&
+        reason !== FULLSCREEN_PAUSE_REASON &&
+        reason !== FOCUS_LOST_PAUSE_REASON
+      ) {
+        toast?.error('Exam locked. Wait for an admin to allow you to continue.');
+      } else if (String(reason).startsWith('ADMIN')) {
+        toast?.error('An admin paused your exam. Wait to be allowed to continue.');
+      }
       return;
     }
 
     if (payload.kind === 'unlocked' || payload.paused === false) {
+      if (!examPausedRef.current) return;
       applyPauseState(false, null, remaining, extra);
+      setFocusStrikeCount(typeof payload.focusStrikeCount === 'number' ? payload.focusStrikeCount : 0);
+      if (payload.securityState === 'IN_PROGRESS' || payload.pauseReason == null) {
+        setCaptureRecoveryPending(false);
+        captureRecoveryPendingRef.current = false;
+        setScreenShareBlocked(false);
+        screenShareBlockedRef.current = false;
+        securityMonitorRef.current?.reset();
+      }
       toast?.success('Admin unlocked your exam. You may continue.');
     }
   }, [applyPauseState, toast]);
@@ -609,7 +766,15 @@ export default function AssessmentApp() {
           submitAssessmentRef.current?.({ fromTimer: true });
           return;
         }
-        if (typeof st?.paused === 'boolean' && st.paused !== examPausedRef.current) {
+        if (Number.isFinite(st?.violationsCount)) {
+          setViolations(Math.max(0, Number(st.violationsCount)));
+        }
+        if (typeof st?.focusStrikeCount === 'number') {
+          setFocusStrikeCount(st.focusStrikeCount);
+        }
+        if (st.paused && !examPausedRef.current) {
+          applyPauseState(true, st.pauseReason, st.remainingSeconds, st.extraSeconds);
+        } else if (typeof st?.paused === 'boolean' && st.paused !== examPausedRef.current) {
           applyPauseState(st.paused, st.pauseReason, st.remainingSeconds, st.extraSeconds);
         } else if (Number.isFinite(st?.remainingSeconds)) {
           const next = Math.max(0, st.remainingSeconds);
@@ -628,6 +793,17 @@ export default function AssessmentApp() {
     return () => clearInterval(id);
   }, [isPreCheckDone, isInterviewer, session?.id, saveProgress, applyPauseState]);
 
+  // Server heartbeat — detects tab kill / JS disabled / second device API abuse
+  useEffect(() => {
+    if (!isPreCheckDone || isInterviewer || !session?.id || examPaused) return undefined;
+    const sendHeartbeat = () => {
+      api.postAssessmentHeartbeat(session.id).catch(() => {});
+    };
+    sendHeartbeat();
+    const id = setInterval(sendHeartbeat, 25000);
+    return () => clearInterval(id);
+  }, [isPreCheckDone, isInterviewer, session?.id, examPaused]);
+
   // When paused: freeze local countdown + poll until admin unlocks
   useEffect(() => {
     if (!examPaused || !session?.id || isInterviewer) return undefined;
@@ -639,9 +815,18 @@ export default function AssessmentApp() {
           submitAssessmentRef.current?.({ fromTimer: true });
           return;
         }
-        if (!status?.paused) {
+        if (!status?.paused && examPausedRef.current) {
           applyPauseState(false, null, status?.remainingSeconds, status?.extraSeconds);
+          if (Number.isFinite(status?.violationsCount)) {
+            setViolations(Math.max(0, Number(status.violationsCount)));
+          }
+          setFocusStrikeCount(typeof status.focusStrikeCount === 'number' ? status.focusStrikeCount : 0);
           toast?.success('Admin unlocked your exam. You may continue.');
+        } else if (typeof status?.paused === 'boolean' && status.paused && !examPausedRef.current) {
+          applyPauseState(true, status.pauseReason, status.remainingSeconds, status.extraSeconds);
+          if (Number.isFinite(status?.violationsCount)) {
+            setViolations(Math.max(0, Number(status.violationsCount)));
+          }
         } else if (Number.isFinite(status?.remainingSeconds)) {
           setTimeLeft(Math.max(0, status.remainingSeconds));
           if (status.extraSeconds != null) {
@@ -747,9 +932,9 @@ export default function AssessmentApp() {
         ...defaultProctoringConfig,
         enabled: true,
         cameraRequired: p.webcam !== false,
-        micRequired: p.mic === true,
+        micRequired: p.mic !== false,
         tabSwitch: p.tabSwitch !== false,
-        pauseOnTabSwitch: p.pauseOnTabSwitch === true,
+        pauseOnTabSwitch: p.pauseOnTabSwitch !== false,
         tabSwitchGraceCount: Math.max(0, Number(p.tabSwitchGraceCount ?? 2) || 2),
         windowBlur: true,
         fullscreenRequired: p.fullscreen !== false,
@@ -767,6 +952,7 @@ export default function AssessmentApp() {
         resizeGuard: true,
         navigationGuard: true,
         multiMonitorWarn: true,
+        screenShareGuard: true,
         connectivityMonitor: true,
         // Violation-threshold auto-submit removed
         autoSubmit: {
@@ -778,6 +964,73 @@ export default function AssessmentApp() {
       return { ...defaultProctoringConfig };
     }
   }, [assessment]);
+
+  const proctorCfg = useMemo(() => getProctoringConfig(), [getProctoringConfig]);
+  const integrityFailure = useMemo(() => {
+    if (examPaused || isInterviewer || !isPreCheckDone) return null;
+    return getIntegrityFailure(secureStatus, proctorCfg);
+  }, [examPaused, isInterviewer, isPreCheckDone, secureStatus, proctorCfg]);
+  const interactionBlocked = examPaused || Boolean(integrityFailure) || screenShareBlocked;
+
+  const retryIntegrityFix = useCallback(async () => {
+    if (examPausedRef.current) return;
+    const cfg = getProctoringConfig();
+    const engine = proctorRef.current;
+    const failure = getIntegrityFailure(engine?.getSecureStatus?.() || secureStatus, cfg);
+    if (!failure) return;
+
+    try {
+      if (failure === 'fullscreen') {
+        await engine?.requestFullscreen?.();
+      } else {
+        await engine?.initCamera?.({ withAudio: cfg.micRequired });
+        if (engine && !engine._running) await engine.start?.();
+      }
+      setSecureStatus(engine?.getSecureStatus?.() || {});
+      setCameraLive(Boolean(engine?.isCameraActive?.()));
+    } catch (e) {
+      toast?.error(e?.message || 'Could not restore exam requirements');
+    }
+  }, [getProctoringConfig, secureStatus, toast]);
+
+  const retrySecurityRecovery = useCallback(async () => {
+    const sess = sessionRef.current;
+    const engine = proctorRef.current;
+    if (!sess?.id || !engine) return;
+
+    try {
+      if (typeof engine._refreshDisplayAudit === 'function') {
+        await engine._refreshDisplayAudit({ force: true });
+      }
+      const secure = engine.getSecureStatus?.() || {};
+      if (secure.screenSharing || secure.multiMonitor) {
+        toast?.warning('Screen sharing or an extra display is still active.');
+        return;
+      }
+      if (engine.cfg?.fullscreenRequired && !engine.isFullscreen) {
+        await engine.requestFullscreen();
+      }
+      if (!engine.isCameraActive()) {
+        await engine.initCamera({ withAudio: engine.cfg.micRequired });
+      }
+      await engine.precheck();
+
+      const result = await api.postSecurityRecovery(sess.id, { checksPassed: true });
+      if (result?.paused) {
+        applyPauseState(true, SCREEN_CAPTURE_PAUSE_REASON, result.remainingSeconds);
+        return;
+      }
+      applyPauseState(false, null, result?.remainingSeconds);
+      setCaptureRecoveryPending(false);
+      captureRecoveryPendingRef.current = false;
+      setScreenShareBlocked(false);
+      screenShareBlockedRef.current = false;
+      securityMonitorRef.current?.reset();
+      toast?.success('Security re-check passed. You may continue.');
+    } catch (e) {
+      toast?.error(e?.response?.data?.error || e?.message || 'Security re-check failed');
+    }
+  }, [applyPauseState, toast]);
 
   const ensureProctorEngine = useCallback(async () => {
     if (proctorRef.current) return proctorRef.current;
@@ -795,22 +1048,206 @@ export default function AssessmentApp() {
         await api.uploadProctoringScreenshot(sess.id, blob, meta);
       },
       onWarning: ({ level, message }) => {
+        const msg = String(message || '');
+        if (/exited fullscreen/i.test(msg) || /window lost focus/i.test(msg)) return;
         if (level === 'error') toast?.error(message);
         else if (level === 'warn') toast?.warning(message);
+      },
+      onDisplayRiskChange: async ({ active, reason }) => {
+        const monitor = securityMonitorRef.current;
+        if (active) {
+          await monitor?.reportCaptureDetected(reason || 'Screen capture/sharing detected');
+        } else if (monitor?.isCaptureActive?.()) {
+          await monitor.reportCaptureStopped('Screen capture/sharing stopped');
+          setCaptureRecoveryPending(true);
+          captureRecoveryPendingRef.current = true;
+        }
+        setSecureStatus((prev) => ({
+          ...prev,
+          ...(engine.getSecureStatus?.() || {}),
+        }));
       },
       onViolation: ({ type, details, severity, count, at }) => {
         setSecureStatus((prev) => ({ ...prev, ...(engine.getSecureStatus?.() || {}) }));
         setLastViolationType(formatViolationLabel(type));
+        if (type === 'FULLSCREEN_EXIT' && engine.cfg.fullscreenRequired && !examPausedRef.current) {
+          saveProgress();
+          applyPauseState(true, FULLSCREEN_PAUSE_REASON);
+        } else if (type === 'WINDOW_BLUR' && !examPausedRef.current) {
+          saveProgress();
+          applyPauseState(true, FOCUS_LOST_PAUSE_REASON);
+        }
       },
       config: cfg,
     });
     proctorRef.current = engine;
     return engine;
-  }, [getProctoringConfig, logViolation, toast, assessmentId]);
+  }, [getProctoringConfig, logViolation, toast, assessmentId, saveProgress, applyPauseState]);
+
+  const applyRestoredSession = useCallback((sess, serverViolations = []) => {
+    sessionRef.current = sess;
+    setSession(sess);
+    setTimeLeft(resolveSessionRemainingSeconds(sess, assessment?.duration ?? sess.durationMinutes));
+    setQuestionOrder(Array.isArray(sess.questionOrder) ? sess.questionOrder : null);
+    setOptionOrders(sess.optionOrders && typeof sess.optionOrders === 'object' ? sess.optionOrders : null);
+
+    let restored = null;
+    let restoredMarks = [];
+    if (sess.responses) {
+      try {
+        const parsed = typeof sess.responses === 'string' ? JSON.parse(sess.responses) : sess.responses;
+        restored = parsed?.rawAnswers && typeof parsed.rawAnswers === 'object' ? parsed.rawAnswers : parsed;
+        if (Array.isArray(parsed?.markedForReview)) restoredMarks = parsed.markedForReview;
+      } catch {
+        restored = null;
+      }
+    }
+    const localDraft = readLocalDraft(sess.id);
+    if (!restored || !Object.keys(restored).length) {
+      restored = localDraft?.answers && typeof localDraft.answers === 'object' ? localDraft.answers : {};
+    }
+    if (!restoredMarks.length && Array.isArray(localDraft?.markedForReview)) {
+      restoredMarks = localDraft.markedForReview;
+    }
+    setAnswers(restored && typeof restored === 'object' ? restored : {});
+    answersRef.current = restored && typeof restored === 'object' ? restored : {};
+    const markSet = new Set(restoredMarks.filter(Boolean).map(String));
+    setMarkedForReview(markSet);
+    markedForReviewRef.current = markSet;
+    writeLocalDraft(sess.id, answersRef.current, [...markSet]);
+
+    hydrateViolationsFromServer(serverViolations, sess.violationsCount);
+    if (typeof sess.focusStrikeCount === 'number') {
+      setFocusStrikeCount(sess.focusStrikeCount);
+    }
+
+    if (sess.paused) {
+      applyPauseState(true, sess.pauseReason || 'TAB_SWITCH', sess.remainingSeconds, sess.extraSeconds);
+      if (sess.pauseReason === SCREEN_CAPTURE_PAUSE_REASON) {
+        setCaptureRecoveryPending(true);
+        captureRecoveryPendingRef.current = true;
+        setScreenShareBlocked(true);
+        screenShareBlockedRef.current = true;
+      }
+    } else {
+      applyPauseState(false, null, sess.remainingSeconds, sess.extraSeconds);
+    }
+
+    setIsPreCheckDone(true);
+    setEntryStatus('ALLOWED');
+  }, [assessment?.duration, applyPauseState, hydrateViolationsFromServer]);
+
+  const bootProctoringForSession = useCallback(async () => {
+    const sess = sessionRef.current;
+    if (!sess?.id || isInterviewer) return;
+    initSocket();
+    if (!securityMonitorRef.current) {
+      securityMonitorRef.current = createAssessmentSecurityMonitor({
+        logViolation: (type, details, meta) => logViolation(type, details, meta),
+        onCaptureStateChange: (active) => {
+          setScreenShareBlocked(active);
+          screenShareBlockedRef.current = active;
+          if (active) {
+            setCaptureRecoveryPending(true);
+            captureRecoveryPendingRef.current = true;
+          }
+        },
+      });
+    }
+    const engine = await ensureProctorEngine();
+    if (Number.isFinite(sess.violationsCount)) {
+      engine.seedViolationCount?.(sess.violationsCount);
+    }
+    await engine.start();
+
+    try {
+      if (sessionTimerAlreadyStarted(sess)) {
+        const st = await api.getAssessmentSessionStatus(sess.id);
+        if (Number.isFinite(st?.remainingSeconds)) {
+          setTimeLeft(Math.max(0, st.remainingSeconds));
+        }
+      } else {
+        const ready = await api.postSecurityReady(sess.id);
+        if (Number.isFinite(ready?.remainingSeconds)) {
+          setTimeLeft(Math.max(0, ready.remainingSeconds));
+        }
+      }
+    } catch (e) {
+      toast?.error(e?.response?.data?.error || 'Could not sync assessment timer');
+    }
+
+    if (proctorRtcRef.current) {
+      proctorRtcRef.current.stop();
+    }
+    proctorRtcRef.current = new ProctoringBroadcaster({
+      sessionId: sess.id,
+      assessmentId,
+      getStream: () => proctorRef.current?.getStream?.() ?? null,
+    });
+    await proctorRtcRef.current.start();
+  }, [assessmentId, ensureProctorEngine, isInterviewer, logViolation, toast]);
+
+  useEffect(() => {
+    if (isInterviewer || loading || isPreCheckDone) return undefined;
+    if (entryStatus !== 'ALLOWED') return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const active = await api.getActiveAssessmentSession(assessmentId);
+        if (cancelled || !active?.active || !active.session) return;
+        const remaining = resolveSessionRemainingSeconds(active.session, assessment?.duration);
+        if (remaining <= 0) return;
+        applyRestoredSession(active.session, active.violations);
+        sessionHydratingRef.current = true;
+        window.setTimeout(() => {
+          sessionHydratingRef.current = false;
+        }, 4000);
+        setNeedsProctorBoot(true);
+      } catch {
+        /* no in-progress attempt */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    assessmentId,
+    assessment?.duration,
+    isInterviewer,
+    loading,
+    isPreCheckDone,
+    entryStatus,
+    applyRestoredSession,
+  ]);
+
+  useEffect(() => {
+    if (!needsProctorBoot || !isPreCheckDone || !session?.id || isInterviewer) return undefined;
+    let cancelled = false;
+    setLoading(true);
+    bootProctoringForSession()
+      .catch((e) => {
+        if (!cancelled) toast?.error(e?.message || 'Could not resume proctoring');
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setNeedsProctorBoot(false);
+          setLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [needsProctorBoot, isPreCheckDone, session?.id, isInterviewer, bootProctoringForSession, toast]);
 
   const runPrecheckValidation = useCallback(async () => {
     const e = proctorRef.current;
     if (!e) return;
+    // Avoid MediaPipe 0×0 ROI errors when the <video> remounts or fullscreen flips.
+    if (typeof e.reattachVideoAndWait === 'function') {
+      await e.reattachVideoAndWait(2500);
+    } else {
+      e.reattachVideo?.();
+    }
     const streamActive = e.isCameraActive();
     const detector = e.getFaceDetectorStatus();
     const faceCount = e.cfg.faceMonitoring && detector.state === 'ready'
@@ -825,10 +1262,26 @@ export default function AssessmentApp() {
       else if (faceCount > 1) faceHint = 'Multiple faces detected — only you should be visible on camera.';
     }
 
+    if (typeof e._refreshDisplayAudit === 'function') {
+      await e._refreshDisplayAudit({ force: true });
+    } else if (typeof e._applyDisplayAudit === 'function') {
+      const audit = await auditDisplayEnvironment();
+      e._applyDisplayAudit(audit);
+    }
+    const secure = e.getSecureStatus?.() || {};
+    const displayOk = !secure.screenSharing && secure.multiMonitor !== true;
+    const displayHint = secure.screenSharingReason
+      ? String(secure.screenSharingReason)
+      : secure.multiMonitor
+        ? 'Disconnect external monitors and turn off macOS Screen Mirroring / AirPlay.'
+        : '';
+
     setPrecheck((p) => ({
       ...p,
       cameraReady: streamActive,
       fullscreen: e.cfg.fullscreenRequired ? e.isFullscreen : true,
+      displayOk,
+      displayHint,
       faceLoading: e.cfg.faceMonitoring && detector.state === 'loading' && streamActive,
       faceDetectorFailed: detector.state === 'failed',
       faceOk: e.cfg.faceMonitoring ? faceCount === 1 : true,
@@ -865,9 +1318,15 @@ export default function AssessmentApp() {
       const msg =
         e?.name === 'NotAllowedError'
           ? 'Camera permission denied. Allow camera access in browser settings and try again.'
-          : e?.message || 'Failed to start camera';
+          : e?.code === 'INSECURE_CONTEXT' || e?.code === 'MEDIA_DEVICES_UNAVAILABLE'
+            ? e.message
+            : e?.message || 'Failed to start camera';
       setPrecheck((p) => ({ ...p, error: msg, cameraReady: false, faceLoading: false }));
-      toast?.error('Camera access is required for proctoring');
+      toast?.error(
+        e?.code === 'INSECURE_CONTEXT' || e?.code === 'MEDIA_DEVICES_UNAVAILABLE'
+          ? 'Use HTTPS on port 5173 for camera'
+          : 'Camera access is required for proctoring'
+      );
     }
   };
 
@@ -881,11 +1340,22 @@ export default function AssessmentApp() {
   // Re-attach camera stream when exam UI mounts (new <video> DOM node after pre-check)
   useEffect(() => {
     if (!isPreCheckDone || isInterviewer || loading || !session) return;
-    const attach = () => proctorRef.current?.reattachVideo();
+    let cancelled = false;
+    const attach = async () => {
+      if (cancelled) return;
+      const engine = proctorRef.current;
+      if (!engine) return;
+      if (typeof engine.reattachVideoAndWait === 'function') {
+        await engine.reattachVideoAndWait(4000);
+      } else {
+        engine.reattachVideo?.();
+      }
+    };
     attach();
-    const t = setTimeout(attach, 100);
-    const t2 = setTimeout(attach, 500);
+    const t = setTimeout(attach, 150);
+    const t2 = setTimeout(attach, 600);
     return () => {
+      cancelled = true;
       clearTimeout(t);
       clearTimeout(t2);
     };
@@ -952,20 +1422,8 @@ export default function AssessmentApp() {
       }
 
       await executeTestStart();
-      initSocket();
-      await engine.start();
-
-      if (proctorRtcRef.current) {
-        proctorRtcRef.current.stop();
-      }
-      const sess = sessionRef.current;
-      if (sess?.id) {
-        proctorRtcRef.current = new ProctoringBroadcaster({
-          sessionId: sess.id,
-          assessmentId,
-          getStream: () => proctorRef.current?.getStream?.() ?? null,
-        });
-        await proctorRtcRef.current.start();
+      if (sessionRef.current?.id) {
+        setNeedsProctorBoot(true);
       }
     } catch (err) {
       toast?.error(err.response?.data?.error || err.message || 'Could not start the assessment');
@@ -990,43 +1448,8 @@ export default function AssessmentApp() {
         return;
       }
 
-      sessionRef.current = sess;
-      setSession(sess);
-      setTimeLeft(remaining);
-      setQuestionOrder(Array.isArray(sess.questionOrder) ? sess.questionOrder : null);
-      setOptionOrders(sess.optionOrders && typeof sess.optionOrders === 'object' ? sess.optionOrders : null);
-
-      let restored = null;
-      let restoredMarks = [];
-      if (sess.responses) {
-        try {
-          const parsed = typeof sess.responses === 'string' ? JSON.parse(sess.responses) : sess.responses;
-          restored = parsed?.rawAnswers && typeof parsed.rawAnswers === 'object' ? parsed.rawAnswers : parsed;
-          if (Array.isArray(parsed?.markedForReview)) restoredMarks = parsed.markedForReview;
-        } catch {
-          restored = null;
-        }
-      }
-      const localDraft = readLocalDraft(sess.id);
-      if (!restored || !Object.keys(restored).length) {
-        restored = localDraft?.answers && typeof localDraft.answers === 'object' ? localDraft.answers : {};
-      }
-      if (!restoredMarks.length && Array.isArray(localDraft?.markedForReview)) {
-        restoredMarks = localDraft.markedForReview;
-      }
-      setAnswers(restored && typeof restored === 'object' ? restored : {});
-      answersRef.current = restored && typeof restored === 'object' ? restored : {};
-      const markSet = new Set(restoredMarks.filter(Boolean).map(String));
-      setMarkedForReview(markSet);
-      markedForReviewRef.current = markSet;
-      writeLocalDraft(sess.id, answersRef.current, [...markSet]);
-
-      if (sess.paused) {
-        setExamPaused(true);
-        setPauseReason(sess.pauseReason || 'TAB_SWITCH');
-      }
-      setIsPreCheckDone(true);
-      setEntryStatus('ALLOWED');
+      applyRestoredSession(sess, []);
+      setNeedsProctorBoot(true);
     } catch (e) {
       if (e.response?.data?.code === 'DEVICE_CONFLICT') {
         const takeOver = window.confirm(
@@ -1061,8 +1484,12 @@ export default function AssessmentApp() {
       toast?.warning('Exam is paused. Wait for an admin to unlock your attempt.');
       return;
     }
-    if (multiMonitorBlocked) {
-      toast?.warning('Multiple monitors detected. Disconnect extra displays to continue.');
+    if (integrityFailure) {
+      toast?.warning('Camera, microphone, or fullscreen must be active to continue answering.');
+      return;
+    }
+    if (screenShareBlocked) {
+      toast?.warning('Screen sharing detected. Stop sharing to continue the assessment.');
       return;
     }
     setAnswers((prev) => {
@@ -1185,12 +1612,6 @@ export default function AssessmentApp() {
     };
   }, [saveProgress]);
 
-  // Multi-monitor hard block (answers locked until single display)
-  useEffect(() => {
-    if (!isPreCheckDone || isInterviewer) return;
-    setMultiMonitorBlocked(secureStatus.multiMonitor === true);
-  }, [secureStatus.multiMonitor, isPreCheckDone, isInterviewer]);
-
   // Persist draft on refresh / close
   useEffect(() => {
     if (!isPreCheckDone || isInterviewer) return undefined;
@@ -1215,8 +1636,12 @@ export default function AssessmentApp() {
     const syncSecureStatus = () => {
       const engine = proctorRef.current;
       if (!engine?.getSecureStatus) return;
-      setSecureStatus(engine.getSecureStatus());
+      const st = engine.getSecureStatus();
+      setSecureStatus(st);
       setCameraLive(engine.isCameraActive());
+      const sharing = Boolean(st.screenSharing);
+      screenShareBlockedRef.current = sharing;
+      setScreenShareBlocked(sharing);
     };
     syncSecureStatus();
     const id = setInterval(syncSecureStatus, 2000);
@@ -1489,8 +1914,14 @@ export default function AssessmentApp() {
 
   // PRE-CHECK UI — full viewport layout (no centered card)
   if (!isPreCheckDone && !isInterviewer) {
-    const allChecksPass = precheck.cameraReady && precheck.faceOk && precheck.fullscreen;
-    const passedCount = [precheck.cameraReady, precheck.faceOk, precheck.fullscreen].filter(Boolean).length;
+    const allChecksPass =
+      precheck.cameraReady && precheck.faceOk && precheck.fullscreen && precheck.displayOk;
+    const passedCount = [
+      precheck.cameraReady,
+      precheck.faceOk,
+      precheck.fullscreen,
+      precheck.displayOk,
+    ].filter(Boolean).length;
 
     const validationChecks = [
       {
@@ -1515,6 +1946,14 @@ export default function AssessmentApp() {
         hint: 'Exam runs in fullscreen',
         icon: Maximize2,
         pass: precheck.fullscreen,
+        loading: false,
+      },
+      {
+        key: 'display',
+        label: 'Single display only',
+        hint: precheck.displayHint || 'No screen mirroring or extra monitors',
+        icon: Monitor,
+        pass: precheck.displayOk,
         loading: false,
       },
     ];
@@ -1692,27 +2131,63 @@ export default function AssessmentApp() {
 
   return (
     <div className="h-screen bg-slate-50 flex flex-col overflow-hidden text-slate-900 relative">
-      {(isOffline || multiMonitorBlocked) && !isInterviewer && (
+      {isOffline && !isInterviewer && (
         <div className="absolute top-0 inset-x-0 z-[60] px-3 py-2 text-center text-xs font-semibold bg-amber-500 text-white">
-          {isOffline
-            ? 'You are offline — answers are saved on this device and will sync when connection returns.'
-            : 'Multiple monitors detected — disconnect extra displays to continue answering.'}
+          You are offline — answers are saved on this device and will sync when connection returns.
         </div>
       )}
-      {examPaused && !isInterviewer && (
-        <div className="absolute inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6">
+      {examPaused && !isInterviewer && (() => {
+        const overlay = pauseOverlayCopy(pauseReason);
+        return (
+        <div className="absolute inset-0 z-50 bg-white flex items-center justify-center p-6">
           <div className="max-w-md w-full bg-white rounded-2xl border border-slate-200 shadow-xl p-6 space-y-4 text-center">
-            <div className="mx-auto w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center">
-              <Ban className="w-6 h-6 text-amber-600" />
+            <div className="mx-auto w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center">
+              {overlay.showSecurityRecovery ? (
+                <Monitor className="w-6 h-6 text-rose-600" />
+              ) : (
+                <Ban className="w-6 h-6 text-amber-600" />
+              )}
             </div>
-            <h3 className="text-lg font-semibold text-slate-900">{pauseOverlayCopy(pauseReason).title}</h3>
+            <h3 className="text-lg font-semibold text-slate-900">{overlay.title}</h3>
             <p className="text-sm text-slate-600 leading-relaxed">
-              {pauseOverlayCopy(pauseReason).body}
+              {overlay.body}
             </p>
-            <p className="text-xs text-slate-400">Waiting for unlock… this screen updates automatically.</p>
+            {overlay.showSecurityRecovery ? (
+              <button
+                type="button"
+                onClick={() => retrySecurityRecovery()}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-500 transition-colors shadow-sm"
+              >
+                Re-check Security
+              </button>
+            ) : (
+              <p className="text-xs text-slate-400">Waiting for an admin to unlock… this screen updates automatically.</p>
+            )}
           </div>
         </div>
-      )}
+        );
+      })()}
+      {!examPaused && integrityFailure && !isInterviewer && (() => {
+        const overlay = integrityOverlayCopy(integrityFailure);
+        return (
+        <div className="absolute inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="max-w-md w-full bg-white rounded-2xl border border-slate-200 shadow-xl p-6 space-y-4 text-center">
+            <div className="mx-auto w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center">
+              <Video className="w-6 h-6 text-rose-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900">{overlay.title}</h3>
+            <p className="text-sm text-slate-600 leading-relaxed">{overlay.body}</p>
+            <button
+              type="button"
+              onClick={() => retryIntegrityFix()}
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-500 transition-colors shadow-sm"
+            >
+              {overlay.action}
+            </button>
+          </div>
+        </div>
+        );
+      })()}
       <div className="shrink-0 px-4 sm:px-6 py-3 z-30 bg-white border-b border-slate-200/80">
         <header className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
@@ -1758,7 +2233,7 @@ export default function AssessmentApp() {
           <button
             type="button"
             onClick={openSubmitConfirm}
-            disabled={submitting || examPaused}
+            disabled={submitting || interactionBlocked}
             className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 disabled:pointer-events-none text-white text-sm font-medium rounded-lg transition-colors shadow-sm shadow-indigo-600/20 flex items-center gap-2"
           >
             {submitting ? <Spinner size="sm" tone="white" /> : <Send className="w-3.5 h-3.5" />}
@@ -1869,6 +2344,14 @@ export default function AssessmentApp() {
                         : parsed.codesByLang?.[lang] ?? getStarterForLanguage(starters, lang);
                       return (
                         <CodingWorkspace
+                          readOnly={interactionBlocked}
+                          sessionId={session?.id}
+                          questionId={currentQuestion.id}
+                          blockPaste
+                          onPasteBlocked={() => {
+                            logViolation('PASTE_ATTEMPT', 'Paste blocked in code editor', { severity: 'MEDIUM' });
+                            toast?.warning('Paste is not allowed during the exam.');
+                          }}
                           code={codeVal}
                           language={lang}
                           allowedLanguages={allowed}
@@ -2018,7 +2501,7 @@ export default function AssessmentApp() {
                   </button>
                   <button
                     type="button"
-                    disabled={submitting || examPaused || !currentQuestion}
+                    disabled={submitting || interactionBlocked || !currentQuestion}
                     onClick={toggleMarkForReview}
                     aria-pressed={Boolean(currentQuestion && markedForReview.has(currentQuestion.id))}
                     className={`min-h-11 flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors disabled:opacity-40 disabled:pointer-events-none ${
@@ -2036,7 +2519,7 @@ export default function AssessmentApp() {
                   {currentQuestionIdx >= (orderedQuestions.length || 1) - 1 ? (
                     <button
                       type="button"
-                      disabled={submitting || examPaused}
+                      disabled={submitting || interactionBlocked}
                       onClick={openSubmitConfirm}
                       className="min-h-11 flex-1 sm:flex-none sm:ml-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-60 disabled:pointer-events-none"
                     >

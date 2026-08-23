@@ -14,12 +14,30 @@ function parseSecureModeMeta(raw) {
   }
 }
 
+function getTimerAnchorIso(session, nowMs = Date.now()) {
+  const meta = parseSecureModeMeta(session?.secureModeMeta);
+  if (meta.timerStartedAt) return meta.timerStartedAt;
+  if (meta.readyAt) return meta.readyAt;
+  if (
+    meta.securityState === 'IN_PROGRESS' ||
+    meta.securityState === 'SECURITY_PAUSED'
+  ) {
+    if (session?.startTime) return new Date(session.startTime).toISOString();
+  }
+  if (!meta.securityState && session?.startTime) {
+    return new Date(session.startTime).toISOString();
+  }
+  return null;
+}
+
 function getEffectiveElapsedSeconds(session, nowMs) {
-  if (!session?.startTime) return 0;
-  const started = new Date(session.startTime).getTime();
+  const anchorIso = getTimerAnchorIso(session, nowMs);
+  if (!anchorIso) return 0;
+
+  const started = new Date(anchorIso).getTime();
   if (Number.isNaN(started)) return 0;
 
-  const meta = parseSecureModeMeta(session.secureModeMeta);
+  const meta = parseSecureModeMeta(session?.secureModeMeta);
   const totalPausedMs = Number(meta.totalPausedMs) || 0;
   let activePauseMs = 0;
   if ((session.paused || meta.paused) && meta.pauseStartedAt) {
@@ -38,7 +56,8 @@ export function getRemainingSecondsFromSession(session, durationMinutes, now = D
   const meta = parseSecureModeMeta(session?.secureModeMeta);
   const extra = Math.max(0, Number(session?.extraSeconds ?? meta.extraSeconds) || 0);
   const totalSeconds = (Number.isFinite(duration) && duration > 0 ? duration : 60) * 60 + extra;
-  if (!session?.startTime) return totalSeconds;
+  const anchorIso = getTimerAnchorIso(session, now);
+  if (!anchorIso) return totalSeconds;
 
   const elapsed = getEffectiveElapsedSeconds(session, now);
   return Math.max(0, totalSeconds - elapsed);

@@ -1,11 +1,56 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Copy, Link2, Mail, RefreshCw, X } from 'lucide-react';
 import api from '../../services/api';
 import { useToast } from '../ui/Toast';
 import { Spinner } from '../ui/loading';
 
+/** Clipboard API needs HTTPS (or localhost). Fallback for http://LAN-IP admin. */
+async function copyTextToClipboard(text) {
+  if (!text) return false;
+
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      /* try fallback */
+    }
+  }
+
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.top = '0';
+    textarea.style.left = '0';
+    textarea.style.width = '1px';
+    textarea.style.height = '1px';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    textarea.setSelectionRange(0, text.length);
+    const ok = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+function publicInviteOrigin() {
+  if (typeof window === 'undefined') return '';
+  // Dev: students should use HTTPS :5173 (camera); admin may be on :5178 HTTP.
+  if (import.meta.env.DEV && window.location.port === '5178') {
+    return `${window.location.protocol}//${window.location.hostname}:5173`;
+  }
+  return window.location.origin;
+}
+
 export default function AssessmentInviteModal({ assessmentId, assessmentTitle, open, onClose }) {
   const toast = useToast();
+  const shareInputRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [enabled, setEnabled] = useState(false);
@@ -15,7 +60,7 @@ export default function AssessmentInviteModal({ assessmentId, assessmentTitle, o
 
   const shareUrl = useMemo(() => {
     if (!invitePath || typeof window === 'undefined') return '';
-    return `${window.location.origin}${invitePath}`;
+    return `${publicInviteOrigin()}${invitePath}`;
   }, [invitePath]);
 
   const load = async () => {
@@ -60,16 +105,41 @@ export default function AssessmentInviteModal({ assessmentId, assessmentTitle, o
   };
 
   const copyLink = async () => {
-    if (!shareUrl) {
+    let url = shareUrl;
+    if (!url && enabled) {
+      try {
+        setSaving(true);
+        const data = await api.updateAssessmentInvite(assessmentId, {
+          enabled,
+          emails: emailsText,
+        });
+        setEnabled(Boolean(data.inviteEnabled));
+        setInvitePath(data.invitePath);
+        setRows(Array.isArray(data.inviteEmails) ? data.inviteEmails : []);
+        setEmailsText((data.inviteEmails || []).map((r) => r.email).join('\n'));
+        url = data.invitePath ? `${publicInviteOrigin()}${data.invitePath}` : '';
+      } catch (e) {
+        toast?.error(e?.response?.data?.error || e?.message || 'Save invite settings first');
+        return;
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    if (!url) {
       toast?.error('Enable invite link and save first');
       return;
     }
-    try {
-      await navigator.clipboard.writeText(shareUrl);
+
+    const copied = await copyTextToClipboard(url);
+    if (copied) {
       toast?.success('Invite link copied');
-    } catch {
-      toast?.error('Could not copy link');
+      return;
     }
+
+    shareInputRef.current?.focus();
+    shareInputRef.current?.select();
+    toast?.warning('Select the link and press Ctrl+C (Cmd+C on Mac) to copy');
   };
 
   if (!open) return null;
@@ -116,14 +186,17 @@ export default function AssessmentInviteModal({ assessmentId, assessmentTitle, o
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Share URL</div>
                 <div className="flex gap-2">
                   <input
+                    ref={shareInputRef}
                     readOnly
                     value={shareUrl || (enabled ? 'Save to generate link…' : 'Enable invite link first')}
+                    onFocus={(e) => e.target.select()}
+                    onClick={(e) => e.target.select()}
                     className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 bg-slate-50"
                   />
                   <button
                     type="button"
                     onClick={copyLink}
-                    disabled={!shareUrl}
+                    disabled={!enabled || saving}
                     className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-slate-900 text-white disabled:opacity-50"
                   >
                     <Copy className="w-3.5 h-3.5" />

@@ -1,6 +1,5 @@
 /**
- * Opt-in exam pause lock (tab-switch) stored in AssessmentSession.secureModeMeta.
- * Default: disabled. Violation-threshold auto-submit has been removed.
+ * Exam pause lock stored in AssessmentSession.secureModeMeta.
  */
 
 export function parseSecureModeMeta(raw) {
@@ -29,9 +28,115 @@ export function parseProctoringConfig(assessmentConfigRaw) {
   }
   const p = cfg?.proctoring || {};
   return {
-    pauseOnTabSwitch: p.pauseOnTabSwitch === true,
+    /** Default ON — lock after grace tab switches. */
+    pauseOnTabSwitch: p.pauseOnTabSwitch !== false,
     tabSwitchGraceCount: Math.max(0, Number(p.tabSwitchGraceCount ?? 2) || 2),
+    fullscreenRequired: p.fullscreen !== false,
+    cameraRequired: p.webcam !== false,
+    micRequired: p.mic !== false,
   };
+}
+
+export const ADMIN_FOCUS_VIOLATIONS = new Set(['FULLSCREEN_EXIT', 'WINDOW_BLUR']);
+/** Immediate admin-only pause (devtools / view source only — display share is client-blank + auto-restore). */
+export const ADMIN_STRICT_VIOLATIONS = new Set(['DEVTOOLS_SHORTCUT', 'VIEW_SOURCE']);
+export const FULLSCREEN_PAUSE_REASON = 'FULLSCREEN_EXIT';
+export const FOCUS_LOST_PAUSE_REASON = 'FOCUS_LOST';
+export const DEVTOOLS_PAUSE_REASON = 'DEVTOOLS';
+export const HEARTBEAT_PAUSE_REASON = 'HEARTBEAT_MISSED';
+export const SCREEN_SHARE_PAUSE_REASON = 'SCREEN_SHARE';
+
+export function getTimerAnchorIso(session) {
+  const meta = parseSecureModeMeta(session?.secureModeMeta);
+  if (meta.timerStartedAt) return meta.timerStartedAt;
+  if (meta.readyAt) return meta.readyAt;
+  if (
+    meta.securityState === 'IN_PROGRESS' ||
+    meta.securityState === 'SECURITY_PAUSED'
+  ) {
+    if (session?.startTime) return new Date(session.startTime).toISOString();
+  }
+  if (!meta.securityState && session?.startTime) {
+    return new Date(session.startTime).toISOString();
+  }
+  return null;
+}
+
+/** Students cannot self-unlock server pauses — admin only. */
+export function isSelfResumablePauseReason() {
+  return false;
+}
+
+/** Ignore blur + fullscreen-exit fired together within a short window. */
+export function shouldDedupeFocusPause(meta, now = Date.now()) {
+  const lastAt = meta?.lastFocusStrikeAt ? new Date(meta.lastFocusStrikeAt).getTime() : 0;
+  if (!Number.isFinite(lastAt)) return false;
+  return now - lastAt < 3000;
+}
+
+/** First fullscreen exit or window blur → immediate admin-only pause. */
+export function applyAdminFocusPause(meta, { violationType, now = Date.now() } = {}) {
+  const secure = { ...parseSecureModeMeta(meta) };
+  if (!ADMIN_FOCUS_VIOLATIONS.has(violationType)) {
+    return {
+      nextMeta: secure,
+      paused: Boolean(secure.paused),
+      pauseReason: secure.pauseReason || null,
+      deduped: true,
+    };
+  }
+  if (secure.paused) {
+    return {
+      nextMeta: secure,
+      paused: true,
+      pauseReason: secure.pauseReason,
+      deduped: true,
+    };
+  }
+  if (shouldDedupeFocusPause(secure, now)) {
+    return { nextMeta: secure, paused: false, pauseReason: null, deduped: true };
+  }
+
+  const reason =
+    violationType === 'WINDOW_BLUR' ? FOCUS_LOST_PAUSE_REASON : FULLSCREEN_PAUSE_REASON;
+  const nextMeta = buildPausedMeta(
+    {
+      ...secure,
+      lastFocusStrikeAt: new Date(now).toISOString(),
+    },
+    { reason }
+  );
+  return { nextMeta, paused: true, pauseReason: reason, deduped: false };
+}
+
+/** DevTools / view-source → immediate admin-only pause. */
+export function applyAdminStrictPause(meta, { violationType, now = Date.now() } = {}) {
+  const secure = { ...parseSecureModeMeta(meta) };
+  if (!ADMIN_STRICT_VIOLATIONS.has(violationType)) {
+    return {
+      nextMeta: secure,
+      paused: Boolean(secure.paused),
+      pauseReason: secure.pauseReason || null,
+      deduped: true,
+    };
+  }
+  if (secure.paused) {
+    return {
+      nextMeta: secure,
+      paused: true,
+      pauseReason: secure.pauseReason,
+      deduped: true,
+    };
+  }
+  if (shouldDedupeFocusPause(secure, now)) {
+    return { nextMeta: secure, paused: false, pauseReason: null, deduped: true };
+  }
+  const reason = DEVTOOLS_PAUSE_REASON;
+  const nextMeta = buildPausedMeta(
+    { ...secure, lastFocusStrikeAt: new Date(now).toISOString() },
+    { reason }
+  );
+  return { nextMeta, paused: true, pauseReason: reason, deduped: false };
 }
 
 export function isSessionPaused(sessionOrMeta) {
@@ -44,11 +149,13 @@ export function isSessionPaused(sessionOrMeta) {
 
 /** Elapsed seconds excluding paused time (active pause freezes the clock). */
 export function getEffectiveElapsedSeconds(session, now = new Date()) {
-  if (!session?.startTime) return 0;
-  const started = new Date(session.startTime);
+  const meta = parseSecureModeMeta(session?.secureModeMeta);
+  const anchorIso = getTimerAnchorIso(session);
+  if (!anchorIso) return 0;
+
+  const started = new Date(anchorIso);
   if (Number.isNaN(started.getTime())) return 0;
 
-  const meta = parseSecureModeMeta(session.secureModeMeta);
   const totalPausedMs = Number(meta.totalPausedMs) || 0;
   let activePauseMs = 0;
   if (meta.paused && meta.pauseStartedAt) {
@@ -62,13 +169,14 @@ export function getEffectiveElapsedSeconds(session, now = new Date()) {
   return Math.floor(Math.max(0, rawElapsedMs - totalPausedMs - activePauseMs) / 1000);
 }
 
-export function buildPausedMeta(existingMeta, { reason = 'TAB_SWITCH', tabSwitchCount } = {}) {
+export function buildPausedMeta(existingMeta, { reason = 'TAB_SWITCH', tabSwitchCount, focusStrikeCount } = {}) {
   const meta = { ...parseSecureModeMeta(existingMeta) };
   if (meta.paused) return meta;
   meta.paused = true;
   meta.pauseReason = reason;
   meta.pauseStartedAt = new Date().toISOString();
   if (tabSwitchCount != null) meta.tabSwitchCount = tabSwitchCount;
+  if (focusStrikeCount != null) meta.focusStrikeCount = focusStrikeCount;
   return meta;
 }
 
@@ -87,6 +195,7 @@ export function buildUnlockedMeta(existingMeta) {
   meta.pauseStartedAt = null;
   meta.totalPausedMs = totalPausedMs;
   meta.unlockedAt = new Date(now).toISOString();
+  meta.lastFocusStrikeAt = null;
   return meta;
 }
 
@@ -97,7 +206,11 @@ export function pauseSnapshot(meta) {
     pauseReason: m.pauseReason || null,
     pauseStartedAt: m.pauseStartedAt || null,
     tabSwitchCount: Number(m.tabSwitchCount) || 0,
+    focusStrikeCount: Number(m.focusStrikeCount) || 0,
     totalPausedMs: Number(m.totalPausedMs) || 0,
     unlockedAt: m.unlockedAt || null,
+    securityState: m.securityState || null,
+    timerStartedAt: m.timerStartedAt || null,
+    securityPausedAt: m.securityPausedAt || null,
   };
 }

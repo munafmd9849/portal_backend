@@ -37,7 +37,14 @@ export async function runCode({ language, code, input = '' }, options = {}) {
   const timeoutMs = options.timeoutMs || DEFAULT_TIMEOUT_MS;
 
   if (isJudge0Enabled()) {
-    return runViaJudge0({ language: lang, code: safeCode, input }, options);
+    const viaJudge0 = await runViaJudge0({ language: lang, code: safeCode, input }, options);
+    // Docker Desktop on Mac often cannot run Judge0 isolate (cgroup) — fall back locally.
+    if (!viaJudge0?.infrastructureFailure) {
+      return viaJudge0;
+    }
+    console.warn(
+      `[coding-engine] Judge0 infrastructure failure for ${lang}; falling back to local runner. ${viaJudge0.error || ''}`
+    );
   }
 
   const runner = RUNNERS[lang];
