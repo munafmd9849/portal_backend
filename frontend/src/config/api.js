@@ -31,6 +31,23 @@ function rewriteDevUrlForPageHost(url) {
 }
 
 /**
+ * HTTPS pages cannot call http:// APIs (browser mixed-content block).
+ * Route through the current origin so Vercel/nginx can proxy to EC2.
+ */
+function avoidMixedContent(url) {
+  if (!url || typeof window === 'undefined') return url;
+  if (window.location.protocol !== 'https:') return url;
+  if (!String(url).startsWith('http://')) return url;
+  try {
+    const parsed = new URL(url, window.location.origin);
+    const path = `${parsed.pathname}${parsed.search}`.replace(/\/$/, '');
+    return `${window.location.origin}${path}`;
+  } catch {
+    return url;
+  }
+}
+
+/**
  * Get API base URL from environment variable
  * BACKEND IS SINGLE SOURCE OF TRUTH - No localhost fallbacks
  */
@@ -95,8 +112,8 @@ const getSocketUrl = () => {
 };
 
 // Export constants - will throw if env vars not set (production-grade)
-export const API_BASE_URL = getApiBaseUrl();
-export const SOCKET_URL = getSocketUrl();
+export const API_BASE_URL = avoidMixedContent(getApiBaseUrl());
+export const SOCKET_URL = avoidMixedContent(getSocketUrl());
 
 /** Turn `/api/resume/view?...` or full Cloudinary URL into a browser-openable URL. */
 export function resolveBackendPath(path) {
