@@ -1,6 +1,6 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Editor from '@monaco-editor/react';
-import { Play, Send, Terminal, AlertCircle, CheckCircle2, FlaskConical } from 'lucide-react';
+import { Play, Send, Terminal, AlertCircle, CheckCircle2, FlaskConical, Maximize2, Minimize2, PanelBottom } from 'lucide-react';
 import { Spinner } from '../components/ui/loading';
 import { CODING_LANGUAGES, DEFAULT_STARTERS, RUN_DEBOUNCE_MS } from './constants';
 import { runCode, evaluateCode } from './api';
@@ -36,6 +36,8 @@ export default function CodingWorkspace({
   onPasteBlocked,
   sessionId = null,
   questionId = null,
+  editorExpanded = false,
+  onToggleEditorExpand,
 }) {
   const [running, setRunning] = useState(false);
   const [evaluating, setEvaluating] = useState(false);
@@ -44,6 +46,7 @@ export default function CodingWorkspace({
   const runLockRef = useRef(false);
   const lastRunAtRef = useRef(0);
   const editorRef = useRef(null);
+  const [consoleCollapsed, setConsoleCollapsed] = useState(false);
 
   const handleEditorMount = useCallback(
     (editor, monaco) => {
@@ -63,6 +66,13 @@ export default function CodingWorkspace({
     },
     [blockPaste, onPasteBlocked]
   );
+
+  useEffect(() => {
+    const id = window.requestAnimationFrame(() => {
+      editorRef.current?.layout?.();
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [editorExpanded, consoleCollapsed]);
 
   const monacoLang = useMemo(
     () => CODING_LANGUAGES.find((l) => l.id === language)?.monaco || 'javascript',
@@ -160,7 +170,7 @@ export default function CodingWorkspace({
   };
 
   return (
-    <div data-coding-editor className={`flex flex-col h-full min-h-0 bg-[#0d1117] ${className}`}>
+    <div data-coding-editor className={`flex flex-col h-full min-h-0 overflow-hidden bg-[#0d1117] ${className}`}>
       {showProblemHeader && (questionTitle || questionDescription) && (
         <div className="px-4 py-3 border-b border-white/10 bg-[#161b22] shrink-0">
           {questionTitle ? <p className="text-xs font-bold text-white">{questionTitle}</p> : null}
@@ -199,6 +209,26 @@ export default function CodingWorkspace({
           </select>
         </div>
         <div className="flex items-center gap-2">
+          {typeof onToggleEditorExpand === 'function' && (
+            <button
+              type="button"
+              onClick={onToggleEditorExpand}
+              className="h-8 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold uppercase rounded-lg flex items-center gap-1.5 border border-white/10"
+              title={editorExpanded ? 'Show problem statement' : 'Expand editor'}
+            >
+              {editorExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+              {editorExpanded ? 'Show problem' : 'Expand'}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setConsoleCollapsed((v) => !v)}
+            className="h-8 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold uppercase rounded-lg flex items-center gap-1.5 border border-white/10"
+            title={consoleCollapsed ? 'Show tests and output' : 'Hide tests and output'}
+          >
+            <PanelBottom className="w-3.5 h-3.5" />
+            {consoleCollapsed ? 'Show tests' : 'Hide tests'}
+          </button>
           <button
             type="button"
             onClick={handleRun}
@@ -237,7 +267,7 @@ export default function CodingWorkspace({
         </div>
       </div>
 
-      <div className={`flex-1 min-h-0 ${compact ? 'min-h-[200px]' : 'min-h-[240px]'}`}>
+      <div className="flex-1 min-h-0 overflow-hidden">
         <Editor
           theme="vs-dark"
           language={monacoLang}
@@ -261,74 +291,76 @@ export default function CodingWorkspace({
         />
       </div>
 
-      <div
-        className={`grid grid-cols-1 ${compact ? '' : 'md:grid-cols-2'} border-t border-white/10 shrink-0 min-h-[120px]`}
-      >
-        <div className="border-b md:border-b-0 md:border-r border-white/10 flex flex-col">
-          <div className="px-3 py-1.5 text-[9px] font-bold text-slate-500 uppercase tracking-widest bg-[#161b22]">
-            Custom input
+      <div className={`shrink-0 min-h-0 overflow-y-auto overscroll-contain border-t border-white/10 ${consoleCollapsed ? 'hidden' : 'max-h-[46%]'}`}>
+        <div
+          className={`grid grid-cols-1 ${compact ? '' : 'md:grid-cols-2'} min-h-[120px]`}
+        >
+          <div className="border-b md:border-b-0 md:border-r border-white/10 flex flex-col">
+            <div className="px-3 py-1.5 text-[9px] font-bold text-slate-500 uppercase tracking-widest bg-[#161b22] sticky top-0 z-10">
+              Custom input
+            </div>
+            <textarea
+              value={customInput}
+              onChange={(e) => !readOnly && onCustomInputChange?.(e.target.value)}
+              readOnly={readOnly}
+              placeholder="stdin / function argument (JSON supported)"
+              className="flex-1 min-h-[72px] p-3 bg-[#0d1117] text-emerald-400/90 font-mono text-xs resize-none outline-none border-0"
+            />
           </div>
-          <textarea
-            value={customInput}
-            onChange={(e) => !readOnly && onCustomInputChange?.(e.target.value)}
-            readOnly={readOnly}
-            placeholder="stdin / function argument (JSON supported)"
-            className="flex-1 min-h-[72px] p-3 bg-[#0d1117] text-emerald-400/90 font-mono text-xs resize-none outline-none border-0"
-          />
-        </div>
-        <div className="flex flex-col min-h-[88px]">
-          <div className="px-3 py-1.5 text-[9px] font-bold text-slate-500 uppercase tracking-widest bg-[#161b22] flex justify-between">
-            <span>Output</span>
-            {runResult?.executionTime != null && (
-              <span className="text-slate-600 tabular-nums">{runResult.executionTime}ms</span>
-            )}
+          <div className="flex flex-col min-h-[88px]">
+            <div className="px-3 py-1.5 text-[9px] font-bold text-slate-500 uppercase tracking-widest bg-[#161b22] flex justify-between sticky top-0 z-10">
+              <span>Output</span>
+              {runResult?.executionTime != null && (
+                <span className="text-slate-600 tabular-nums">{runResult.executionTime}ms</span>
+              )}
+            </div>
+            <pre
+              className={`flex-1 p-3 m-0 overflow-auto font-mono text-xs whitespace-pre-wrap ${
+                displayOutput.type === 'error'
+                  ? 'text-rose-400'
+                  : displayOutput.type === 'ok'
+                    ? 'text-emerald-300'
+                    : 'text-slate-500'
+              }`}
+            >
+              {displayOutput.text}
+            </pre>
           </div>
-          <pre
-            className={`flex-1 p-3 m-0 overflow-auto font-mono text-xs whitespace-pre-wrap ${
-              displayOutput.type === 'error'
-                ? 'text-rose-400'
-                : displayOutput.type === 'ok'
-                  ? 'text-emerald-300'
-                  : 'text-slate-500'
-            }`}
-          >
-            {displayOutput.text}
-          </pre>
         </div>
-      </div>
 
-      {evalResult && (evalResult.total > 0 || evalResult.error) && (
-        <div className="px-3 py-2 border-t border-white/10 bg-[#161b22] shrink-0 max-h-40 overflow-y-auto">
-          <div className="flex items-center gap-2 mb-1">
-            {evalResult.passed === evalResult.total && evalResult.total > 0 ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            ) : (
-              <AlertCircle className="w-4 h-4 text-amber-400" />
-            )}
-            <span className="text-[10px] font-bold text-white uppercase">
-              Tests {evalResult.passed}/{evalResult.total}
-              {evalResult.score != null ? ` · ${evalResult.score}%` : ''}
-            </span>
-          </div>
-          {evalResult.error && <p className="text-[10px] text-rose-400">{evalResult.error}</p>}
-          <ul className="space-y-1 mt-1">
-            {(evalResult.results || []).map((r, i) => (
-              <li key={i} className="text-[10px] text-slate-400 font-mono">
-                <span className={r.passed ? 'text-emerald-400' : 'text-rose-400'}>
-                  {r.passed ? '✓' : '✗'} {r.label}
-                </span>
-                {!r.passed && (
-                  <span className="block text-slate-500 pl-3 mt-0.5">
-                    {r.error
-                      ? `Error: ${r.error}`
-                      : `Expected: ${r.expectedOutput} · Got: ${r.actualOutput || '(empty)'}`}
+        {evalResult && (evalResult.total > 0 || evalResult.error) && (
+          <div className="px-3 py-2 border-t border-white/10 bg-[#161b22]">
+            <div className="flex items-center gap-2 mb-1">
+              {evalResult.passed === evalResult.total && evalResult.total > 0 ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              ) : (
+                <AlertCircle className="w-4 h-4 text-amber-400" />
+              )}
+              <span className="text-[10px] font-bold text-white uppercase">
+                Tests {evalResult.passed}/{evalResult.total}
+                {evalResult.score != null ? ` · ${evalResult.score}%` : ''}
+              </span>
+            </div>
+            {evalResult.error && <p className="text-[10px] text-rose-400">{evalResult.error}</p>}
+            <ul className="space-y-1 mt-1 pb-2">
+              {(evalResult.results || []).map((r, i) => (
+                <li key={i} className="text-[10px] text-slate-400 font-mono">
+                  <span className={r.passed ? 'text-emerald-400' : 'text-rose-400'}>
+                    {r.passed ? '✓' : '✗'} {r.label}
                   </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+                  {!r.passed && (
+                    <span className="block text-slate-500 pl-3 mt-0.5">
+                      {r.error
+                        ? `Error: ${r.error}`
+                        : `Expected: ${r.expectedOutput} · Got: ${r.actualOutput || '(empty)'}`}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
