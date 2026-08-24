@@ -428,6 +428,7 @@ export default function AssessmentApp() {
   const [rightPanelOpen, setRightPanelOpen] = useState(
     () => typeof window === 'undefined' || window.innerWidth >= 1024
   );
+  const [codingEditorExpanded, setCodingEditorExpanded] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState(null);
   const submittingRef = useRef(false);
@@ -2305,9 +2306,12 @@ export default function AssessmentApp() {
                   </QuestionPanelShell>
                 ) : currentQuestion?.type === 'CODING' ? (
                   <div className="flex-1 min-h-0 flex flex-col rounded-lg overflow-hidden border border-slate-200 shadow-sm">
-                    <div className="flex flex-col h-full min-h-0 bg-[#f8f9fb] p-5 gap-4">
+                    <div className="flex flex-col h-full min-h-0 overflow-hidden bg-[#f8f9fb] p-5 gap-4">
+                    <div className="shrink-0">
                     <QuestionMetaBar question={currentQuestion} questionIndex={currentQuestionIdx} />
+                    </div>
                     <div className="flex-1 min-h-0 flex flex-col lg:flex-row rounded-lg overflow-hidden bg-[#0d1117]">
+                    {!codingEditorExpanded && (
                     <div className="lg:hidden max-h-[40vh] shrink-0 border-b border-slate-700/50 overflow-hidden">
                       <CodingProblemPanel
                         title={currentQuestion.questionText}
@@ -2320,7 +2324,9 @@ export default function AssessmentApp() {
                         hideHeaderMeta
                       />
                     </div>
-                    <div className="hidden lg:block w-[42%] min-w-[280px] max-w-[480px] shrink-0 border-r border-slate-700/50">
+                    )}
+                    {!codingEditorExpanded && (
+                    <div className="hidden lg:flex w-[42%] min-w-[280px] max-w-[480px] shrink-0 min-h-0 overflow-hidden border-r border-slate-700/50">
                       <CodingProblemPanel
                         title={currentQuestion.questionText}
                         problem={currentQuestion.description}
@@ -2333,7 +2339,8 @@ export default function AssessmentApp() {
                         className="h-full"
                       />
                     </div>
-                    <div className="flex-1 min-w-0 min-h-[360px]">
+                    )}
+                    <div className="flex-1 min-w-0 min-h-0 h-full overflow-hidden flex flex-col">
                     {(() => {
                       const allowed =
                         assessment?.allowedCodingLanguages?.length > 0
@@ -2353,8 +2360,11 @@ export default function AssessmentApp() {
                       return (
                         <CodingWorkspace
                           key={currentQuestion.id}
+                          className="h-full min-h-0"
                           lastRun={parsed.lastRun}
                           evaluation={parsed.evaluation}
+                          editorExpanded={codingEditorExpanded}
+                          onToggleEditorExpand={() => setCodingEditorExpanded((v) => !v)}
                           readOnly={interactionBlocked}
                           sessionId={session?.id}
                           questionId={currentQuestion.id}
