@@ -352,42 +352,48 @@ export async function updateAssessmentInvite(req, res) {
       inviteToken = newInviteToken();
     }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.assessment.update({
-        where: { id },
-        data: {
-          inviteEnabled: enabled,
-          inviteToken: enabled || inviteToken ? inviteToken : assessment.inviteToken,
-        },
-      });
-
-      if (emails) {
-        const existing = await tx.assessmentInviteEmail.findMany({
-          where: { assessmentId: id },
-          select: { email: true, status: true, studentId: true, fullName: true },
-        });
-        const existingMap = new Map(existing.map((r) => [r.email, r]));
-        const keep = new Set(emails);
-
-        await tx.assessmentInviteEmail.deleteMany({
-          where: {
-            assessmentId: id,
-            email: { notIn: emails },
-            status: { not: 'COMPLETED' },
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.assessment.update({
+          where: { id },
+          data: {
+            inviteEnabled: enabled,
+            inviteToken: enabled || inviteToken ? inviteToken : assessment.inviteToken,
           },
         });
 
-        for (const email of emails) {
-          if (existingMap.has(email)) continue;
-          await tx.assessmentInviteEmail.create({
-            data: { assessmentId: id, email, status: 'PENDING' },
+        if (emails) {
+          const existing = await tx.assessmentInviteEmail.findMany({
+            where: { assessmentId: id },
+            select: { email: true },
           });
-        }
+          const existingSet = new Set(existing.map((r) => normalizeEmail(r.email)));
+          const toCreate = emails.filter((email) => !existingSet.has(email));
 
-        // Re-add emails that were incorrectly filtered — already handled by create skip
-        void keep;
-      }
-    });
+          if (emails.length > 0) {
+            await tx.assessmentInviteEmail.deleteMany({
+              where: {
+                assessmentId: id,
+                email: { notIn: emails },
+                status: { not: 'COMPLETED' },
+              },
+            });
+          }
+
+          if (toCreate.length > 0) {
+            await tx.assessmentInviteEmail.createMany({
+              data: toCreate.map((email) => ({
+                assessmentId: id,
+                email,
+                status: 'PENDING',
+              })),
+              skipDuplicates: true,
+            });
+          }
+        }
+      },
+      { timeout: 30_000, maxWait: 10_000 }
+    );
 
     const updated = await prisma.assessment.findUnique({
       where: { id },
@@ -416,6 +422,29 @@ export async function updateAssessmentInvite(req, res) {
     });
   } catch (error) {
     console.error('updateAssessmentInvite error:', error);
-    res.status(500).json({ error: 'Failed to update invite settings' });
+    const code = error?.code;
+    if (code === 'P2021' || code === 'P2022') {
+      return res.status(500).json({
+        error:
+          'Invite tables/columns are missing on this database. Run Prisma migrate on production, then retry.',
+        code,
+      });
+    }
+    if (code === 'P2002') {
+      return res.status(409).json({
+        error: 'Duplicate invite email for this assessment. Remove duplicates and save again.',
+        code,
+      });
+    }
+    if (code === 'P2028') {
+      return res.status(504).json({
+        error: 'Saving invites timed out. Try again, or save in a smaller email batch.',
+        code,
+      });
+    }
+    res.status(500).json({
+      error: error?.message || 'Failed to update invite settings',
+      code: code || undefined,
+    });
   }
 }
