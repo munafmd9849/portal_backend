@@ -1,0 +1,282 @@
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { CheckCircle2, Circle, Clock, XCircle, ClipboardList, Video, MapPin, ExternalLink } from 'lucide-react';
+import api from '../../../services/api';
+import {
+  getApplicationPrimaryStatus,
+  getApplicationTimeline,
+  getApplicationTrackerDetails,
+  getPrimaryStatusColorClass,
+  isTerminalApplication,
+} from '../../../utils/applicationTrackerState';
+import { respondToOffer } from '../../../services/applications';
+import { Spinner } from '../../ui/loading';
+
+function TimelineIcon({ status }) {
+  if (status === 'completed') {
+    return <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />;
+  }
+  if (status === 'rejected') {
+    return <XCircle className="w-4 h-4 text-red-600 shrink-0" />;
+  }
+  if (status === 'current') {
+    return <Clock className="w-4 h-4 text-indigo-600 shrink-0 animate-pulse" />;
+  }
+  return <Circle className="w-4 h-4 text-slate-300 shrink-0" />;
+}
+
+function formatDate(value) {
+  if (!value) return null;
+  try {
+    return new Date(value).toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return null;
+  }
+}
+
+export default function StudentApplicationTracker({ application, onApplicationUpdated }) {
+  const [offerLoading, setOfferLoading] = useState(false);
+  const primary = getApplicationPrimaryStatus(application);
+  const timeline = getApplicationTimeline(application);
+  const details = getApplicationTrackerDetails(application);
+  const isFinal = primary.final || isTerminalApplication(application);
+  const appStatus = String(application?.status || application?.tracker?.details?.finalStatus || '').toUpperCase();
+  const hasPendingOffer = appStatus === 'OFFERED';
+  const needsAssessment =
+    !isFinal
+    && Boolean(application?.job?.requiresTest)
+    && details.qaTest === 'Pending';
+
+  const interviewSlots = Array.isArray(application?.interviewSlots) ? application.interviewSlots : [];
+  const upcomingSlots = interviewSlots.filter((s) => s.status === 'SCHEDULED' || s.status === 'RESCHEDULED');
+
+  const handleJoinInterview = async (slot) => {
+    if (!slot?.meetingLink) return;
+    try {
+      await api.recordInterviewSlotJoin(slot.id);
+    } catch {
+      // non-blocking
+    }
+    window.open(slot.meetingLink, '_blank', 'noopener,noreferrer');
+  };
+
+  const canJoinSlot = (slot) => {
+    if (!slot?.meetingLink || !slot.scheduledAt) return Boolean(slot?.meetingLink);
+    const start = new Date(slot.scheduledAt).getTime();
+    const now = Date.now();
+    return now >= start - 60 * 60 * 1000;
+  };
+
+  const handleOfferResponse = async (action) => {
+    if (!application?.id || offerLoading) return;
+    try {
+      setOfferLoading(true);
+      await respondToOffer(application.id, action);
+      onApplicationUpdated?.();
+    } catch (error) {
+      console.error('Offer response failed:', error);
+      alert(error?.response?.data?.message || error?.message || 'Failed to update offer response');
+    } finally {
+      setOfferLoading(false);
+    }
+  };
+
+  const detailFields = [
+    { label: 'Applied', value: formatDate(details.appliedDate || application.appliedDate) },
+    { label: 'Last updated', value: formatDate(details.updatedAt || application.updatedAt) },
+    ...(isFinal
+      ? [
+          ...(details.rejectedIn
+            ? [{ label: 'Rejected in', value: details.rejectedIn }]
+            : []),
+          ...(details.finalOutcome
+            ? [{ label: 'Final outcome', value: details.finalOutcome }]
+            : []),
+        ]
+      : [
+          { label: 'Resume screening', value: details.resumeScreening },
+          { label: 'Recruiter screening', value: details.recruiterScreening },
+          { label: 'QA test', value: details.qaTest },
+          { label: 'Interview eligible', value: details.interviewEligible ? 'Yes' : 'No' },
+          { label: 'Interview schedule', value: formatDate(details.interviewDate || application.interviewDate) },
+          {
+            label: 'Active round',
+            value: details.activeRound
+              ? `Round ${details.activeRound.roundNumber}${details.activeRound.name ? `: ${details.activeRound.name}` : ''}`
+              : details.highestQualifiedRound
+                ? `Through Round ${details.highestQualifiedRound}`
+                : '—',
+          },
+        ]),
+  ];
+
+  return (
+    <div className="space-y-5">
+      <div className={`rounded-xl border p-4 sm:p-5 ${isFinal ? (primary.variant === 'success' ? 'border-emerald-100 bg-emerald-50/60' : 'border-rose-100 bg-rose-50/60') : 'border-indigo-100 bg-indigo-50/50'}`}>
+        <p className={`text-xs font-medium mb-2 ${isFinal ? (primary.variant === 'success' ? 'text-emerald-700' : 'text-rose-700') : 'text-indigo-700'}`}>
+          {isFinal ? 'Final outcome' : 'Current status'}
+        </p>
+        <span
+          className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-bold border ${getPrimaryStatusColorClass(primary.variant)}`}
+        >
+          {primary.label}
+        </span>
+        {details.placementStatus && (
+          <p className="text-xs text-slate-500 mt-3">
+            Placement status: <span className="font-semibold text-slate-700">{details.placementStatus}</span>
+          </p>
+        )}
+        {hasPendingOffer && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={offerLoading}
+              onClick={() => handleOfferResponse('accept')}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
+            >
+              {offerLoading ? <Spinner size="sm" tone="white" /> : null}
+              Accept offer
+            </button>
+            <button
+              type="button"
+              disabled={offerLoading}
+              onClick={() => handleOfferResponse('decline')}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50 disabled:opacity-60"
+            >
+              {offerLoading ? <Spinner size="sm" /> : null}
+              Decline offer
+            </button>
+          </div>
+        )}
+        {needsAssessment && (
+          <div className="mt-4">
+            <Link
+              to="/student?tab=assessments"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700"
+            >
+              <ClipboardList className="w-4 h-4" />
+              Complete required assessment
+            </Link>
+          </div>
+        )}
+      </div>
+
+      {upcomingSlots.length > 0 && (
+        <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-4 sm:p-5 space-y-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-violet-600 flex items-center gap-2">
+            <Video className="w-4 h-4" />
+            Interview schedule
+          </p>
+          {upcomingSlots.map((slot) => (
+            <div key={slot.id} className="rounded-lg border border-violet-100 bg-white p-3 text-sm">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="font-semibold text-slate-800">
+                    {slot.round?.name ? `${slot.round.name}` : 'Interview slot'}
+                    {slot.deliveryMode === 'ONLINE' ? ' · Online' : slot.room ? ` · ${slot.room}` : ''}
+                  </p>
+                  {slot.scheduledAt && (
+                    <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      {formatDate(slot.scheduledAt)}
+                    </p>
+                  )}
+                  {slot.room && slot.deliveryMode !== 'ONLINE' && (
+                    <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5" />
+                      {slot.room}
+                    </p>
+                  )}
+                  {slot.joinInstructions && (
+                    <p className="text-xs text-slate-600 mt-2">{slot.joinInstructions}</p>
+                  )}
+                </div>
+                {slot.meetingLink && (
+                  canJoinSlot(slot) ? (
+                    <button
+                      type="button"
+                      onClick={() => handleJoinInterview(slot)}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-600 text-white text-xs font-bold hover:bg-violet-700 shrink-0"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      Join interview
+                    </button>
+                  ) : (
+                    <span className="text-[11px] text-violet-700 bg-violet-100 px-2 py-1 rounded-md shrink-0">
+                      Link opens 1h before
+                    </span>
+                  )
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+        {detailFields.map((field) => (
+          <Detail key={field.label} label={field.label} value={field.value} />
+        ))}
+        {details.rejectionReason && primary.variant === 'danger' && (
+          <div className="sm:col-span-2 rounded-lg border border-red-100 bg-red-50 p-3">
+            <p className="text-xs font-medium text-rose-600">Rejection reason</p>
+            <p className="text-sm text-red-800 mt-1">{details.rejectionReason}</p>
+          </div>
+        )}
+      </div>
+
+      {timeline.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+          <p className="text-xs font-medium text-slate-600 mb-4">
+            Application timeline
+          </p>
+          <ol className="space-y-3">
+            {timeline.map((step) => (
+              <li key={step.id} className="flex gap-3">
+                <div className="pt-0.5">
+                  <TimelineIcon status={step.status} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p
+                    className={`text-sm font-semibold ${
+                      step.status === 'rejected'
+                        ? 'text-red-700'
+                        : step.status === 'current'
+                          ? 'text-indigo-700'
+                          : step.status === 'completed'
+                            ? 'text-slate-800'
+                            : 'text-slate-400'
+                    }`}
+                  >
+                    {step.label}
+                  </p>
+                  {step.detail && (
+                    <p className="text-xs text-slate-500 mt-0.5 whitespace-pre-wrap">{step.detail}</p>
+                  )}
+                  {step.date && (
+                    <p className="text-[11px] text-slate-400 mt-0.5">{formatDate(step.date)}</p>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Detail({ label, value }) {
+  return (
+    <div className="rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2.5">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{label}</p>
+      <p className="text-sm font-semibold text-slate-800 mt-0.5">{value || '—'}</p>
+    </div>
+  );
+}

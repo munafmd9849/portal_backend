@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env
+.env.example
+.vscode
+.cursor
+.DS_Store
+dist
+build
+temp
+.eslintignore
+*.log
