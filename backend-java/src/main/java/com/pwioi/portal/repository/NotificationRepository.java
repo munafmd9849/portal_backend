@@ -1,0 +1,11 @@
+package com.pwioi.portal.repository;
+
+import com.pwioi.portal.entity.Notification;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+
+public interface NotificationRepository extends JpaRepository<Notification, String>, JpaSpecificationExecutor<Notification> {
+    java.util.List<Notification> findByUserId(String userId);
+    java.util.List<Notification> findByUserIdOrderByCreatedAtDesc(String userId);
+    long countByUserIdAndIsReadFalse(String userId);
+}
