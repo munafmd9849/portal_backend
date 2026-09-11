@@ -6,15 +6,11 @@ Full-stack placement portal for students, recruiters, admins, and super admins �
 
 ```
 PORTAL-main/
-├── backend/        # Node.js API (current)
-├── backend-java/   # Spring Boot / Maven API (same routes & Postgres schema)
-├── frontend/       # React + Vite UI for the Node API — do not change for Java
-└── frontend-java/  # React + Vite UI for the Java API
+├── backend/     # Node.js API, Prisma, workers, email
+└── frontend/    # React + Vite UI
 ```
 
-Java backend: see [`backend-java/README.md`](backend-java/README.md). Java UI: [`frontend-java/README.md`](frontend-java/README.md). Run Java with `cd backend-java && mvn spring-boot:run` (HTTP 3000, Socket.IO 3001). Do not run Node and Java on port 3000 at the same time.
-
-All application code lives in **`backend/`**, **`backend-java/`**, **`frontend/`**, and **`frontend-java/`**.
+All application code lives in **`backend/`** and **`frontend/`** only.
 
 ## Local development
 
@@ -35,21 +31,11 @@ Optional background worker (bulk email, CSV exports — requires Redis):
 npm run worker
 ```
 
-### Frontend (Node)
+### Frontend
 
 ```bash
 cd frontend
 cp .env.example .env    # VITE_API_BASE_URL=http://localhost:3000/api
-npm install
-npm run dev             # http://localhost:5173
-```
-
-### Frontend (Java)
-
-Use `frontend-java/` with `backend-java`. Do not edit `frontend/` for Java work.
-
-```bash
-cd frontend-java
 npm install
 npm run dev             # http://localhost:5173
 ```
