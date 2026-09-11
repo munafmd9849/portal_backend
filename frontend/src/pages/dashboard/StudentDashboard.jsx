@@ -18,7 +18,7 @@ import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import { showSuccess, showError, showWarning, showInfo, showLoading, replaceLoadingToast, dismissToast } from '../../utils/toast';
 import { formatApplicationSuccessMessage } from '../../utils/applicationMessages';
-import { parseJobCustomQuestions } from '../../utils/jobHelpers';
+import { parseJobCustomQuestions, studentMeetsJobYop, formatJobYopRequirement } from '../../utils/jobHelpers';
 import JobApplyQuestionsModal from '../../components/dashboard/student/JobApplyQuestionsModal';
 import { sanitizeScoreInput, formatCgpaForDisplay } from '../../utils/scoreInput';
 import { SiCodeforces, SiGeeksforgeeks } from 'react-icons/si';
@@ -1220,37 +1220,7 @@ export default function StudentDashboard() {
     return studentCgpa >= requiredCgpa;
   };
 
-  // Check if student's derived Year of Passing (from batch) meets job YOP requirement
-  // Rule: job.yop = Y → students with YOP <= Y can apply.
-  const meetsYopRequirement = (job) => {
-    const jobYop = job?.yop;
-    if (!jobYop || !batch) {
-      // No YOP restriction or student has no batch set → allow
-      return true;
-    }
-
-    const jobYopInt = parseInt(String(jobYop).trim(), 10);
-    if (Number.isNaN(jobYopInt)) {
-      // If job YOP is not a valid number, don't block
-      return true;
-    }
-
-    // Derive student's year of passing from batch string, e.g. "23-27" → 2027
-    const parts = String(batch)
-      .split('-')
-      .map((p) => p.trim())
-      .filter(Boolean);
-    const endPart = parts.length > 1 ? parts[1] : parts[0];
-    const endNum = endPart ? parseInt(endPart, 10) : NaN;
-
-    if (Number.isNaN(endNum)) {
-      // If batch format is unexpected, don't block
-      return true;
-    }
-
-    const studentYop = endNum < 100 ? 2000 + endNum : endNum;
-    return studentYop <= jobYopInt;
-  };
+  const meetsYopRequirement = (job) => studentMeetsJobYop(job?.yop, batch);
 
   // Job Description navigation handler
   const handleKnowMore = (job) => {
@@ -2553,7 +2523,7 @@ export default function StudentDashboard() {
                               else failedReasons.push('CGPA requirement not met');
                             }
                             if (yopNotEligible) {
-                              if (job.yop) failedReasons.push(`YOP requirement: up to ${job.yop}`);
+                              if (job.yop) failedReasons.push(`YOP requirement: ${formatJobYopRequirement(job.yop)}`);
                               else failedReasons.push('YOP requirement not met');
                             }
                             if (deadlinePassed) {

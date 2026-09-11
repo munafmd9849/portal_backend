@@ -305,7 +305,7 @@ public class JobService {
         if (body.get("reportingTime") != null) j.setReportingTime(str(body.get("reportingTime")));
         if (body.get("qualification") != null) j.setQualification(str(body.get("qualification")));
         if (body.get("specialization") != null) j.setSpecialization(str(body.get("specialization")));
-        if (body.get("yop") != null) j.setYop(str(body.get("yop")));
+        if (body.get("yop") != null) j.setYop(JobEligibility.normalizeYop(body.get("yop")));
         if (body.get("minCgpa") != null) j.setMinCgpa(str(body.get("minCgpa")));
         if (body.get("gapAllowed") != null) j.setGapAllowed(str(body.get("gapAllowed")));
         if (body.get("gapYears") != null) j.setGapYears(str(body.get("gapYears")));

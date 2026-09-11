@@ -17,6 +17,9 @@ import {
   parseJobCustomQuestions,
   CUSTOM_QUESTION_TYPES,
   CUSTOM_QUESTION_TYPE_LABELS,
+  parseJobYopYears,
+  serializeJobYopYears,
+  jobYopYearOptions,
 } from '../../../utils/jobHelpers';
 
 // Utility helpers
@@ -143,6 +146,7 @@ export default function CreateJob({ onCreated }) {
   const [showJobTypes, setShowJobTypes] = useState(false);
   const [showWorkModes, setShowWorkModes] = useState(false);
   const [showGapAllowed, setShowGapAllowed] = useState(false);
+  const [showYopYears, setShowYopYears] = useState(false);
   const [showBacklogs, setShowBacklogs] = useState(false);
 
   // Refs for all dropdowns
@@ -151,6 +155,7 @@ export default function CreateJob({ onCreated }) {
   const jobTypeDropdownRef = useRef(null);
   const workModeDropdownRef = useRef(null);
   const gapAllowedDropdownRef = useRef(null);
+  const yopYearDropdownRef = useRef(null);
   const backlogsDropdownRef = useRef(null);
 
   const [websiteError, setWebsiteError] = useState('');
@@ -233,7 +238,7 @@ export default function CreateJob({ onCreated }) {
           reportingTime: jobData.reportingTime || '',
           qualification: jobData.qualification || '',
           specialization: jobData.specialization || '',
-          yop: jobData.yop || '',
+          yop: serializeJobYopYears(jobData.yop) || jobData.yop || '',
           minCgpa: jobData.minCgpa || jobData.cgpaRequirement || '',
           skillsInput: '',
           skills: Array.isArray(jobData.requiredSkills) ? jobData.requiredSkills :
@@ -364,7 +369,7 @@ export default function CreateJob({ onCreated }) {
         reportingTime: draft.reportingTime || '',
         qualification: draft.qualification || '',
         specialization: draft.specialization || '',
-        yop: draft.yop || '',
+        yop: serializeJobYopYears(draft.yop) || draft.yop || '',
         minCgpa: draft.minCgpa || '',
         skillsInput: '',
         skills: Array.isArray(draft.skills) ? draft.skills : (Array.isArray(draft.requiredSkills) ? draft.requiredSkills : []),
@@ -434,6 +439,9 @@ export default function CreateJob({ onCreated }) {
       }
       if (gapAllowedDropdownRef.current && !gapAllowedDropdownRef.current.contains(event.target)) {
         setShowGapAllowed(false);
+      }
+      if (yopYearDropdownRef.current && !yopYearDropdownRef.current.contains(event.target)) {
+        setShowYopYears(false);
       }
       if (backlogsDropdownRef.current && !backlogsDropdownRef.current.contains(event.target)) {
         setShowBacklogs(false);
@@ -682,7 +690,7 @@ export default function CreateJob({ onCreated }) {
     // === SECTION 3: SKILLS & ELIGIBILITY ===  
     if (jobData.qualifications) updates.qualification = jobData.qualifications;
     if (jobData.specialization) updates.specialization = jobData.specialization;
-    if (jobData.yop) updates.yop = jobData.yop;
+    if (jobData.yop) updates.yop = serializeJobYopYears(jobData.yop) || jobData.yop;
     if (jobData.minCgpa) updates.minCgpa = jobData.minCgpa;
     if (jobData.skills) updates.skills = Array.isArray(jobData.skills) ? jobData.skills : [];
     if (jobData.gapAllowed) updates.gapAllowed = jobData.gapAllowed;
@@ -929,10 +937,14 @@ export default function CreateJob({ onCreated }) {
     }
   };
 
-  const onYopChange = (value) => {
-    if (/^\d{0,4}$/.test(value)) {
-      update({ yop: value });
-    }
+  const yopYearChoices = useMemo(() => jobYopYearOptions(), []);
+  const selectedYopYears = useMemo(() => parseJobYopYears(form.yop), [form.yop]);
+
+  const toggleYopYear = (year) => {
+    const next = selectedYopYears.includes(year)
+      ? selectedYopYears.filter((y) => y !== year)
+      : [...selectedYopYears, year];
+    update({ yop: serializeJobYopYears(next) });
   };
 
   const onMinCgpaChange = (value) => {
@@ -1211,7 +1223,7 @@ export default function CreateJob({ onCreated }) {
       requiredSkills: requiredSkills, // Also send as requiredSkills for backend (must be array)
       qualification: form.qualification || '',
       specialization: form.specialization || '',
-      yop: form.yop || '',
+      yop: serializeJobYopYears(form.yop) || '',
       minCgpa: form.minCgpa || '',
       gapAllowed: form.gapAllowed || '',
       gapYears: form.gapYears || '',
@@ -2476,24 +2488,80 @@ export default function CreateJob({ onCreated }) {
                       <FaCalendarAlt className="w-4 h-4 text-amber-600" />
                       Year of Passing <span className="text-red-500">*</span>
                     </label>
-                    <div className="relative">
-                      <FaCalendarAlt className="absolute left-3 top-1/2 transform -translate-y-1/2 text-amber-500 w-5 h-5 pointer-events-none z-10" />
-                      <DatePicker
-                        selected={form.yop?.trim() ? (() => {
-                          const y = parseInt(form.yop, 10);
-                          return isNaN(y) ? null : new Date(y < 100 ? 2000 + y : y, 0, 1);
-                        })() : null}
-                        onChange={(date) => update({ yop: date ? String(date.getFullYear()) : '' })}
-                        showYearPicker
-                        dateFormat="yyyy"
-                        placeholderText="Select year"
-                        yearItemNumber={12}
-                        className="w-full pl-12 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all cursor-pointer bg-white text-gray-900 font-medium hover:border-gray-400 shadow-sm hover:shadow-md"
-                        wrapperClassName="w-full"
-                        minDate={new Date(2020, 0, 1)}
-                        maxDate={new Date(2035, 11, 31)}
-                      />
+                    <div className="relative" ref={yopYearDropdownRef}>
+                      <button
+                        type="button"
+                        onClick={() => setShowYopYears((prev) => !prev)}
+                        className={`w-full min-h-[48px] pl-3 pr-10 py-2 border-2 rounded-lg text-left transition-all cursor-pointer bg-white hover:border-gray-400 shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                          selectedYopYears.length ? 'border-sky-200' : 'border-gray-300'
+                        }`}
+                        aria-expanded={showYopYears}
+                        aria-haspopup="listbox"
+                      >
+                        {selectedYopYears.length ? (
+                          <span className="flex flex-wrap gap-1.5">
+                            {selectedYopYears.map((year) => (
+                              <span
+                                key={year}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-900"
+                              >
+                                {year}
+                                <span
+                                  role="button"
+                                  tabIndex={0}
+                                  className="hover:text-amber-950"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleYopYear(year);
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      toggleYopYear(year);
+                                    }
+                                  }}
+                                  aria-label={`Remove ${year}`}
+                                >
+                                  <X className="w-3 h-3" />
+                                </span>
+                              </span>
+                            ))}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 font-medium">Select year(s)</span>
+                        )}
+                      </button>
+                      <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none transition-transform ${showYopYears ? 'rotate-180' : ''}`} />
+                      {showYopYears && (
+                        <div className="absolute z-20 mt-1 w-full bg-white border-2 border-gray-300 rounded-lg shadow-lg p-3">
+                          <p className="text-xs text-gray-500 mb-2">Click every batch this JD should accept.</p>
+                          <div className="grid grid-cols-4 gap-1.5 max-h-52 overflow-y-auto">
+                            {yopYearChoices.map((year) => {
+                              const isSelected = selectedYopYears.includes(year);
+                              return (
+                                <button
+                                  key={year}
+                                  type="button"
+                                  onClick={() => toggleYopYear(year)}
+                                  className={`px-2 py-2 text-sm rounded-md border transition-colors ${
+                                    isSelected
+                                      ? 'bg-amber-100 border-amber-400 text-amber-900 font-semibold'
+                                      : 'bg-white border-gray-200 text-gray-700 hover:bg-amber-50 hover:border-amber-200'
+                                  }`}
+                                  aria-pressed={isSelected}
+                                >
+                                  {year}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
+                    <p className="text-xs text-gray-500 mt-1.5">
+                      Multiple years open the JD only to those batches. A single year still means that year and earlier.
+                    </p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">

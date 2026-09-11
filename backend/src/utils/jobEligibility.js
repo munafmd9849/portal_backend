@@ -2,6 +2,53 @@
  * Shared job eligibility checks for listing and apply flows.
  */
 
+export function parseJobYopYears(yop) {
+  if (yop == null || yop === '') return [];
+  const values = Array.isArray(yop) ? yop : String(yop).split(/[,;/|&]+|\band\b/i);
+  const years = [];
+  const seen = new Set();
+  for (const raw of values) {
+    const n = parseInt(String(raw).trim(), 10);
+    if (Number.isNaN(n)) continue;
+    const year = n < 100 ? 2000 + n : n;
+    if (year < 1990 || year > 2100 || seen.has(year)) continue;
+    seen.add(year);
+    years.push(year);
+  }
+  return years.sort((a, b) => a - b);
+}
+
+export function serializeJobYopYears(years) {
+  const parsed = parseJobYopYears(years);
+  return parsed.length ? parsed.join(',') : null;
+}
+
+export function normalizeJobYop(yop) {
+  if (yop == null || String(yop).trim() === '') return null;
+  return serializeJobYopYears(yop);
+}
+
+export function formatJobYopDisplay(yop) {
+  const years = parseJobYopYears(yop);
+  return years.length ? years.join(', ') : '';
+}
+
+export function formatJobYopRequirement(yop) {
+  const years = parseJobYopYears(yop);
+  if (years.length === 0) return '';
+  if (years.length === 1) return `up to ${years[0]}`;
+  if (years.length === 2) return `${years[0]} or ${years[1]}`;
+  return `${years.slice(0, -1).join(', ')}, or ${years[years.length - 1]}`;
+}
+
+function studentMeetsYopYears(jobYop, studentYop) {
+  const years = parseJobYopYears(jobYop);
+  if (years.length === 0 || studentYop == null) return true;
+  // Legacy single year stays a cutoff so existing jobs do not change who can apply.
+  if (years.length === 1) return studentYop <= years[0];
+  return years.includes(studentYop);
+}
+
 function parseRequiredCgpa(minCgpa) {
   if (minCgpa == null || minCgpa === '') return null;
   const requirementStr = String(minCgpa).trim();
@@ -51,9 +98,8 @@ export function studentMeetsJobEligibility(student = {}, job = {}) {
   if (!studentHasCompleteProfile(student)) return false;
 
   if (job.yop) {
-    const jobYopInt = parseInt(String(job.yop).trim(), 10);
     const studentYop = deriveStudentYop(student.batch);
-    if (!Number.isNaN(jobYopInt) && studentYop != null && studentYop > jobYopInt) {
+    if (!studentMeetsYopYears(job.yop, studentYop)) {
       return false;
     }
   }
@@ -89,15 +135,18 @@ export function validateStudentEligibilityForApply(student = {}, job = {}) {
   }
 
   if (job.yop) {
-    const jobYopInt = parseInt(String(job.yop).trim(), 10);
+    const years = parseJobYopYears(job.yop);
     const studentYop = deriveStudentYop(student.batch);
-    if (!Number.isNaN(jobYopInt) && studentYop != null && studentYop > jobYopInt) {
+    if (years.length > 0 && !studentMeetsYopYears(job.yop, studentYop)) {
+      const requirementLabel = formatJobYopRequirement(job.yop);
       return {
         status: 400,
         body: {
           error: 'YOP requirement not met',
-          message: `This job is open for students passing out in ${jobYopInt} or earlier.`,
-          requirement: jobYopInt,
+          message: years.length === 1
+            ? `This job is open for students passing out in ${years[0]} or earlier.`
+            : `This job is open for students passing out in ${requirementLabel}.`,
+          requirement: years.length === 1 ? years[0] : years,
           yourYearOfPassing: studentYop,
         },
       };

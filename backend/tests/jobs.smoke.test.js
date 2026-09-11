@@ -34,6 +34,25 @@ describe('jobEligibility', () => {
     );
     expect(result?.body?.error).toBe('Profile incomplete');
   });
+
+  test('single YOP stays a cutoff for existing jobs', () => {
+    const student = {
+      fullName: 'A', email: 'a@test.com', school: 'S', center: 'C', batch: '23-27',
+    };
+    expect(validateStudentEligibilityForApply(student, { yop: '2028' })).toBeNull();
+    expect(validateStudentEligibilityForApply(student, { yop: '2026' })?.body?.error).toBe('YOP requirement not met');
+  });
+
+  test('multiple YOP years match only selected batches', () => {
+    const eligible = {
+      fullName: 'A', email: 'a@test.com', school: 'S', center: 'C', batch: '24-28',
+    };
+    const skipped = {
+      fullName: 'B', email: 'b@test.com', school: 'S', center: 'C', batch: '23-27',
+    };
+    expect(validateStudentEligibilityForApply(eligible, { yop: '2026,2028' })).toBeNull();
+    expect(validateStudentEligibilityForApply(skipped, { yop: '2026,2028' })?.body?.error).toBe('YOP requirement not met');
+  });
 });
 
 describe('applicationTransitionService', () => {

@@ -2,6 +2,11 @@ package com.pwioi.portal.util;
 
 import com.pwioi.portal.entity.Job;
 import com.pwioi.portal.entity.Student;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * Mirrors {@code backend/src/utils/jobEligibility.js} so students see the same jobs as Node.
@@ -22,13 +27,8 @@ public final class JobEligibility {
         if (!hasCompleteProfile(student) || job == null) return false;
 
         if (notBlank(job.getYop())) {
-            try {
-                int jobYop = Integer.parseInt(job.getYop().trim());
-                Integer studentYop = deriveStudentYop(student.getBatch());
-                if (studentYop != null && studentYop > jobYop) return false;
-            } catch (NumberFormatException ignored) {
-                // invalid job YOP is ignored, matching Node NaN handling
-            }
+            Integer studentYop = deriveStudentYop(student.getBatch());
+            if (!meetsYop(job.getYop(), studentYop)) return false;
         }
 
         if (notBlank(job.getMinCgpa())) {
@@ -45,6 +45,53 @@ public final class JobEligibility {
         }
 
         return true;
+    }
+
+    public static String normalizeYop(Object yop) {
+        List<Integer> years = parseYopYears(yop);
+        if (years.isEmpty()) return null;
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < years.size(); i++) {
+            if (i > 0) sb.append(',');
+            sb.append(years.get(i));
+        }
+        return sb.toString();
+    }
+
+    static boolean meetsYop(String jobYop, Integer studentYop) {
+        List<Integer> years = parseYopYears(jobYop);
+        if (years.isEmpty() || studentYop == null) return true;
+        if (years.size() == 1) return studentYop <= years.get(0);
+        return years.contains(studentYop);
+    }
+
+    static List<Integer> parseYopYears(Object yop) {
+        List<Integer> years = new ArrayList<>();
+        if (yop == null) return years;
+        List<String> rawParts = new ArrayList<>();
+        if (yop instanceof Collection<?> collection) {
+            for (Object item : collection) {
+                if (item != null) rawParts.add(String.valueOf(item));
+            }
+        } else {
+            String text = String.valueOf(yop).trim();
+            if (text.isEmpty() || "null".equalsIgnoreCase(text)) return years;
+            for (String part : text.split("[,;/|&]+|(?i)\\band\\b")) {
+                if (!part.isBlank()) rawParts.add(part.trim());
+            }
+        }
+        Set<Integer> seen = new HashSet<>();
+        for (String raw : rawParts) {
+            try {
+                int n = Integer.parseInt(raw.trim());
+                int year = n < 100 ? 2000 + n : n;
+                if (year >= 1990 && year <= 2100 && seen.add(year)) years.add(year);
+            } catch (NumberFormatException ignored) {
+                // skip tokens that are not years
+            }
+        }
+        years.sort(Integer::compareTo);
+        return years;
     }
 
     private static Integer deriveStudentYop(String batch) {

@@ -15,7 +15,7 @@ import { getStudentProfile } from '../services/students';
 import api from '../services/api';
 import { showSuccess, showError } from '../utils/toast';
 import { formatApplicationSuccessMessage } from '../utils/applicationMessages';
-import { parseJobCustomQuestions } from '../utils/jobHelpers';
+import { parseJobCustomQuestions, studentMeetsJobYop } from '../utils/jobHelpers';
 import JobApplyQuestionsModal from '../components/dashboard/student/JobApplyQuestionsModal';
 import JobDescriptionSkeleton from '../components/dashboard/student/JobDescriptionSkeleton';
 import { FaRedo } from 'react-icons/fa';
@@ -49,21 +49,7 @@ const meetsCgpaRequirement = (job, cgpa) => {
   return studentCgpa >= requiredCgpa;
 };
 
-const meetsYopRequirement = (job, batch) => {
-  const jobYop = job?.yop;
-  if (!jobYop || !batch) return true;
-
-  const jobYopInt = parseInt(String(jobYop).trim(), 10);
-  if (Number.isNaN(jobYopInt)) return true;
-
-  const parts = String(batch).split('-').map((p) => p.trim()).filter(Boolean);
-  const endPart = parts.length > 1 ? parts[1] : parts[0];
-  const endNum = endPart ? parseInt(endPart, 10) : NaN;
-  if (Number.isNaN(endNum)) return true;
-
-  const studentYop = endNum < 100 ? 2000 + endNum : endNum;
-  return studentYop <= jobYopInt;
-};
+const meetsYopRequirement = (job, batch) => studentMeetsJobYop(job?.yop, batch);
 
 const JobDescriptionPage = () => {
   const { jobId } = useParams();

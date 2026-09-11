@@ -25,7 +25,7 @@ import {
   FaTimes,
   FaUser,
 } from 'react-icons/fa';
-import { getJobCreatorLabel } from '../../../utils/jobHelpers';
+import { getJobCreatorLabel, formatJobYopDisplay } from '../../../utils/jobHelpers';
 
 // Register GSAP ScrollTrigger plugin
 if (typeof window !== 'undefined') {
@@ -924,7 +924,7 @@ const RequirementsTab = React.memo(({ displayJob, skillsRequired }) => (
             </div>
             <div>
                 <p className="font-semibold text-gray-900 mb-1">Year of Passing</p>
-              <p className="text-sm text-gray-600">{displayJob.yop || displayJob.yearOfPassing || "—"}</p>
+              <p className="text-sm text-gray-600">{formatJobYopDisplay(displayJob.yop || displayJob.yearOfPassing) || "—"}</p>
             </div>
           </div>
           

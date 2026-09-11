@@ -19,6 +19,7 @@ import {
 import { GoChecklist } from "react-icons/go";
 import JobDescriptionSkeleton from "./JobDescriptionSkeleton";
 import { getJob } from '../../../services/jobs';
+import { formatJobYopDisplay } from '../../../utils/jobHelpers';
 
 // Default timeline steps (fallback when no job-specific data)
 const defaultInterviewTimeline = [
@@ -714,7 +715,7 @@ const JobDescription = ({ job, isOpen, onClose }) => {
                         </div>
                         <div>
                           <p className="font-medium">Year of Passing</p>
-                          <p className="text-sm text-gray-600">{displayJob.yop || displayJob.yearOfPassing}</p>
+                          <p className="text-sm text-gray-600">{formatJobYopDisplay(displayJob.yop || displayJob.yearOfPassing)}</p>
                         </div>
                       </div>
                     )}

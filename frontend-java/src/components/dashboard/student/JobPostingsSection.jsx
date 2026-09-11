@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Star, Mail } from 'lucide-react';
 import { JobListingStatus, JOB_LISTING_GRID_COLS } from './JobListingStatus';
+import { formatJobYopRequirement } from '../../../utils/jobHelpers';
 
 export default function JobPostingsSection({
   jobs,
@@ -201,7 +202,7 @@ export default function JobPostingsSection({
                 }
                 // YOP check
                 if (yopNotEligible) {
-                  if (job.yop) failedReasons.push(`YOP requirement: up to ${job.yop}`);
+                  if (job.yop) failedReasons.push(`YOP requirement: ${formatJobYopRequirement(job.yop)}`);
                   else failedReasons.push('YOP requirement not met');
                 }
                 // Deadline check

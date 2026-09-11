@@ -17,7 +17,7 @@ import { getIO } from '../config/socket.js';
 import { getAdminScopeFilter } from '../utils/adminScope.js';
 import { assertAdminJobAccess } from '../utils/adminResourceScope.js';
 import { applyAuditContext } from '../utils/auditContext.js';
-import { studentHasCompleteProfile, studentMeetsJobEligibility } from '../utils/jobEligibility.js';
+import { studentHasCompleteProfile, studentMeetsJobEligibility, normalizeJobYop } from '../utils/jobEligibility.js';
 import { computeDrivePhase, getDrivePhaseLabel } from '../services/drivePhaseService.js';
 import { normalizeCustomQuestions } from '../utils/customQuestions.js';
 
@@ -948,7 +948,7 @@ export async function createJob(req, res) {
       // Eligibility Requirements
       qualification: mappedData.qualification || null,
       specialization: mappedData.specialization || null,
-      yop: mappedData.yop || null,
+      yop: normalizeJobYop(mappedData.yop),
       minCgpa: mappedData.minCgpa || null, // Minimum CGPA requirement (e.g., "7.00", "8.50", "70%")
       gapAllowed: mappedData.gapAllowed || null,
       gapYears: mappedData.gapYears || null,
@@ -1253,6 +1253,10 @@ export async function updateJob(req, res) {
       if (jobUpdateAllowedFields.includes(key) && value !== undefined) {
         finalUpdateData[key] = value;
       }
+    }
+
+    if (finalUpdateData.yop !== undefined) {
+      finalUpdateData.yop = normalizeJobYop(finalUpdateData.yop);
     }
 
     // Map frontend fields to database fields

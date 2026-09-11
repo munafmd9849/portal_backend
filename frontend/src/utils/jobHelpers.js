@@ -111,3 +111,65 @@ export function getJobCreatorLabel(job) {
   if (job?.createdByName) return job.createdByName;
   return null;
 }
+
+export const JOB_YOP_YEAR_MIN = 2020;
+export const JOB_YOP_YEAR_MAX = 2035;
+
+export function jobYopYearOptions(min = JOB_YOP_YEAR_MIN, max = JOB_YOP_YEAR_MAX) {
+  const years = [];
+  for (let year = min; year <= max; year += 1) years.push(year);
+  return years;
+}
+
+export function parseJobYopYears(yop) {
+  if (yop == null || yop === '') return [];
+  const values = Array.isArray(yop) ? yop : String(yop).split(/[,;/|&]+|\band\b/i);
+  const years = [];
+  const seen = new Set();
+  for (const raw of values) {
+    const n = parseInt(String(raw).trim(), 10);
+    if (Number.isNaN(n)) continue;
+    const year = n < 100 ? 2000 + n : n;
+    if (year < 1990 || year > 2100 || seen.has(year)) continue;
+    seen.add(year);
+    years.push(year);
+  }
+  return years.sort((a, b) => a - b);
+}
+
+export function serializeJobYopYears(years) {
+  const parsed = parseJobYopYears(years);
+  return parsed.length ? parsed.join(',') : '';
+}
+
+export function formatJobYopDisplay(yop) {
+  const years = parseJobYopYears(yop);
+  return years.length ? years.join(', ') : (yop ? String(yop) : '');
+}
+
+export function formatJobYopRequirement(yop) {
+  const years = parseJobYopYears(yop);
+  if (years.length === 0) return '';
+  if (years.length === 1) return `up to ${years[0]}`;
+  if (years.length === 2) return `${years[0]} or ${years[1]}`;
+  return `${years.slice(0, -1).join(', ')}, or ${years[years.length - 1]}`;
+}
+
+export function deriveStudentYopFromBatch(batch) {
+  if (!batch) return null;
+  const parts = String(batch).split('-').map((part) => part.trim()).filter(Boolean);
+  const endPart = parts.length > 1 ? parts[1] : parts[0];
+  const endNum = endPart ? parseInt(endPart, 10) : NaN;
+  if (Number.isNaN(endNum)) return null;
+  return endNum < 100 ? 2000 + endNum : endNum;
+}
+
+/** True if the student's batch year satisfies the job YOP field. */
+export function studentMeetsJobYop(jobYop, studentBatch) {
+  const years = parseJobYopYears(jobYop);
+  if (years.length === 0 || !studentBatch) return true;
+  const studentYop = deriveStudentYopFromBatch(studentBatch);
+  if (studentYop == null) return true;
+  if (years.length === 1) return studentYop <= years[0];
+  return years.includes(studentYop);
+}
