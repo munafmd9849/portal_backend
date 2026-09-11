@@ -1,0 +1,125 @@
+server:
+  port: ${PORT:3000}
+  error:
+    include-message: never
+    include-stacktrace: never
+
+spring:
+  application:
+    name: placement-portal
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/placement_portal}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:root123}
+    hikari:
+      maximum-pool-size: ${DATABASE_CONNECTION_LIMIT:10}
+      connection-timeout: ${DATABASE_POOL_TIMEOUT_MS:30000}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+        implicit-strategy: org.hibernate.boot.model.naming.ImplicitNamingStrategyLegacyJpaImpl
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        globally_quoted_identifiers: true
+        globally_quoted_identifiers_skip_column_definitions: true
+    show-sql: false
+  data:
+    redis:
+      url: ${REDIS_URL:redis://localhost:6379}
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.springframework.boot.data.redis.autoconfigure.RedisAutoConfiguration
+      - org.springframework.boot.data.redis.autoconfigure.RedisRepositoriesAutoConfiguration
+  mail:
+    host: ${SMTP_HOST:${EMAIL_HOST:smtp.gmail.com}}
+    port: ${SMTP_PORT:${EMAIL_PORT:587}}
+    username: ${SMTP_USER:${EMAIL_USER:}}
+    password: ${SMTP_PASS:${EMAIL_PASS:}}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: true
+      mail.smtp.connectiontimeout: 15000
+      mail.smtp.timeout: 15000
+      mail.smtp.writetimeout: 15000
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /api-docs
+    tags-sorter: alpha
+    operations-sorter: alpha
+    display-request-duration: true
+  default-produces-media-type: application/json
+  default-consumes-media-type: application/json
+  packages-to-scan: com.pwioi.portal.controller
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+app:
+  frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  cors-origin: ${CORS_ORIGIN:}
+  jwt:
+    secret: ${JWT_SECRET:change-me-in-production-please-use-32chars}
+    refresh-secret: ${JWT_REFRESH_SECRET:${JWT_SECRET:change-me-in-production-please-use-32chars}}
+    expires-in: ${JWT_EXPIRES_IN:1h}
+    refresh-expires-in: ${JWT_REFRESH_EXPIRES_IN:7d}
+  super-admin-email: ${SUPER_ADMIN_EMAIL:}
+  require-email-verified: ${REQUIRE_EMAIL_VERIFIED:true}
+  ai:
+    enabled: ${AI_ENABLED:true}
+    provider: ${AI_PROVIDER:google}
+    google-api-key: ${GOOGLE_AI_API_KEY:}
+    google-model: ${GOOGLE_AI_MODEL:gemini-2.5-flash}
+    mistral-api-key: ${MISTRAL_API_KEY:}
+    mistral-model: ${MISTRAL_MODEL:mistral-large-latest}
+    transcribe-model: ${MISTRAL_TRANSCRIBE_MODEL:voxtral-mini-latest}
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
+    client-secret: ${GOOGLE_CLIENT_SECRET:}
+    sheets-spreadsheet-id: ${GOOGLE_SHEETS_SPREADSHEET_ID:}
+    sheets-service-account-json: ${GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON:}
+  cloudinary:
+    cloud-name: ${CLOUDINARY_CLOUD_NAME:}
+    api-key: ${CLOUDINARY_API_KEY:}
+    api-secret: ${CLOUDINARY_API_SECRET:}
+  judge0:
+    enabled: ${JUDGE0_ENABLED:false}
+    provider: ${JUDGE0_PROVIDER:selfhosted}
+    api-url: ${JUDGE0_API_URL:}
+    auth-token: ${JUDGE0_AUTH_TOKEN:}
+  socket:
+    port: ${SOCKET_PORT:3001}
+  placement:
+    max-active-offers: ${PLACEMENT_MAX_ACTIVE_OFFERS:1}
+    block-when-joined: ${PLACEMENT_BLOCK_WHEN_JOINED:true}
+    block-dual-dream: ${PLACEMENT_BLOCK_DUAL_DREAM:true}
+    min-mocks: ${PLACEMENT_MIN_MOCKS:0}
+    min-assessments: ${PLACEMENT_MIN_ASSESSMENTS:0}
+    super-dream-min-cgpa: ${PLACEMENT_SUPER_DREAM_MIN_CGPA:8}
+  email-from: ${SMTP_FROM:${EMAIL_FROM:noreply@pwioi.com}}
+
+logging:
+  level:
+    com.pwioi.portal: INFO
+    org.springframework.security: WARN

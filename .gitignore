@@ -61,13 +61,8 @@ backend/graphify-out/
 backend/scratch/
 *.html
 !frontend/index.html
+!frontend-java/index.html
 !backend/email-templates/**/*.html
-
-# Java stack lives in a separate repository — do not commit here
-backend-java/
-frontend-java/
-JAVA-STACK.md
-docker-compose.java.yml
 
 # Temp files
 *_tmp.jsx
