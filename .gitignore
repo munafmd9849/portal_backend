@@ -61,7 +61,11 @@ backend/graphify-out/
 backend/scratch/
 *.html
 !frontend/index.html
+!frontend-java/index.html
 !backend/email-templates/**/*.html
+
+# Java API lives in a separate repository — do not commit here
+backend-java/
 
 # Temp files
 *_tmp.jsx
